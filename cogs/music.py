@@ -35,24 +35,35 @@ nodesdown = []
 # 2: Standard
 #    Secondary standard-performance node.
 
+def inherit_from_json(nodename, password):
+    '''Get node host or password from JSON'''
+    with open('nodes.json') as nodedata:
+        data = json.loads(nodedata)
+        nodedata.close()
+    
+    if (password):
+        return data[nodename]['password']
+    else:
+        return data[nodename]['host']
+
 lavalink_nodes = [
     {'enable':True,
      'name':'Moegiiro',
      'id':'eu-moegiiro',
-     'host':'45.65.114.160',
+     'host':inherit_from_json("moegiiro",false),
      'port':6019,
      'region':'europe',
-     'password':'!qto#QTs83LZET',
+     'password':inherit_from_json("moegiiro",true),
      'type':0,
      'secure':False
      },
     {'enable':True,
      'name':'Hinata',
      'id':'uk-hinata',
-     'host':'pnode2.danbot.host',
+     'host':inherit_from_json("hinata",false),
      'port':7258,
      'region':'uk',
-     'password':'sEp7PM4QaSkY@$',
+     'password':inherit_from_json("hinata",true),
      'type':1,
      'secure':False
      },
