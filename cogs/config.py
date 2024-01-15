@@ -4,9 +4,7 @@ import ast
 import aiofiles
 from discord.ext import commands
 
-green_id = 356456393491873795
-itsasheer_id = 549647456837828650
-admin_ids = [green_id, itsasheer_id]
+admin_ids = [356456393491873795, 549647456837828650]
 
 restricted_rooms = ["test"]
 
