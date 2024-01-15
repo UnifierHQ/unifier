@@ -47,37 +47,16 @@ def inherit_from_json(nodename, password):
         return data[nodename]['host']
 
 lavalink_nodes = [
-    {'enable':True,
-     'name':'Moegiiro',
-     'id':'eu-moegiiro',
-     'host':inherit_from_json("moegiiro",false),
-     'port':6019,
-     'region':'europe',
-     'password':inherit_from_json("moegiiro",true),
-     'type':0,
-     'secure':False
-     },
-    {'enable':True,
-     'name':'Hinata',
-     'id':'uk-hinata',
-     'host':inherit_from_json("hinata",false),
-     'port':7258,
-     'region':'uk',
-     'password':inherit_from_json("hinata",true),
-     'type':1,
-     'secure':False
-     },
 ##    {'enable':False,
-##     'name':'[Testing] Sillydev - Berry',
-##     'id':'eu-berry',
-##     'host':'95.214.180.27',
-##     'port':6040,
-##     'password':'discord.gg/sillydev',
+##     'name':'Example',
+##     'id':'eu-example',
+##     'host':'127.0.0.1',
+##     'port':2333,
+##     'password':'youshallnotpass',
 ##     'region':'europe',
-##     'type':2,
+##     'type':0,
 ##     'secure':False
-##     }
-    
+##     }    
     ]
 
 class DevNull:
