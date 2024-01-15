@@ -36,37 +36,16 @@ nodesdown = []
 #    Secondary standard-performance node.
 
 lavalink_nodes = [
-    {'enable':True,
-     'name':'Moegiiro',
-     'id':'eu-moegiiro',
-     'host':'45.65.114.160',
-     'port':6019,
-     'region':'europe',
-     'password':'!qto#QTs83LZET',
-     'type':0,
-     'secure':False
-     },
-    {'enable':True,
-     'name':'Hinata',
-     'id':'uk-hinata',
-     'host':'pnode2.danbot.host',
-     'port':7258,
-     'region':'uk',
-     'password':'sEp7PM4QaSkY@$',
-     'type':1,
-     'secure':False
-     },
 ##    {'enable':False,
-##     'name':'[Testing] Sillydev - Berry',
-##     'id':'eu-berry',
-##     'host':'95.214.180.27',
-##     'port':6040,
-##     'password':'discord.gg/sillydev',
+##     'name':'Example',
+##     'id':'eu-example',
+##     'host':'127.0.0.1',
+##     'port':2333,
+##     'password':'youshallnotpass',
 ##     'region':'europe',
-##     'type':2,
+##     'type':0,
 ##     'secure':False
-##     }
-    
+##     }    
     ]
 
 class DevNull:
