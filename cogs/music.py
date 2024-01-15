@@ -35,17 +35,6 @@ nodesdown = []
 # 2: Standard
 #    Secondary standard-performance node.
 
-def inherit_from_json(nodename, password):
-    '''Get node host or password from JSON'''
-    with open('nodes.json') as nodedata:
-        data = json.loads(nodedata)
-        nodedata.close()
-    
-    if (password):
-        return data[nodename]['password']
-    else:
-        return data[nodename]['host']
-
 lavalink_nodes = [
 ##    {'enable':False,
 ##     'name':'Example',
