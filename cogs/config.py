@@ -8,6 +8,8 @@ admin_ids = [356456393491873795, 549647456837828650]
 
 restricted_rooms = ["test"]
 
+db = {} # In process, DO NOT MERGE
+
 def is_user_admin(id):
     try:
         global admin_ids
