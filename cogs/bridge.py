@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
-moderators = [356456393491873795]
+moderators = []
 
 x = open('nicknames.txt','r',encoding='utf-8')
 nicknames = x.read()
@@ -351,7 +351,8 @@ class Bridge(commands.Cog):
         if (not f'{message.guild.id}' in data and
             not f'{message.guild.id}' in data2 and
             not f'{message.guild.id}' in data3 and
-            not f'{message.guild.id}' in data4) or message.author.id==1187093090415149056:
+            not f'{message.guild.id}' in data4 and
+            not f'{message.guild.id}' in data5) or message.author.id==1187093090415149056:
             return
 
         try:
@@ -610,19 +611,26 @@ class Bridge(commands.Cog):
                                     )
                             else:
                                 try:
+                                    globalmoji = False
                                     if msg.webhook_id==None:
                                         reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
                                     else:
-                                        for key in self.bot.bridged:
-                                            entry = self.bot.bridged[key]
-                                            if msg.id in entry.values():
-                                                try:
-                                                    reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
-                                                except:
-                                                    msg = await webhook.channel.fetch_message(int(key))
-                                                    if not msg==None:
-                                                        reference_msg_id = int(key)
-                                                break
+                                        try:
+                                            reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
+                                            globalmoji = True
+                                        except:
+                                            for key in self.bot.bridged:
+                                                entry = self.bot.bridged[key]
+                                                if msg.id in entry.values():
+                                                    try:
+                                                        reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
+                                                    except:
+                                                        msg = await webhook.channel.fetch_message(int(key))
+                                                        if not msg==None:
+                                                            reference_msg_id = int(key)
+                                                    break
+                                    if globalmoji:
+                                        author = f'@{msg.author.name}'
                                     if len(msg.content) > 80:
                                         trimmed = msg.content[:-(len(msg.content)-77)]+'...'
                                     else:
@@ -759,7 +767,11 @@ class Bridge(commands.Cog):
             data5 = ast.literal_eval(data5)
             await x.close()
 
-        if not f'{message.guild.id}' in data or message.author.id==1187093090415149056:
+        if (not f'{message.guild.id}' in data and
+            not f'{message.guild.id}' in data2 and
+            not f'{message.guild.id}' in data3 and
+            not f'{message.guild.id}' in data4 and
+            not f'{message.guild.id}' in data5) or message.author.id==1187093090415149056:
             return
 
         hooks = await message.channel.webhooks()
