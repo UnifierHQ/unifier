@@ -25,6 +25,8 @@ class Bridge(commands.Cog):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = {}
+        if not hasattr(self.bot, 'prs'):
+            self.bot.prs = {}
         if not hasattr(self.bot, 'notified'):
             self.bot.notified = []
         if not hasattr(self.bot, 'bridged_emojis'):
