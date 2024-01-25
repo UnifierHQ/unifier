@@ -6,6 +6,8 @@ from discord.ext import commands
 import traceback
 import time
 from datetime import datetime
+import random
+import string
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 moderators = []
@@ -19,6 +21,13 @@ def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
+
+def genid():
+    value = ''
+    for i in range(6):
+        letter = random.choice(string.ascii_lowercase+string.digits)
+        value = '{0}{1}'.format(value,letter)
+    return value
 
 class Bridge(commands.Cog):
     def __init__(self,bot):
@@ -492,7 +501,13 @@ class Bridge(commands.Cog):
                 message.type==discord.MessageType.reply or
                 message.type==discord.MessageType.application_command):
             return
-        
+
+        is_pr = False
+        if origin_room==1:
+            is_pr = True
+            pr_id = genid()
+            pr_ids = []
+        # Forwarding
         for key in data:
             blocked = False
             sameguild = False
