@@ -506,7 +506,7 @@ class Bridge(commands.Cog):
                     if ref_id=='latest' or ref_id=='newest' or ref_id=='recent':
                         ref_id = list(self.bot.prs.keys())[len(list(self.bot.prs.keys()))-1]
                     if not ref_id in list(self.bot.prs.keys()):
-                        passed = False
+                        return await ctx.send('This isn\'t a valid PR ID!')
                     else:
                         content = components[1]
                         while content.startswith(' ') or content.startswith('\n'):
