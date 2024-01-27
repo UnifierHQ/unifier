@@ -723,15 +723,16 @@ class Bridge(commands.Cog):
                                             ref_btns = discord.ui.ActionRow(
                                                 discord.ui.Button(style=discord.ButtonStyle.link, label=f'Reference to PR #{ref_id}',
                                                                   url=f'https://discord.com/channels/{webhook.guild_id}/{hook.channel_id}/{reference_msg_id}',
+                                                                  emoji='\U0001F517',
                                                                   disabled=False)
                                                 )
                                         except:
                                             ref_btns = discord.ui.ActionRow(
-                                                discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Reference to PR #{ref_id}',disabled=True)
+                                                discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Reference to PR #{ref_id}',emoji='\U0001F517',disabled=True)
                                                 )
                                     else:
                                         ref_btns = discord.ui.ActionRow(
-                                            discord.ui.Button(style=discord.ButtonStyle.blurple, label=f'PR ID: {pr_id}',disabled=True)
+                                            discord.ui.Button(style=discord.ButtonStyle.blurple, label=f'PR ID: {pr_id}',emoji='\U0001F4AC',disabled=True)
                                             )
                                     try:
                                         components = discord.ui.MessageComponents(ref_btns,btns,btns2)
