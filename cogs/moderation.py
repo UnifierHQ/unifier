@@ -6,7 +6,7 @@ import hashlib
 from datetime import datetime
 from discord.ext import commands
 
-moderators = [356456393491873795]
+moderators = []
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -75,6 +75,8 @@ class Moderation(commands.Cog):
                 return await ctx.send('You can\'t restrict your own server :thinking:')
         except:
             return await ctx.send('Invalid user/server!')
+        if userid in moderators:
+            return await ctx.send('UniChat moderators are immune to blocks!\n(Though, do feel free to report anyone who abuses this immunity.)')
         try:
             async with aiofiles.open(f'{ctx.guild.id}_bans.txt','r',encoding='utf-8') as x:
                 banlist = await x.read()
@@ -116,6 +118,8 @@ class Moderation(commands.Cog):
                 return await ctx.send('You can\'t restrict yourself :thinking:')
         except:
             return await ctx.send('Invalid user/server!')
+        if userid in moderators and not ctx.author.id==356456393491873795:
+            return await ctx.send('ok guys no friendly fire pls thanks')
         try:
             async with aiofiles.open(f'bans.txt','r',encoding='utf-8') as x:
                 banlist = await x.read()
@@ -129,7 +133,7 @@ class Moderation(commands.Cog):
         nt = ct + duration
         if forever:
             nt = 0
-        banlist.update({f'{userid}':duration})
+        banlist.update({f'{userid}':nt})
         x = open(f'bans.txt','w+',encoding='utf-8')
         x.write(f'{banlist}')
         x.close()
@@ -193,10 +197,10 @@ class Moderation(commands.Cog):
                 banlist = ast.literal_eval(banlist)
                 await x.close()
         except:
-            banlist = []
-        if not userid in banlist:
+            banlist = {}
+        if not f'{userid}' in list(banlist.keys()):
             return await ctx.send('User/server not banned!')
-        banlist.remove(userid)
+        banlist.pop(f'{userid}')
         x = open(f'bans.txt','w+',encoding='utf-8')
         x.write(f'{banlist}')
         x.close()
