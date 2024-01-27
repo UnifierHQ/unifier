@@ -315,7 +315,7 @@ class Bridge(commands.Cog):
             cdt = datetime.utcnow()
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
-                if ct >= banuntil:
+                if ct >= banuntil and not banuntil==0:
                     gbans.pop(f'{message.author.id}')
                     x = open('bans.txt','w+',encoding='utf-8')
                     x.write(f'{gbans}')
@@ -324,7 +324,7 @@ class Bridge(commands.Cog):
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
-                if ct >= banuntil:
+                if ct >= banuntil and not banuntil==0:
                     gbans.pop(f'{message.guild.id}')
                     x = open('bans.txt','w+',encoding='utf-8')
                     x.write(f'{gbans}')
@@ -519,7 +519,7 @@ class Bridge(commands.Cog):
                 identifier = ''
                 if not emojified:
                     continue
-            if key in gbans:
+            if key in list(gbans.keys()):
                 continue
             try:
                 async with aiofiles.open(f'{key}_bans.txt','r',encoding='utf-8') as x:
@@ -528,7 +528,7 @@ class Bridge(commands.Cog):
                     await x.close()
             except:
                 banlist = []
-            if message.author.id in banlist or message.guild.id in banlist:
+            if (message.author.id in banlist or message.guild.id in banlist) and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
             sent = False
@@ -569,7 +569,7 @@ class Bridge(commands.Cog):
                         else:
                             if f'{msg.author.id}' in gbans or f'{msg.guild.id}' in gbans:
                                 banned = True
-                            elif msg.author.id in banlist or msg.guild.id in banlist:
+                            elif (msg.author.id in banlist or msg.guild.id in banlist) and not msg.author.id in moderators:
                                 blocked = True
                             author = f'{msg.author.name}#{msg.author.discriminator}'
                             if msg.author.discriminator=='0':
@@ -669,6 +669,8 @@ class Bridge(commands.Cog):
                                         discord.ui.Button(style=ButtonStyle.gray, label=f'Replying to [unknown]',disabled=True)
                                         )
                             try:
+                                if blocked or banned:
+                                    raise ValueError()
                                 components = discord.ui.MessageComponents(btns,btns2)
                             except:
                                 components = discord.ui.MessageComponents(btns)
@@ -750,8 +752,27 @@ class Bridge(commands.Cog):
         except:
             gbans = {}
 
-        if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
-            return
+        if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
+            ct = time.time()
+            cdt = datetime.utcnow()
+            if f'{message.author.id}' in list(gbans.keys()):
+                banuntil = gbans[f'{message.author.id}']
+                if ct >= banuntil and not banuntil==0:
+                    gbans.pop(f'{message.author.id}')
+                    x = open('bans.txt','w+',encoding='utf-8')
+                    x.write(f'{gbans}')
+                    x.close()
+                else:
+                    return
+            if f'{message.guild.id}' in list(gbans.keys()):
+                banuntil = gbans[f'{message.guild.id}']
+                if ct >= banuntil and not banuntil==0:
+                    gbans.pop(f'{message.guild.id}')
+                    x = open('bans.txt','w+',encoding='utf-8')
+                    x.write(f'{gbans}')
+                    x.close()
+                else:
+                    return
         
         if not message.webhook_id==None:
             # webhook msg, dont bother
@@ -843,7 +864,7 @@ class Bridge(commands.Cog):
                     await x.close()
             except:
                 banlist = []
-            if message.author.id in banlist:
+            if message.author.id in banlist and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
             sent = False
@@ -996,7 +1017,7 @@ class Bridge(commands.Cog):
                     await x.close()
             except:
                 banlist = []
-            if message.author.id in banlist:
+            if message.author.id in banlist and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
             sent = False
