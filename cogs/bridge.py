@@ -530,12 +530,12 @@ class Bridge(commands.Cog):
                 await message.delete()
             except:
                 if is_pr_ref:
-                    pass
+                    return await message.channel.send('I need to be able to delete messages in order to process PR references.',reference=message)
                 elif is_pr and not emojified:
                     pr_deletefail = True
                     await message.channel.send(f'Assigned PR ID: `{pr_id}`\nUse this to reference this PR message.',reference=message)
                 else:
-                    return await message.channel.send('I need to be able to delete messages in order to process global emojis.')
+                    return await message.channel.send('I need to be able to delete messages in order to process global emojis.',reference=message)
 
         identifier_cache = identifier
         banned = False
