@@ -192,7 +192,7 @@ class Config(commands.Cog):
     
     @commands.command(aliases=['link','connect','federate','bridge'])
     async def bind(self,ctx,*,room=''):
-        if not ctx.author.guild_permissions.administrator and not is_user_admin(ctx.author.id):
+        if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send('Only Green and ItsAsheer can bind channels to restricted rooms.')
@@ -275,7 +275,7 @@ class Config(commands.Cog):
     async def unbind(self,ctx,*,room=''):
         if room=='':
             return await ctx.send('You must specify the room to unbind from.')
-        if not ctx.author.guild_permissions.administrator and not is_user_admin(ctx.author.id):
+        if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
         try:
             data = self.bot.db['rooms'][room]
