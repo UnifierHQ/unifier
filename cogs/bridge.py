@@ -23,14 +23,14 @@ def genid():
         value = '{0}{1}'.format(value,letter)
     return value
 
-def is_room_locked(room):
+def is_room_locked(room,db):
     try:
-        global locked
-        if room in locked:
+        if room in db['locked']:
             return True
         else:
             return False
     except:
+        traceback.print_exc()
         return False
 
 class Bridge(commands.Cog):
@@ -359,6 +359,10 @@ class Bridge(commands.Cog):
                 break
 
         if not found:
+            return
+
+        roomname = list(self.bot.db['rooms'].keys())[origin_room]
+        if is_room_locked(roomname,self.bot.db) and not message.author.id in self.bot.admins:
             return
 
         og_embeds = []
@@ -849,6 +853,10 @@ class Bridge(commands.Cog):
                 break
 
         if not found:
+            return
+
+        roomname = list(self.bot.db['rooms'].keys())[origin_room]
+        if is_room_locked(roomname,self.bot.db) and not message.author.id in self.bot.admins:
             return
 
         user_hash = encrypt_string(f'{message.author.id}')[:3]
