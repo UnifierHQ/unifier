@@ -6,9 +6,11 @@ from discord.ext import commands
 import traceback
 import time
 from datetime import datetime
+import random
+import string
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
-moderators = [356456393491873795]
+moderators = []
 
 x = open('nicknames.txt','r',encoding='utf-8')
 nicknames = x.read()
@@ -20,11 +22,20 @@ def encrypt_string(hash_string):
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
 
+def genid():
+    value = ''
+    for i in range(6):
+        letter = random.choice(string.ascii_lowercase+string.digits)
+        value = '{0}{1}'.format(value,letter)
+    return value
+
 class Bridge(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = {}
+        if not hasattr(self.bot, 'prs'):
+            self.bot.prs = {}
         if not hasattr(self.bot, 'notified'):
             self.bot.notified = []
         if not hasattr(self.bot, 'bridged_emojis'):
@@ -304,7 +315,7 @@ class Bridge(commands.Cog):
             cdt = datetime.utcnow()
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
-                if ct >= banuntil:
+                if ct >= banuntil and not banuntil==0:
                     gbans.pop(f'{message.author.id}')
                     x = open('bans.txt','w+',encoding='utf-8')
                     x.write(f'{gbans}')
@@ -313,7 +324,7 @@ class Bridge(commands.Cog):
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
-                if ct >= banuntil:
+                if ct >= banuntil and not banuntil==0:
                     gbans.pop(f'{message.guild.id}')
                     x = open('bans.txt','w+',encoding='utf-8')
                     x.write(f'{gbans}')
@@ -349,7 +360,8 @@ class Bridge(commands.Cog):
         if (not f'{message.guild.id}' in data and
             not f'{message.guild.id}' in data2 and
             not f'{message.guild.id}' in data3 and
-            not f'{message.guild.id}' in data4) or message.author.id==1187093090415149056:
+            not f'{message.guild.id}' in data4 and
+            not f'{message.guild.id}' in data5) or message.author.id==1187093090415149056:
             return
 
         try:
@@ -476,11 +488,54 @@ class Bridge(commands.Cog):
                 message.content = message.content.replace(f'[emoji{index}: {name}]',emoji_text,1)
             emojified = True
 
-        if emojified:
+        is_pr = False
+        is_pr_ref = False
+        ref_id = ''
+        if origin_room==1 and message.guild.id==1097238317881380984:
+            is_pr = True
+            pr_id = genid()
+            pr_ids = {}
+        if origin_room==2 and message.guild.id==1097238317881380984:
+            passed = True
+            if message.content.startswith('['):
+                components = message.content.split(']',1)
+                if len(components)==1:
+                    passed = False
+                else:
+                    ref_id = components[0].replace('[','')
+                    if ref_id=='latest' or ref_id=='newest' or ref_id=='recent':
+                        ref_id = list(self.bot.prs.keys())[len(list(self.bot.prs.keys()))-1]
+                    if not ref_id in list(self.bot.prs.keys()):
+                        return await ctx.send('This isn\'t a valid PR ID!')
+                    else:
+                        content = components[1]
+                        while content.startswith(' ') or content.startswith('\n'):
+                            if content.startswith(' '):
+                                content = content.replace(' ','',1)
+                            else:
+                                content = content.replace('\n','',1)
+                        if len(content)==0:
+                            passed = False
+            else:
+                passed = False
+            if passed:
+                is_pr = True
+                is_pr_ref = True
+                message.content = content
+
+        pr_deletefail = False
+
+        if emojified or is_pr:
             try:
                 await message.delete()
             except:
-                return await message.channel.send('I need to be able to delete messages in order to process global emojis.')
+                if is_pr_ref:
+                    return await message.channel.send('I need to be able to delete messages in order to process PR references.',reference=message)
+                elif is_pr and not emojified:
+                    pr_deletefail = True
+                    await message.channel.send(f'Assigned PR ID: `{pr_id}`\nUse this to reference this PR message.',reference=message)
+                else:
+                    return await message.channel.send('I need to be able to delete messages in order to process global emojis.',reference=message)
 
         identifier_cache = identifier
         banned = False
@@ -490,6 +545,7 @@ class Bridge(commands.Cog):
                 message.type==discord.MessageType.application_command):
             return
         
+        # Forwarding
         for key in data:
             blocked = False
             sameguild = False
@@ -499,9 +555,11 @@ class Bridge(commands.Cog):
             if int(key)==message.guild.id:
                 sameguild = True
                 identifier = ''
-                if not emojified:
+                if not emojified and not is_pr or pr_deletefail:
+                    if is_pr and not is_pr_ref:
+                        pr_ids.update({f'{message.guild.id}':message.id})
                     continue
-            if key in gbans:
+            if key in list(gbans.keys()):
                 continue
             try:
                 async with aiofiles.open(f'{key}_bans.txt','r',encoding='utf-8') as x:
@@ -510,7 +568,7 @@ class Bridge(commands.Cog):
                     await x.close()
             except:
                 banlist = []
-            if message.author.id in banlist or message.guild.id in banlist:
+            if (message.author.id in banlist or message.guild.id in banlist) and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
             sent = False
@@ -538,113 +596,158 @@ class Bridge(commands.Cog):
                         file = await attachment.to_file(use_cached=True,spoiler=attachment.is_spoiler())
                         files.append(file)
                         index += 1
-                    if not message.reference==None:
-                        msg = message.reference.cached_message
-                        if msg==None:
-                            msg = await message.channel.fetch_message(message.reference.message_id)
+                    if not message.reference==None or is_pr:
+                        if not message.reference==None:
+                            msg = message.reference.cached_message
+                            if msg==None:
+                                msg = await message.channel.fetch_message(message.reference.message_id)
 
-                        if not msg.webhook_id==None:
-                            author = f'@{msg.author.name}'
-                            identifier_resp = author.split('(')
-                            identifier_resp = identifier_resp[len(identifier_resp)-1]
-                            author = author[:-(2+len(identifier_resp))]
-                        else:
-                            if f'{msg.author.id}' in gbans or f'{msg.guild.id}' in gbans:
-                                banned = True
-                            elif msg.author.id in banlist or msg.guild.id in banlist:
-                                blocked = True
-                            author = f'{msg.author.name}#{msg.author.discriminator}'
-                            if msg.author.discriminator=='0':
+                            if not msg.webhook_id==None:
                                 author = f'@{msg.author.name}'
-                        content = msg.content
-                        if len(msg.content)==0:
-                            if len(msg.attachments)==0:
-                                if len(msg.embeds) > 0:
-                                    content = '[embed]'
-                                else:
-                                    content = '[no content]'
+                                identifier_resp = author.split('(')
+                                identifier_resp = identifier_resp[len(identifier_resp)-1]
+                                author = author[:-(2+len(identifier_resp))]
                             else:
-                                content = ''
-                                for attachment in msg.attachments:
-                                    if content=='':
-                                        content = f'[{attachment.filename}]'
+                                if f'{msg.author.id}' in gbans or f'{msg.guild.id}' in gbans:
+                                    banned = True
+                                elif (msg.author.id in banlist or msg.guild.id in banlist) and not msg.author.id in moderators:
+                                    blocked = True
+                                author = f'{msg.author.name}#{msg.author.discriminator}'
+                                if msg.author.discriminator=='0':
+                                    author = f'@{msg.author.name}'
+                            content = msg.content
+                            if len(msg.content)==0:
+                                if len(msg.attachments)==0:
+                                    if len(msg.embeds) > 0:
+                                        content = '[embed]'
                                     else:
-                                        content = f'{content}\n[{attachment.filename}]'
-                        if banned or blocked:
-                            author = '[hidden]'
-                            if banned:
-                                content = '**GLOBAL BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a global banned user or server. Global bans are placed on users and servers that break UniChat rules continuously or/and severely.'
-                            elif blocked:
-                                content = '**SERVER BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a server banned user or server. Server bans are placed on users and servers by this server\'s moderators.\nAsk them to unblock the origin user or server.'
-                        embed = discord.Embed(title=f'Replying to {author}',description=content,color=0xeba134)
-                        if banned or blocked:
-                            embed.color = 0xff0000
-                        if not msg.author.avatar==None and not banned and not blocked:
-                            embed.set_author(name=author,icon_url=msg.author.avatar.url)
-                        else:
-                            embed.set_author(name=author)
+                                        content = '[no content]'
+                                else:
+                                    content = ''
+                                    for attachment in msg.attachments:
+                                        if content=='':
+                                            content = f'[{attachment.filename}]'
+                                        else:
+                                            content = f'{content}\n[{attachment.filename}]'
+                            if banned or blocked:
+                                author = '[hidden]'
+                                if banned:
+                                    content = '**GLOBAL BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a global banned user or server. Global bans are placed on users and servers that break UniChat rules continuously or/and severely.'
+                                elif blocked:
+                                    content = '**SERVER BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a server banned user or server. Server bans are placed on users and servers by this server\'s moderators.\nAsk them to unblock the origin user or server.'
+                            embed = discord.Embed(title=f'Replying to {author}',description=content,color=0xeba134)
+                            if banned or blocked:
+                                embed.color = 0xff0000
+                            if not msg.author.avatar==None and not banned and not blocked:
+                                embed.set_author(name=author,icon_url=msg.author.avatar.url)
+                            else:
+                                embed.set_author(name=author)
                         embeds = og_embeds.copy()
                         components = None
-                        checked_embeds = []
-                        for embed in embeds:
-                            try:
-                                if not (embed.title.startswith('Replying to') and embed.color==0xeba134 or
-                                    embed.title=='Replying to [hidden]' and embed.color==0xff0000):
-                                    checked_embeds.append(embed)
-                            except:
-                                ## it's not rich so append anyways
-                                checked_embeds.append(embed)
                         if False: #len(checked_embeds)==0: - embeds disabled for now
                             embeds = [embed]
                         else:
-                            if not message.author.bot:
-                                embeds = []
-                            else:
-                                embeds = message.embeds
-                            ButtonStyle = discord.ButtonStyle
-                            if banned or blocked:
-                                btns = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.red, label=f'Replying to [hidden]',disabled=True)
-                                    )
-                            else:
-                                try:
-                                    if msg.webhook_id==None:
-                                        reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
-                                    else:
-                                        for key in self.bot.bridged:
-                                            entry = self.bot.bridged[key]
-                                            if msg.id in entry.values():
-                                                try:
-                                                    reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
-                                                except:
-                                                    msg = await webhook.channel.fetch_message(int(key))
-                                                    if not msg==None:
-                                                        reference_msg_id = int(key)
-                                                break
-                                    if len(msg.content) > 80:
-                                        trimmed = msg.content[:-(len(msg.content)-77)]+'...'
-                                    else:
-                                        trimmed = msg.content
-                                    trimmed = trimmed.replace('\n',' ')
+                            if not message.reference==None:
+                                if not message.author.bot:
+                                    embeds = []
+                                else:
+                                    embeds = message.embeds
+                                ButtonStyle = discord.ButtonStyle
+                                if banned or blocked:
                                     btns = discord.ui.ActionRow(
-                                        discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',disabled=False,
-                                                          url=f'https://discord.com/channels/{webhook.guild_id}/{webhook.channel_id}/{reference_msg_id}')
+                                        discord.ui.Button(style=ButtonStyle.red, label=f'Replying to [hidden]',disabled=True)
                                         )
-                                    if len(trimmed) > 0:
-                                        btns2 = discord.ui.ActionRow(
-                                            discord.ui.Button(style=ButtonStyle.blurple, label=trimmed, disabled=True)
+                                else:
+                                    try:
+                                        globalmoji = False
+                                        if msg.webhook_id==None:
+                                            reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
+                                        else:
+                                            try:
+                                                reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
+                                                globalmoji = True
+                                            except:
+                                                for key in self.bot.bridged:
+                                                    entry = self.bot.bridged[key]
+                                                    if msg.id in entry.values():
+                                                        try:
+                                                            reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
+                                                        except:
+                                                            msg = await webhook.channel.fetch_message(int(key))
+                                                            if not msg==None:
+                                                                reference_msg_id = int(key)
+                                                        break
+                                        if globalmoji:
+                                            author = f'@{msg.author.name}'
+                                        if len(msg.content) > 80:
+                                            trimmed = msg.content[:-(len(msg.content)-77)]+'...'
+                                        else:
+                                            trimmed = msg.content
+                                        trimmed = trimmed.replace('\n',' ')
+                                        btns = discord.ui.ActionRow(
+                                            discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',disabled=False,
+                                                              url=f'https://discord.com/channels/{webhook.guild_id}/{webhook.channel_id}/{reference_msg_id}')
                                             )
-                                    else:
-                                        btns2 = discord.ui.ActionRow(
-                                            discord.ui.Button(style=ButtonStyle.blurple, label=f'x{len(msg.embeds)+len(msg.attachments)}', emoji='\U0001F3DE',disabled=True)
+                                        if len(trimmed) > 0:
+                                            btns2 = discord.ui.ActionRow(
+                                                discord.ui.Button(style=ButtonStyle.blurple, label=trimmed, disabled=True)
+                                                )
+                                        else:
+                                            btns2 = discord.ui.ActionRow(
+                                                discord.ui.Button(style=ButtonStyle.blurple, label=f'x{len(msg.embeds)+len(msg.attachments)}', emoji='\U0001F3DE',disabled=True)
+                                                )
+                                    except:
+                                        traceback.print_exc()
+                                        if is_pr_ref and sameguild:
+                                            btns = discord.ui.ActionRow(
+                                            discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',disabled=False,
+                                                              url=f'https://discord.com/channels/{webhook.guild_id}/{webhook.channel_id}/{message.reference.message_id}')
                                             )
-                                except:
-                                    traceback.print_exc()
-                                    btns = discord.ui.ActionRow(
-                                        discord.ui.Button(style=ButtonStyle.gray, label=f'Replying to [unknown]',disabled=True)
-                                        )
+                                        else:
+                                            if msg.author.id==self.bot.user.id:
+                                                btns = discord.ui.ActionRow(
+                                                    discord.ui.Button(style=ButtonStyle.gray, label=f'Replying to [system message]',disabled=True)
+                                                    )
+                                            else:
+                                                btns = discord.ui.ActionRow(
+                                                    discord.ui.Button(style=ButtonStyle.gray, label=f'Replying to [unknown]',disabled=True)
+                                                    )
                             try:
-                                components = discord.ui.MessageComponents(btns,btns2)
+                                if blocked or banned:
+                                    raise ValueError()
+                                if is_pr:
+                                    if is_pr_ref:
+                                        try:
+                                            hook = data2.setdefault(f'{webhook.guild.id}', [])[0]
+                                            hooks_2 = await webhook.guild.webhooks()
+                                            for hook_obj in hooks_2:
+                                                if hook_obj.id==hook:
+                                                    hook = hook_obj
+                                                    break
+                                            reference_msg_id = self.bot.prs[ref_id][f'{webhook.guild_id}']
+                                            ref_btns = discord.ui.ActionRow(
+                                                discord.ui.Button(style=discord.ButtonStyle.link, label=f'Reference to PR #{ref_id}',
+                                                                  url=f'https://discord.com/channels/{webhook.guild_id}/{hook.channel_id}/{reference_msg_id}',
+                                                                  emoji='\U0001F517',
+                                                                  disabled=False)
+                                                )
+                                        except:
+                                            ref_btns = discord.ui.ActionRow(
+                                                discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Reference to PR #{ref_id}',emoji='\U0001F517',disabled=True)
+                                                )
+                                    else:
+                                        ref_btns = discord.ui.ActionRow(
+                                            discord.ui.Button(style=discord.ButtonStyle.blurple, label=f'PR ID: {pr_id}',emoji='\U0001F4AC',disabled=True)
+                                            )
+                                    try:
+                                        components = discord.ui.MessageComponents(ref_btns,btns,btns2)
+                                    except:
+                                        try:
+                                            components = discord.ui.MessageComponents(ref_btns,btns)
+                                        except:
+                                            components = discord.ui.MessageComponents(ref_btns)
+                                else:
+                                    components = discord.ui.MessageComponents(btns,btns2)
                             except:
                                 components = discord.ui.MessageComponents(btns)
                         author_resp = nicknames.setdefault(f'{message.author.id}', message.author.global_name)
@@ -660,6 +763,8 @@ class Bridge(commands.Cog):
                                 sameguild_id = msg.id
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
+                            if is_pr and not is_pr_ref:
+                                pr_ids.update({f'{webhook.guild_id}':msg.id})
                         except discord.HTTPException as e:
                             if e.code==413:
                                 files = []
@@ -671,6 +776,8 @@ class Bridge(commands.Cog):
                                 sameguild_id = msg.id
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
+                            if is_pr and not is_pr_ref:
+                                pr_ids.update({f'{webhook.guild_id}':msg.id})
                     else:
                         if message.author.bot:
                             embeds = message.embeds
@@ -700,6 +807,8 @@ class Bridge(commands.Cog):
                                 sameguild_id = msg.id
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
+        if is_pr and not is_pr_ref:
+            self.bot.prs.update({pr_id:pr_ids})
         if emojified:
             self.bot.bridged.update({f'{sameguild_id}':hookmsg_ids})
         else:
@@ -725,8 +834,27 @@ class Bridge(commands.Cog):
         except:
             gbans = {}
 
-        if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
-            return
+        if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
+            ct = time.time()
+            cdt = datetime.utcnow()
+            if f'{message.author.id}' in list(gbans.keys()):
+                banuntil = gbans[f'{message.author.id}']
+                if ct >= banuntil and not banuntil==0:
+                    gbans.pop(f'{message.author.id}')
+                    x = open('bans.txt','w+',encoding='utf-8')
+                    x.write(f'{gbans}')
+                    x.close()
+                else:
+                    return
+            if f'{message.guild.id}' in list(gbans.keys()):
+                banuntil = gbans[f'{message.guild.id}']
+                if ct >= banuntil and not banuntil==0:
+                    gbans.pop(f'{message.guild.id}')
+                    x = open('bans.txt','w+',encoding='utf-8')
+                    x.write(f'{gbans}')
+                    x.close()
+                else:
+                    return
         
         if not message.webhook_id==None:
             # webhook msg, dont bother
@@ -757,7 +885,11 @@ class Bridge(commands.Cog):
             data5 = ast.literal_eval(data5)
             await x.close()
 
-        if not f'{message.guild.id}' in data or message.author.id==1187093090415149056:
+        if (not f'{message.guild.id}' in data and
+            not f'{message.guild.id}' in data2 and
+            not f'{message.guild.id}' in data3 and
+            not f'{message.guild.id}' in data4 and
+            not f'{message.guild.id}' in data5) or message.author.id==1187093090415149056:
             return
 
         hooks = await message.channel.webhooks()
@@ -814,7 +946,7 @@ class Bridge(commands.Cog):
                     await x.close()
             except:
                 banlist = []
-            if message.author.id in banlist:
+            if message.author.id in banlist and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
             sent = False
@@ -967,7 +1099,7 @@ class Bridge(commands.Cog):
                     await x.close()
             except:
                 banlist = []
-            if message.author.id in banlist:
+            if message.author.id in banlist and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
             sent = False
