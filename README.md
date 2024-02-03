@@ -1,3 +1,4 @@
+⚠️ This is an archive. Please don't modify this. ⚠️
 # Unifier
 A simple bot to unite Discord servers with webhooks
 
