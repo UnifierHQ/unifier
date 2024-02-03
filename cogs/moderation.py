@@ -178,7 +178,20 @@ class Moderation(commands.Cog):
         if not f'{userid}' in list(banlist.keys()):
             return await ctx.send('User/server not banned!')
         self.bot.db['banned'].pop(f'{userid}')
+        user = self.bot.get_user(userid)
         self.bot.db.save_data()
+        if ctx.author.discriminator=='0':
+            mod = f'@{ctx.author.name}'
+        else:
+            mod = f'{ctx.author.name}#{ctx.author.discriminator}'
+        embed = discord.Embed(title=f'You\'ve been __global unrestricted__ by {mod}!',description=f'You can now talk!',color=0x00ff00,timestamp=datetime.utcnow())
+        set_author(embed,name=mod,icon_url=ctx.author.avatar)
+        user = self.bot.get_user(userid)
+        if not user==None:
+            try:
+                await user.send(embed=embed)
+            except:
+                pass
         await ctx.send('unbanned, nice')
 
     @commands.command(aliases=['guilds'])
