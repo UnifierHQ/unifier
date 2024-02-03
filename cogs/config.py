@@ -2,9 +2,29 @@ import discord
 from discord.ext import commands
 import ast
 from discord.ext import commands
+#Db auto update thingy
+import json
 
+class AutoSaveDict(dict):
+    def __init__(self, file_path='db.json', *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.file_path = file_path
+        self.load_data()
 
-db = {"rules": {
+    def load_data(self):
+        try:
+            with open(self.file_path, 'r') as file:
+                data = json.load(file)
+            self.update(data)
+        except FileNotFoundError:
+            pass  # If the file is not found, initialize an empty dictionary
+
+    def save_data(self):
+        with open(self.file_path, 'w') as file:
+            json.dump(self, file, indent=2)
+
+# Load data from db.json into an existing dictionary
+sample_db = {"rules": {
     'main': ['Be civil and follow Discord ToS and guidelines.',
               'Absolutely no NSFW in here - this is a SFW channel.',
               'Don\'t be a dick and harass others, be a nice fellow to everyone.',
@@ -25,6 +45,9 @@ db = {"rules": {
     'test': ['test your heart out']
     }
 }
+db = AutoSaveDict(sample_db)
+
+
 
 admin_ids = [356456393491873795, 549647456837828650]
 
