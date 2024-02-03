@@ -4,7 +4,6 @@ import ast
 import json
 import traceback
 
-moderators = []
 admin_ids = [356456393491873795, 549647456837828650]
 
 class AutoSaveDict(dict):
@@ -14,7 +13,7 @@ class AutoSaveDict(dict):
         
         # Ensure necessary keys exist
         self.update({'rules':{},'rooms':{},'emojis':[],'nicknames':{},'descriptions':{},
-                     'restricted':[],'locked':[],'blocked':{},'banned':{}})
+                     'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[]})
 
         # Load data
         self.load_data()
@@ -73,11 +72,62 @@ class Config(commands.Cog):
                 self.bot.db.save_data()
             self.bot.bridged_emojis = self.bot.db['emojis']
         self.bot.admins = admin_ids
+        moderators = self.bot.db['moderators']
         for admin in admin_ids:
             if admin in moderators:
                 continue
-            moderators.append(admin_ids)
+            moderators.append(admin)
         self.bot.moderators = moderators
+
+    @commands.command()
+    async def addmod(self,ctx,*,userid):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can manage moderators!')
+        try:
+            userid = int(userid)
+        except:
+            try:
+                userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
+            except:
+                return await ctx.send('Not a valid user!')
+        user = self.bot.get_user(userid)
+        if user==None:
+            return await ctx.send('Not a valid user!')
+        if userid in self.bot.db['moderators']:
+            return await ctx.send('This user is already a moderator!')
+        if is_user_admin(userid):
+            return await ctx.send('are you fr')
+        self.bot.db['moderators'].append(userid)
+        self.bot.db.save_data()
+        mod = f'{user.name}#{user.discriminator}'
+        if user.discriminator=='0':
+            mod = f'@{user.name}'
+        await ctx.send(f'**{mod}** is now a moderator!')
+
+    @commands.command()
+    async def removemod(self,ctx,*,userid):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can manage moderators!')
+        try:
+            userid = int(userid)
+        except:
+            try:
+                userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
+            except:
+                return await ctx.send('Not a valid user!')
+        user = self.bot.get_user(userid)
+        if user==None:
+            return await ctx.send('Not a valid user!')
+        if not userid in self.bot.db['moderators']:
+            return await ctx.send('This user is not a moderator!')
+        if is_user_admin(userid):
+            return await ctx.send('are you fr')
+        self.bot.db['moderators'].remove(userid)
+        self.bot.db.save_data()
+        mod = f'{user.name}#{user.discriminator}'
+        if user.discriminator=='0':
+            mod = f'@{user.name}'
+        await ctx.send(f'**{mod}** is no longer a moderator!')
 
     @commands.command()
     async def make(self,ctx,*,room):
@@ -89,6 +139,28 @@ class Config(commands.Cog):
         self.bot.db['rules'].update({room:[]})
         self.bot.db.save_data()
         await ctx.send(f'Created room `{room}`!')
+
+    @commands.command()
+    async def roomdesc(self,ctx,*,args):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can modify rooms!')
+        try:
+            room, desc = args.split(' ',1)
+        except:
+            room = args
+            desc = ''
+        if not room in list(self.bot.db['rooms'].keys()):
+            return await ctx.send('This room does not exist!')
+        if len(desc)==0:
+            try:
+                self.bot.db['descriptions'][room].pop()
+            except:
+                return await ctx.send('there was no description to begin with...')
+            self.bot.db.save_data()
+            return await ctx.send('Description removed.')
+        self.bot.db['descriptions'].update({room:desc})
+        self.bot.db.save_data()
+        await ctx.send('Updated description!')
 
     @commands.command()
     async def roomrestrict(self,ctx,*,room):
