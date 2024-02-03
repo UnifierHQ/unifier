@@ -6,7 +6,7 @@ from discord.ext import commands
 import json
 
 class AutoSaveDict(dict):
-    def __init__(self, file_path='db.json', *args, **kwargs):
+    def __init__(self, file_path='data.json', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.file_path = file_path
         self.load_data()
