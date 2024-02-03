@@ -6,30 +6,6 @@ import json
 moderators = []
 admin_ids = [356456393491873795, 549647456837828650]
 
-restricted_rooms = ["test"]
-
-sample_db = {"rules": {
-    'main': ['Be civil and follow Discord ToS and guidelines.',
-              'Absolutely no NSFW in here - this is a SFW channel.',
-              'Don\'t be a dick and harass others, be a nice fellow to everyone.',
-              'Don\'t cause drama, we like to keep things clean.',
-              'Don\'t ask for punishments, unless you want to be restricted.',
-              'Server and global moderators have the final say, don\'t argue unless there\'s a good reason to.',
-              'Don\'t go hating on AM moderators, they\'re still human after all. Just because you got punished (even unfairly) doesn\'t mean you should straightup attack them.',
-              'Use common sense. These rules are not comprehensive, don\'t use loopholes or use "it wasn\'t in the rules" as an argument.',
-              'Don\'t use server rules as a way of bypassing these rules. Servers violating these rules will be permanently global restricted.',
-              'If something doesn\'t break UniChat rules, but breaks your server\'s rules, then it\'s your and your moderators\' responsibility to take action. We only take action if the content violates UniChat rules.'
-              ],
-    'pr': ['Follow all main room rules.',
-            'Only PRs in here - no comments allowed.'],
-    'prcomments': ['Follow all main room rules.',
-                    'Don\'t make PRs in here - this is for comments only.'],
-    'liveries': ['Follow all main room rules.',
-                  'Please keep things on topic and post liveries or comments on liveries only.'],
-    'test': ['test your heart out']
-    }
-}
-
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -80,7 +56,7 @@ class Config(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
         if not hasattr(bot, 'db'):
-            self.bot.db = AutoSaveDict(sample_db)
+            self.bot.db = AutoSaveDict({})
         if not hasattr(self.bot, 'bridged_emojis'):
             if not 'emojis' in list(self.bot.db.keys()):
                 self.bot.db.update({'emojis':[]})
@@ -103,6 +79,34 @@ class Config(commands.Cog):
         self.bot.db['rules'].update({room:[]})
         self.bot.db.save_data()
         await ctx.send(f'Created room `{room}`!')
+
+    @commands.command()
+    async def roomrestrict(self,ctx,*,room):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can modify rooms!')
+        if not room in list(self.bot.db['rooms'].keys()):
+            return await ctx.send('This room does not exist!')
+        if room in self.bot.db['restricted']:
+            self.bot.db['restricted'].remove(room)
+            await ctx.send(f'Unrestricted `{room}`!')
+        else:
+            self.bot.db['restricted'].append(room)
+            await ctx.send(f'Restricted `{room}`!')
+        self.bot.db.save_data()
+
+    @commands.command()
+    async def roomlock(self,ctx,*,room):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can modify rooms!')
+        if not room in list(self.bot.db['rooms'].keys()):
+            return await ctx.send('This room does not exist!')
+        if room in self.bot.db['locked']:
+            self.bot.db['locked'].remove(room)
+            await ctx.send(f'Unlocked `{room}`!')
+        else:
+            self.bot.db['locked'].append(room)
+            await ctx.send(f'Locked `{room}`!')
+        self.bot.db.save_data()
     
     @commands.command(aliases=['link','connect','federate','bridge'])
     async def bind(self,ctx,*,room=''):
