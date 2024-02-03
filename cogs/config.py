@@ -1,38 +1,10 @@
 import discord
 from discord.ext import commands
 import ast
-import aiofiles
 from discord.ext import commands
 
-admin_ids = [356456393491873795, 549647456837828650]
 
-restricted_rooms = ["test"]
-
-db = {} # In process, DO NOT MERGE
-
-def is_user_admin(id):
-    try:
-        global admin_ids
-        if id in admin_ids:
-            return True
-        else:
-            return False
-    except:
-        print("There was an error in 'is_user_admin(id)', for security reasons permissin was resulted into denying!")
-        return False
-
-def is_room_restricted(room):
-    try:
-        global restricted_rooms
-        if room in restricted_rooms:
-            return True
-        else:
-            return False
-    except:
-        print("There was an error in 'is_room_restricted(room)', for security reasons permission was resulted into answering as restricted!")
-        return False
-
-rules = {
+db = {"rules": {
     'main': ['Be civil and follow Discord ToS and guidelines.',
               'Absolutely no NSFW in here - this is a SFW channel.',
               'Don\'t be a dick and harass others, be a nice fellow to everyone.',
@@ -52,6 +24,33 @@ rules = {
                   'Please keep things on topic and post liveries or comments on liveries only.'],
     'test': ['test your heart out']
     }
+}
+
+admin_ids = [356456393491873795, 549647456837828650]
+
+restricted_rooms = ["test"]
+
+def is_user_admin(id):
+    try:
+        global admin_ids
+        if id in admin_ids:
+            return True
+        else:
+            return False
+    except:
+        print("There was an error in 'is_user_admin(id)', for security reasons permission was resulted into denying!")
+        return False
+
+def is_room_restricted(room):
+    try:
+        global restricted_rooms
+        if room in restricted_rooms:
+            return True
+        else:
+            return False
+    except:
+        print("There was an error in 'is_room_restricted(room)', for security reasons permission was resulted into answering as restricted!")
+        return False
 
 class Config(commands.Cog):
     def __init__(self,bot):
@@ -66,17 +65,13 @@ class Config(commands.Cog):
     async def bind(self,ctx,*,room=''):
         if not ctx.author.guild_permissions.administrator and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
-        roomid = '_'+room
         if is_room_restricted(room) and not is_user_admin(ctx.author.id):
             return await ctx.send('Only Green and ItsAsheer can bind channels to restricted rooms.')
         if room=='' or not room: #Added "not room" as a failback
-            roomid = 'main'
+            room = 'main'
             await ctx.send('**No room was given, defaulting to main**')
         try:
-            async with aiofiles.open(f'participants_{roomid}.txt','r',encoding='utf-8') as x:
-                data = await x.read()
-                data = ast.literal_eval(data)
-                await x.close()
+            data = db[f"room_{room}"]
         except:
             return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
         try:
@@ -88,7 +83,7 @@ class Config(commands.Cog):
                 return await ctx.send('Your server is already linked to this room.\n**Accidentally deleted the webhook?** `u!unlink` it then `u!link` it back.')
             index = 0
             text = ''
-            for rule in rules[roomid]:
+            for rule in rules[room]:
                 if text=='':
                     text = f'1. {rule}'
                 else:
@@ -129,16 +124,11 @@ class Config(commands.Cog):
             if resp.custom_id=='reject':
                 return
             webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
-            async with aiofiles.open(f'participants_{roomid}.txt','r',encoding='utf-8') as x:
-                data = await x.read()
-                data = ast.literal_eval(data)
-                await x.close()
+            data = db[f"room_{room}"]
             guild = []
             guild.append(webhook.id)
             data.update({f'{ctx.guild.id}':guild})
-            x = open(f'participants_{roomid}.txt','w+',encoding='utf-8')
-            x.write(f'{data}')
-            x.close()
+            db[f"room_{room}"] = data
             await ctx.send('Linked channel with network!')
         except:
             await ctx.send('Something went wrong - check my permissions.')
@@ -150,12 +140,8 @@ class Config(commands.Cog):
             return await ctx.send('You must specify the room to unbind from.')
         if not ctx.author.guild_permissions.administrator and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
-        roomid = '_'+room
         try:
-            async with aiofiles.open(f'participants_{roomid}.txt','r',encoding='utf-8') as x:
-                data = await x.read()
-                data = ast.literal_eval(data)
-                await x.close()
+            data = db[f"room_{room}"]
         except:
             return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
         try:
@@ -169,9 +155,7 @@ class Config(commands.Cog):
                     await webhook.delete()
                     break
             data.pop(f'{ctx.guild.id}')
-            x = open(f'participants_{roomid}.txt','w+',encoding='utf-8')
-            x.write(f'{data}')
-            x.close()
+            db[f"room_{room}"] = data
             await ctx.send('Unlinked channel from network!')
         except:
             await ctx.send('Something went wrong - check my permissions.')
@@ -180,16 +164,16 @@ class Config(commands.Cog):
     @commands.command()
     async def rules(self,ctx,*,room):
         '''Displays room rules.'''
-        roomid = room #removed '_' + room, now works without it
+        room = room #removed '_' + room, now works without it
         if is_room_restricted(room) and not is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
         if room=='' or not room:
-            roomid = 'main'
+            room = 'main'
 
         index = 0
         text = ''
         try:
-            for rule in rules[roomid]:
+            for rule in rules[room]:
                 if text=='':
                     text = f'1. {rule}'
                 else:
