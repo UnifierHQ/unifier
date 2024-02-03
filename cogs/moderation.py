@@ -6,8 +6,6 @@ import hashlib
 from datetime import datetime
 from discord.ext import commands
 
-moderators = []
-
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -75,32 +73,31 @@ class Moderation(commands.Cog):
                 return await ctx.send('You can\'t restrict your own server :thinking:')
         except:
             return await ctx.send('Invalid user/server!')
-        if userid in moderators:
+        if userid in self.bot.moderators:
             return await ctx.send('UniChat moderators are immune to blocks!\n(Though, do feel free to report anyone who abuses this immunity.)')
-        try:
-            async with aiofiles.open(f'{ctx.guild.id}_bans.txt','r',encoding='utf-8') as x:
-                banlist = await x.read()
-                banlist = ast.literal_eval(banlist)
-                await x.close()
-        except:
-            banlist = []
+        banlist = []
+        if f'{ctx.guild.id}' in list(self.bot.db['blocked'].keys()):
+            banlist = self.bot.db['blocked'][f'{ctx.guild.id}']
+        else:
+            self.bot.db['blocked'].update({f'{ctx.guild.id}':[]})
         if userid in banlist:
             return await ctx.send('User/server already banned!')
-        banlist.append(userid)
-        x = open(f'{ctx.guild.id}_bans.txt','w+',encoding='utf-8')
-        x.write(f'{banlist}')
-        x.close()
+        self.bot.db['blocked'][f'{ctx.guild.id}'].append(userid)
+        self.bot.db.save_data()
         await ctx.send('User/server can no longer forward messages to this channel!')
 
     @commands.command(hidden=True)
     async def globalban(self,ctx,*,target):
-        if not ctx.author.id in moderators:
+        if not ctx.author.id in self.bot.moderators:
             return
         reason = ''
         parts = target.split(' ')
         forever = False
         if len(parts) >= 2:
-            reason = target.replace(f'{parts[0]} {parts[1]} ','',1)
+            if len(parts)==2:
+                reason = ''
+            else:
+                reason = target.replace(f'{parts[0]} {parts[1]} ','',1)
             target = parts[0]
             duration = parts[1]
             if (duration.lower()=='inf' or duration.lower()=='infinite' or
@@ -120,23 +117,15 @@ class Moderation(commands.Cog):
             return await ctx.send('Invalid user/server!')
         if userid in moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
-        try:
-            async with aiofiles.open(f'bans.txt','r',encoding='utf-8') as x:
-                banlist = await x.read()
-                banlist = ast.literal_eval(banlist)
-                await x.close()
-        except:
-            banlist = {}
+        banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send('User/server already banned!')
         ct = round(time.time())
         nt = ct + duration
         if forever:
             nt = 0
-        banlist.update({f'{userid}':nt})
-        x = open(f'bans.txt','w+',encoding='utf-8')
-        x.write(f'{banlist}')
-        x.close()
+        self.bot.db['banned'].update({f'{userid}':nt})
+        self.bot.db.save_data()
         if ctx.author.discriminator=='0':
             mod = f'@{ctx.author.name}'
         else:
@@ -168,42 +157,28 @@ class Moderation(commands.Cog):
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
             return await ctx.send('Invalid user/server!')
-        try:
-            async with aiofiles.open(f'{ctx.guild.id}_bans.txt','r',encoding='utf-8') as x:
-                banlist = await x.read()
-                banlist = ast.literal_eval(banlist)
-                await x.close()
-        except:
-            banlist = {}
+        banlist = []
+        if f'{ctx.guild.id}' in list(self.bot.db['blocked'].keys()):
+            banlist = self.bot.db['blocked'][f'{ctx.guild.id}']
         if not f'{userid}' in list(banlist.keys()):
             return await ctx.send('User/server not banned!')
-        banlist.pop(f'{userid}')
-        x = open(f'{ctx.guild.id}_bans.txt','w+',encoding='utf-8')
-        x.write(f'{banlist}')
-        x.close()
+        self.bot.db['blocked'][f'{ctx.guild.id}'].remove(userid)
+        self.bot.db.save_data()
         await ctx.send('User/server can now forward messages to this channel!')
 
     @commands.command(hidden=True)
     async def globalunban(self,ctx,*,target):
-        if not ctx.author.id in moderators:
+        if not ctx.author.id in self.bot.moderators:
             return
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
             return await ctx.send('Invalid user/server!')
-        try:
-            async with aiofiles.open(f'bans.txt','r',encoding='utf-8') as x:
-                banlist = await x.read()
-                banlist = ast.literal_eval(banlist)
-                await x.close()
-        except:
-            banlist = {}
+        banlist = self.bot.db['banned']
         if not f'{userid}' in list(banlist.keys()):
             return await ctx.send('User/server not banned!')
-        banlist.pop(f'{userid}')
-        x = open(f'bans.txt','w+',encoding='utf-8')
-        x.write(f'{banlist}')
-        x.close()
+        self.bot.db['banned'].pop(f'{userid}')
+        self.bot.db.save_data()
         await ctx.send('unbanned, nice')
 
     @commands.command(aliases=['guilds'])
@@ -231,6 +206,103 @@ class Moderation(commands.Cog):
                 text = f'{text}\n- {name} (`{guild_id}`)'
         embed = discord.Embed(title=f'Servers connected to `{room}`',description=text)
         await ctx.send(embed=embed)
+
+    @commands.command(hidden=True)
+    async def warn(self,ctx,*,target):
+        if not ctx.author.id in moderators:
+            return
+        reason = ''
+        parts = target.split(' ',1)
+        if len(parts)==2:
+            reason = parts[1]
+            target = parts[0]
+        else:
+            return await ctx.send('You need to have a reason to warn this user.')
+        try:
+            userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
+            if userid==ctx.author.id:
+                pass
+                #return await ctx.send('You can\'t warn yourself :thinking:')
+        except:
+            return await ctx.send('Invalid user/server!')
+        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
+            return await ctx.send('ok guys no friendly fire pls thanks')
+        banlist = self.bot.db['banned']
+        if userid in banlist:
+            return await ctx.send('User/server already banned!')
+        if ctx.author.discriminator=='0':
+            mod = f'@{ctx.author.name}'
+        else:
+            mod = f'{ctx.author.name}#{ctx.author.discriminator}'
+        embed = discord.Embed(title=f'You\'ve been __warned__ by {mod}!',description=reason,color=0xffff00,timestamp=datetime.utcnow())
+        set_author(embed,name=mod,icon_url=ctx.author.avatar)
+        embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.',inline=False)
+        user = self.bot.get_user(userid)
+        if user==None:
+            return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
+        if user.bot:
+            return await ctx.send('...why would you want to warn a bot?')
+        try:
+            await user.send(embed=embed)
+        except:
+            return await ctx.send('bro has their dms off :skull:')
+        await ctx.send('user warned')
+
+    @commands.command(hidden=True,name='globaIban')
+    async def globaiban(self,ctx,*,target):
+        if not ctx.author.id in self.bot.moderators:
+            return
+        reason = ''
+        parts = target.split(' ')
+        forever = False
+        if len(parts) >= 2:
+            if len(parts)==2:
+                reason = ''
+            else:
+                reason = target.replace(f'{parts[0]} {parts[1]} ','',1)
+            target = parts[0]
+            duration = parts[1]
+            if (duration.lower()=='inf' or duration.lower()=='infinite' or
+                duration.lower()=='forever' or duration.lower()=='indefinite'):
+                forever = True
+                duration = 0
+            else:
+                try:
+                    duration = timetoint(duration)
+                except:
+                    return await ctx.send('Invalid duration!')
+        try:
+            userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
+        except:
+            return await ctx.send('Invalid user/server!')
+        if userid in moderators and not ctx.author.id==356456393491873795:
+            return await ctx.send('ok guys no friendly fire pls thanks')
+        ct = round(time.time())
+        nt = ct + duration
+        if forever:
+            nt = 0
+        if ctx.author.discriminator=='0':
+            mod = f'@{ctx.author.name}'
+        else:
+            mod = f'{ctx.author.name}#{ctx.author.discriminator}'
+        if reason=='':
+            embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=f'no reason given',color=0xffcc00)
+        else:
+            embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00)
+        set_author(embed,name=mod,icon_url=ctx.author.avatar)
+        if forever:
+            embed.color = 0xff0000
+            embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
+        else:
+            embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
+        user = self.bot.get_user(userid)
+        embed.set_footer(text='lol just kidding')
+        if not user==None:
+            try:
+                await user.send(embed=embed)
+            except:
+                return await ctx.send('target has their dms with bot off, sadge')
+        await ctx.send('hehe')
 
 def setup(bot):
     bot.add_cog(Moderation(bot))
