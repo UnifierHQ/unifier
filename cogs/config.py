@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import ast
-from discord.ext import commands
 #Db auto update thingy
 import json
 
