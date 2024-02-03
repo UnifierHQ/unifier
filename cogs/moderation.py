@@ -6,8 +6,6 @@ import hashlib
 from datetime import datetime
 from discord.ext import commands
 
-moderators = [356456393491873795,696303656496005160,751108523412291847]
-
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
