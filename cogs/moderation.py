@@ -171,11 +171,7 @@ class Moderation(commands.Cog):
         if not ctx.author.id in self.bot.moderators:
             return
         try:
-            if target.startswith('<@'):
-                userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
-            else:
-                await ctx.send("Mention was not found, using id directly.")
-                userid = int(target)
+            userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
             return await ctx.send('Invalid user/server!')
         banlist = self.bot.db['banned']
@@ -188,7 +184,7 @@ class Moderation(commands.Cog):
             mod = f'@{ctx.author.name}'
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        embed = discord.Embed(title=f'You\'ve been __global unrestricted__ by {mod}!',description=f'You can now talk!',color=0xffcc00,timestamp=datetime.utcnow())
+        embed = discord.Embed(title=f'You\'ve been __global unrestricted__ by {mod}!',description=f'You can now talk!',color=0x00ff00,timestamp=datetime.utcnow())
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         user = self.bot.get_user(userid)
         if not user==None:
