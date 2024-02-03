@@ -188,10 +188,7 @@ class Moderation(commands.Cog):
             roomid = '_main'
             room = 'main'
         try:
-            async with aiofiles.open(f'participants{roomid}.txt','r',encoding='utf-8') as x:
-                data = await x.read()
-                data = ast.literal_eval(data)
-                await x.close()
+            data = self.bot.db['rooms'][room]
         except:
             return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
         text = ''
