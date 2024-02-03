@@ -23,14 +23,14 @@ def genid():
         value = '{0}{1}'.format(value,letter)
     return value
 
-def is_room_locked(room):
+def is_room_locked(room,db):
     try:
-        global locked
-        if room in locked:
+        if room in db['locked']:
             return True
         else:
             return False
     except:
+        traceback.print_exc()
         return False
 
 class Bridge(commands.Cog):
@@ -180,7 +180,7 @@ class Bridge(commands.Cog):
         ownedby = []
         if f'{ctx.author.id}' in list(self.bot.owners.keys()):
             ownedby = self.bot.owners[f'{ctx.author.id}']
-        if not msg_id in ownedby and not ctx.author.id in moderators:
+        if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
             return await ctx.send('You didn\'t send this message!')
 
         # Is this the parent?
@@ -359,6 +359,10 @@ class Bridge(commands.Cog):
                 break
 
         if not found:
+            return
+
+        roomname = list(self.bot.db['rooms'].keys())[origin_room]
+        if is_room_locked(roomname,self.bot.db) and not message.author.id in self.bot.admins:
             return
 
         og_embeds = []
@@ -678,8 +682,8 @@ class Bridge(commands.Cog):
                                 if is_pr:
                                     if is_pr_ref:
                                         try:
-                                            if f'{webhook.guild.id}' in list(data.keys()):
-                                                hook = data[f'{ctx.guild.id}'][0]
+                                            if f'{webhook.guild.id}' in list(self.bot.db['rooms']['pr'].keys()):
+                                                hook = self.bot.db['rooms']['pr'][f'{webhook.guild.id}'][0]
                                             else:
                                                 raise ValueError()
                                             hooks_2 = await webhook.guild.webhooks()
@@ -695,6 +699,7 @@ class Bridge(commands.Cog):
                                                                   disabled=False)
                                                 )
                                         except:
+                                            traceback.print_exc()
                                             ref_btns = discord.ui.ActionRow(
                                                 discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Reference to PR #{ref_id}',emoji='\U0001F517',disabled=True)
                                                 )
@@ -780,7 +785,7 @@ class Bridge(commands.Cog):
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id:pr_ids})
-        if emojified:
+        if emojified or is_pr_ref or is_pr:
             self.bot.bridged.update({f'{sameguild_id}':hookmsg_ids})
         else:
             self.bot.bridged.update({f'{message.id}':hookmsg_ids})
@@ -849,6 +854,10 @@ class Bridge(commands.Cog):
                 break
 
         if not found:
+            return
+
+        roomname = list(self.bot.db['rooms'].keys())[origin_room]
+        if is_room_locked(roomname,self.bot.db) and not message.author.id in self.bot.admins:
             return
 
         user_hash = encrypt_string(f'{message.author.id}')[:3]

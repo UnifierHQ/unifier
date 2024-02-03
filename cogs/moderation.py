@@ -115,7 +115,7 @@ class Moderation(commands.Cog):
                 return await ctx.send('You can\'t restrict yourself :thinking:')
         except:
             return await ctx.send('Invalid user/server!')
-        if userid in moderators and not ctx.author.id==356456393491873795:
+        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         banlist = self.bot.db['banned']
         if userid in banlist:
@@ -205,10 +205,7 @@ class Moderation(commands.Cog):
             roomid = '_main'
             room = 'main'
         try:
-            async with aiofiles.open(f'participants{roomid}.txt','r',encoding='utf-8') as x:
-                data = await x.read()
-                data = ast.literal_eval(data)
-                await x.close()
+            data = self.bot.db['rooms'][room]
         except:
             return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
         text = ''
@@ -226,7 +223,7 @@ class Moderation(commands.Cog):
 
     @commands.command(hidden=True)
     async def warn(self,ctx,*,target):
-        if not ctx.author.id in moderators:
+        if not ctx.author.id in self.bot.moderators:
             return
         reason = ''
         parts = target.split(' ',1)
@@ -292,8 +289,14 @@ class Moderation(commands.Cog):
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
             return await ctx.send('Invalid user/server!')
-        if userid in moderators and not ctx.author.id==356456393491873795:
+        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
+        obvious = False
+        if '-obvious' in reason:
+            obvious = True
+            reason = reason.replace('-obvious','',1)
+            if reason.startswith(' '):
+                reason = reason.replace(' ','',1)
         ct = round(time.time())
         nt = ct + duration
         if forever:
@@ -306,14 +309,26 @@ class Moderation(commands.Cog):
             embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=f'no reason given',color=0xffcc00)
         else:
             embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00)
+        if obvious:
+            embed.title = 'This is a global restriction TEST!'
+            embed.color = 0x00ff00
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
-        if forever:
-            embed.color = 0xff0000
-            embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
+        if obvious:
+            if forever:
+                embed.add_field(name='Actions taken',value=f'- :white_check_mark: NOTHING - this is only a test! ("Expiry" should be never, otherwise something is wrong.)',inline=False)
+            else:
+                embed.add_field(name='Actions taken',value=f'- :white_check_mark: NOTHING - this is only a test! ("Expiry" should be <t:{nt}:R>, otherwise something is wrong.)',inline=False)
         else:
-            embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
+            if forever:
+                embed.color = 0xff0000
+                embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
+            else:
+                embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
         user = self.bot.get_user(userid)
-        embed.set_footer(text='lol just kidding')
+        if obvious:
+            embed.set_footer(text='Please send what you see to the developers!')
+        else:
+            embed.set_footer(text='lol just kidding')
         if not user==None:
             try:
                 await user.send(embed=embed)
