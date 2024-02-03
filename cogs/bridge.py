@@ -12,11 +12,6 @@ import string
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 moderators = []
 
-x = open('nicknames.txt','r',encoding='utf-8')
-nicknames = x.read()
-x.close()
-nicknames = ast.literal_eval(nicknames)
-
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -34,47 +29,33 @@ class Bridge(commands.Cog):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = {}
+        if not hasattr(self.bot, 'owners'):
+            self.bot.owners = {}
+        if not hasattr(self.bot, 'origin'):
+            self.bot.origin = {}
         if not hasattr(self.bot, 'prs'):
             self.bot.prs = {}
         if not hasattr(self.bot, 'notified'):
             self.bot.notified = []
-        if not hasattr(self.bot, 'bridged_emojis'):
-            x = open('emojis.txt','r',encoding='utf-8')
-            emojis = x.read()
-            x.close()
-            self.bot.bridged_emojis = ast.literal_eval(emojis)
 
     @commands.command(aliases=['find'])
     async def identify(self,ctx):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members) and not ctx.author.id==356456393491873795:
             return
-        async with aiofiles.open(f'participants_main.txt','r',encoding='utf-8') as x:
-            data = await x.read()
-            await x.close()
-        async with aiofiles.open(f'participants_pr.txt','r',encoding='utf-8') as x:
-            data1 = await x.read()
-            await x.close()
-        async with aiofiles.open(f'participants_prcomments.txt','r',encoding='utf-8') as x:
-            data2 = await x.read()
-            await x.close()
-        async with aiofiles.open(f'participants_liveries.txt','r',encoding='utf-8') as x:
-            data3 = await x.read()
-            await x.close()
-        async with aiofiles.open(f'participants_test.txt','r',encoding='utf-8') as x:
-            data4 = await x.read()
-            await x.close()
         try:
             msg = ctx.message.reference.cached_message
             if msg==None:
                 msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
         except:
             return await ctx.send('Invalid message!')
-        if msg.webhook_id==None or (not f'{msg.webhook_id}' in data and
-                                    not f'{msg.webhook_id}' in data1 and
-                                    not f'{msg.webhook_id}' in data2 and
-                                    not f'{msg.webhook_id}' in data3 and
-                                    not f'{msg.webhook_id}' in data4):
+        hookfound = False
+        for key in self.bot.db['rooms']:
+            room_guilds = self.bot.db['rooms'][key]
+            if f'{msg.webhook_id}' in f'{room_guilds}':
+                hookfound = True
+                break
+        if not hookfound:
             return await ctx.send('I didn\'t forward this!')
         identifier = msg.author.name.split('(')
         identifier = identifier[len(identifier)-1].replace(')','')
@@ -136,12 +117,10 @@ class Bridge(commands.Cog):
         if len(nickname) > 25:
             return await ctx.send('Please keep your nickname within 25 characters.')
         if len(nickname)==0:
-            nicknames.pop(f'{ctx.author.id}',None)
+            self.bot.db['nicknames'].pop(f'{ctx.author.id}',None)
         else:
-            nicknames.update({f'{ctx.author.id}':nickname})
-        x = open('nicknames.txt','w+',encoding='utf-8')
-        x.write(f'{nicknames}')
-        x.close()
+            self.bot.db['nicknames'].update({f'{ctx.author.id}':nickname})
+        self.bot.db.save_data()
         await ctx.send('Nickname updated.')
 
     @commands.command()
@@ -153,7 +132,7 @@ class Bridge(commands.Cog):
         offset = index*20
         emojis = []
         for emoji in self.bot.emojis:
-            if emoji.guild_id in self.bot.bridged_emojis:
+            if emoji.guild_id in self.bot.db['emojis']:
                 emojis.append(emoji)
         for i in range(20):
             try:
@@ -184,83 +163,46 @@ class Bridge(commands.Cog):
     @commands.command()
     async def delete(self,ctx):
         '''Deletes all bridged messages. Does not delete the original.'''
-        if not ctx.author.id in moderators:
-            return
         try:
             msg_id = ctx.message.reference.message_id
         except:
             return await ctx.send('No message!')
+        
+        ownedby = []
+        if f'{ctx.author.id}' in list(self.bot.owners.keys()):
+            ownedby = self.bot.owners[f'{ctx.author.id}']
+        if not msg_id in ownedby and not ctx.author.id in moderators:
+            return await ctx.send('You didn\'t send this message!')
 
-        try:
-            self.bot.bridged[f'{msg_id}']
-        except:
+        # Is this the parent?
+        if not f'{msg_id}' in list(self.bot.bridged.keys()):
+            # Not the parent.
             found = False
             for key in self.bot.bridged:
                 if msg_id in list(self.bot.bridged[key].values()):
+                    # Found the parent!
                     found = True
                     msg_id = int(key)
                     break
             if not found:
+                # Nothing.
                 return await ctx.send('Could not find message in cache!')
-            
-        async with aiofiles.open(f'participants_main.txt','r',encoding='utf-8') as x:
-            data = await x.read()
-            data = ast.literal_eval(data)
-            await x.close()
-
-        async with aiofiles.open(f'participants_pr.txt','r',encoding='utf-8') as x:
-            data2 = await x.read()
-            data2 = ast.literal_eval(data2)
-            await x.close()
-
-        async with aiofiles.open(f'participants_prcomments.txt','r',encoding='utf-8') as x:
-            data3 = await x.read()
-            data3 = ast.literal_eval(data3)
-            await x.close()
-
-        async with aiofiles.open(f'participants_liveries.txt','r',encoding='utf-8') as x:
-            data4 = await x.read()
-            data4 = ast.literal_eval(data4)
-            await x.close()
-
-        async with aiofiles.open(f'participants_test.txt','r',encoding='utf-8') as x:
-            data5 = await x.read()
-            data5 = ast.literal_eval(data5)
-            await x.close()
 
         hooks = await ctx.channel.webhooks()
         found = False
-        hook_ids = data.setdefault(f'{ctx.guild.id}', [])
-        hook_ids_2 = data2.setdefault(f'{ctx.guild.id}', [])
-        hook_ids_3 = data3.setdefault(f'{ctx.guild.id}', [])
-        hook_ids_4 = data4.setdefault(f'{ctx.guild.id}', [])
-        hook_ids_5 = data5.setdefault(f'{ctx.guild.id}', [])
         origin_room = 0
         
         for webhook in hooks:
-            if webhook.id in hook_ids:
-                origin_room = 0
-                found = True
-                break
-            elif webhook.id in hook_ids_2:
-                origin_room = 1
-                data = data2
-                found = True
-                break
-            elif webhook.id in hook_ids_3:
-                origin_room = 2
-                data = data3
-                found = True
-                break
-            elif webhook.id in hook_ids_4:
-                origin_room = 3
-                data = data4
-                found = True
-                break
-            elif webhook.id in hook_ids_5:
-                origin_room = 4
-                data = data5
-                found = True
+            index = 0
+            for key in self.bot.db['rooms']:
+                data = self.bot.db['rooms'][key]
+                hook_ids = data.setdefault(f'{ctx.guild.id}', [])
+                if webhook.id in hook_ids:
+                    origin_room = index
+                    found = True
+                    break
+                index += 1
+            if found:
                 break
 
         if not found:
@@ -268,9 +210,36 @@ class Bridge(commands.Cog):
 
         deleted = 0
 
+        try:
+            origins = self.bot.origin[f'{msg_id}']
+            guild = self.bot.get_guild(origins[0])
+            ch = guild.get_channel(origins[1])
+            try:
+                msg = await ch.fetch_message(msg_id)
+                await msg.delete()
+                if msg.webhook_id==None:
+                    # Parent is a user/bot message.
+                    # Since we have something to delete bridged copies on parent delete,
+                    # don't bother deleting the copies.
+                    # (note: webhook parents don't have bridged copies automatically deleted)
+                    return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
+            except:
+                # Parent may be a webhook message, so try to delete as webhook.
+                hook_ids = data.setdefault(key, [])
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    raise ValueError('no hooks')
+                for webhook in hooks:
+                    if webhook.id in hook_ids:
+                        await webhook.delete_message(msg_id)
+                        break
+        except:
+            # Failed to delete, move on
+            pass
+
         for key in data:
             hook_ids = data.setdefault(key, [])
-            sent = False
             guild = self.bot.get_guild(int(key))
             try:
                 hooks = await guild.webhooks()
@@ -285,8 +254,29 @@ class Bridge(commands.Cog):
                         # likely deleted msg
                         # skip cache check as it's already been done
                         pass
+                    break
 
         await ctx.send(f'Deleted {deleted} forwarded messages')
+
+    @commands.context_command(name='Delete message')
+    async def delete_ctx(self,ctx,msg: discord.Message):
+        # wip
+        msg_id = msg.id
+
+    @commands.command(hidden=True)
+    async def testreg(self,ctx,*,args=''):
+        if not ctx.author.id==356456393491873795:
+            return
+        if 'dereg' in args:
+            await self.bot.register_application_commands(commands=[])
+            return await ctx.send('gone, reduced to atoms (hopefully)')
+        toreg = []
+        for command in self.bot.commands:
+            if isinstance(command, commands.core.ContextMenuCommand):
+                toreg.append(command)
+        print(f'Registering: {toreg}')
+        await self.bot.register_application_commands(commands=toreg)
+        return await ctx.send(f'Registered {len(toreg)} commands to bot')
 
     @commands.Cog.listener()
     async def on_message(self,message):
@@ -297,18 +287,12 @@ class Bridge(commands.Cog):
         if message.guild==None:
             return
 
-        if message.content.startswith('u!'):
-            cmd = message.content.replace('u!','',1).split()[0]
+        if message.content.startswith(self.bot.command_prefix):
+            cmd = message.content.replace(self.bot.command_prefix,'',1).split()[0]
             if not self.bot.get_command(cmd)==None:
                 return
 
-        try:
-            async with aiofiles.open(f'bans.txt','r',encoding='utf-8') as x:
-                gbans = await x.read()
-                gbans = ast.literal_eval(gbans)
-                await x.close()
-        except:
-            gbans = {}
+        gbans = self.bot.db['banned']
 
         if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
             ct = time.time()
@@ -316,52 +300,19 @@ class Bridge(commands.Cog):
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil==0:
-                    gbans.pop(f'{message.author.id}')
-                    x = open('bans.txt','w+',encoding='utf-8')
-                    x.write(f'{gbans}')
-                    x.close()
+                    self.bot.db['banned'].pop(f'{message.author.id}')
+                    self.bot.db.update()
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil==0:
-                    gbans.pop(f'{message.guild.id}')
-                    x = open('bans.txt','w+',encoding='utf-8')
-                    x.write(f'{gbans}')
-                    x.close()
+                    self.bot.db['banned'].pop(f'{message.guild.id}')
+                    self.bot.db.update()
                 else:
                     return
-        
-        async with aiofiles.open(f'participants_main.txt','r',encoding='utf-8') as x:
-            data = await x.read()
-            data = ast.literal_eval(data)
-            await x.close()
 
-        async with aiofiles.open(f'participants_pr.txt','r',encoding='utf-8') as x:
-            data2 = await x.read()
-            data2 = ast.literal_eval(data2)
-            await x.close()
-
-        async with aiofiles.open(f'participants_prcomments.txt','r',encoding='utf-8') as x:
-            data3 = await x.read()
-            data3 = ast.literal_eval(data3)
-            await x.close()
-
-        async with aiofiles.open(f'participants_liveries.txt','r',encoding='utf-8') as x:
-            data4 = await x.read()
-            data4 = ast.literal_eval(data4)
-            await x.close()
-
-        async with aiofiles.open(f'participants_test.txt','r',encoding='utf-8') as x:
-            data5 = await x.read()
-            data5 = ast.literal_eval(data5)
-            await x.close()
-
-        if (not f'{message.guild.id}' in data and
-            not f'{message.guild.id}' in data2 and
-            not f'{message.guild.id}' in data3 and
-            not f'{message.guild.id}' in data4 and
-            not f'{message.guild.id}' in data5) or message.author.id==1187093090415149056:
+        if message.author.id==self.bot.user.id:
             return
 
         try:
@@ -369,43 +320,28 @@ class Bridge(commands.Cog):
         except:
             return
         found = False
-        hook_ids = data.setdefault(f'{message.guild.id}', [])
-        hook_ids_2 = data2.setdefault(f'{message.guild.id}', [])
-        hook_ids_3 = data3.setdefault(f'{message.guild.id}', [])
-        hook_ids_4 = data4.setdefault(f'{message.guild.id}', [])
-        hook_ids_5 = data5.setdefault(f'{message.guild.id}', [])
         origin_room = 0
+        
+        for webhook in hooks:
+            index = 0
+            for key in self.bot.db['rooms']:
+                data = self.bot.db['rooms'][key]
+                hook_ids = data.setdefault(f'{message.guild.id}', [])
+                if webhook.id in hook_ids:
+                    origin_room = index
+                    found = True
+                    break
+                index += 1
+            if found:
+                break
+
+        if not found:
+            return
 
         og_embeds = []
         if message.author.bot or len(message.embeds) > 0:
             for emb in message.embeds:
                 og_embeds.append(emb)
-        
-        for webhook in hooks:
-            if webhook.id in hook_ids:
-                origin_room = 0
-                found = True
-                break
-            elif webhook.id in hook_ids_2:
-                origin_room = 1
-                data = data2
-                found = True
-                break
-            elif webhook.id in hook_ids_3:
-                origin_room = 2
-                data = data3
-                found = True
-                break
-            elif webhook.id in hook_ids_4:
-                origin_room = 3
-                data = data4
-                found = True
-                break
-            elif webhook.id in hook_ids_5:
-                origin_room = 4
-                data = data5
-                found = True
-                break
 
         if not found:
             return
@@ -470,7 +406,7 @@ class Bridge(commands.Cog):
             emoji_text = ''
             
             for x in range(index):
-                emoji = discord.utils.find(lambda e: e.name==name and not e.id in skip and e.guild_id in self.bot.bridged_emojis, self.bot.emojis)
+                emoji = discord.utils.find(lambda e: e.name==name and not e.id in skip and e.guild_id in self.bot.db['emojis'], self.bot.emojis)
                 if emoji==None:
                     failed = True
                     break
@@ -491,11 +427,11 @@ class Bridge(commands.Cog):
         is_pr = False
         is_pr_ref = False
         ref_id = ''
-        if origin_room==1 and message.guild.id==1097238317881380984:
+        if origin_room==1:
             is_pr = True
             pr_id = genid()
             pr_ids = {}
-        if origin_room==2 and message.guild.id==1097238317881380984:
+        if origin_room==2:
             passed = True
             if message.content.startswith('['):
                 components = message.content.split(']',1)
@@ -558,16 +494,15 @@ class Bridge(commands.Cog):
                 if not emojified and not is_pr or pr_deletefail:
                     if is_pr and not is_pr_ref:
                         pr_ids.update({f'{message.guild.id}':message.id})
+
+                    # Not using webhooks - make parent the message.
+                    self.bot.origin.update({f'{message.id}':[message.guild.id,message.channel.id]})
                     continue
             if key in list(gbans.keys()):
                 continue
-            try:
-                async with aiofiles.open(f'{key}_bans.txt','r',encoding='utf-8') as x:
-                    banlist = await x.read()
-                    banlist = ast.literal_eval(banlist)
-                    await x.close()
-            except:
-                banlist = []
+            banlist = []
+            if f'{message.guild.id}' in list(self.bot.db['blocked'].keys()):
+                banlist = self.bot.db['blocked'][f'{message.guild.id}']
             if (message.author.id in banlist or message.guild.id in banlist) and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
@@ -697,7 +632,6 @@ class Bridge(commands.Cog):
                                                 discord.ui.Button(style=ButtonStyle.blurple, label=f'x{len(msg.embeds)+len(msg.attachments)}', emoji='\U0001F3DE',disabled=True)
                                                 )
                                     except:
-                                        traceback.print_exc()
                                         if is_pr_ref and sameguild:
                                             btns = discord.ui.ActionRow(
                                             discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',disabled=False,
@@ -718,7 +652,7 @@ class Bridge(commands.Cog):
                                 if is_pr:
                                     if is_pr_ref:
                                         try:
-                                            hook = data2.setdefault(f'{webhook.guild.id}', [])[0]
+                                            hook = data.setdefault(f'{webhook.guild.id}', [])[0]
                                             hooks_2 = await webhook.guild.webhooks()
                                             for hook_obj in hooks_2:
                                                 if hook_obj.id==hook:
@@ -761,6 +695,7 @@ class Bridge(commands.Cog):
                                                files=files,allowed_mentions=mentions,wait=True,components=components)
                             if sameguild:
                                 sameguild_id = msg.id
+                                self.bot.origin.update({f'{msg.id}':[message.guild.id,message.channel.id]})
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
                             if is_pr and not is_pr_ref:
@@ -774,6 +709,7 @@ class Bridge(commands.Cog):
                                 await message.channel.send('An attachment or two was too large - attachments will not be sent.\nPlease send a URL instead.',reference=message)
                             if sameguild:
                                 sameguild_id = msg.id
+                                self.bot.origin.update({f'{msg.id}':[message.guild.id,message.channel.id]})
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
                             if is_pr and not is_pr_ref:
@@ -783,7 +719,7 @@ class Bridge(commands.Cog):
                             embeds = message.embeds
                         else:
                             embeds = []                           
-                        author = nicknames.setdefault(f'{message.author.id}', message.author.global_name)
+                        author = self.bot.db['nicknames'].setdefault(f'{message.author.id}', message.author.global_name)
                         if sameguild:
                             author = message.author.nick
                             if author==None:
@@ -794,6 +730,7 @@ class Bridge(commands.Cog):
                                            files=files,allowed_mentions=mentions,wait=True)
                             if sameguild:
                                 sameguild_id = msg.id
+                                self.bot.origin.update({f'{msg.id}':[message.guild.id,message.channel.id]})
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
                         except discord.HTTPException as e:
@@ -805,6 +742,7 @@ class Bridge(commands.Cog):
                                 await message.channel.send('An attachment or two was too large - attachments will not be sent.\nPlease send a URL instead.',reference=message)
                             if sameguild:
                                 sameguild_id = msg.id
+                                self.bot.origin.update({f'{msg.id}':[message.guild.id,message.channel.id]})
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}':msg.id})
         if is_pr and not is_pr_ref:
@@ -813,8 +751,10 @@ class Bridge(commands.Cog):
             self.bot.bridged.update({f'{sameguild_id}':hookmsg_ids})
         else:
             self.bot.bridged.update({f'{message.id}':hookmsg_ids})
-        del files
-                        
+        try:
+            del files
+        except:
+            pass        
 
     @commands.Cog.listener()
     async def on_message_edit(self,before,after):
@@ -826,13 +766,7 @@ class Bridge(commands.Cog):
         if message.guild==None:
             return
 
-        try:
-            async with aiofiles.open(f'bans.txt','r',encoding='utf-8') as x:
-                gbans = await x.read()
-                gbans = ast.literal_eval(gbans)
-                await x.close()
-        except:
-            gbans = {}
+        gbans = self.bot.db['banned']
 
         if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
             ct = time.time()
@@ -840,19 +774,15 @@ class Bridge(commands.Cog):
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil==0:
-                    gbans.pop(f'{message.author.id}')
-                    x = open('bans.txt','w+',encoding='utf-8')
-                    x.write(f'{gbans}')
-                    x.close()
+                    self.bot.db['banned'].pop(f'{message.author.id}')
+                    self.bot.db.update()
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil==0:
-                    gbans.pop(f'{message.guild.id}')
-                    x = open('bans.txt','w+',encoding='utf-8')
-                    x.write(f'{gbans}')
-                    x.close()
+                    self.bot.db['banned'].pop(f'{message.guild.id}')
+                    self.bot.db.update()
                 else:
                     return
         
@@ -860,71 +790,24 @@ class Bridge(commands.Cog):
             # webhook msg, dont bother
             return
         
-        async with aiofiles.open(f'participants_main.txt','r',encoding='utf-8') as x:
-            data = await x.read()
-            data = ast.literal_eval(data)
-            await x.close()
-
-        async with aiofiles.open(f'participants_pr.txt','r',encoding='utf-8') as x:
-            data2 = await x.read()
-            data2 = ast.literal_eval(data2)
-            await x.close()
-
-        async with aiofiles.open(f'participants_prcomments.txt','r',encoding='utf-8') as x:
-            data3 = await x.read()
-            data3 = ast.literal_eval(data3)
-            await x.close()
-
-        async with aiofiles.open(f'participants_liveries.txt','r',encoding='utf-8') as x:
-            data4 = await x.read()
-            data4 = ast.literal_eval(data4)
-            await x.close()
-
-        async with aiofiles.open(f'participants_test.txt','r',encoding='utf-8') as x:
-            data5 = await x.read()
-            data5 = ast.literal_eval(data5)
-            await x.close()
-
-        if (not f'{message.guild.id}' in data and
-            not f'{message.guild.id}' in data2 and
-            not f'{message.guild.id}' in data3 and
-            not f'{message.guild.id}' in data4 and
-            not f'{message.guild.id}' in data5) or message.author.id==1187093090415149056:
+        if message.author.id==self.bot.user.id:
             return
 
         hooks = await message.channel.webhooks()
         found = False
-        hook_ids = data.setdefault(f'{message.guild.id}', [])
-        hook_ids_2 = data2.setdefault(f'{message.guild.id}', [])
-        hook_ids_3 = data3.setdefault(f'{message.guild.id}', [])
-        hook_ids_4 = data4.setdefault(f'{message.guild.id}', [])
-        hook_ids_5 = data5.setdefault(f'{message.guild.id}', [])
         origin_room = 0
         
         for webhook in hooks:
-            if webhook.id in hook_ids:
-                origin_room = 0
-                found = True
-                break
-            elif webhook.id in hook_ids_2:
-                origin_room = 1
-                data = data2
-                found = True
-                break
-            elif webhook.id in hook_ids_3:
-                origin_room = 2
-                data = data3
-                found = True
-                break
-            elif webhook.id in hook_ids_4:
-                origin_room = 3
-                data = data4
-                found = True
-                break
-            elif webhook.id in hook_ids_5:
-                origin_room = 4
-                data = data5
-                found = True
+            index = 0
+            for key in self.bot.db['rooms']:
+                data = self.bot.db['rooms'][key]
+                hook_ids = data.setdefault(f'{message.guild.id}', [])
+                if webhook.id in hook_ids:
+                    origin_room = index
+                    found = True
+                    break
+                index += 1
+            if found:
                 break
 
         if not found:
@@ -939,13 +822,9 @@ class Bridge(commands.Cog):
                 continue
             if key in gbans:
                 continue
-            try:
-                async with aiofiles.open(f'{key}_bans.txt','r',encoding='utf-8') as x:
-                    banlist = await x.read()
-                    banlist = ast.literal_eval(banlist)
-                    await x.close()
-            except:
-                banlist = []
+            banlist = []
+            if f'{message.guild.id}' in list(self.bot.db['blocked'].keys()):
+                banlist = self.bot.db['blocked'][f'{message.guild.id}']
             if message.author.id in banlist and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
@@ -971,13 +850,7 @@ class Bridge(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_delete(self,message):
-        try:
-            async with aiofiles.open(f'bans.txt','r',encoding='utf-8') as x:
-                gbans = await x.read()
-                gbans = ast.literal_eval(gbans)
-                await x.close()
-        except:
-            gbans = []
+        gbans = self.bot.db['banned']
 
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
             return
@@ -985,68 +858,25 @@ class Bridge(commands.Cog):
         if not message.webhook_id==None:
             # webhook msg, dont bother
             return
-        
-        async with aiofiles.open(f'participants_main.txt','r',encoding='utf-8') as x:
-            data = await x.read()
-            data = ast.literal_eval(data)
-            await x.close()
 
-        async with aiofiles.open(f'participants_pr.txt','r',encoding='utf-8') as x:
-            data2 = await x.read()
-            data2 = ast.literal_eval(data2)
-            await x.close()
-
-        async with aiofiles.open(f'participants_prcomments.txt','r',encoding='utf-8') as x:
-            data3 = await x.read()
-            data3 = ast.literal_eval(data3)
-            await x.close()
-
-        async with aiofiles.open(f'participants_liveries.txt','r',encoding='utf-8') as x:
-            data4 = await x.read()
-            data4 = ast.literal_eval(data4)
-            await x.close()
-
-        async with aiofiles.open(f'participants_test.txt','r',encoding='utf-8') as x:
-            data5 = await x.read()
-            data5 = ast.literal_eval(data5)
-            await x.close()
-
-        if not f'{message.guild.id}' in data or message.author.id==1187093090415149056:
+        if message.author.id==self.bot.user.id:
             return
 
         hooks = await message.channel.webhooks()
         found = False
-        hook_ids = data.setdefault(f'{message.guild.id}', [])
-        hook_ids_2 = data2.setdefault(f'{message.guild.id}', [])
-        hook_ids_3 = data3.setdefault(f'{message.guild.id}', [])
-        hook_ids_4 = data4.setdefault(f'{message.guild.id}', [])
-        hook_ids_5 = data5.setdefault(f'{message.guild.id}', [])
         origin_room = 0
         
         for webhook in hooks:
-            if webhook.id in hook_ids:
-                origin_room = 0
-                found = True
-                break
-            elif webhook.id in hook_ids_2:
-                origin_room = 1
-                data = data2
-                found = True
-                break
-            elif webhook.id in hook_ids_3:
-                origin_room = 2
-                data = data3
-                found = True
-                break
-            elif webhook.id in hook_ids_4:
-                origin_room = 3
-                data = data4
-                found = True
-                break
-            elif webhook.id in hook_ids_5:
-                origin_room = 4
-                data = data5
-                found = True
+            index = 0
+            for key in self.bot.db['rooms']:
+                data = self.bot.db['rooms'][key]
+                hook_ids = data.setdefault(f'{message.guild.id}', [])
+                if webhook.id in hook_ids:
+                    origin_room = index
+                    found = True
+                    break
+                index += 1
+            if found:
                 break
 
         if not found:
@@ -1058,17 +888,8 @@ class Bridge(commands.Cog):
 
         guild = self.bot.get_guild(1097238317881380984)
         ch = guild.get_channel(1189146414735953941)
-
-        roomname = 'main'
         
-        if origin_room==1:
-            roomname = 'pr'
-        elif origin_room==2:
-            roomname = 'prcomments'
-        elif origin_room==3:
-            roomname = 'liveries'
-        elif origin_room==4:
-            roomname = 'testing'
+        roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
         content = message.content
         
@@ -1092,13 +913,9 @@ class Bridge(commands.Cog):
                 continue
             if key in gbans:
                 continue
-            try:
-                async with aiofiles.open(f'{key}_bans.txt','r',encoding='utf-8') as x:
-                    banlist = await x.read()
-                    banlist = ast.literal_eval(banlist)
-                    await x.close()
-            except:
-                banlist = []
+            banlist = []
+            if f'{message.guild.id}' in list(self.bot.db['blocked'].keys()):
+                banlist = self.bot.db['blocked'][f'{message.guild.id}']
             if message.author.id in banlist and not message.author.id in moderators:
                 continue
             hook_ids = data.setdefault(key, [])
