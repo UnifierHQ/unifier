@@ -274,6 +274,12 @@ class Moderation(commands.Cog):
             return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
+        obvious = False
+        if '-obvious' in reason:
+            obvious = True
+            reason = reason.replace('-obvious','',1)
+            if reason.startswith(' '):
+                reason = reason.replace(' ','',1)
         ct = round(time.time())
         nt = ct + duration
         if forever:
@@ -286,14 +292,26 @@ class Moderation(commands.Cog):
             embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=f'no reason given',color=0xffcc00)
         else:
             embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00)
+        if obvious:
+            embed.title = 'This is a global restriction TEST!'
+            embed.color = 0x00ff00
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
-        if forever:
-            embed.color = 0xff0000
-            embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
+        if obvious:
+            if forever:
+                embed.add_field(name='Actions taken',value=f'- :white_check_mark: NOTHING - this is only a test! ("Expiry" should be never, otherwise something is wrong.)',inline=False)
+            else:
+                embed.add_field(name='Actions taken',value=f'- :white_check_mark: NOTHING - this is only a test! ("Expiry" should be <t:{nt}:R>, otherwise something is wrong.)',inline=False)
         else:
-            embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
+            if forever:
+                embed.color = 0xff0000
+                embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
+            else:
+                embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
         user = self.bot.get_user(userid)
-        embed.set_footer(text='lol just kidding')
+        if obvious:
+            embed.set_footer(text='Please send what you see to the developers!')
+        else:
+            embed.set_footer(text='lol just kidding')
         if not user==None:
             try:
                 await user.send(embed=embed)
