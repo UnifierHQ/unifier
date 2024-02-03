@@ -10,7 +10,6 @@ import random
 import string
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
-moderators = []
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -23,6 +22,16 @@ def genid():
         letter = random.choice(string.ascii_lowercase+string.digits)
         value = '{0}{1}'.format(value,letter)
     return value
+
+def is_room_locked(room):
+    try:
+        global locked
+        if room in locked:
+            return True
+        else:
+            return False
+    except:
+        return False
 
 class Bridge(commands.Cog):
     def __init__(self,bot):
@@ -330,6 +339,8 @@ class Bridge(commands.Cog):
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
+                    if key in self.bot.db['locked'] and not message.author.id in self.bot.admins:
+                        return
                     break
                 index += 1
             if found:
@@ -805,6 +816,8 @@ class Bridge(commands.Cog):
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
+                    if key in self.bot.db['locked'] and not message.author.id in self.bot.admins:
+                        return
                     break
                 index += 1
             if found:
