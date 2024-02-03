@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import ast
 import json
+import traceback
 
 moderators = []
 admin_ids = [356456393491873795, 549647456837828650]
@@ -12,7 +13,7 @@ class AutoSaveDict(dict):
         self.file_path = 'data.json'
         
         # Ensure necessary keys exist
-        self.update({'rules':{},'rooms':{},'emojis':[],'nicknames':{},
+        self.update({'rules':{},'rooms':{},'emojis':[],'nicknames':{},'descriptions':{},
                      'restricted':[],'locked':[],'blocked':{},'banned':{}})
 
         # Load data
@@ -41,15 +42,24 @@ def is_user_admin(id):
         print("There was an error in 'is_user_admin(id)', for security reasons permission was resulted into denying!")
         return False
 
-def is_room_restricted(room):
+def is_room_restricted(room,db):
     try:
-        global restricted_rooms
-        if room in restricted_rooms:
+        if room in db['restricted']:
             return True
         else:
             return False
     except:
-        print("There was an error in 'is_room_restricted(room)', for security reasons permission was resulted into answering as restricted!")
+        traceback.print_exc()
+        return False
+
+def is_room_locked(room,db):
+    try:
+        if room in db['locked']:
+            return True
+        else:
+            return False
+    except:
+        traceback.print_exc()
         return False
 
 class Config(commands.Cog):
@@ -112,7 +122,7 @@ class Config(commands.Cog):
     async def bind(self,ctx,*,room=''):
         if not ctx.author.guild_permissions.administrator and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
-        if is_room_restricted(room) and not is_user_admin(ctx.author.id):
+        if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send('Only Green and ItsAsheer can bind channels to restricted rooms.')
         if room=='' or not room: #Added "not room" as a failback
             room = 'main'
@@ -181,6 +191,10 @@ class Config(commands.Cog):
             self.bot.db['rooms'][room] = data
             self.bot.db.save_data()
             await ctx.send('Linked channel with network!')
+            try:
+                await msg.pin()
+            except:
+                pass
         except:
             await ctx.send('Something went wrong - check my permissions.')
             raise
@@ -219,7 +233,7 @@ class Config(commands.Cog):
     @commands.command()
     async def rules(self,ctx,*,room):
         '''Displays room rules.'''
-        if is_room_restricted(room) and not is_user_admin(ctx.author.id):
+        if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
         if room=='' or not room:
             room = 'main'
@@ -281,12 +295,38 @@ class Config(commands.Cog):
 
     @commands.command()
     async def rooms(self,ctx):
-        embed = discord.Embed(title=f'UniChat rooms (Total: `{len(self.bot.db["rooms"])}`)',description='Use `u!bind <room>` to bind to a room.')
+        embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description='Use `u!bind <room>` to bind to a room.')
         if len(self.bot.db['rooms'])==0:
             embed.add_field(value='No rooms here <:notlikenevira:1144718936986882088>')
             return await ctx.send(embed=embed)
+        count = 0
         for room in self.bot.db['rooms']:
-            embed.add_field(name=f'`{room}` - '+str(len(self.bot.db['rooms'][room]))+' servers',value='Descriptions coming soon!',inline=False)
+            if is_room_restricted(room,self.bot.db):
+                if not is_user_admin(ctx.author.id):
+                    continue
+                emoji = ':wrench:'
+            elif is_room_locked(room,self.bot.db):
+                emoji = ':lock:'
+            else:
+                emoji = ':globe_with_meridians:'
+            if room in list(self.bot.db['descriptions'].keys()):
+                desc = self.bot.db['descriptions'][room]
+            else:
+                desc = 'This room has no description.'
+            online = 0
+            members = 0
+            guilds = 0
+            for guild_id in self.bot.db['rooms'][room]:
+                try:
+                    guild = self.bot.get_guild(int(guild_id))
+                    online += len(list(filter(lambda x: (x.status!=discord.Status.offline and x.status!=discord.Status.invisible), guild.members)))
+                    members += len(guild.members)
+                    guilds += 1
+                except:
+                    pass
+            embed.add_field(name=f'{emoji} `{room}` - {guilds} servers (:green_circle: {online} online, :busts_in_silhouette: {members} members)',value=desc,inline=False)
+            count += 1
+        embed.title = f'UniChat rooms (Total: `{count}`)'
         await ctx.send(embed=embed)
 
     @commands.command()
