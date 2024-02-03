@@ -205,7 +205,10 @@ class Bridge(commands.Cog):
             index = 0
             for key in self.bot.db['rooms']:
                 data = self.bot.db['rooms'][key]
-                hook_ids = data.setdefault(f'{ctx.guild.id}', [])
+                if f'{ctx.guild.id}' in list(data.keys()):
+                    hook_ids = data[f'{ctx.guild.id}']
+                else:
+                    hook_ids = []
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
@@ -234,7 +237,10 @@ class Bridge(commands.Cog):
                     return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
             except:
                 # Parent may be a webhook message, so try to delete as webhook.
-                hook_ids = data.setdefault(key, [])
+                if key in list(data.keys()):
+                    hook_ids = data[key]
+                else:
+                    hook_ids = []
                 try:
                     hooks = await guild.webhooks()
                 except:
@@ -248,7 +254,10 @@ class Bridge(commands.Cog):
             pass
 
         for key in data:
-            hook_ids = data.setdefault(key, [])
+            if key in list(data.keys()):
+                hook_ids = data[key]
+            else:
+                hook_ids = []
             guild = self.bot.get_guild(int(key))
             try:
                 hooks = await guild.webhooks()
@@ -335,7 +344,10 @@ class Bridge(commands.Cog):
             index = 0
             for key in self.bot.db['rooms']:
                 data = self.bot.db['rooms'][key]
-                hook_ids = data.setdefault(f'{message.guild.id}', [])
+                if f'{message.guild.id}' in list(data.keys()):
+                    hook_ids = data[f'{message.guild.id}']
+                else:
+                    hook_ids = []
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
@@ -516,7 +528,10 @@ class Bridge(commands.Cog):
                 banlist = self.bot.db['blocked'][f'{message.guild.id}']
             if (message.author.id in banlist or message.guild.id in banlist) and not message.author.id in moderators:
                 continue
-            hook_ids = data.setdefault(key, [])
+            if key in list(data.keys()):
+                hook_ids = data[key]
+            else:
+                hook_ids = []
             sent = False
             guild = self.bot.get_guild(int(key))
             try:
@@ -663,7 +678,10 @@ class Bridge(commands.Cog):
                                 if is_pr:
                                     if is_pr_ref:
                                         try:
-                                            hook = data.setdefault(f'{webhook.guild.id}', [])[0]
+                                            if f'{webhook.guild.id}' in list(data.keys()):
+                                                hook = data[f'{ctx.guild.id}'][0]
+                                            else:
+                                                raise ValueError()
                                             hooks_2 = await webhook.guild.webhooks()
                                             for hook_obj in hooks_2:
                                                 if hook_obj.id==hook:
@@ -695,7 +713,9 @@ class Bridge(commands.Cog):
                                     components = discord.ui.MessageComponents(btns,btns2)
                             except:
                                 components = discord.ui.MessageComponents(btns)
-                        author_resp = nicknames.setdefault(f'{message.author.id}', message.author.global_name)
+                        author_resp = message.author.global_name
+                        if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
+                            author_resp = self.bot.db['nicknames'][f'{message.author.id}']
                         if sameguild:
                             author_resp = message.author.nick
                             if author_resp==None:
@@ -729,8 +749,10 @@ class Bridge(commands.Cog):
                         if message.author.bot:
                             embeds = message.embeds
                         else:
-                            embeds = []                           
-                        author = self.bot.db['nicknames'].setdefault(f'{message.author.id}', message.author.global_name)
+                            embeds = []
+                        author = message.author.global_name
+                        if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
+                            author = self.bot.db['nicknames'][f'{message.author.id}']
                         if sameguild:
                             author = message.author.nick
                             if author==None:
@@ -812,7 +834,10 @@ class Bridge(commands.Cog):
             index = 0
             for key in self.bot.db['rooms']:
                 data = self.bot.db['rooms'][key]
-                hook_ids = data.setdefault(f'{message.guild.id}', [])
+                if f'{message.guild.id}' in list(data.keys()):
+                    hook_ids = data[f'{message.guild.id}']
+                else:
+                    hook_ids = []
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
@@ -840,7 +865,10 @@ class Bridge(commands.Cog):
                 banlist = self.bot.db['blocked'][f'{message.guild.id}']
             if message.author.id in banlist and not message.author.id in moderators:
                 continue
-            hook_ids = data.setdefault(key, [])
+            if key in list(data.keys()):
+                hook_ids = data[key]
+            else:
+                hook_ids = []
             sent = False
             guild = self.bot.get_guild(int(key))
             try:
@@ -883,7 +911,10 @@ class Bridge(commands.Cog):
             index = 0
             for key in self.bot.db['rooms']:
                 data = self.bot.db['rooms'][key]
-                hook_ids = data.setdefault(f'{message.guild.id}', [])
+                if f'{message.guild.id}' in list(data.keys()):
+                    hook_ids = data[f'{message.guild.id}']
+                else:
+                    hook_ids = []
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
@@ -931,7 +962,10 @@ class Bridge(commands.Cog):
                 banlist = self.bot.db['blocked'][f'{message.guild.id}']
             if message.author.id in banlist and not message.author.id in moderators:
                 continue
-            hook_ids = data.setdefault(key, [])
+            if key in list(data.keys()):
+                hook_ids = data[key]
+            else:
+                hook_ids = []
             sent = False
             guild = self.bot.get_guild(int(key))
             try:

@@ -200,7 +200,10 @@ class Config(commands.Cog):
                 hooks = await ctx.guild.webhooks()
             except:
                 return await ctx.send('I cannot manage webhooks.')
-            hook_ids = data.setdefault(f'{ctx.guild.id}', [])
+            if f'{ctx.guild.id}' in list(data.keys()):
+                hook_ids = data[f'{ctx.guild.id}']
+            else:
+                hook_ids = []
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     await webhook.delete()
