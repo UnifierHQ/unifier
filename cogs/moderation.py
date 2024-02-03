@@ -206,7 +206,7 @@ class Moderation(commands.Cog):
 
     @commands.command(hidden=True)
     async def warn(self,ctx,*,target):
-        if not ctx.author.id in moderators:
+        if not ctx.author.id in self.bot.moderators:
             return
         reason = ''
         parts = target.split(' ',1)
@@ -272,7 +272,7 @@ class Moderation(commands.Cog):
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
             return await ctx.send('Invalid user/server!')
-        if userid in moderators and not ctx.author.id==356456393491873795:
+        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         ct = round(time.time())
         nt = ct + duration
