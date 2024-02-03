@@ -3,6 +3,7 @@ from discord.ext import commands
 import ast
 import json
 
+moderators = []
 admin_ids = [356456393491873795, 549647456837828650]
 
 restricted_rooms = ["test"]
@@ -36,8 +37,7 @@ class AutoSaveDict(dict):
         
         # Ensure necessary keys exist
         self.update({'rules':{},'rooms':{},'emojis':[],'nicknames':{},
-                     'restricted':[],'locked':[],'superlocked':[],
-                     'blocked':{},'banned':{}})
+                     'restricted':[],'locked':[],'blocked':{},'banned':{}})
 
         # Load data
         self.load_data()
@@ -86,6 +86,12 @@ class Config(commands.Cog):
                 self.bot.db.update({'emojis':[]})
                 self.bot.db.save_data()
             self.bot.bridged_emojis = self.bot.db['emojis']
+        self.bot.admins = admin_ids
+        for admin in admin_ids:
+            if admin in moderators:
+                continue
+            moderators.append(admin_ids)
+        self.bot.moderators = moderators
 
     @commands.command()
     async def make(self,ctx,*,room):
