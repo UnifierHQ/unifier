@@ -6,10 +6,12 @@ import hashlib
 from datetime import datetime
 from discord.ext import commands
 
+"""
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
+"""
 
 def set_author(embed,**kwargs):
     try:
