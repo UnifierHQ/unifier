@@ -1,7 +1,5 @@
 import discord
 from discord.ext import commands
-import ast
-import aiofiles
 import aiohttp
 import hashlib
 bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
