@@ -7,7 +7,7 @@ bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
 
 @tasks.loop(seconds=300)
 async def changestatus():
-    status_messages = [ # Used chatgpt 💀
+    status_messages = [
         "with GPT-3.5",
         "with the ban hammer",
         "with fire",
