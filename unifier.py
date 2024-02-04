@@ -4,11 +4,47 @@ import ast
 import aiofiles
 import aiohttp
 import hashlib
+
+import threading #Used for the random by time status
+import random
+import time
+
 bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
+
+def random_status_thread():
+    while True:
+        status_messages = [ # Used chatgpt 💀
+        "with GPT-3.5",
+        "with the ban hammer",
+        "with fire",
+        "with the API",
+        "hide and seek",
+        "with code",
+        "in debug mode",
+        "in a parallel universe",
+        "with commands",
+        "a game of chess",
+        "with electrons",
+        "with the matrix",
+        "with cookies",
+        "with the metaverse",
+        "with emojis",
+        "SimAirport",
+        "with Nevira",
+        "with green."
+        "with ItsAsheer"
+        "webhooks",
+        ]
+        new_stat = random.choice(status_messages)
+        if new_stat == "webhooks":
+            await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
+        else:
+            await bot.change_presence(activity=discord.Game(name=new_stat))
+        time.sleep(5)
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
-moderators = [356456393491873795]
+moderators = [356456393491873795, 549647456837828650]
 
 rules = {
     '_main': ['Be civil and follow Discord ToS and guidelines.',
@@ -27,19 +63,26 @@ rules = {
                   'Please keep things on topic and post liveries or comments on liveries only.']
     }
 
+"""
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
+"""
 
 @bot.event
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
-    print('ready hehe')
+    print("loading cogs...")
     bot.load_extension("cogs.admin")
     bot.load_extension("cogs.bridge")
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
+    print("starting status thread...")
+    status_thread = threading.Thread(target=random_status_thread)
+    status_thread.start()
+    print('ready hehe')
+    
 
 @bot.event
 async def on_message(message):
