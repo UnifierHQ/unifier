@@ -413,6 +413,6 @@ class Config(commands.Cog):
             await ctx.send('All members can now use your emojis!')
         self.bot.db['emojis'] = self.bot.bridged_emojis
         self.bot.db.save_data()
-    
+        
 def setup(bot):
     bot.add_cog(Config(bot))
