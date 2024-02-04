@@ -40,7 +40,7 @@ def random_status_thread():
             await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
         else:
             await bot.change_presence(activity=discord.Game(name=new_stat))
-        time.sleep(5)
+        time.sleep(5 * 60) # 5 mins to evit api abuse
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
