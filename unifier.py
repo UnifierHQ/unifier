@@ -23,7 +23,6 @@ async def changestatus():
         "with cookies",
         "with the metaverse",
         "with emojis",
-        "SimAirport",
         "with Nevira",
         "with green."
         "with ItsAsheer"
