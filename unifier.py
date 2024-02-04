@@ -1,19 +1,13 @@
 import discord
-from discord.ext import commands
-import ast
-import aiofiles
+from discord.ext import commands, tasks
 import aiohttp
-import hashlib
-
-import threading #Used for the random by time status
 import random
-import time
 
 bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
 
-def random_status_thread():
-    while True:
-        status_messages = [ # Used chatgpt 💀
+@tasks.loop(seconds=300)
+async def changestatus():
+    status_messages = [ # Used chatgpt 💀
         "with GPT-3.5",
         "with the ban hammer",
         "with fire",
@@ -34,13 +28,12 @@ def random_status_thread():
         "with green."
         "with ItsAsheer"
         "webhooks",
-        ]
-        new_stat = random.choice(status_messages)
-        if new_stat == "webhooks":
-            await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
-        else:
-            await bot.change_presence(activity=discord.Game(name=new_stat))
-        time.sleep(5)
+    ]
+    new_stat = random.choice(status_messages)
+    if new_stat == "webhooks":
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
+    else:
+        await bot.change_presence(activity=discord.Game(name=new_stat))
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
@@ -78,9 +71,6 @@ async def on_ready():
     bot.load_extension("cogs.bridge")
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
-    print("starting status thread...")
-    status_thread = threading.Thread(target=random_status_thread)
-    status_thread.start()
     print('ready hehe')
     
 
