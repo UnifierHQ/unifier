@@ -213,7 +213,7 @@ class Config(commands.Cog):
             index = 0
             text = ''
             if len(self.bot.db['rules'][room])==0:
-                text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `u!rule {room}`.'
+                text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `u!rules {room}`.'
             else:
                 for rule in self.bot.db['rules'][room]:
                     if text=='':
