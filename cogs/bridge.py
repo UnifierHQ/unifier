@@ -538,7 +538,7 @@ class Bridge(commands.Cog):
     @commands.Cog.listener()
     async def on_modal_submit(self, interaction):
         context = interaction.components[0].components[0].value
-        if not interaction.components[1].components[0].value == interaction.user.name:
+        if not interaction.components[1].components[0].value.lower() == interaction.user.name.lower():
             return
         if context is None or context == '':
             context = 'no context given'
