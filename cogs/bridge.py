@@ -25,9 +25,9 @@ from datetime import datetime
 import random
 import string
 import copy
+import json
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
-
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -213,7 +213,7 @@ class Bridge(commands.Cog):
             # Not the parent.
             found = False
             for key in self.bot.bridged:
-                if msg_id in list(self.bot.bridged[key].values()):
+                if str(msg_id) in str(self.bot.bridged[key]):
                     # Found the parent!
                     found = True
                     msg_id = int(key)
@@ -301,8 +301,128 @@ class Bridge(commands.Cog):
 
         await ctx.send(f'Deleted {deleted} forwarded messages')
 
+    @commands.context_command(name='Delete message')
+    async def delete_ctx(self, ctx, msg: discord.Message):
+        msg_id = msg.id
+
+        ownedby = []
+        if f'{ctx.author.id}' in list(self.bot.owners.keys()):
+            ownedby = self.bot.owners[f'{ctx.author.id}']
+        if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
+            return await ctx.send('You didn\'t send this message!', ephemeral=True)
+        if not msg.webhook_id:
+            return await ctx.send(':moyai:', ephemeral=True)
+
+        # Is this the parent?
+        if not f'{msg_id}' in list(self.bot.bridged.keys()):
+            # Not the parent.
+            found = False
+            for key in self.bot.bridged:
+                if str(msg_id) in str(self.bot.bridged[key]):
+                    # Found the parent!
+                    found = True
+                    msg_id = int(key)
+                    break
+            if not found:
+                # Nothing.
+                return await ctx.send('Could not find message in cache!', ephemeral=True)
+
+        hooks = await ctx.channel.webhooks()
+        found = False
+        origin_room = 0
+
+        for webhook in hooks:
+            index = 0
+            for key in self.bot.db['rooms']:
+                data = self.bot.db['rooms'][key]
+                if f'{ctx.guild.id}' in list(data.keys()):
+                    hook_ids = data[f'{ctx.guild.id}']
+                else:
+                    hook_ids = []
+                if webhook.id in hook_ids:
+                    origin_room = index
+                    found = True
+                    break
+                index += 1
+            if found:
+                break
+
+        if not found:
+            return
+
+        deleted = 0
+
+        try:
+            origins = self.bot.origin[f'{msg_id}']
+            guild = self.bot.get_guild(origins[0])
+            ch = guild.get_channel(origins[1])
+            try:
+                msg = await ch.fetch_message(msg_id)
+                await msg.delete()
+                if msg.webhook_id == None:
+                    # Parent is a user/bot message.
+                    # Since we have something to delete bridged copies on parent delete,
+                    # don't bother deleting the copies.
+                    # (note: webhook parents don't have bridged copies automatically deleted)
+                    return await ctx.send('Deleted parent, bridged messages should be automatically deleted.',
+                                          ephemeral=True)
+            except:
+                # Parent may be a webhook message, so try to delete as webhook.
+                if key in list(data.keys()):
+                    hook_ids = data[key]
+                else:
+                    hook_ids = []
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    raise ValueError('no hooks')
+                for webhook in hooks:
+                    if webhook.id in hook_ids:
+                        await webhook.delete_message(msg_id)
+                        break
+        except:
+            # Failed to delete, move on
+            pass
+
+        msg_orig = await ctx.send("Deleting...", ephemeral=True)
+
+        for key in data:
+            if key in list(data.keys()):
+                hook_ids = data[key]
+            else:
+                hook_ids = []
+            guild = self.bot.get_guild(int(key))
+            try:
+                hooks = await guild.webhooks()
+            except:
+                continue
+            for webhook in hooks:
+                if webhook.id in hook_ids:
+                    try:
+                        await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
+                        deleted += 1
+                    except:
+                        # likely deleted msg
+                        # skip cache check as it's already been done
+                        pass
+                    break
+
+        await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
+        if not f'{msg.id}' in list(self.bot.bridged.keys()):
+            # Not the parent.
+            found = False
+            for key in self.bot.bridged:
+                if str(msg.id) in str(self.bot.bridged[key]):
+                    # Found the parent!
+                    found = True
+                    msg_id = int(key)
+                    break
+            if not found:
+                # Nothing.
+                return await ctx.send('Could not find message in cache!', ephemeral=True)
         hooks = await ctx.guild.webhooks()
         webhook = None
         for hook in hooks:
@@ -310,7 +430,16 @@ class Bridge(commands.Cog):
                 webhook = hook
         if not webhook or not f'{webhook.id}' in f'{self.bot.db["rooms"]}':
             return await ctx.send('This isn\'t a UniChat room!', ephemeral=True)
+        roomname = None
+        for room in list(self.bot.db['rooms'].keys()):
+            if str(webhook.id) in str(self.bot.db['rooms'][room]):
+                roomname = room
+                break
+        if not roomname:
+            return await ctx.send('I could not identify the room this was sent in.',ephemeral=True)
         userid = msg.author.id
+        if not msg.webhook_id==None:
+            userid = int(list(filter(lambda x: msg.id in self.bot.owners[x], list(self.bot.owners.keys())))[0])
         if not f'{msg.id}' in f'{self.bot.bridged}':
             if msg.webhook_id:
                 if not msg.webhook_id == webhook.id:
@@ -361,7 +490,10 @@ class Bridge(commands.Cog):
         try:
             interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
         except:
-            return await ctx.interaction.edit_original_message('Timed out.', components=None)
+            try:
+                return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+            except:
+                return
 
         cat = interaction.component.label
         asked = True
@@ -379,13 +511,16 @@ class Bridge(commands.Cog):
             try:
                 interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
             except:
-                return await ctx.interaction.edit_original_message('Timed out.', components=None)
+                try:
+                    return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+                except:
+                    return
             cat2 = interaction.component.label
             if cat2 == 'cancel':
                 return await interaction.response.edit_message(content='Cancelled.', components=None)
         else:
             cat2 = 'none'
-        self.bot.reports.update({f'{ctx.author.id}_{userid}_{msg.id}': [cat, cat2, content]})
+        self.bot.reports.update({f'{ctx.author.id}_{userid}_{msg.id}': [cat, cat2, content, roomname]})
         reason = discord.ui.ActionRow(
             discord.ui.InputText(style=discord.TextStyle.long, label='Additional details',
                                  placeholder='Add additional context or information that we should know here.',
@@ -413,10 +548,11 @@ class Bridge(commands.Cog):
         try:
             report = self.bot.reports[f'{interaction.user.id}_{interaction.custom_id}']
         except:
-            return await interaction.send_message('Something went wrong while submitting the report.', ephemeral=True)
+            return await interaction.response.send_message('Something went wrong while submitting the report.', ephemeral=True)
         cat = report[0]
         cat2 = report[1]
         content = report[2]
+        roomname = report[3]
         userid = int(interaction.custom_id.split('_')[0])
         if len(content) > 2048:
             content = content[:-(len(content) - 2048)]
@@ -424,6 +560,7 @@ class Bridge(commands.Cog):
         embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
         embed.add_field(name='Context', value=context, inline=False)
         embed.add_field(name="Sender ID", value=str(userid), inline=False)
+        embed.add_field(name="Message room", value=roomname, inline=False)
         embed.add_field(name="Message ID", value=interaction.custom_id.split('_')[1], inline=False)
         try:
             embed.set_footer(text=f'Submitted by {author}', icon_url=interaction.user.avatar.url)
@@ -442,11 +579,111 @@ class Bridge(commands.Cog):
             embed.set_author(name='[unknown, check sender ID]')
         guild = self.bot.get_guild(1097238317881380984)
         ch = guild.get_channel(1203676755559452712)
-        await ch.send(embed=embed)
+        btns = discord.ui.ActionRow(
+            discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
+                              disabled=False)
+        )
+        components = discord.ui.MessageComponents(btns)
+        await ch.send(embed=embed, components=components)
         self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
         return await interaction.response.send_message(
             "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
             ephemeral=True)
+
+    @commands.Cog.listener()
+    async def on_component_interaction(self, interaction):
+        if interaction.custom_id.startswith('rp') and not interaction.user.id in self.bot.moderators:
+            return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
+        if interaction.custom_id.startswith('rpdelete'):
+            msg_id = int(interaction.custom_id.replace('rpdelete_','',1))
+
+            # Is this the parent?
+            if not f'{msg_id}' in list(self.bot.bridged.keys()):
+                # Not the parent.
+                found = False
+                for key in self.bot.bridged:
+                    if str(msg_id) in str(self.bot.bridged[key]):
+                        # Found the parent!
+                        found = True
+                        msg_id = int(key)
+                        break
+                if not found:
+                    # Nothing.
+                    return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
+
+            hooks = await interaction.guild.webhooks()
+            found = False
+            roomname = interaction.message.embeds[0].fields[3].value
+            origin_room = 0
+            index = 0
+
+            for room in list(self.bot.db['rooms'].keys()):
+                if room==roomname:
+                    data = self.bot.db['rooms'][room]
+                    break
+                origin_room += 1
+
+            deleted = 0
+
+            try:
+                origins = self.bot.origin[f'{msg_id}']
+                guild = self.bot.get_guild(origins[0])
+                ch = guild.get_channel(origins[1])
+                try:
+                    msg = await ch.fetch_message(msg_id)
+                    await msg.delete()
+                    if msg.webhook_id == None:
+                        # Parent is a user/bot message.
+                        # Since we have something to delete bridged copies on parent delete,
+                        # don't bother deleting the copies.
+                        # (note: webhook parents don't have bridged copies automatically deleted)
+                        await interaction.message.edit(components=None)
+                        return await interaction.response.send_message('Deleted parent, bridged messages should be automatically deleted.',
+                                              ephemeral=True)
+                except:
+                    # Parent may be a webhook message, so try to delete as webhook.
+                    if key in list(data.keys()):
+                        hook_ids = data[key]
+                    else:
+                        hook_ids = []
+                    try:
+                        hooks = await guild.webhooks()
+                    except:
+                        raise ValueError('no hooks')
+                    for webhook in hooks:
+                        if webhook.id in hook_ids:
+                            await webhook.delete_message(msg_id)
+                            break
+            except:
+                # Failed to delete, move on
+                pass
+
+            msg_orig = await interaction.response.send_message("Deleting...", ephemeral=True)
+
+            for key in data:
+                if key in list(data.keys()):
+                    hook_ids = data[key]
+                else:
+                    hook_ids = []
+                guild = self.bot.get_guild(int(key))
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    continue
+                for webhook in hooks:
+                    if webhook.id in hook_ids:
+                        try:
+                            await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
+                            deleted += 1
+                        except:
+                            # likely deleted msg
+                            # skip cache check as it's already been done
+                            pass
+                        break
+
+            await interaction.message.edit(components=None)
+            await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+
 
     @commands.command(hidden=True)
     async def testreg(self, ctx, *, args=''):
@@ -731,7 +968,7 @@ class Bridge(commands.Cog):
                         if dont_attach:
                             break
                         if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
-                                not 'image' in attachment.content_type):
+                                not 'image' in attachment.content_type) or attachment.size > 25000000:
                             continue
                         try:
                             try:
@@ -913,6 +1150,9 @@ class Bridge(commands.Cog):
                                 hookmsg_ids.update({f'{msg.guild.id}': msg.id})
                             if is_pr and not is_pr_ref:
                                 pr_ids.update({f'{webhook.guild_id}': msg.id})
+                            if not f'{message.author.id}' in list(self.bot.owners.keys()):
+                                self.bot.owners.update({f'{message.author.id}':[]})
+                            self.bot.owners[f'{message.author.id}'].append(msg.id)
                         except discord.HTTPException as e:
                             if e.code == 413:
                                 files = []
@@ -929,6 +1169,9 @@ class Bridge(commands.Cog):
                                 hookmsg_ids.update({f'{msg.guild.id}': msg.id})
                             if is_pr and not is_pr_ref:
                                 pr_ids.update({f'{webhook.guild_id}': msg.id})
+                            if not f'{message.author.id}' in list(self.bot.owners.keys()):
+                                self.bot.owners.update({f'{message.author.id}':[]})
+                            self.bot.owners[f'{message.author.id}'].append(msg.id)
                     else:
                         if message.author.bot:
                             embeds = message.embeds
@@ -950,6 +1193,9 @@ class Bridge(commands.Cog):
                                 self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}': msg.id})
+                            if not f'{message.author.id}' in list(self.bot.owners.keys()):
+                                self.bot.owners.update({f'{message.author.id}':[]})
+                            self.bot.owners[f'{message.author.id}'].append(msg.id)
                         except discord.HTTPException as e:
                             if e.code == 413:
                                 files = []
@@ -964,6 +1210,10 @@ class Bridge(commands.Cog):
                                 self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}': msg.id})
+                            if not f'{message.author.id}' in list(self.bot.owners.keys()):
+                                self.bot.owners.update({f'{message.author.id}':[]})
+                            self.bot.owners[f'{message.author.id}'].append(msg.id)
+        self.bot.owners[f'{message.author.id}'].append(message.id)
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id: pr_ids})
         if emojified or is_pr_ref or is_pr:
