@@ -413,6 +413,13 @@ class Config(commands.Cog):
             await ctx.send('All members can now use your emojis!')
         self.bot.db['emojis'] = self.bot.bridged_emojis
         self.bot.db.save_data()
-        
+
+    @commands.command()
+    async def about(self,ctx):
+        embed = discord.Embed(title="Unifier and Unified Chat",description="Unify servers, make worthwhile conversations.",color=0xed4545)
+        embed.add_field(name="Developers",value="@green.\n@itsasheer")
+        embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin")
+        await ctx.send(embed=embed)
+    
 def setup(bot):
     bot.add_cog(Config(bot))

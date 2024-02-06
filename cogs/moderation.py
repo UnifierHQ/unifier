@@ -6,12 +6,10 @@ import hashlib
 from datetime import datetime
 from discord.ext import commands
 
-"""
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
-"""
 
 def set_author(embed,**kwargs):
     try:
@@ -180,20 +178,7 @@ class Moderation(commands.Cog):
         if not f'{userid}' in list(banlist.keys()):
             return await ctx.send('User/server not banned!')
         self.bot.db['banned'].pop(f'{userid}')
-        user = self.bot.get_user(userid)
         self.bot.db.save_data()
-        if ctx.author.discriminator=='0':
-            mod = f'@{ctx.author.name}'
-        else:
-            mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        embed = discord.Embed(title=f'You\'ve been __global unrestricted__ by {mod}!',description=f'You can now talk!',color=0x00ff00,timestamp=datetime.utcnow())
-        set_author(embed,name=mod,icon_url=ctx.author.avatar)
-        user = self.bot.get_user(userid)
-        if not user==None:
-            try:
-                await user.send(embed=embed)
-            except:
-                pass
         await ctx.send('unbanned, nice')
 
     @commands.command(aliases=['guilds'])
@@ -334,37 +319,5 @@ class Moderation(commands.Cog):
                 return await ctx.send('target has their dms with bot off, sadge')
         await ctx.send('hehe')
 
-""" Not ready
-    @commands.command()
-    async def reportuser(self,ctx,*,target):
-        reason = ''
-        parts = target.split(' '
-        if len(parts) >= 2:
-            if len(parts)==2:
-                return await ctx.send("To report a user you need to provide a reason, try: ```u!reportuser @Unifier Reason goes here```")
-            else:
-                reason = target.replace(f'{parts[0]} ','',1)
-            target = parts[0]
-        try:
-            userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
-            if userid==ctx.author.id:
-                return await ctx.send('You can\'t report yourself :thinking:')
-        except:
-            return await ctx.send('Invalid user/server!')
-
-        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('If you need to report a moderator please refer directly to green. or ItsAsheer')
-
-        if ctx.author.discriminator=='0':
-            mod = f'@{ctx.author.name}'
-        else:
-            mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        embed = discord.Embed(title=f'A new user has been reported by {mod}!',description=f'reason',color=0xffcc00,timestamp=datetime.utcnow())
-        set_author(embed,name=mod,icon_url=ctx.author.avatar)
-
-        embed.add_field(name='User reported:',value=f'- :warning: user <@{target}> has bee reported',inline=False)
-        
-        await ctx.send('user has been reported succesfully <:nevheh:990994050607906816>')
-        """
 def setup(bot):
     bot.add_cog(Moderation(bot))

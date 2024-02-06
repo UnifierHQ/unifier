@@ -1,41 +1,12 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import aiohttp
-import random
-
+import hashlib
 bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
-
-@tasks.loop(seconds=300)
-async def changestatus():
-    status_messages = [
-        "with the ban hammer",
-        "with fire",
-        "with the API",
-        "hide and seek",
-        "with code",
-        "in debug mode",
-        "in a parallel universe",
-        "with commands",
-        "a game of chess",
-        "with electrons",
-        "with the matrix",
-        "with cookies",
-        "with the metaverse",
-        "with emojis",
-        "with Nevira",
-        "with green."
-        "with ItsAsheer"
-        "webhooks",
-    ]
-    new_stat = random.choice(status_messages)
-    if new_stat == "webhooks":
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
-    else:
-        await bot.change_presence(activity=discord.Game(name=new_stat))
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
-moderators = [356456393491873795, 549647456837828650]
+moderators = [356456393491873795]
 
 rules = {
     '_main': ['Be civil and follow Discord ToS and guidelines.',
@@ -54,24 +25,19 @@ rules = {
                   'Please keep things on topic and post liveries or comments on liveries only.']
     }
 
-"""
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
-"""
 
 @bot.event
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
-    print("loading cogs...")
+    print('ready hehe')
     bot.load_extension("cogs.admin")
     bot.load_extension("cogs.bridge")
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
-    changestatus.start()
-    print('ready hehe')
-    
 
 @bot.event
 async def on_message(message):

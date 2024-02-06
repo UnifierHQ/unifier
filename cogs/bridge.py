@@ -715,11 +715,17 @@ class Bridge(commands.Cog):
                         if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                                 not 'image' in attachment.content_type):
                             continue
-                        file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
-                        files.append(file)
-                        index += 1
-                    if not message.reference == None or is_pr:
-                        if not message.reference == None:
+                        try:
+                            try:
+                                file = await attachment.to_file(use_cached=True,spoiler=attachment.is_spoiler())
+                            except:
+                                file = await attachment.to_file(use_cached=True,spoiler=False)
+                            files.append(file)
+                            index += 1
+                        except:
+                            pass
+                    if not message.reference==None or is_pr:
+                        if not message.reference==None:
                             msg = message.reference.cached_message
                             if msg == None:
                                 msg = await message.channel.fetch_message(message.reference.message_id)

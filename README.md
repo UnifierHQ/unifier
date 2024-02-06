@@ -1,5 +1,5 @@
 # Unifier
-A "simple" bot to unite Discord servers via webhooks
+A simple bot to unite Discord servers with webhooks
 
 ## How to setup
 First of all, download the code.
