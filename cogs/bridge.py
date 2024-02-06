@@ -283,11 +283,6 @@ class Bridge(commands.Cog):
 
         await ctx.send(f'Deleted {deleted} forwarded messages')
 
-    @commands.context_command(name='Delete message')
-    async def delete_ctx(self, ctx, msg: discord.Message):
-        # wip
-        msg_id = msg.id
-
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
         hooks = await ctx.guild.webhooks()
@@ -303,14 +298,16 @@ class Bridge(commands.Cog):
                 if not msg.webhook_id == webhook.id:
                     return await ctx.send('I didn\'t send this message!')
                 userid = int(list(filter(lambda x: msg.id in self.bot.owners[x], list(self.bot.owners.keys())))[0])
-        content = copy.deepcopy(msg.content) # Prevent tampering w/ original content
+        content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
         ButtonStyle = discord.ButtonStyle
         btns = discord.ui.ActionRow(
             discord.ui.Button(style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse', disabled=False),
+            discord.ui.Button(style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse',
+                              disabled=False),
             discord.ui.Button(style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit',
                               disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other', disabled=False),
+            discord.ui.Button(style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other',
+                              disabled=False),
             discord.ui.Button(style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False)
         )
         btns_abuse = discord.ui.ActionRow(
@@ -324,7 +321,8 @@ class Bridge(commands.Cog):
             discord.ui.Button(style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False)
         )
         btns_explicit = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1', disabled=False),
+            discord.ui.Button(style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1',
+                              disabled=False),
             discord.ui.Button(style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2',
                               disabled=False),
             discord.ui.Button(style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3',
@@ -337,25 +335,26 @@ class Bridge(commands.Cog):
             discord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
         )
         components = discord.ui.MessageComponents(btns, btns2)
-        await ctx.send('How does this message violate our rules?',components=components,ephemeral=True)
+        await ctx.send('How does this message violate our rules?', components=components, ephemeral=True)
 
         def check(interaction):
-            return interaction.user.id==ctx.author.id
+            return interaction.user.id == ctx.author.id
+
         try:
-            interaction = await self.bot.wait_for('component_interaction',check=check,timeout=60)
+            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
         except:
-            return await ctx.interaction.edit_original_message('Timed out.',components=None)
+            return await ctx.interaction.edit_original_message('Timed out.', components=None)
 
         cat = interaction.component.label
         asked = True
-        if interaction.custom_id=='abuse':
+        if interaction.custom_id == 'abuse':
             components = discord.ui.MessageComponents(btns_abuse, btns2)
-            await interaction.response.edit_message(content='In what way?',components=components)
-        elif interaction.custom_id=='explicit':
+            await interaction.response.edit_message(content='In what way?', components=components)
+        elif interaction.custom_id == 'explicit':
             components = discord.ui.MessageComponents(btns_explicit, btns2)
-            await interaction.response.edit_message(content='In what way?',components=components)
-        elif interaction.custom_id=='cancel':
-            return await interaction.response.edit_message(content='Cancelled.',components=None)
+            await interaction.response.edit_message(content='In what way?', components=components)
+        elif interaction.custom_id == 'cancel':
+            return await interaction.response.edit_message(content='Cancelled.', components=None)
         else:
             asked = False
         if asked:
@@ -364,21 +363,72 @@ class Bridge(commands.Cog):
             except:
                 return await ctx.interaction.edit_original_message('Timed out.', components=None)
             cat2 = interaction.component.label
+            if cat2 == 'cancel':
+                return await interaction.response.edit_message(content='Cancelled.', components=None)
         else:
             cat2 = 'none'
-        self.bot.reports.update({f'{ctx.author.id}_{userid}_{msg.id}':[cat,cat2,content]})
-        author = f'@{ctx.author.name}'
-        if not ctx.author.discriminator=='0':
-            author = f'{ctx.author.name}#{ctx.author.discriminator}'
+        self.bot.reports.update({f'{ctx.author.id}_{userid}_{msg.id}': [cat, cat2, content]})
+        reason = discord.ui.ActionRow(
+            discord.ui.InputText(style=discord.TextStyle.long, label='Additional details',
+                                 placeholder='Add additional context or information that we should know here.',
+                                 required=False)
+        )
+        signature = discord.ui.ActionRow(
+            discord.ui.InputText(style=discord.TextStyle.short, label='Sign with your username',
+                                 placeholder='Sign this only if your report is truthful and in good faith.',
+                                 required=True, min_length=len(ctx.author.name), max_length=len(ctx.author.name))
+        )
+        modal = discord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}',
+                                 components=[reason, signature])
+        await interaction.response.send_modal(modal)
+
+    @commands.Cog.listener()
+    async def on_modal_submit(self, interaction):
+        context = interaction.components[0].components[0].value
+        if not interaction.components[1].components[0].value == interaction.user.name:
+            return
+        if context is None or context == '':
+            context = 'no context given'
+        author = f'@{interaction.user.name}'
+        if not interaction.user.discriminator == '0':
+            author = f'{interaction.user.name}#{interaction.user.discriminator}'
+        try:
+            report = self.bot.reports[f'{interaction.user.id}_{interaction.custom_id}']
+        except:
+            return await interaction.send_message('Something went wrong while submitting the report.', ephemeral=True)
+        cat = report[0]
+        cat2 = report[1]
+        content = report[2]
+        userid = int(interaction.custom_id.split('_')[0])
         if len(content) > 2048:
-            content = content[:-(len(content)-2048)]
-        embed = discord.Embed(title='User report',description=content)
-        embed.add_field(name="User ID",value=str(userid),inline=False)
-        embed.add_field(name="Message ID", value=str(msg.id), inline=False)
-        if not msg.author.avatar:
-            embed.set_author(name=author, icon_url=msg.author.avatar.url)
-        else:
-            embed.set_author(name=author)
+            content = content[:-(len(content) - 2048)]
+        embed = discord.Embed(title='Message report - content is as follows', description=content, color=0xffbb00)
+        embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
+        embed.add_field(name='Context', value=context, inline=False)
+        embed.add_field(name="Sender ID", value=str(userid), inline=False)
+        embed.add_field(name="Message ID", value=interaction.custom_id.split('_')[1], inline=False)
+        try:
+            embed.set_footer(text=f'Submitted by {author}', icon_url=interaction.user.avatar.url)
+        except:
+            embed.set_footer(text=f'Submitted by {author}')
+        try:
+            user = self.bot.get_user(userid)
+            sender = f'@{user.name}'
+            if not user.discriminator == '0':
+                sender = f'{user.name}#{user.discriminator}'
+            try:
+                embed.set_author(name=sender, icon_url=user.avatar.url)
+            except:
+                embed.set_author(name=sender)
+        except:
+            embed.set_author(name='[unknown, check sender ID]')
+        guild = self.bot.get_guild(1097238317881380984)
+        ch = guild.get_channel(1203676755559452712)
+        await ch.send(embed=embed)
+        self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
+        return await interaction.response.send_message(
+            "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
+            ephemeral=True)
 
     @commands.command(hidden=True)
     async def testreg(self, ctx, *, args=''):
