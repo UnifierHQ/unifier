@@ -309,7 +309,9 @@ class Bridge(commands.Cog):
         if f'{ctx.author.id}' in list(self.bot.owners.keys()):
             ownedby = self.bot.owners[f'{ctx.author.id}']
         if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
-            return await ctx.send('You didn\'t send this message!',ephemeral=True)
+            return await ctx.send('You didn\'t send this message!', ephemeral=True)
+        if not msg.webhook_id:
+            return await ctx.send(':moyai:', ephemeral=True)
 
         # Is this the parent?
         if not f'{msg_id}' in list(self.bot.bridged.keys()):
@@ -323,7 +325,7 @@ class Bridge(commands.Cog):
                     break
             if not found:
                 # Nothing.
-                return await ctx.send('Could not find message in cache!',ephemeral=True)
+                return await ctx.send('Could not find message in cache!', ephemeral=True)
 
         hooks = await ctx.channel.webhooks()
         found = False
@@ -362,7 +364,8 @@ class Bridge(commands.Cog):
                     # Since we have something to delete bridged copies on parent delete,
                     # don't bother deleting the copies.
                     # (note: webhook parents don't have bridged copies automatically deleted)
-                    return await ctx.send('Deleted parent, bridged messages should be automatically deleted.',ephemeral=True)
+                    return await ctx.send('Deleted parent, bridged messages should be automatically deleted.',
+                                          ephemeral=True)
             except:
                 # Parent may be a webhook message, so try to delete as webhook.
                 if key in list(data.keys()):
@@ -381,7 +384,7 @@ class Bridge(commands.Cog):
             # Failed to delete, move on
             pass
 
-        msg_orig = await ctx.send("Deleting...",ephemeral=True)
+        msg_orig = await ctx.send("Deleting...", ephemeral=True)
 
         for key in data:
             if key in list(data.keys()):
@@ -1210,6 +1213,7 @@ class Bridge(commands.Cog):
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}':[]})
                             self.bot.owners[f'{message.author.id}'].append(msg.id)
+        self.bot.owners[f'{message.author.id}'].append(message.id)
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id: pr_ids})
         if emojified or is_pr_ref or is_pr:
