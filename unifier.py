@@ -17,7 +17,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+import random
 import aiohttp
 import hashlib
 bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
@@ -29,14 +30,44 @@ def encrypt_string(hash_string):
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
 
+@tasks.loop(seconds=300)
+async def changestatus():
+    status_messages = [
+        "with the ban hammer",
+        "with fire",
+        "with the API",
+        "hide and seek",
+        "with code",
+        "in debug mode",
+        "in a parallel universe",
+        "with commands",
+        "a game of chess",
+        "with electrons",
+        "with the matrix",
+        "with cookies",
+        "with the metaverse",
+        "with emojis",
+        "with Nevira",
+        "with green."
+        "with ItsAsheer"
+        "webhooks",
+    ]
+    new_stat = random.choice(status_messages)
+    if new_stat == "webhooks":
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
+    else:
+        await bot.change_presence(activity=discord.Game(name=new_stat))
+
 @bot.event
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
-    print('ready hehe')
+    print("loading cogs...")
     bot.load_extension("cogs.admin")
     bot.load_extension("cogs.bridge")
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
+    changestatus.start()
+    print('ready hehe')
 
 @bot.event
 async def on_message(message):
