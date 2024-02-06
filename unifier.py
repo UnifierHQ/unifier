@@ -67,6 +67,12 @@ async def on_ready():
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
     changestatus.start()
+    print('registering commands...')
+    toreg = []
+    for command in bot.commands:
+        if isinstance(command, commands.core.ContextMenuCommand):
+            toreg.append(command)
+    await bot.register_application_commands(commands=toreg)
     print('ready hehe')
 
 @bot.event

@@ -703,7 +703,6 @@ class Bridge(commands.Cog):
         for command in self.bot.commands:
             if isinstance(command, commands.core.ContextMenuCommand):
                 toreg.append(command)
-        print(f'Registering: {toreg}')
         await self.bot.register_application_commands(commands=toreg)
         return await ctx.send(f'Registered {len(toreg)} commands to bot')
 
