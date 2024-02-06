@@ -303,6 +303,9 @@ class Bridge(commands.Cog):
 
     @commands.context_command(name='Delete message')
     async def delete_ctx(self, ctx, msg: discord.Message):
+        gbans = self.bot.db['banned']
+        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
+            return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
         msg_id = msg.id
 
         ownedby = []
@@ -411,6 +414,10 @@ class Bridge(commands.Cog):
 
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
+        gbans = self.bot.db['banned']
+        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
+            return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
+
         if not f'{msg.id}' in list(self.bot.bridged.keys()):
             # Not the parent.
             found = False
@@ -563,9 +570,9 @@ class Bridge(commands.Cog):
         embed.add_field(name="Message room", value=roomname, inline=False)
         embed.add_field(name="Message ID", value=interaction.custom_id.split('_')[1], inline=False)
         try:
-            embed.set_footer(text=f'Submitted by {author}', icon_url=interaction.user.avatar.url)
+            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.', icon_url=interaction.user.avatar.url)
         except:
-            embed.set_footer(text=f'Submitted by {author}')
+            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
         try:
             user = self.bot.get_user(userid)
             sender = f'@{user.name}'
