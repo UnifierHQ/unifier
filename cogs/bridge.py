@@ -629,11 +629,8 @@ class Bridge(commands.Cog):
                     # Nothing.
                     return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
 
-            hooks = await interaction.guild.webhooks()
-            found = False
             roomname = interaction.message.embeds[0].fields[3].value
             origin_room = 0
-            index = 0
 
             for room in list(self.bot.db['rooms'].keys()):
                 if room==roomname:
