@@ -28,6 +28,21 @@ import os
 import json
 import requests
 
+def log(type='???',status='ok',content='None'):
+    from time import ctime, gmtime, strftime
+    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
+    if status=='ok':
+        status = ' OK  '
+    elif status=='error':
+        status = 'ERROR'
+    elif status=='warn':
+        status = 'WARN '
+    elif status=='info':
+        status = 'INFO '
+    else:
+        raise ValueError('Invalid status type provided')
+    print(f'[{type} | {time1} | {status}] {content}')
+
 with open('config.json', 'r') as file:
     data = json.load(file)
 owner = data['owner']
@@ -344,11 +359,13 @@ class Admin(commands.Cog):
             embed.description = 'Unifier is up-to-date.'
             embed.colour = 0x00ff00
             return await msg.edit(embed=embed)
+        print('Upgrade available: '+current['release']+' ==> '+new['release'])
+        print('Confirm upgrade through Discord.')
         embed.title = 'Update available'
         embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)\n\n{desc}'
         embed.colour = 0xffcc00
         if should_reboot:
-            embed.set_footer(text='The bot will reboot to apply the new update.')
+            embed.set_footer(text='The bot will need to reboot to apply the new update.')
         row = [
             discord.ui.Button(style=discord.ButtonStyle.green, label='Upgrade', custom_id=f'accept', disabled=False),
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
@@ -374,6 +391,7 @@ class Admin(commands.Cog):
             btns = discord.ui.ActionRow(row[0], row[1])
             components = discord.ui.MessageComponents(btns)
             return await interaction.response.edit_message(components=components)
+        print('Upgrade confirmed, preparing...')
         embed.title = 'Backing up...'
         embed.description = 'Your data is being backed up.'
         await interaction.response.edit_message(embed=embed, components=None)
@@ -389,16 +407,22 @@ class Admin(commands.Cog):
             except:
                 pass
             for file in os.listdir(os.getcwd() + '/cogs'):
+                print('Backing up: '+os.getcwd() + '/cogs/' + file)
                 os.system('cp ' + os.getcwd() + '/cogs/' + file + ' ' + os.getcwd() + '/old/cogs/' + file)
+            print('Backing up: ' + os.getcwd() + '/unifier.py')
             os.system('cp ' + os.getcwd() + '/unifier.py ' + os.getcwd() + '/old/unifier.py')
+            print('Backing up: ' + os.getcwd() + '/data.json')
             os.system('cp ' + os.getcwd() + '/data.json ' + os.getcwd() + '/old/data.json')
+            print('Backing up: ' + os.getcwd() + '/config.json')
             os.system('cp ' + os.getcwd() + '/config.json ' + os.getcwd() + '/old/config.json')
         except:
+            print('Backup failed, abort upgrade.')
             embed.title = 'Backup failed'
             embed.description = 'Unifier could not create a backup. The upgrade has been aborted.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
             raise
+        print('Backup complete, requesting final confirmation.')
         embed.title = 'Start the upgrade?'
         embed.description = '- :inbox_tray: Your files have been backed up in `[Unifier root directory]/backup.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
         await msg.edit(embed=embed, components=components)
@@ -416,29 +440,43 @@ class Admin(commands.Cog):
             btns = discord.ui.ActionRow(row[0], row[1])
             components = discord.ui.MessageComponents(btns)
             return await interaction.response.edit_message(components=components)
+        print('Upgrade confirmed, upgrading Unifier...')
+        print()
         embed.title = 'Upgrading Unifier'
         embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
         await msg.edit(embed=embed, components=None)
+        log(type='UPG', status='info', content='Starting upgrade')
         try:
+            print('')
+            log(type='GIT',status='info',content='Purging old update files')
             os.system('rm -rf '+os.getcwd()+'/update')
+            log(type='GIT', status='info', content='Downloading from remote repository...')
             os.system('git clone --branch '+branch+' '+files_endpoint+' '+os.getcwd()+'/update')
+            log(type='GIT', status='info', content='Confirming download...')
             x = open(os.getcwd() + '/update/update.json', 'r')
             x.close()
+            log(type='GIT', status='ok', content='Download confirmed, proceeding with upgrade')
         except:
+            log(type='UPG', status='error', content='Download failed, no rollback required')
             embed.title = 'Upgrade failed'
             embed.description = 'Could not download updates. No rollback is required.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
             raise
         try:
+            log(type='INS', status='info', content='Installing upgrades')
             embed.title = 'Upgrading Unifier'
             embed.description = ':white_check_mark: Downloading updates\n:hourglass_flowing_sand: Installing updates\n:x: Reloading modules'
             await msg.edit(embed=embed)
+            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update/unifier.py')
             os.system('cp ' + os.getcwd() + '/update/unifier.py ' + os.getcwd() + '/unifier.py')
+            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update/update.json')
             os.system('cp ' + os.getcwd() + '/update/update.json ' + os.getcwd() + '/update.json')
             for file in os.listdir(os.getcwd() + '/update/cogs'):
+                log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update/cogs/'+file)
                 os.system('cp ' + os.getcwd() + '/update/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file)
             if should_reboot:
+                log(type='UPG', status='ok', content='Upgrade complete, reboot required')
                 embed.title = 'Restart to apply upgrade'
                 embed.description = 'The upgrade was successful. Please reboot Unifier to apply the upgrades.'
                 embed.colour = 0x00ff00
@@ -448,21 +486,34 @@ class Admin(commands.Cog):
                 embed.description = ':white_check_mark: Downloading updates\n:white_check_mark: Installing updates\n:hourglass_flowing_sand: Reloading modules'
                 await msg.edit(embed=embed)
                 for cog in list(self.bot.extensions):
+                    log(type='UPG', status='ok', content='Restarting extension: '+ cog)
                     self.bot.reload_extension(cog)
+                log(type='UPG', status='ok', content='Upgrade complete')
                 embed.title = 'Upgrade successful'
                 embed.description = 'The upgrade was successful! :partying_face:'
                 embed.colour = 0x00ff00
                 await msg.edit(embed=embed)
         except:
+            log(type='UPG', status='error', content='Upgrade failed, attempting rollback')
             embed.title = 'Upgrade failed'
-            embed.description = 'The upgrade failed, rolling back.'
+            try:
+                log(type='RBK', status='info', content='Reverting: ' + os.getcwd() + '/unifier.py')
+                os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py')
+                log(type='RBK', status='info', content='Reverting: ' + os.getcwd() + '/data.json')
+                os.system('cp ' + os.getcwd() + '/old/data.json ' + os.getcwd() + '/data.json')
+                log(type='RBK', status='info', content='Reverting: ' + os.getcwd() + '/update.json')
+                os.system('cp ' + os.getcwd() + '/old/update.json ' + os.getcwd() + '/update.json')
+                log(type='RBK', status='info', content='Reverting: ' + os.getcwd() + '/config.json')
+                os.system('cp ' + os.getcwd() + '/old/config.json ' + os.getcwd() + '/config.json')
+                for file in os.listdir(os.getcwd() + '/old/cogs'):
+                    log(type='RBK', status='info', content='Reverting: ' + os.getcwd() + '/cogs/'+file)
+                    os.system('cp ' + os.getcwd() + '/old/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file)
+                log(type='RBK', status='ok', content='Rollback success')
+                embed.description = 'The upgrade failed, and all files have been rolled back.'
+            except:
+                log(type='RBK', status='error', content='Rollback failed')
+                embed.description = 'The upgrade failed, and the bot may now be in a crippled state.'
             await msg.edit(embed=embed)
-            os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py')
-            os.system('cp ' + os.getcwd() + '/old/data.json ' + os.getcwd() + '/data.json')
-            os.system('cp ' + os.getcwd() + '/old/update.json ' + os.getcwd() + '/data.json')
-            os.system('cp ' + os.getcwd() + '/old/config.json ' + os.getcwd() + '/config.json')
-            for file in os.listdir(os.getcwd() + '/old/cogs'):
-                os.system('cp ' + os.getcwd() + '/old/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file)
             raise
 
 def setup(bot):
