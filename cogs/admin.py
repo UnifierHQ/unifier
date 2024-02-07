@@ -420,10 +420,7 @@ class Admin(commands.Cog):
         embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
         await msg.edit(embed=embed, components=None)
         try:
-            try:
-                os.rmdir(os.getcwd()+'/update')
-            except:
-                pass
+            os.system('rm -rf '+os.getcwd()+'/update')
             os.system('git clone --branch '+branch+' '+files_endpoint+' '+os.getcwd()+'/update')
             x = open(os.getcwd() + '/update/update.json', 'r')
             x.close()
