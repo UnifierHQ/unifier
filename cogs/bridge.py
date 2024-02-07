@@ -568,6 +568,7 @@ class Bridge(commands.Cog):
         embed.add_field(name="Sender ID", value=str(userid), inline=False)
         embed.add_field(name="Message room", value=roomname, inline=False)
         embed.add_field(name="Message ID", value=interaction.custom_id.split('_')[1], inline=False)
+        embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
         try:
             embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.', icon_url=interaction.user.avatar.url)
         except:
@@ -710,7 +711,10 @@ class Bridge(commands.Cog):
             components = discord.ui.MessageComponents(btns)
             embed = interaction.message.embeds[0]
             embed.color = 0x00ff00
-            embed.title = 'This report has been reviewed!'
+            author = f'@{interaction.user.name}'
+            if not interaction.user.discriminator == '0':
+                author = f'{interaction.user.name}#{interaction.user.discriminator}'
+            embed.title = f'This report has been reviewed by {author}!'
             await interaction.response.edit_message(embed=embed,components=components)
 
     @commands.command(hidden=True)
