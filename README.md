@@ -29,6 +29,10 @@ almost all visuals of the conventional chat experience are preserved, so users c
 
 <em>Unifier's actual chat experience</em>
 
+UniChat is also more **raid and nuke resistant**, as one server going down doesn't mean the entire chat will. In case of a raid, 
+a server restriction, whether it be server-side or global is all it takes to stop the raid right away, as whatever happens in 
+there won't be forwarded when restricted. Restrictions don't delete or ban users, so any unintended restrictions can be revoked 
+right away. No member rejoin or anything required.
 
 ## Setup
 Please follow our guides on GitBook to set up Unifier.
