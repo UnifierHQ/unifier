@@ -343,7 +343,7 @@ class Admin(commands.Cog):
             release = new['release']
             version = new['version']
             update_available = new['release'] > current['release']
-            should_reboot = new['reboot'] > current['release']
+            should_reboot = new['reboot'] >= current['release']
             try:
                 desc = new['description']
             except:
@@ -359,7 +359,7 @@ class Admin(commands.Cog):
             embed.description = 'Unifier is up-to-date.'
             embed.colour = 0x00ff00
             return await msg.edit(embed=embed)
-        print('Upgrade available: '+current['release']+' ==> '+new['release'])
+        print('Upgrade available: '+current['version']+' ==> '+new['version'])
         print('Confirm upgrade through Discord.')
         embed.title = 'Update available'
         embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)\n\n{desc}'
