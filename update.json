@@ -1,6 +1,6 @@
 {
   "version": "v0.3.6",
-  "release": 2,
+  "release": 3,
   "reboot": 1,
-  "desc": "Unifier Kernel upgrader bugfix"
+  "description": "Unifier Kernel upgrader bugfix"
 }

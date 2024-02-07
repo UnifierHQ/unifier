@@ -334,7 +334,7 @@ class Admin(commands.Cog):
         embed = discord.Embed(title='Checking for upgrades...', description='Getting latest version from remote')
         msg = await ctx.send(embed=embed)
         try:
-            r = requests.get(check_endpoint+"/update.json",headers={'Cache-Control': 'no-cache'})
+            r = requests.get(check_endpoint+"/"+branch+"/update.json",headers={'Cache-Control': 'no-cache'})
             open('update_new.json','wb').write(r.content)
             with open('update.json', 'r') as file:
                 current = json.load(file)
