@@ -25,7 +25,6 @@ from datetime import datetime
 import random
 import string
 import copy
-import json
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
