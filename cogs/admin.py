@@ -24,9 +24,16 @@ import textwrap
 from contextlib import redirect_stdout
 import cpuinfo
 import time
+import os
+import json
+import requests
 
-# Set this to your ID to run admin commands.
-owner = 356456393491873795
+with open('config.json', 'r') as file:
+    data = json.load(file)
+owner = data['owner']
+branch = data['branch']
+check_endpoint = data['check_endpoint']
+files_endpoint = data['files_endpoint']
 
 noeval = '''```-------------No eval?-------------
 ⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝
@@ -304,6 +311,162 @@ class Admin(commands.Cog):
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
             await ctx.send('**OOPS**: Only the owner can run unload! :x:')
+
+    @commands.command(hidden=True, aliases=['update'])
+    async def upgrade(self, ctx):
+        if not ctx.author.id == 356456393491873795:
+            return
+        embed = discord.Embed(title='Checking for updates...', description='Getting latest version from remote')
+        msg = await ctx.send(embed=embed)
+        try:
+            r = requests.get(check_endpoint+"/update.json")
+            open('update_new.json','wb').write(r.content)
+            with open('update.json', 'r') as file:
+                current = json.load(file)
+            with open('update_new.json', 'r') as file:
+                new = json.load(file)
+            release = new['release']
+            version = new['version']
+            update_available = new['release'] > current['release']
+            should_reboot = new['reboot'] > current['release']
+            try:
+                desc = new['description']
+            except:
+                desc = 'No description is available for this upgrade.'
+        except:
+            embed.title = 'Failed to check for updates'
+            embed.description = 'Could not find a valid update.json file on remote'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+        if not update_available:
+            embed.title = 'No updates available'
+            embed.description = 'Unifier is up-to-date.'
+            embed.colour = 0x00ff00
+            return await msg.edit(embed=embed)
+        embed.title = 'Update available'
+        embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)\n\n{desc}'
+        embed.colour = 0xffcc00
+        if should_reboot:
+            embed.set_footer(text='The bot will reboot to apply the new update.')
+        row = [
+            discord.ui.Button(style=discord.ButtonStyle.green, label='Upgrade', custom_id=f'accept', disabled=False),
+            discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+        ]
+        btns = discord.ui.ActionRow(row[0], row[1])
+        components = discord.ui.MessageComponents(btns)
+        await msg.edit(embed=embed, components=components)
+
+        def check(interaction):
+            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+        except:
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await msg.edit(components=components)
+        if interaction.custom_id == 'reject':
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await interaction.response.edit_message(components=components)
+        embed.title = 'Backing up...'
+        embed.description = 'Your data is being backed up.'
+        await interaction.response.edit_message(embed=embed, components=None)
+        try:
+            folder = os.getcwd() + '/old'
+            try:
+                os.mkdir(folder)
+            except:
+                pass
+            folder = os.getcwd() + '/old/cogs'
+            try:
+                os.mkdir(folder)
+            except:
+                pass
+            for file in os.listdir(os.getcwd() + '/cogs'):
+                os.system('cp ' + os.getcwd() + '/cogs/' + file + ' ' + os.getcwd() + '/old/cogs/' + file)
+            os.system('cp ' + os.getcwd() + '/unifier.py ' + os.getcwd() + '/old/unifier.py')
+            os.system('cp ' + os.getcwd() + '/data.json ' + os.getcwd() + '/old/data.json')
+            os.system('cp ' + os.getcwd() + '/config.json ' + os.getcwd() + '/old/config.json')
+        except:
+            embed.title = 'Backup failed'
+            embed.description = 'Unifier could not create a backup. The upgrade has been aborted.'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+        embed.title = 'Start the upgrade?'
+        embed.description = '- :inbox_tray: Your files have been backed up in `[Unifier root directory]/backup.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
+        await msg.edit(embed=embed, components=components)
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+        except:
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await msg.edit(components=components)
+        if interaction.custom_id == 'reject':
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await interaction.response.edit_message(components=components)
+        embed.title = 'Upgrading Unifier'
+        embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
+        await msg.edit(embed=embed, components=None)
+        try:
+            try:
+                os.rmdir(os.getcwd()+'/update')
+            except:
+                pass
+            os.system('git clone --branch '+branch+' '+files_endpoint+' '+os.getcwd()+'/update')
+            x = open(os.getcwd() + '/update/update.json', 'r')
+            x.close()
+        except:
+            embed.title = 'Upgrade failed'
+            embed.description = 'Could not download updates. No rollback is required.'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+        try:
+            embed.title = 'Upgrading Unifier'
+            embed.description = ':white_check_mark: Downloading updates\n:hourglass_flowing_sand: Installing updates\n:x: Reloading modules'
+            await msg.edit(embed=embed)
+            os.system('cp ' + os.getcwd() + '/update/unifier.py ' + os.getcwd() + '/unifier.py')
+            os.system('cp ' + os.getcwd() + '/update/update.json ' + os.getcwd() + '/update.json')
+            for file in os.listdir(os.getcwd() + '/update/cogs'):
+                os.system('cp ' + os.getcwd() + '/update/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file)
+            if should_reboot:
+                embed.title = 'Restart to apply upgrade'
+                embed.description = 'The upgrade was successful. Please reboot Unifier to apply the upgrades.'
+                embed.colour = 0x00ff00
+                await msg.edit(embed=embed)
+            else:
+                embed.title = 'Upgrading Unifier'
+                embed.description = ':white_check_mark: Downloading updates\n:white_check_mark: Installing updates\n:hourglass_flowing_sand: Reloading modules'
+                await msg.edit(embed=embed)
+                for cog in list(self.bot.extensions):
+                    self.bot.reload_extension(cog)
+                embed.title = 'Upgrade successful'
+                embed.description = 'The upgrade was successful! :partying_face:'
+                embed.colour = 0x00ff00
+                await msg.edit(embed=embed)
+        except:
+            embed.title = 'Upgrade failed'
+            embed.description = 'The upgrade failed, rolling back.'
+            await msg.edit(embed=embed)
+            os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py')
+            os.system('cp ' + os.getcwd() + '/old/data.json ' + os.getcwd() + '/data.json')
+            os.system('cp ' + os.getcwd() + '/old/update.json ' + os.getcwd() + '/data.json')
+            os.system('cp ' + os.getcwd() + '/old/config.json ' + os.getcwd() + '/config.json')
+            for file in os.listdir(os.getcwd() + '/old/cogs'):
+                os.system('cp ' + os.getcwd() + '/old/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file)
+            raise
 
 def setup(bot):
     bot.add_cog(Admin(bot))
