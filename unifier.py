@@ -21,6 +21,7 @@ from discord.ext import commands, tasks
 import random
 import aiohttp
 import hashlib
+import json
 bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
@@ -85,4 +86,7 @@ async def on_message(message):
     if message.content.startswith('u!') and not message.author.bot:
         return await bot.process_commands(message)
 
-bot.run('token')
+with open('config.json', 'r') as file:
+    data = json.load(file)
+
+bot.run(data['token'])

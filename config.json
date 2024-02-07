@@ -9,5 +9,6 @@
   "reports_channel": 1203676755559452712,
   "allow_prs": true,
   "pr_room_index": 1,
-  "pr_ref_room_index": 2
+  "pr_ref_room_index": 2,
+  "token": "token"
 }
