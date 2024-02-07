@@ -488,10 +488,10 @@ class Bridge(commands.Cog):
             discord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
         )
         components = discord.ui.MessageComponents(btns, btns2)
-        await ctx.send('How does this message violate our rules?', components=components, ephemeral=True)
+        msg = await ctx.send('How does this message violate our rules?', components=components, ephemeral=True)
 
         def check(interaction):
-            return interaction.user.id == ctx.author.id
+            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
             interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
@@ -587,6 +587,9 @@ class Bridge(commands.Cog):
         ch = guild.get_channel(1203676755559452712)
         btns = discord.ui.ActionRow(
             discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
+                              disabled=False),
+            discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
+                              custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
                               disabled=False)
         )
         components = discord.ui.MessageComponents(btns)
@@ -602,6 +605,15 @@ class Bridge(commands.Cog):
             return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
         if interaction.custom_id.startswith('rpdelete'):
             msg_id = int(interaction.custom_id.replace('rpdelete_','',1))
+            btns = discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
+                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
+                                  disabled=True),
+                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
+                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
+                                  disabled=False)
+            )
+            components = discord.ui.MessageComponents(btns)
 
             # Is this the parent?
             if not f'{msg_id}' in list(self.bot.bridged.keys()):
@@ -689,7 +701,20 @@ class Bridge(commands.Cog):
 
             await interaction.message.edit(components=None)
             await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
-
+        elif interaction.custom_id.startswith('rpreview_'):
+            btns = discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
+                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
+                                  disabled=True),
+                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
+                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
+                                  disabled=True)
+            )
+            components = discord.ui.MessageComponents(btns)
+            embed = interaction.message.embeds[0]
+            embed.color = 0x00ff00
+            embed.title = 'This report has been reviewed!'
+            await interaction.response.edit_message(embed=embed,components=components)
 
     @commands.command(hidden=True)
     async def testreg(self, ctx, *, args=''):
