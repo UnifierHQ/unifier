@@ -1,5 +1,6 @@
 {
-  "version": "v0.3.5",
-  "release": 2,
-  "reboot": 1
+  "version": "v0.3.6",
+  "release": 1,
+  "reboot": -1,
+  "desc": "This upgrade adds the Unifier upgrader and general improvements to the code."
 }

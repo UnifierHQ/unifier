@@ -316,7 +316,7 @@ class Admin(commands.Cog):
     async def upgrade(self, ctx):
         if not ctx.author.id == 356456393491873795:
             return
-        embed = discord.Embed(title='Checking for updates...', description='Getting latest version from remote')
+        embed = discord.Embed(title='Checking for upgrades...', description='Getting latest version from remote')
         msg = await ctx.send(embed=embed)
         try:
             r = requests.get(check_endpoint+"/update.json")

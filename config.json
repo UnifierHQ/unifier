@@ -1,7 +1,7 @@
 {
   "owner": 356456393491873795,
   "branch": "main",
-  "check_endpoint": "https://raw.githubusercontent.com/greeeen-dev/unifier/main",
+  "check_endpoint": "https://raw.githubusercontent.com/greeeen-dev/unifier-version/main",
   "files_endpoint": "https://github.com/greeeen-dev/unifier.git",
   "admin_ids": [356456393491873795, 549647456837828650],
   "home_guild": 1097238317881380984,
