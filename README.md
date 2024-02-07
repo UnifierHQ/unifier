@@ -3,7 +3,7 @@
   
   Unifier</h1>
 <p align=center>A "simple" bot to unite Discord servers with webhooks, brought to you by Green and ItsAsheer<br>
-Inspired by matri</p>
+Inspired by matrix-t2bot</p>
 
 ## Why did I make Unifier?
 Some time ago, my friends and acquaintances and I had some game that we all played. We used to hang out often it its official 
