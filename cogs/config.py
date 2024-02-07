@@ -446,19 +446,24 @@ class Config(commands.Cog):
         desc = 'You have no avatar! Run `u!avatar <url>` or set an avatar in your profile settings.'
         try:
             if f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
-                url = self.bot.db['avatars'][f'{ctx.author.id}']
+                avurl = self.bot.db['avatars'][f'{ctx.author.id}']
                 desc = 'You have a custom avatar! Run `u!avatar <url>` to change it, or run `u!avatar remove` to remove it.'
             else:
-                desc = 'You have a defauly svatar! Run `u!avatar <url>` to set a custom one for UniChat.'
-                url = ctx.author.avatar.url
+                desc = 'You have a default avatar! Run `u!avatar <url>` to set a custom one for UniChat.'
+                avurl = ctx.author.avatar.url
         except:
-            url = None
+            avurl = None
+        if not url=='':
+            avurl = url
         embed = discord.Embed(title='This is your UniChat avatar!',description=desc)
-        embed.set_thumbnail(url=url)
         author = f'{ctx.author.name}#{ctx.author.discriminator}'
         if ctx.author.discriminator == '0':
             author = f'@{ctx.author.name}'
-        embed.set_author(name=author,icon_url=url)
+        try:
+            embed.set_author(name=author,icon_url=avurl)
+            embed.set_thumbnail(url=avurl)
+        except:
+            return await ctx.send("Invalid URL!")
         if url=='remove':
             if not f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
                 return await ctx.send('You don\'t have a custom avatar!')
@@ -495,13 +500,15 @@ class Config(commands.Cog):
                 row[1].disabled = True
                 btns = discord.ui.ActionRow(row[0], row[1])
                 components = discord.ui.MessageComponents(btns)
-                await msg.edit(components=components)
+                return await interaction.response.edit_message(components=components)
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            await msg.edit(components=components)
             self.bot.db['avatars'].update({f'{ctx.author.id}':url})
             self.bot.db.save_data()
-            return await ctx.send('Avatar successfully added!',reference=msg)
+            return await interaction.response.send_message('Avatar successfully added!')
 
-
-
-    
 def setup(bot):
     bot.add_cog(Config(bot))
