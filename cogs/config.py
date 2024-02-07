@@ -21,6 +21,8 @@ from discord.ext import commands
 import json
 import traceback
 
+# Add your IDs here to access Unifier admin settings.
+# This does NOT grant these users access to commands in admin.py.
 admin_ids = [356456393491873795, 549647456837828650]
 
 class AutoSaveDict(dict):

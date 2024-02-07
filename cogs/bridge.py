@@ -26,6 +26,16 @@ import random
 import string
 import copy
 
+# Configure logging and reporting channels here.
+home_guild = 1097238317881380984 # ID of guild with logs and reports channels
+logs_channel = 1189146414735953941
+reports_channel = 1203676755559452712
+
+# Configure PR and PR referencing here, if you need it for whatever reason.
+allow_prs = True
+pr_room_index = 1 # If this is 0, then the oldest room will be used as the PR room.
+pr_ref_room_index = 2
+
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 def encrypt_string(hash_string):
@@ -584,8 +594,8 @@ class Bridge(commands.Cog):
                 embed.set_author(name=sender)
         except:
             embed.set_author(name='[unknown, check sender ID]')
-        guild = self.bot.get_guild(1097238317881380984)
-        ch = guild.get_channel(1203676755559452712)
+        guild = self.bot.get_guild(home_guild)
+        ch = guild.get_channel(reports_channel)
         btns = discord.ui.ActionRow(
             discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
                               disabled=False),
@@ -894,11 +904,11 @@ class Bridge(commands.Cog):
         is_pr = False
         is_pr_ref = False
         ref_id = ''
-        if origin_room == 1:
+        if origin_room == pr_room_index:
             is_pr = True
             pr_id = genid()
             pr_ids = {}
-        if origin_room == 2:
+        if origin_room == pr_ref_room_index:
             passed = True
             if message.content.startswith('['):
                 components = message.content.split(']', 1)
@@ -925,6 +935,9 @@ class Bridge(commands.Cog):
                 is_pr = True
                 is_pr_ref = True
                 message.content = content
+        if not allow_prs:
+            is_pr = False
+            is_pr_ref = False
 
         pr_deletefail = False
 
@@ -1404,8 +1417,8 @@ class Bridge(commands.Cog):
         guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         identifier = user_hash + guild_hash
 
-        guild = self.bot.get_guild(1097238317881380984)
-        ch = guild.get_channel(1189146414735953941)
+        guild = self.bot.get_guild(home_guild)
+        ch = guild.get_channel(logs_channel)
 
         roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
