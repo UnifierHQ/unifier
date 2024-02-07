@@ -176,7 +176,7 @@ class Moderation(commands.Cog):
         banlist = []
         if f'{ctx.guild.id}' in list(self.bot.db['blocked'].keys()):
             banlist = self.bot.db['blocked'][f'{ctx.guild.id}']
-        if not f'{userid}' in list(banlist.keys()):
+        if not userid in banlist:
             return await ctx.send('User/server not banned!')
         self.bot.db['blocked'][f'{ctx.guild.id}'].remove(userid)
         self.bot.db.save_data()
