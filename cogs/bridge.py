@@ -35,9 +35,9 @@ logs_channel = data["logs_channel"]
 reports_channel = data["reports_channel"]
 
 # Configure PR and PR referencing here, if you need it for whatever reason.
-allow_prs = True
-pr_room_index = 1 # If this is 0, then the oldest room will be used as the PR room.
-pr_ref_room_index = 2
+allow_prs = data["allow_prs"]
+pr_room_index = data["pr_room_index"] # If this is 0, then the oldest room will be used as the PR room.
+pr_ref_room_index = data["pr_ref_room_index"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 

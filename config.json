@@ -6,5 +6,8 @@
   "admin_ids": [356456393491873795, 549647456837828650],
   "home_guild": 1097238317881380984,
   "logs_channel": 1189146414735953941,
-  "reports_channel": 1203676755559452712
+  "reports_channel": 1203676755559452712,
+  "allow_prs": true,
+  "pr_room_index": 1,
+  "pr_ref_room_index": 2
 }
