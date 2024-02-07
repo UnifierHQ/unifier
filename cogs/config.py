@@ -31,7 +31,8 @@ class AutoSaveDict(dict):
         
         # Ensure necessary keys exist
         self.update({'rules':{},'rooms':{},'emojis':[],'nicknames':{},'descriptions':{},
-                     'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[]})
+                     'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
+                     'avatars':{}})
 
         # Load data
         self.load_data()
@@ -439,6 +440,68 @@ class Config(commands.Cog):
         embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin")
         embed.set_footer(text="Version v0.3.0 (Beta)")
         await ctx.send(embed=embed)
+
+    @commands.command()
+    async def avatar(self,ctx,*,url=''):
+        desc = 'You have no avatar! Run `u!avatar <url>` or set an avatar in your profile settings.'
+        try:
+            if f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
+                url = self.bot.db['avatars'][f'{ctx.author.id}']
+                desc = 'You have a custom avatar! Run `u!avatar <url>` to change it, or run `u!avatar remove` to remove it.'
+            else:
+                desc = 'You have a defauly svatar! Run `u!avatar <url>` to set a custom one for UniChat.'
+                url = ctx.author.avatar.url
+        except:
+            url = None
+        embed = discord.Embed(title='This is your UniChat avatar!',description=desc)
+        embed.set_thumbnail(url=url)
+        author = f'{ctx.author.name}#{ctx.author.discriminator}'
+        if ctx.author.discriminator == '0':
+            author = f'@{ctx.author.name}'
+        embed.set_author(name=author,icon_url=url)
+        if url=='remove':
+            if not f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
+                return await ctx.send('You don\'t have a custom avatar!')
+            self.bot.db['avatars'].pop(f'{ctx.author.id}')
+            return await ctx.send('Custom avatar removed!')
+        if not url=='':
+            embed.title = 'This is how you\'ll look!'
+            embed.description = 'If you\'re satisfied, press the green button!'
+        row = [
+            discord.ui.Button(style=discord.ButtonStyle.green, label='Apply', custom_id=f'apply', disabled=False),
+            discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
+        ]
+        btns = discord.ui.ActionRow(row[0], row[1])
+        components = discord.ui.MessageComponents(btns)
+        if url=='':
+            embed.set_footer(text='To change your avatar, run u!avatar <url>.')
+            components = None
+        msg = await ctx.send(embed=embed,components=components)
+        if not url == '':
+            def check(interaction):
+                return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+
+            try:
+                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+            except:
+                row[0].disabled = True
+                row[1].disabled = True
+                btns = discord.ui.ActionRow(row[0], row[1])
+                components = discord.ui.MessageComponents(btns)
+                await msg.edit(components=components)
+                return await ctx.send('Timed out.',reference=msg)
+            if interaction.custom_id=='cancel':
+                row[0].disabled = True
+                row[1].disabled = True
+                btns = discord.ui.ActionRow(row[0], row[1])
+                components = discord.ui.MessageComponents(btns)
+                await msg.edit(components=components)
+            self.bot.db['avatars'].update({f'{ctx.author.id}':url})
+            self.bot.db.save_data()
+            return await ctx.send('Avatar successfully added!',reference=msg)
+
+
+
     
 def setup(bot):
     bot.add_cog(Config(bot))

@@ -965,7 +965,10 @@ class Bridge(commands.Cog):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        url = message.author.avatar.url
+                        if f'{message.author.id}' in self.bot.db['avatars']:
+                            url = self.bot.db['avatars'][f'{message.author.id}']
+                        else:
+                            url = message.author.avatar.url
                     except:
                         url = None
                     files = []
