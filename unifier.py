@@ -66,7 +66,8 @@ async def on_ready():
     bot.load_extension("cogs.bridge")
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
-    changestatus.start()
+    if not changestatus.is_running():
+        changestatus.start()
     print('registering commands...')
     toreg = []
     for command in bot.commands:
