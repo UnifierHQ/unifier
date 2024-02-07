@@ -18,7 +18,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 from discord.ext import commands
-import ast
 import json
 import traceback
 
@@ -388,7 +387,7 @@ class Config(commands.Cog):
     async def rooms(self,ctx):
         embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description='Use `u!bind <room>` to bind to a room.')
         if len(self.bot.db['rooms'])==0:
-            embed.add_field(value='No rooms here <:notlikenevira:1144718936986882088>')
+            embed.add_field(name='',value='No rooms here <:notlikenevira:1144718936986882088>')
             return await ctx.send(embed=embed)
         count = 0
         for room in self.bot.db['rooms']:
