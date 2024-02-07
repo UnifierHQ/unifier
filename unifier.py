@@ -21,6 +21,7 @@ from discord.ext import commands, tasks
 import random
 import aiohttp
 import hashlib
+import json
 bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
@@ -48,8 +49,8 @@ async def changestatus():
         "with the metaverse",
         "with emojis",
         "with Nevira",
-        "with green."
-        "with ItsAsheer"
+        "with green.",
+        "with ItsAsheer",
         "webhooks",
     ]
     new_stat = random.choice(status_messages)
@@ -66,6 +67,10 @@ async def on_ready():
     bot.load_extension("cogs.bridge")
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
+    try:
+        bot.load_extension("cogs.upgrader")
+    except:
+        print('WARNING: Upgrader is missing, consider installing it for an easier life.')
     if not changestatus.is_running():
         changestatus.start()
     print('registering commands...')
@@ -85,4 +90,7 @@ async def on_message(message):
     if message.content.startswith('u!') and not message.author.bot:
         return await bot.process_commands(message)
 
-bot.run('token')
+with open('config.json', 'r') as file:
+    data = json.load(file)
+
+bot.run(data['token'])

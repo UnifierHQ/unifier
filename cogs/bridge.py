@@ -25,16 +25,19 @@ from datetime import datetime
 import random
 import string
 import copy
+import json
 
-# Configure logging and reporting channels here.
-home_guild = 1097238317881380984 # ID of guild with logs and reports channels
-logs_channel = 1189146414735953941
-reports_channel = 1203676755559452712
+with open('config.json', 'r') as file:
+    data = json.load(file)
+
+home_guild = data["home_guild"]
+logs_channel = data["logs_channel"]
+reports_channel = data["reports_channel"]
 
 # Configure PR and PR referencing here, if you need it for whatever reason.
-allow_prs = True
-pr_room_index = 1 # If this is 0, then the oldest room will be used as the PR room.
-pr_ref_room_index = 2
+allow_prs = data["allow_prs"]
+pr_room_index = data["pr_room_index"] # If this is 0, then the oldest room will be used as the PR room.
+pr_ref_room_index = data["pr_ref_room_index"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 

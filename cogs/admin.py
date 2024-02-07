@@ -24,9 +24,29 @@ import textwrap
 from contextlib import redirect_stdout
 import cpuinfo
 import time
+import json
 
-# Set this to your ID to run admin commands.
-owner = 356456393491873795
+def log(type='???',status='ok',content='None'):
+    from time import gmtime, strftime
+    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
+    if status=='ok':
+        status = ' OK  '
+    elif status=='error':
+        status = 'ERROR'
+    elif status=='warn':
+        status = 'WARN '
+    elif status=='info':
+        status = 'INFO '
+    else:
+        raise ValueError('Invalid status type provided')
+    print(f'[{type} | {time1} | {status}] {content}')
+
+with open('config.json', 'r') as file:
+    data = json.load(file)
+owner = data['owner']
+branch = data['branch']
+check_endpoint = data['check_endpoint']
+files_endpoint = data['files_endpoint']
 
 noeval = '''```-------------No eval?-------------
 ⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝
@@ -148,7 +168,7 @@ class Admin(commands.Cog):
                 try:
                     await ctx.send(file=discord.File(fp='nosuccess.png'))
                 except:
-                    await ctx.send('Two (or more) errors occured:\n`1.` your code sucks <@356456393491873795>\n`2.` no megamind?')
+                    await ctx.send('Two (or more) errors occured:\n`1.` the code didn\'t work\n`2.` no meme?')
                 await ctx.author.send(f'```py\n{e.__class__.__name__}: {e}\n```')
                 return
             try:
@@ -159,7 +179,7 @@ class Admin(commands.Cog):
                 try:
                     await ctx.send(file=discord.File(fp='nosuccess.png'))
                 except:
-                    await ctx.send('Two (or more) errors occured:\n`1.` your code sucks <@356456393491873795>\n`2.` no megamind?')
+                    await ctx.send('Two (or more) errors occured:\n`1.` the code didn\'t work\n`2.` no meme?')
                 await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
             else:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
@@ -178,17 +198,17 @@ class Admin(commands.Cog):
         if ctx.author.id==owner:
             if isinstance(error, commands.MissingRequiredArgument):
                 try:
-                    await ctx.send('no shit youre a certified dumbass <@356456393491873795> **YOU FORGOT THE DAMN CODE LMFAOOOOO**',file=discord.File(fp='nocode.png'))
+                    await ctx.send('where code :thinking:',file=discord.File(fp='nocode.png'))
                 except:
                     try:
-                        await ctx.send('no shit youre a certified dumbass <@356456393491873795> **YOU FORGOT THE DAMN CODE LMFAOOOOO**\nalso you (or the server mods) forgor :skull: to give me attach files perms so pls do that i guess')
+                        await ctx.send('where code :thinking:')
                     except:
-                        await ctx.author.send('ok green how dumb can you be, you forgot your code AND **YOU TRIED TO EVAL IN A CHANNEL WHERE I CANT SEND SHIT BRUHHHHHH**')
+                        await ctx.author.send('where code and permission to send messages :thinking:')
             else:
                 try:
-                    await ctx.send('<@356456393491873795> id call you an idiot but something terribly went wrong here and idk what it is')
+                    await ctx.send('Something went horribly wrong, sadge')
                 except:
-                    await ctx.author.send('i cant send shit in that channel lol you fucking idiot')
+                    await ctx.author.send('i cant send stuff in that channel :/')
         else:
             try:
                 await ctx.send(file=discord.File(fp='noeval.png'))
