@@ -67,6 +67,10 @@ async def on_ready():
     bot.load_extension("cogs.bridge")
     bot.load_extension("cogs.moderation")
     bot.load_extension("cogs.config")
+    try:
+        bot.load_extension("cogs.upgrader")
+    except:
+        print('WARNING: Upgrader is missing, consider installing it for an easier life.')
     if not changestatus.is_running():
         changestatus.start()
     print('registering commands...')
