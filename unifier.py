@@ -49,8 +49,8 @@ async def changestatus():
         "with the metaverse",
         "with emojis",
         "with Nevira",
-        "with green."
-        "with ItsAsheer"
+        "with green.",
+        "with ItsAsheer",
         "webhooks",
     ]
     new_stat = random.choice(status_messages)
