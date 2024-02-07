@@ -268,7 +268,7 @@ class Admin(commands.Cog):
             if not len(failed)==0:
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
-            await ctx.send('**OOPS**: Only the owner can run reload! <:error:623591109016420365>')
+            await ctx.send('**OOPS**: Only the owner can run reload! :x:')
 
     @commands.command(hidden=True)
     async def load(self,ctx,*,extensions):
@@ -304,7 +304,7 @@ class Admin(commands.Cog):
             if not len(failed)==0:
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
-            await ctx.send('**OOPS**: Only the owner can run load! <:error:623591109016420365>')
+            await ctx.send('**OOPS**: Only the owner can run load! :x:')
 
     @commands.command(hidden=True)
     async def unload(self,ctx,*,extensions):
@@ -342,7 +342,7 @@ class Admin(commands.Cog):
             if not len(failed)==0:
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
-            await ctx.send('**OOPS**: Only the owner can run unload! <:error:623591109016420365>')
+            await ctx.send('**OOPS**: Only the owner can run unload! :x:')
 
     @commands.command(hidden=True)
     async def setpfp(self,ctx,*,pfpchoice=None):
