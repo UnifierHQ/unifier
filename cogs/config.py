@@ -24,7 +24,7 @@ import traceback
 with open('config.json', 'r') as file:
     data = json.load(file)
 
-home_guild = data["admin_ids"]
+admin_ids = data["admin_ids"]
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
