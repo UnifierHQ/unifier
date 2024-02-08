@@ -918,7 +918,6 @@ class Bridge(commands.Cog):
 
         if len(urls) > 0:
             rpresults = rapidphish.compare_urls(urls, 0.85)
-            print(rpresults.__dict__)
             if not rpresults.final_verdict=='safe':
                 try:
                     await message.delete()
@@ -1063,6 +1062,10 @@ class Bridge(commands.Cog):
                 is_pr_ref = True
                 message.content = content
 
+        if not allow_prs:
+            is_pr = False
+            is_pr_ref = False
+
         pr_deletefail = False
 
         if emojified or is_pr:
@@ -1159,7 +1162,7 @@ class Bridge(commands.Cog):
                                 msg = await message.channel.fetch_message(message.reference.message_id)
                             except:
                                 pass
-                    if not message.reference == None or is_pr and not msg == None:
+                    if (not message.reference == None and not msg == None) or is_pr:
                         if not message.reference == None and not msg == None:
                             if f'{msg.author.id}' in list(gbans.keys()) or f'{msg.guild.id}' in list(gbans.keys()):
                                 banned = True
@@ -1286,7 +1289,7 @@ class Bridge(commands.Cog):
                         try:
                             if blocked or banned:
                                 btns = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.red, label=f'Replying to [hidden]',
+                                    discord.ui.Button(style=discord.ButtonStyle.red, label=f'Replying to [hidden]',
                                                       disabled=True)
                                 )
                                 raise ValueError()
