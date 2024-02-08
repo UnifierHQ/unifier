@@ -28,7 +28,6 @@ import copy
 import json
 import re
 from tld import get_tld
-import requests
 from utils import rapidphish
 
 with open('config.json', 'r') as file:
@@ -914,18 +913,11 @@ class Bridge(commands.Cog):
                 urls[key] = url.replace('](', ' ', 1).split()[0]
             key = key + 1
 
-        try:
-            resp = await self.bot.loop.run_in_executor(None,
-                                                       lambda: requests.request("HEAD", urls[0], allow_redirects=True))
-            redirects = [i.url for i in resp.history]
-        except:
-            redirects = []
-
-        urls = urls + redirects
-        rpresults = rapidphish.compare_urls(urls, 0.85)
-
-        if not rpresults.final_verdict=='safe':
-            return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been recorded.**')
+        if len(urls) > 0:
+            rpresults = rapidphish.compare_urls(urls, 0.85)
+            print(rpresults.__dict__)
+            if not rpresults.final_verdict=='safe':
+                return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been recorded.**')
 
         if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
             return await message.channel.send(
