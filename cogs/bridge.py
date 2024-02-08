@@ -841,7 +841,8 @@ class Bridge(commands.Cog):
             return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
 
         # Low-latency RapidPhish implementation
-        t = time.time()
+        # Prevent message tampering
+        msg_rp = copy.deepcopy(message)
         urls = findurl(message.content)
         filtered = message.content.replace('\\', '')
         for url in urls:
@@ -918,36 +919,33 @@ class Bridge(commands.Cog):
             rpresults = rapidphish.compare_urls(urls, 0.85)
             print(rpresults.__dict__)
             if not rpresults.final_verdict=='safe':
-                # Prevent message tampering
-                msg = copy.deepcopy(message)
                 try:
                     await message.delete()
                 except:
                     pass
-                if msg.author.discriminator == '0':
-                    user = f'@{msg.author.name}'
+                if msg_rp.author.discriminator == '0':
+                    user = f'@{msg_rp.author.name}'
                 else:
-                    user = f'{msg.author.name}#{msg.author.discriminator}'
+                    user = f'{msg_rp.author.name}#{msg_rp.author.discriminator}'
                 embed = discord.Embed(title='Suspicious link detected <:nevsus:1024028464954744832>',
                                       description='RapidPhish Low-Latency Implementation has detected a suspicious link. But don\'t worry, we\'ve scanned it and took the appropriate action that you\'ve set us to take. <:neviraldi:981611276985831424>\n\nWe\'ll send the results here for you to see.',
                                       color=0x0000ff, timestamp=datetime.utcnow())
                 try:
-                    embed.set_author(name=user, icon_url=msg.author.avatar)
+                    embed.set_author(name=user, icon_url=msg_rp.author.avatar)
                 except:
-                    embed.set_author(name=user, icon_url=msg.author.avatar)
+                    embed.set_author(name=user, icon_url=msg_rp.author.avatar)
                 embed.set_footer(text='Protected by RapidPhish LLI')
-                content = msg.content
+                content = msg_rp.content
                 if len(content) > 1020:
-                    content = msg.content[:-(len(msg.content) - 1017)]
+                    content = msg_rp.content[:-(len(msg_rp.content) - 1017)]
                 embed.add_field(name='Message', value=f'||{content}||', inline=False)
-                embed.add_field(name='User ID', value=f'{msg.author.id}', inline=False)
+                embed.add_field(name='User ID', value=f'{msg_rp.author.id}', inline=False)
                 embed.add_field(name='Detected by', value='RapidPhish', inline=False)
                 embed.add_field(name='Action taken', value='forwarding blocked', inline=True)
                 guild = self.bot.get_guild(home_guild)
                 ch = guild.get_channel(logs_channel)
                 await ch.send(embed=embed)
-                return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**')
-        print(round((time.time()-t)*1000))
+                return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=msg_rp)
 
         if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
             return await message.channel.send(
