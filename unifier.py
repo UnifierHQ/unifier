@@ -63,22 +63,28 @@ async def changestatus():
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     print("loading cogs...")
-    bot.load_extension("cogs.admin")
-    bot.load_extension("cogs.bridge")
-    bot.load_extension("cogs.moderation")
-    bot.load_extension("cogs.config")
+    bot.load_extension("cogs.lockdown")
     try:
-        bot.load_extension("cogs.upgrader")
+        locked = bot.locked
     except:
-        print('WARNING: Upgrader is missing, consider installing it for an easier life.')
-    if not changestatus.is_running():
-        changestatus.start()
-    print('registering commands...')
-    toreg = []
-    for command in bot.commands:
-        if isinstance(command, commands.core.ContextMenuCommand):
-            toreg.append(command)
-    await bot.register_application_commands(commands=toreg)
+        locked = False
+    if not locked:
+        bot.load_extension("cogs.admin")
+        bot.load_extension("cogs.bridge")
+        bot.load_extension("cogs.moderation")
+        bot.load_extension("cogs.config")
+        try:
+            bot.load_extension("cogs.upgrader")
+        except:
+            print('WARNING: Upgrader is missing, consider installing it for an easier life.')
+        if not changestatus.is_running():
+            changestatus.start()
+        print('registering commands...')
+        toreg = []
+        for command in bot.commands:
+            if isinstance(command, commands.core.ContextMenuCommand):
+                toreg.append(command)
+        await bot.register_application_commands(commands=toreg)
     print('ready hehe')
 
 @bot.event
