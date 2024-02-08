@@ -26,6 +26,9 @@ import random
 import string
 import copy
 import json
+import re
+from tld import get_tld
+from utils import rapidphish
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -46,14 +49,12 @@ def encrypt_string(hash_string):
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
 
-
 def genid():
     value = ''
     for i in range(6):
         letter = random.choice(string.ascii_lowercase + string.digits)
         value = '{0}{1}'.format(value, letter)
     return value
-
 
 def is_room_locked(room, db):
     try:
@@ -65,6 +66,17 @@ def is_room_locked(room, db):
         traceback.print_exc()
         return False
 
+def findurl(string):
+    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    url = re.findall(regex,string)
+    return [x[0] for x in url]
+
+
+def bypass_killer(string):
+    if not [*string][len(string) - 1].isalnum():
+        return string[:-1]
+    else:
+        raise RuntimeError()
 
 class Bridge(commands.Cog):
     def __init__(self, bot):
@@ -746,6 +758,8 @@ class Bridge(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        author_rp = message.author
+        content_rp = message.content
         if not message.webhook_id == None:
             # webhook msg
             return
@@ -827,6 +841,116 @@ class Bridge(commands.Cog):
             except:
                 pass
             return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
+
+        # Low-latency RapidPhish implementation
+        # Prevent message tampering
+        urls = findurl(message.content)
+        filtered = message.content.replace('\\', '')
+        for url in urls:
+            filtered = filtered.replace(url, '', 1)
+        for word in filtered.split():
+            # kill hyperlinks :woke:
+            if '](' in word:
+                # likely hyperlink, lets kill it
+                if word.startswith('['):
+                    word = word[1:]
+                if word.endswith(')'):
+                    word = word[:-1]
+                word = word.replace(')[', ' ')
+                words = word.split()
+                found = False
+                for word2 in words:
+                    words2 = word2.replace('](', ' ').split()
+                    for word3 in words2:
+                        if '.' in word3:
+                            if not word3.startswith('http://') or not word3.startswith('https://'):
+                                word3 = 'http://' + word3
+                            while True:
+                                try:
+                                    word3 = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word3))
+                                except:
+                                    break
+                            if len(word3.split('.')) == 1:
+                                continue
+                            else:
+                                if word3.split('.')[1] == '':
+                                    continue
+                            try:
+                                get_tld(word3.lower(), fix_protocol=True)
+                                if '](' in word3.lower():
+                                    word3 = word3.replace('](', ' ', 1).split()[0]
+                                urls.append(word3.lower())
+                                found = True
+                            except:
+                                pass
+
+                if found:
+                    # successful link detection from hyperlink yippee
+                    continue
+            if '.' in word:
+                while True:
+                    try:
+                        word = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word))
+                    except:
+                        break
+                if len(word.split('.')) == 1:
+                    continue
+                else:
+                    if word.split('.')[1] == '':
+                        continue
+                try:
+                    get_tld(word.lower(), fix_protocol=True)
+                    if '](' in word.lower():
+                        word = word.replace('](', ' ', 1).split()[0]
+                    urls.append(word.lower())
+                except:
+                    pass
+
+        key = 0
+        for url in urls:
+            url = url.lower()
+            urls[key] = url
+            if not url.startswith('http://') and not url.startswith('https://'):
+                urls[key] = f'http://{url}'
+            if '](' in url:
+                urls[key] = url.replace('](', ' ', 1).split()[0]
+            key = key + 1
+
+        if len(urls) > 0:
+            rpresults = rapidphish.compare_urls(urls, 0.85)
+            print(rpresults.__dict__)
+            if not rpresults.final_verdict=='safe':
+                try:
+                    await message.delete()
+                except:
+                    pass
+                if author_rp.discriminator == '0':
+                    user = f'@{author_rp.name}'
+                else:
+                    user = f'{author_rp.name}#{author_rp.discriminator}'
+                embed = discord.Embed(title='Suspicious link detected <:nevsus:1024028464954744832>',
+                                      description='RapidPhish Low-Latency Implementation has detected a suspicious link. But don\'t worry, we\'ve scanned it and took the appropriate action that you\'ve set us to take. <:neviraldi:981611276985831424>\n\nWe\'ll send the results here for you to see.',
+                                      color=0x0000ff, timestamp=datetime.utcnow())
+                try:
+                    embed.set_author(name=user, icon_url=author_rp.avatar)
+                except:
+                    embed.set_author(name=user, icon_url=author_rp.avatar)
+                embed.set_footer(text='Protected by RapidPhish LLI')
+                content = content_rp
+                if len(content) > 1020:
+                    content = content_rp[:-(len(content_rp) - 1017)]
+                embed.add_field(name='Message', value=f'||{content}||', inline=False)
+                embed.add_field(name='User ID', value=f'{author_rp.id}', inline=False)
+                embed.add_field(name='Detected by', value='RapidPhish', inline=False)
+                embed.add_field(name='Action taken', value='forwarding blocked', inline=True)
+                guild = self.bot.get_guild(home_guild)
+                ch = guild.get_channel(reports_channel)
+                await ch.send(embed=embed)
+                try:
+                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=message)
+                except:
+                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**')
+                return
 
         if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
             return await message.channel.send(
@@ -1027,9 +1151,16 @@ class Bridge(commands.Cog):
                             index += 1
                         except:
                             pass
-                    if not message.reference == None or is_pr:
-                        if not message.reference == None:
-                            msg = message.reference.cached_message
+                    msg = None
+                    if not message.reference == None:
+                        msg = message.reference.cached_message
+                        if msg == None:
+                            try:
+                                msg = await message.channel.fetch_message(message.reference.message_id)
+                            except:
+                                pass
+                    if not message.reference == None or is_pr and not msg == None:
+                        if not message.reference == None and not msg == None:
                             if f'{msg.author.id}' in list(gbans.keys()) or f'{msg.guild.id}' in list(gbans.keys()):
                                 banned = True
                             elif (
@@ -1136,12 +1267,18 @@ class Bridge(commands.Cog):
                                                               url=f'https://discord.com/channels/{webhook.guild_id}/{webhook.channel_id}/{message.reference.message_id}')
                                         )
                                     else:
-                                        if msg.author.id == self.bot.user.id:
-                                            btns = discord.ui.ActionRow(
-                                                discord.ui.Button(style=ButtonStyle.gray,
-                                                                  label=f'Replying to [system message]', disabled=True)
-                                            )
-                                        else:
+                                        try:
+                                            if msg.author.id == self.bot.user.id:
+                                                btns = discord.ui.ActionRow(
+                                                    discord.ui.Button(style=ButtonStyle.gray,
+                                                                      label=f'Replying to [system message]', disabled=True)
+                                                )
+                                            else:
+                                                btns = discord.ui.ActionRow(
+                                                    discord.ui.Button(style=ButtonStyle.gray,
+                                                                      label=f'Replying to [unknown]', disabled=True)
+                                                )
+                                        except:
                                             btns = discord.ui.ActionRow(
                                                 discord.ui.Button(style=ButtonStyle.gray,
                                                                   label=f'Replying to [unknown]', disabled=True)
