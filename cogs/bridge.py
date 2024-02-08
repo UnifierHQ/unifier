@@ -1267,12 +1267,18 @@ class Bridge(commands.Cog):
                                                               url=f'https://discord.com/channels/{webhook.guild_id}/{webhook.channel_id}/{message.reference.message_id}')
                                         )
                                     else:
-                                        if msg.author.id == self.bot.user.id:
-                                            btns = discord.ui.ActionRow(
-                                                discord.ui.Button(style=ButtonStyle.gray,
-                                                                  label=f'Replying to [system message]', disabled=True)
-                                            )
-                                        else:
+                                        try:
+                                            if msg.author.id == self.bot.user.id:
+                                                btns = discord.ui.ActionRow(
+                                                    discord.ui.Button(style=ButtonStyle.gray,
+                                                                      label=f'Replying to [system message]', disabled=True)
+                                                )
+                                            else:
+                                                btns = discord.ui.ActionRow(
+                                                    discord.ui.Button(style=ButtonStyle.gray,
+                                                                      label=f'Replying to [unknown]', disabled=True)
+                                                )
+                                        except:
                                             btns = discord.ui.ActionRow(
                                                 discord.ui.Button(style=ButtonStyle.gray,
                                                                   label=f'Replying to [unknown]', disabled=True)
