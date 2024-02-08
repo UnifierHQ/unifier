@@ -26,6 +26,10 @@ import random
 import string
 import copy
 import json
+import re
+from tld import get_tld
+import requests
+from utils import rapidphish
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -46,14 +50,12 @@ def encrypt_string(hash_string):
         hashlib.sha256(hash_string.encode()).hexdigest()
     return sha_signature
 
-
 def genid():
     value = ''
     for i in range(6):
         letter = random.choice(string.ascii_lowercase + string.digits)
         value = '{0}{1}'.format(value, letter)
     return value
-
 
 def is_room_locked(room, db):
     try:
@@ -65,6 +67,17 @@ def is_room_locked(room, db):
         traceback.print_exc()
         return False
 
+def findurl(string):
+    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    url = re.findall(regex,string)
+    return [x[0] for x in url]
+
+
+def bypass_killer(string):
+    if not [*string][len(string) - 1].isalnum():
+        return string[:-1]
+    else:
+        raise RuntimeError()
 
 class Bridge(commands.Cog):
     def __init__(self, bot):
@@ -827,6 +840,92 @@ class Bridge(commands.Cog):
             except:
                 pass
             return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
+
+        # Low-latency RapidPhish implementation
+        urls = findurl(message.content)
+        filtered = message.content.replace('\\', '')
+        for url in urls:
+            filtered = filtered.replace(url, '', 1)
+        for word in filtered.split():
+            # kill hyperlinks :woke:
+            if '](' in word:
+                # likely hyperlink, lets kill it
+                if word.startswith('['):
+                    word = word[1:]
+                if word.endswith(')'):
+                    word = word[:-1]
+                word = word.replace(')[', ' ')
+                words = word.split()
+                found = False
+                for word2 in words:
+                    words2 = word2.replace('](', ' ').split()
+                    for word3 in words2:
+                        if '.' in word3:
+                            if not word3.startswith('http://') or not word3.startswith('https://'):
+                                word3 = 'http://' + word3
+                            while True:
+                                try:
+                                    word3 = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word3))
+                                except:
+                                    break
+                            if len(word3.split('.')) == 1:
+                                continue
+                            else:
+                                if word3.split('.')[1] == '':
+                                    continue
+                            try:
+                                get_tld(word3.lower(), fix_protocol=True)
+                                if '](' in word3.lower():
+                                    word3 = word3.replace('](', ' ', 1).split()[0]
+                                urls.append(word3.lower())
+                                found = True
+                            except:
+                                pass
+
+                if found:
+                    # successful link detection from hyperlink yippee
+                    continue
+            if '.' in word:
+                while True:
+                    try:
+                        word = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word))
+                    except:
+                        break
+                if len(word.split('.')) == 1:
+                    continue
+                else:
+                    if word.split('.')[1] == '':
+                        continue
+                try:
+                    get_tld(word.lower(), fix_protocol=True)
+                    if '](' in word.lower():
+                        word = word.replace('](', ' ', 1).split()[0]
+                    urls.append(word.lower())
+                except:
+                    pass
+
+        key = 0
+        for url in urls:
+            url = url.lower()
+            urls[key] = url
+            if not url.startswith('http://') and not url.startswith('https://'):
+                urls[key] = f'http://{url}'
+            if '](' in url:
+                urls[key] = url.replace('](', ' ', 1).split()[0]
+            key = key + 1
+
+        try:
+            resp = await self.bot.loop.run_in_executor(None,
+                                                       lambda: requests.request("HEAD", urls[0], allow_redirects=True))
+            redirects = [i.url for i in resp.history]
+        except:
+            redirects = []
+
+        urls = urls + redirects
+        rpresults = rapidphish.compare_urls(urls, 0.85)
+
+        if not rpresults.final_verdict=='safe':
+            return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been recorded.**')
 
         if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
             return await message.channel.send(
