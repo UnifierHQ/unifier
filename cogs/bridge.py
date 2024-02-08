@@ -947,9 +947,10 @@ class Bridge(commands.Cog):
                 ch = guild.get_channel(logs_channel)
                 await ch.send(embed=embed)
                 try:
-                    return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=message)
+                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=message)
                 except:
-                    return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',)
+                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**')
+                return
 
         if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
             return await message.channel.send(
