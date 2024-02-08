@@ -944,7 +944,7 @@ class Bridge(commands.Cog):
                 embed.add_field(name='Detected by', value='RapidPhish', inline=False)
                 embed.add_field(name='Action taken', value='forwarding blocked', inline=True)
                 guild = self.bot.get_guild(home_guild)
-                ch = guild.get_channel(logs_channel)
+                ch = guild.get_channel(reports_channel)
                 await ch.send(embed=embed)
                 try:
                     await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=message)
@@ -1151,9 +1151,16 @@ class Bridge(commands.Cog):
                             index += 1
                         except:
                             pass
-                    if not message.reference == None or is_pr:
-                        if not message.reference == None:
-                            msg = message.reference.cached_message
+                    msg = None
+                    if not message.reference == None:
+                        msg = message.reference.cached_message
+                        if msg == None:
+                            try:
+                                msg = await message.channel.fetch_message(message.reference.message_id)
+                            except:
+                                pass
+                    if not message.reference == None or is_pr and not msg == None:
+                        if not message.reference == None and not msg == None:
                             if f'{msg.author.id}' in list(gbans.keys()) or f'{msg.guild.id}' in list(gbans.keys()):
                                 banned = True
                             elif (
