@@ -841,6 +841,7 @@ class Bridge(commands.Cog):
             return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
 
         # Low-latency RapidPhish implementation
+        t = time.time()
         urls = findurl(message.content)
         filtered = message.content.replace('\\', '')
         for url in urls:
@@ -946,6 +947,7 @@ class Bridge(commands.Cog):
                 ch = guild.get_channel(logs_channel)
                 await ch.send(embed=embed)
                 return await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**')
+        print(round((time.time()-t)*1000))
 
         if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
             return await message.channel.send(
