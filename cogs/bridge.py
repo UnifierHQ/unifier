@@ -758,8 +758,8 @@ class Bridge(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        author_rp = copy.deepcopy(message.author)
-        content_rp = copy.deepcopy(message.content)
+        author_rp = message.author
+        content_rp = message.content
         if not message.webhook_id == None:
             # webhook msg
             return
