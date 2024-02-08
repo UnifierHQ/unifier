@@ -225,6 +225,8 @@ class Admin(commands.Cog):
             text = ''
             for extension in extensions:
                 try:
+                    if extension=='lockdown':
+                        raise ValueError('Cannot unload lockdown extension for security purposes.')
                     self.bot.reload_extension(f'cogs.{extension}')
                     if len(text)==0:
                         text = f'```diff\n+ [DONE] {extension}'
@@ -299,6 +301,8 @@ class Admin(commands.Cog):
                 try:
                     if extension=='admin':
                         raise ValueError('Cannot unload the admin extension, let\'s not break the bot here!')
+                    if extension=='lockdown':
+                        raise ValueError('Cannot unload lockdown extension for security purposes.')
                     self.bot.unload_extension(f'cogs.{extension}')
                     if len(text)==0:
                         text = f'```diff\n+ [DONE] {extension}'
