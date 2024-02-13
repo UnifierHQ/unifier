@@ -97,7 +97,7 @@ class Bridge(commands.Cog):
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
-                ctx.author.guild_permissions.ban_members) and not ctx.author.id == 356456393491873795:
+                ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
             return
         try:
             msg = ctx.message.reference.cached_message
