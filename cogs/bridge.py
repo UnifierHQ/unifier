@@ -547,7 +547,7 @@ class Bridge(commands.Cog):
                 except:
                     return
             cat2 = interaction.component.label
-            if cat2 == 'cancel':
+            if interaction.custom_id == 'cancel':
                 return await interaction.response.edit_message(content='Cancelled.', components=None)
         else:
             cat2 = 'none'
