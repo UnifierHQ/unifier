@@ -1548,7 +1548,11 @@ class Bridge(commands.Cog):
         if message.author.id == self.bot.user.id:
             return
 
-        hooks = await message.channel.webhooks()
+        try:
+            hooks = await message.channel.webhooks()
+        except:
+            hooks = await message.guild.webhooks()
+
         found = False
         origin_room = 0
 
