@@ -337,7 +337,7 @@ class Bridge(commands.Cog):
             ownedby = self.bot.owners[f'{ctx.author.id}']
         if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
             return await ctx.send('You didn\'t send this message!', ephemeral=True)
-        if not msg.webhook_id:
+        if not msg.webhook_id and msg.author.id==ctx.author.id:
             return await ctx.send(':moyai:', ephemeral=True)
 
         # Is this the parent?
