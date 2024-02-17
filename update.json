@@ -1,6 +1,6 @@
 {
   "version": "v0.3.6",
-  "release": 3,
+  "release": 4,
   "reboot": 1,
-  "description": "Unifier Kernel upgrader bugfix"
+  "description": "Added case un-sensitive prefix."
 }
