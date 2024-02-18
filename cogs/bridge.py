@@ -1264,7 +1264,23 @@ class Bridge(commands.Cog):
                                     if globalmoji:
                                         author = f'@{msg.author.name}'
                                     if not trimmed:
-                                        clean_content = discord.utils.remove_markdown(msg.clean_content)
+                                        clean_content = discord.utils.remove_markdown(msg.content)
+
+                                        components = clean_content.split('<@')
+                                        offset = 0
+                                        if clean_content.startswith('<@'):
+                                            offset = 1
+
+                                        while offset < len(components):
+                                            try:
+                                                userid = int(components[offset].split('>',1)[0])
+                                            except:
+                                                offset += 1
+                                                continue
+                                            user = self.bot.get_user(userid)
+                                            if user:
+                                                clean_content = clean_content.replace(f'<@{userid}>',f'@{user.global_name}').replace(f'<@!{userid}>',f'@{user.global_name}')
+                                            offset += 1
                                         if len(clean_content) > 80:
                                             trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
                                         else:
