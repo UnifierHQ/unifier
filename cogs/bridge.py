@@ -29,6 +29,7 @@ import json
 import re
 from tld import get_tld
 from utils import rapidphish
+import threading
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -1092,6 +1093,9 @@ class Bridge(commands.Cog):
             return
 
         # Forwarding
+        results = []
+        sameguild_id = []
+        threads = []
         for key in data:
             blocked = False
             sameguild = False
@@ -1208,6 +1212,7 @@ class Bridge(commands.Cog):
                                 embed.set_author(name=author)
                         embeds = og_embeds.copy()
                         components = None
+
                         if not message.reference == None and not blocked and not banned:
                             if not message.author.bot:
                                 embeds = []
@@ -1390,35 +1395,59 @@ class Bridge(commands.Cog):
                             if author == None:
                                 author = message.author.global_name
                         try:
-                            synchook = discord.SyncWebhook.partial(webhook.id, webhook.token).fetch()
-                            msg = synchook.send(avatar_url=url, username=author + identifier,
-                                                     content=message.content, embeds=embeds,
-                                                     files=files, allowed_mentions=mentions, wait=True)
-                            if sameguild:
-                                sameguild_id = msg.id
-                                self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
-                            else:
-                                hookmsg_ids.update({f'{webhook.guild_id}': msg.id})
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
-                            self.bot.owners[f'{message.author.id}'].append(msg.id)
+                            synchook = discord.SyncWebhook.partial(webhook.id, webhook.token).fetch()
+
+                            def thread_msg():
+                                sameguild_tr = sameguild
+                                guild_id = synchook.guild_id
+                                msg = synchook.send(avatar_url=url, username=author + identifier,
+                                                         content=message.content, embeds=embeds,
+                                                         files=files, allowed_mentions=mentions, wait=True)
+                                results.append(msg)
+
+                                if sameguild_tr:
+                                    sameguild_id.append(msg.id)
+                                if not sameguild_tr:
+                                    hookmsg_ids.update({f'{guild_id}': msg.id})
+                                self.bot.owners[f'{message.author.id}'].append(msg.id)
+
+                            thread = threading.Thread(target=thread_msg)
+                            thread.start()
+                            threads.append(thread)
+                            if sameguild:
+                                await self.bot.loop.run_in_executor(None, lambda: thread.join())
+                                sameguild_id = sameguild_id[0]
+                                self.bot.origin.update({f'{sameguild_id}': [message.guild.id, message.channel.id]})
                         except discord.HTTPException as e:
                             if e.code == 413:
                                 files = []
-                                msg = await webhook.send(avatar_url=url, username=author + identifier,
-                                                         content=message.content, embeds=embeds,
-                                                         allowed_mentions=mentions, wait=True)
+                                synchook = discord.SyncWebhook.partial(webhook.id, webhook.token).fetch()
+                                def thread_msg():
+                                    msg = synchook.send(avatar_url=url, username=author + identifier,
+                                                             content=message.content, embeds=embeds,
+                                                             allowed_mentions=mentions, wait=True)
+                                    results.append(msg)
+
+                                thread = threading.Thread(target=thread_msg)
+                                thread.start()
+                                threads.append(thread)
+
                                 await message.channel.send(
                                     'An attachment or two was too large - attachments will not be sent.\nPlease send a URL instead.',
                                     reference=message)
-                            if sameguild:
-                                sameguild_id = msg.id
-                                self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
-                            else:
-                                hookmsg_ids.update({f'{msg.guild.id}': msg.id})
-                            if not f'{message.author.id}' in list(self.bot.owners.keys()):
-                                self.bot.owners.update({f'{message.author.id}': []})
-                            self.bot.owners[f'{message.author.id}'].append(msg.id)
+                                if sameguild:
+                                    await self.bot.loop.run_in_executor(None, lambda: thread.join())
+                                    sameguild_id = sameguild_id[0]
+                                    self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
+                                else:
+                                    hookmsg_ids.update({f'{msg.guild.id}': msg.id})
+                                if not f'{message.author.id}' in list(self.bot.owners.keys()):
+                                    self.bot.owners.update({f'{message.author.id}': []})
+                                self.bot.owners[f'{message.author.id}'].append(msg.id)
+        for thread in threads:
+            await self.bot.loop.run_in_executor(None, lambda: thread.join())
         self.bot.owners[f'{message.author.id}'].append(message.id)
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id: pr_ids})
