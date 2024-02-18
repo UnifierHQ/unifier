@@ -1390,7 +1390,8 @@ class Bridge(commands.Cog):
                             if author == None:
                                 author = message.author.global_name
                         try:
-                            msg = await webhook.send(avatar_url=url, username=author + identifier,
+                            synchook = discord.SyncWebhook.partial(webhook.id, webhook.token).fetch()
+                            msg = synchook.send(avatar_url=url, username=author + identifier,
                                                      content=message.content, embeds=embeds,
                                                      files=files, allowed_mentions=mentions, wait=True)
                             if sameguild:
@@ -1402,9 +1403,10 @@ class Bridge(commands.Cog):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             self.bot.owners[f'{message.author.id}'].append(msg.id)
                         except discord.HTTPException as e:
+                            synchook = discord.SyncWebhook.partial(webhook.id, webhook.token).fetch()
                             if e.code == 413:
                                 files = []
-                                msg = await webhook.send(avatar_url=url, username=author + identifier,
+                                msg = synchook.send(avatar_url=url, username=author + identifier,
                                                          content=message.content, embeds=embeds,
                                                          allowed_mentions=mentions, wait=True)
                                 await message.channel.send(
