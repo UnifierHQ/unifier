@@ -974,13 +974,6 @@ class Bridge(commands.Cog):
 
         emojified = False
 
-        def replace_nth_occurance(string, srch, rplc, n):
-            Sstring = string.split(srch)
-            if len(Sstring) > (n):
-                return f'{srch.join(Sstring[:(n)])}{rplc}{srch.join(Sstring[n:])}'
-            else:
-                return string
-
         content = message.content.split('[emoji')
         parse_index = -1
         for element in content:
@@ -1327,11 +1320,14 @@ class Bridge(commands.Cog):
                                             hook = self.bot.db['rooms']['pr'][f'{webhook.guild.id}'][0]
                                         else:
                                             raise ValueError()
-                                        hooks_2 = await webhook.guild.webhooks()
-                                        for hook_obj in hooks_2:
-                                            if hook_obj.id == hook:
-                                                hook = hook_obj
-                                                break
+                                        try:
+                                            hook = webhook_cache[f'{webhook.guild.id}'][hook]
+                                        except:
+                                            hooks_2 = await webhook.guild.webhooks()
+                                            for hook_obj in hooks_2:
+                                                if hook_obj.id == hook:
+                                                    hook = hook_obj
+                                                    break
                                         reference_msg_id = self.bot.prs[ref_id][f'{webhook.guild_id}']
                                         ref_btns = discord.ui.ActionRow(
                                             discord.ui.Button(style=discord.ButtonStyle.link,
