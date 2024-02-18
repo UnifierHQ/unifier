@@ -1200,7 +1200,7 @@ class Bridge(commands.Cog):
                                 author = f'{msg.author.name}#{msg.author.discriminator}'
                                 if msg.author.discriminator == '0':
                                     author = f'@{msg.author.name}'
-                            content = msg.content
+                            content = discord.utils.remove_markdown(msg.clean_content)
                             if len(msg.content) == 0:
                                 if len(msg.attachments) == 0:
                                     if len(msg.embeds) > 0:
