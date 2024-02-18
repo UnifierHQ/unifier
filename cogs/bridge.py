@@ -1092,6 +1092,7 @@ class Bridge(commands.Cog):
         results = []
         sameguild_id = []
         threads = []
+        trimmed = None
         for key in data:
             blocked = False
             sameguild = False
@@ -1262,12 +1263,13 @@ class Bridge(commands.Cog):
                                                     break
                                     if globalmoji:
                                         author = f'@{msg.author.name}'
-                                    clean_content = discord.utils.remove_markdown(msg.clean_content)
-                                    if len(clean_content) > 80:
-                                        trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
-                                    else:
-                                        trimmed = clean_content
-                                    trimmed = trimmed.replace('\n', ' ')
+                                    if not trimmed:
+                                        clean_content = discord.utils.remove_markdown(msg.clean_content)
+                                        if len(clean_content) > 80:
+                                            trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
+                                        else:
+                                            trimmed = clean_content
+                                        trimmed = trimmed.replace('\n', ' ')
                                     btns = discord.ui.ActionRow(
                                         discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',
                                                           disabled=False,
