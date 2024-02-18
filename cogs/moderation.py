@@ -335,5 +335,28 @@ class Moderation(commands.Cog):
                 return await ctx.send('target has their dms with bot off, sadge')
         await ctx.send('hehe')
 
+    @commands.command()
+    async def anick(self, ctx, target, *, nickname=''):
+        # Check if the user is allowed to run the command
+        if not ctx.author.id in self.bot.moderators:
+            return
+
+        # Extract user ID from the target mention
+        try:
+            userid = int(target.replace('<@', '').replace('!', '').replace('>', ''))
+        except ValueError:
+            return await ctx.send("Invalid user mention.")
+
+        # Update or remove the nickname in the database
+        if len(nickname) == 0:
+            self.bot.db['nicknames'].pop(str(userid), None)
+        else:
+            self.bot.db['nicknames'][str(userid)] = nickname
+
+        # Save changes to the database
+        self.bot.db.save_data()
+
+        await ctx.send('Nickname updated.')
+
 def setup(bot):
     bot.add_cog(Moderation(bot))

@@ -97,7 +97,7 @@ class Bridge(commands.Cog):
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
-                ctx.author.guild_permissions.ban_members) and not ctx.author.id == 356456393491873795:
+                ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
             return
         try:
             msg = ctx.message.reference.cached_message
@@ -337,7 +337,7 @@ class Bridge(commands.Cog):
             ownedby = self.bot.owners[f'{ctx.author.id}']
         if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
             return await ctx.send('You didn\'t send this message!', ephemeral=True)
-        if not msg.webhook_id:
+        if not msg.webhook_id and msg.author.id==ctx.author.id:
             return await ctx.send(':moyai:', ephemeral=True)
 
         # Is this the parent?
@@ -547,7 +547,7 @@ class Bridge(commands.Cog):
                 except:
                     return
             cat2 = interaction.component.label
-            if cat2 == 'cancel':
+            if interaction.custom_id == 'cancel':
                 return await interaction.response.edit_message(content='Cancelled.', components=None)
         else:
             cat2 = 'none'
@@ -918,7 +918,6 @@ class Bridge(commands.Cog):
 
         if len(urls) > 0:
             rpresults = rapidphish.compare_urls(urls, 0.85)
-            print(rpresults.__dict__)
             if not rpresults.final_verdict=='safe':
                 try:
                     await message.delete()
@@ -1063,6 +1062,10 @@ class Bridge(commands.Cog):
                 is_pr_ref = True
                 message.content = content
 
+        if not allow_prs:
+            is_pr = False
+            is_pr_ref = False
+
         pr_deletefail = False
 
         if emojified or is_pr:
@@ -1159,7 +1162,7 @@ class Bridge(commands.Cog):
                                 msg = await message.channel.fetch_message(message.reference.message_id)
                             except:
                                 pass
-                    if not message.reference == None or is_pr and not msg == None:
+                    if (not message.reference == None and not msg == None) or is_pr:
                         if not message.reference == None and not msg == None:
                             if f'{msg.author.id}' in list(gbans.keys()) or f'{msg.guild.id}' in list(gbans.keys()):
                                 banned = True
@@ -1286,7 +1289,7 @@ class Bridge(commands.Cog):
                         try:
                             if blocked or banned:
                                 btns = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.red, label=f'Replying to [hidden]',
+                                    discord.ui.Button(style=discord.ButtonStyle.red, label=f'Replying to [hidden]',
                                                       disabled=True)
                                 )
                                 raise ValueError()
@@ -1545,7 +1548,11 @@ class Bridge(commands.Cog):
         if message.author.id == self.bot.user.id:
             return
 
-        hooks = await message.channel.webhooks()
+        try:
+            hooks = await message.channel.webhooks()
+        except:
+            hooks = await message.guild.webhooks()
+
         found = False
         origin_room = 0
 

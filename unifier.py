@@ -92,6 +92,9 @@ async def on_message(message):
     if not message.webhook_id==None:
         # webhook msg
         return
+        
+    if message.content.startswith('U!'):
+        message.content = message.content.replace('U','u',1)
 
     if message.content.startswith('u!') and not message.author.bot:
         return await bot.process_commands(message)
