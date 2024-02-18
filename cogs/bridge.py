@@ -1398,15 +1398,14 @@ class Bridge(commands.Cog):
                                 sameguild_id = msg.id
                                 self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
                             else:
-                                hookmsg_ids.update({f'{msg.guild.id}': msg.id})
+                                hookmsg_ids.update({f'{webhook.guild_id}': msg.id})
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             self.bot.owners[f'{message.author.id}'].append(msg.id)
                         except discord.HTTPException as e:
-                            synchook = discord.SyncWebhook.partial(webhook.id, webhook.token).fetch()
                             if e.code == 413:
                                 files = []
-                                msg = synchook.send(avatar_url=url, username=author + identifier,
+                                msg = await webhook.send(avatar_url=url, username=author + identifier,
                                                          content=message.content, embeds=embeds,
                                                          allowed_mentions=mentions, wait=True)
                                 await message.channel.send(
