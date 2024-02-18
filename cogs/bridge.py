@@ -45,6 +45,9 @@ pr_ref_room_index = data["pr_ref_room_index"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
+webhook_cache = {}
+webhook_cache_sync = {}
+
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -1127,7 +1130,26 @@ class Bridge(commands.Cog):
             sent = False
             guild = self.bot.get_guild(int(key))
             try:
-                hooks = await guild.webhooks()
+                hooks = []
+                try:
+                    for hook_id in hook_ids:
+                        if f'{hook_id}' in list(webhook_cache[key].keys()):
+                            hooks = [webhook_cache[key][f'{hook_id}']]
+                            break
+                except:
+                    pass
+                if len(hooks) == 0:
+                    hooks = await guild.webhooks()
+                    for hook in hooks:
+                        if not key in list(webhook_cache.keys()):
+                            webhook_cache.update({key: {}})
+                            webhook_cache_sync.update({key: {}})
+                        try:
+                            hook_sync = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
+                            webhook_cache_sync[key].update({f'{hook.id}': hook_sync})
+                            webhook_cache[key].update({f'{hook.id}': hook})
+                        except:
+                            continue
             except:
                 continue
             dont_attach = False
@@ -1398,7 +1420,7 @@ class Bridge(commands.Cog):
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             if webhook.guild_id in self.bot.db['experiments']['threaded_bridge']:
-                                synchook = discord.SyncWebhook.partial(webhook.id, webhook.token).fetch()
+                                synchook = webhook_cache_sync[f'{webhook.guild_id}'][f'{webhook.id}']
 
                                 def thread_msg():
                                     sameguild_tr = sameguild
@@ -1450,6 +1472,9 @@ class Bridge(commands.Cog):
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             self.bot.owners[f'{message.author.id}'].append(msg.id)
+                        except:
+                            await message.channel.send('**oh no**\nAn unexpected error occurred handling this message. Please contact the developers.')
+                            raise
 
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
