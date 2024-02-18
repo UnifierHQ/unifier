@@ -34,7 +34,7 @@ class AutoSaveDict(dict):
         # Ensure necessary keys exist
         self.update({'rules':{},'rooms':{},'emojis':[],'nicknames':{},'descriptions':{},
                      'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
-                     'avatars':{}})
+                     'avatars':{},'experiments':{},'experiments_info':{}})
 
         # Load data
         self.load_data()
@@ -100,7 +100,7 @@ class Config(commands.Cog):
             moderators.append(admin)
         self.bot.moderators = moderators
 
-    @commands.command()
+    @commands.command(hidde=True)
     async def addmod(self,ctx,*,userid):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
@@ -125,7 +125,7 @@ class Config(commands.Cog):
             mod = f'@{user.name}'
         await ctx.send(f'**{mod}** is now a moderator!')
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def removemod(self,ctx,*,userid):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
@@ -150,7 +150,7 @@ class Config(commands.Cog):
             mod = f'@{user.name}'
         await ctx.send(f'**{mod}** is no longer a moderator!')
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def make(self,ctx,*,room):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can create rooms!')
@@ -161,7 +161,39 @@ class Config(commands.Cog):
         self.bot.db.save_data()
         await ctx.send(f'Created room `{room}`!')
 
-    @commands.command()
+    @commands.command(hidden=True)
+    async def addexperiment(self, ctx, experiment, *, experiment_name):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can add experiments!')
+        if experiment in list(self.bot.db['experiments'].keys()):
+            return await ctx.send('This experiment already exists!')
+        self.bot.db['experiments'].update({experiment: []})
+        self.bot.db['experiments_info'].update({experiment: {'name':experiment_name,'description':'A new experiment'}})
+        self.bot.db.save_data()
+        await ctx.send(f'Created experiment `{experiment}`!')
+
+    @commands.command(hidden=True)
+    async def removeexperiment(self, ctx, *, experiment):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can add experiments!')
+        if not experiment in list(self.bot.db['experiments'].keys()):
+            return await ctx.send('This experiment doesn\'t exist!')
+        self.bot.db['experiments'].pop(experiment)
+        self.bot.db['experiments_info'].pop(experiment)
+        self.bot.db.save_data()
+        await ctx.send(f'Deleted experiment `{experiment}`!')
+
+    @commands.command(hidden=True)
+    async def experimentdesc(self, ctx, experiment, *, experiment_desc):
+        if not is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can modify experiments!')
+        if not experiment in list(self.bot.db['experiments'].keys()):
+            return await ctx.send('This experiment doesn\'t exist!')
+        self.bot.db['experiments_info'][experiment].update({'description': experiment_desc})
+        self.bot.db.save_data()
+        await ctx.send(f'Added description to experiment `{experiment}`!')
+
+    @commands.command(hidden=True)
     async def roomdesc(self,ctx,*,args):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
@@ -183,7 +215,7 @@ class Config(commands.Cog):
         self.bot.db.save_data()
         await ctx.send('Updated description!')
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def roomrestrict(self,ctx,*,room):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
@@ -197,7 +229,7 @@ class Config(commands.Cog):
             await ctx.send(f'Restricted `{room}`!')
         self.bot.db.save_data()
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def roomlock(self,ctx,*,room):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
@@ -210,6 +242,46 @@ class Config(commands.Cog):
             self.bot.db['locked'].append(room)
             await ctx.send(f'Locked `{room}`!')
         self.bot.db.save_data()
+
+    @commands.command(aliases=['experiment'])
+    async def experiments(self,ctx,action='',experiment=''):
+        if action.lower()=='enroll' or action.lower()=='add':
+            if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
+                return await ctx.send('You don\'t have the necessary permissions.')
+            if not experiment in list(self.bot.db['experiments'].keys()):
+                return await ctx.send('This experiment doesn\'t exist!')
+            if ctx.guild.id in self.bot.db['experiments'][experiment]:
+                return await ctx.send('Your server is already a part of this experiment!')
+            self.bot.db['experiments'][experiment].append(ctx.guild.id)
+            self.bot.db.update()
+            return await ctx.send('Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
+        elif action.lower()=='unenroll' or action.lower()=='remove':
+            if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
+                return await ctx.send('You don\'t have the necessary permissions.')
+            if not experiment in list(self.bot.db['experiments'].keys()):
+                return await ctx.send('This experiment doesn\'t exist!')
+            if not ctx.guild.id in self.bot.db['experiments'][experiment]:
+                return await ctx.send('Your server is not a part of this experiment!')
+            self.bot.db['experiments'][experiment].remove(ctx.guild.id)
+            self.bot.db.update()
+            return await ctx.send('Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
+        else:
+            embed = discord.Embed(title=':test_tube: Experiments',
+                                  description='Help us test Unifier\'s experimental features! Run `u!experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
+                                  color=0x0000ff)
+            for experiment in self.bot.db['experiments']:
+                name = self.bot.db['experiments_info'][experiment]['name'] + f" (`{experiment}`"
+                description = self.bot.db['experiments_info'][experiment]['description']
+                enrolled = ctx.guild.id in self.bot.db['experiments'][experiment]
+                if enrolled:
+                    name = name + ", active)"
+                    description = description + "\n\n**Your server is enrolled in this experiment!**"
+                else:
+                    name = name + ")"
+                embed.add_field(name=name, value=description, inline=False)
+            if len(list(self.bot.db['experiments'].keys()))==0:
+                embed.add_field(name="no experiments? :face_with_raised_eyebrow:",value='There\'s no experiments available yet!',inline=False)
+            await ctx.send(embed=embed)
     
     @commands.command(aliases=['link','connect','federate','bridge'])
     async def bind(self,ctx,*,room=''):
