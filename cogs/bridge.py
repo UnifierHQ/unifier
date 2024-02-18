@@ -29,6 +29,7 @@ import json
 import re
 from tld import get_tld
 from utils import rapidphish
+import threading
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -43,6 +44,9 @@ pr_room_index = data["pr_room_index"] # If this is 0, then the oldest room will 
 pr_ref_room_index = data["pr_ref_room_index"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
+
+webhook_cache = {}
+webhook_cache_sync = {}
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -1092,6 +1096,9 @@ class Bridge(commands.Cog):
             return
 
         # Forwarding
+        results = []
+        sameguild_id = []
+        threads = []
         for key in data:
             blocked = False
             sameguild = False
@@ -1123,7 +1130,26 @@ class Bridge(commands.Cog):
             sent = False
             guild = self.bot.get_guild(int(key))
             try:
-                hooks = await guild.webhooks()
+                hooks = []
+                try:
+                    for hook_id in hook_ids:
+                        if f'{hook_id}' in list(webhook_cache[key].keys()):
+                            hooks = [webhook_cache[key][f'{hook_id}']]
+                            break
+                except:
+                    pass
+                if len(hooks) == 0:
+                    hooks = await guild.webhooks()
+                    for hook in hooks:
+                        if not key in list(webhook_cache.keys()):
+                            webhook_cache.update({key: {}})
+                            webhook_cache_sync.update({key: {}})
+                        try:
+                            hook_sync = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
+                            webhook_cache_sync[key].update({f'{hook.id}': hook_sync})
+                            webhook_cache[key].update({f'{hook.id}': hook})
+                        except:
+                            continue
             except:
                 continue
             dont_attach = False
@@ -1208,6 +1234,7 @@ class Bridge(commands.Cog):
                                 embed.set_author(name=author)
                         embeds = og_embeds.copy()
                         components = None
+
                         if not message.reference == None and not blocked and not banned:
                             if not message.author.bot:
                                 embeds = []
@@ -1390,17 +1417,42 @@ class Bridge(commands.Cog):
                             if author == None:
                                 author = message.author.global_name
                         try:
-                            msg = await webhook.send(avatar_url=url, username=author + identifier,
-                                                     content=message.content, embeds=embeds,
-                                                     files=files, allowed_mentions=mentions, wait=True)
-                            if sameguild:
-                                sameguild_id = msg.id
-                                self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
-                            else:
-                                hookmsg_ids.update({f'{msg.guild.id}': msg.id})
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
-                            self.bot.owners[f'{message.author.id}'].append(msg.id)
+                            if webhook.guild_id in self.bot.db['experiments']['threaded_bridge']:
+                                synchook = webhook_cache_sync[f'{webhook.guild_id}'][f'{webhook.id}']
+
+                                def thread_msg():
+                                    sameguild_tr = sameguild
+                                    guild_id = synchook.guild_id
+                                    msg = synchook.send(avatar_url=url, username=author + identifier,
+                                                             content=message.content, embeds=embeds,
+                                                             files=files, allowed_mentions=mentions, wait=True)
+                                    results.append(msg)
+
+                                    if sameguild_tr:
+                                        sameguild_id.append(msg.id)
+                                    if not sameguild_tr:
+                                        hookmsg_ids.update({f'{guild_id}': msg.id})
+                                    self.bot.owners[f'{message.author.id}'].append(msg.id)
+
+                                thread = threading.Thread(target=thread_msg)
+                                thread.start()
+                                threads.append(thread)
+                                if sameguild:
+                                    await self.bot.loop.run_in_executor(None, lambda: thread.join())
+                                    sameguild_id = sameguild_id[0]
+                                    self.bot.origin.update({f'{sameguild_id}': [message.guild.id, message.channel.id]})
+                            else:
+                                msg = await webhook.send(avatar_url=url, username=author + identifier,
+                                                         content=message.content, embeds=embeds,
+                                                         files=files, allowed_mentions=mentions, wait=True)
+                                if sameguild:
+                                    sameguild_id = msg.id
+                                    self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
+                                else:
+                                    hookmsg_ids.update({f'{msg.guild.id}': msg.id})
+                                self.bot.owners[f'{message.author.id}'].append(msg.id)
                         except discord.HTTPException as e:
                             if e.code == 413:
                                 files = []
@@ -1415,9 +1467,17 @@ class Bridge(commands.Cog):
                                 self.bot.origin.update({f'{msg.id}': [message.guild.id, message.channel.id]})
                             else:
                                 hookmsg_ids.update({f'{msg.guild.id}': msg.id})
+                            if is_pr and not is_pr_ref:
+                                pr_ids.update({f'{webhook.guild_id}': msg.id})
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             self.bot.owners[f'{message.author.id}'].append(msg.id)
+                        except:
+                            await message.channel.send('**oh no**\nAn unexpected error occurred handling this message. Please contact the developers.')
+                            raise
+
+        for thread in threads:
+            await self.bot.loop.run_in_executor(None, lambda: thread.join())
         self.bot.owners[f'{message.author.id}'].append(message.id)
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id: pr_ids})
