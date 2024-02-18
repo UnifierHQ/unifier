@@ -1262,10 +1262,11 @@ class Bridge(commands.Cog):
                                                     break
                                     if globalmoji:
                                         author = f'@{msg.author.name}'
-                                    if len(msg.content) > 80:
-                                        trimmed = msg.content[:-(len(msg.content) - 77)] + '...'
+                                    clean_content = discord.utils.remove_markdown(msg.clean_content)
+                                    if len(clean_content) > 80:
+                                        trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
                                     else:
-                                        trimmed = msg.content
+                                        trimmed = clean_content
                                     trimmed = trimmed.replace('\n', ' ')
                                     btns = discord.ui.ActionRow(
                                         discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',
