@@ -1844,7 +1844,7 @@ class Bridge(commands.Cog):
                                     if not sameguild_tr:
                                         hookmsg_ids.update({f'{guild_id}': msg.id})
                                     self.bot.owners[f'{message.author.id}'].append(msg.id)
-                                    msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
+                                    msg_urls.update({f'{guild_id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
 
                                 thread = threading.Thread(target=thread_msg)
                                 thread.start()
