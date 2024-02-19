@@ -555,7 +555,7 @@ class Bridge(commands.Cog):
             except:
                 return
 
-        await interaction.response.edit_message('Generating...', components=None)
+        await interaction.response.edit_message(content='Generating...', components=None)
         msgid = msg.id
         try:
             if interaction.custom_id=='think':
