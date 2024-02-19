@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 
 import discord
 import hashlib
@@ -100,6 +101,222 @@ class Bridge(commands.Cog):
             self.bot.webhook_cache = {}
         if not hasattr(self.bot, 'webhook_cache_sync'):
             self.bot.webhook_cache_sync = {}
+
+    def clueless_gen(self, user, identifier):
+        from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+        import urllib.request
+        import requests
+        import io
+        response = requests.get(user)
+        user_resp = response
+        bg = Image.open('clueless.png').convert('RGBA')
+        user = Image.open(io.BytesIO(user_resp.content)).convert('RGBA').resize((80, 80))
+        bg.paste(user, (40, 8), user)
+        bg.save(f'{identifier}_clueless_output.png')
+
+    async def image_forward(self,ctx,filename):
+        gbans = self.bot.db['banned']
+
+        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
+            ct = time.time()
+            cdt = datetime.utcnow()
+            if f'{ctx.author.id}' in list(gbans.keys()):
+                banuntil = gbans[f'{ctx.author.id}']
+                if ct >= banuntil and not banuntil == 0:
+                    self.bot.db['banned'].pop(f'{ctx.author.id}')
+                    self.bot.db.update()
+                else:
+                    return
+            if f'{ctx.guild.id}' in list(gbans.keys()):
+                banuntil = gbans[f'{ctx.guild.id}']
+                if ct >= banuntil and not banuntil == 0:
+                    self.bot.db['banned'].pop(f'{ctx.guild.id}')
+                    self.bot.db.update()
+                else:
+                    return
+
+        if ctx.author.id == self.bot.user.id:
+            return
+
+        try:
+            hooks = await ctx.channel.webhooks()
+        except:
+            return
+        found = False
+        origin_room = 0
+
+        for webhook in hooks:
+            index = 0
+            for key in self.bot.db['rooms']:
+                data = self.bot.db['rooms'][key]
+                if f'{ctx.guild.id}' in list(data.keys()):
+                    hook_ids = data[f'{ctx.guild.id}']
+                else:
+                    hook_ids = []
+                if webhook.id in hook_ids:
+                    origin_room = index
+                    found = True
+                    if key in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
+                        return
+                    break
+                index += 1
+            if found:
+                break
+
+        if not found:
+            return
+
+        roomname = list(self.bot.db['rooms'].keys())[origin_room]
+        if is_room_locked(roomname, self.bot.db) and not ctx.author.id in self.bot.admins:
+            return
+
+        if not found:
+            return
+
+        user_hash = encrypt_string(f'{ctx.author.id}')[:3]
+        guild_hash = encrypt_string(f'{ctx.guild.id}')[:3]
+        identifier = ' (' + user_hash + guild_hash + ')'
+
+        hookmsg_ids = {}
+        msg_urls = {}
+
+        identifier_cache = identifier
+        banned = False
+
+        # Forwarding
+        results = []
+        sameguild_id = []
+        threads = []
+        for key in data:
+            blocked = False
+            sameguild = False
+            if len(identifier) == 0:
+                # restore identifier
+                identifier = identifier_cache
+            if int(key) == ctx.guild.id:
+                sameguild = True
+                identifier = ''
+            if key in list(gbans.keys()):
+                continue
+            banlist = []
+            if key in list(self.bot.db['blocked'].keys()):
+                banlist = self.bot.db['blocked'][key]
+            if (ctx.author.id in banlist or ctx.guild.id in banlist) and not ctx.author.id in self.bot.moderators:
+                continue
+            if key in list(data.keys()):
+                hook_ids = data[key]
+            else:
+                hook_ids = []
+
+            guild = self.bot.get_guild(int(key))
+            try:
+                hooks = []
+                try:
+                    for hook_id in hook_ids:
+                        if f'{hook_id}' in list(self.bot.webhook_cache[key].keys()):
+                            hooks = [self.bot.webhook_cache[key][f'{hook_id}']]
+                            break
+                except:
+                    pass
+                if len(hooks) == 0:
+                    hooks = await guild.webhooks()
+                    for hook in hooks:
+                        if not key in list(self.bot.webhook_cache.keys()):
+                            self.bot.webhook_cache.update({key: {}})
+                            self.bot.webhook_cache_sync.update({key: {}})
+                        try:
+                            hook_sync = await self.bot.loop.run_in_executor(None,
+                                                                            lambda: discord.SyncWebhook.partial(
+                                                                                hook.id, hook.token).fetch())
+                            self.bot.webhook_cache_sync[key].update({f'{hook.id}': hook_sync})
+                            self.bot.webhook_cache[key].update({f'{hook.id}': hook})
+                        except:
+                            continue
+            except:
+                continue
+
+            for webhook in hooks:
+                if webhook.id in hook_ids:
+                    try:
+                        if f'{ctx.author.id}' in self.bot.db['avatars']:
+                            url = self.bot.db['avatars'][f'{ctx.author.id}']
+                        else:
+                            url = ctx.author.avatar.url
+                    except:
+                        url = None
+                    author = ctx.author.global_name
+                    if f'{ctx.author.id}' in list(self.bot.db['nicknames'].keys()):
+                        author = self.bot.db['nicknames'][f'{ctx.author.id}']
+                    if sameguild:
+                        author = ctx.author.nick
+                        if author == None:
+                            author = ctx.author.global_name
+                    if not f'{ctx.author.id}' in list(self.bot.owners.keys()):
+                        self.bot.owners.update({f'{ctx.author.id}': []})
+                    if webhook.guild_id in self.bot.db['experiments']['threaded_bridge']:
+                        synchook = self.bot.webhook_cache_sync[f'{webhook.guild_id}'][f'{webhook.id}']
+
+                        def thread_msg():
+                            sameguild_tr = sameguild
+                            guild_id = synchook.guild_id
+                            msg = synchook.send(avatar_url=url, username=author + identifier,
+                                                file=discord.File(fp="cached/"+filename), allowed_mentions=mentions, wait=True)
+                            results.append(msg)
+
+                            if sameguild_tr:
+                                sameguild_id.append(msg.id)
+                            if not sameguild_tr:
+                                hookmsg_ids.update({f'{guild_id}': msg.id})
+                            self.bot.owners[f'{ctx.author.id}'].append(msg.id)
+
+                        thread = threading.Thread(target=thread_msg)
+                        thread.start()
+                        threads.append(thread)
+                        if sameguild:
+                            await self.bot.loop.run_in_executor(None, lambda: thread.join())
+                            sameguild_id = sameguild_id[0]
+                            self.bot.origin.update(
+                                {f'{sameguild_id}': [ctx.guild.id, ctx.channel.id]})
+                    else:
+                        msg = await webhook.send(avatar_url=url, username=author + identifier,
+                                                 file=discord.File(fp="cached/"+filename), allowed_mentions=mentions, wait=True)
+                        if sameguild:
+                            sameguild_id = msg.id
+                            self.bot.origin.update({f'{msg.id}': [ctx.guild.id, ctx.channel.id]})
+                        else:
+                            hookmsg_ids.update({f'{msg.guild.id}': msg.id})
+                        self.bot.owners[f'{ctx.author.id}'].append(msg.id)
+
+        for thread in threads:
+            await self.bot.loop.run_in_executor(None, lambda: thread.join())
+        self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
+        self.bot.bridged_urls.update({f'{sameguild_id}': msg_urls})
+        try:
+            os.remove("cached/"+filename)
+        except:
+            pass
+
+    @commands.context_command(name='user <= CLUELESS')
+    async def clueless(self, ctx, user: discord.Member):
+        hooks = await ctx.guild.webhooks()
+        webhook = None
+        for hook in hooks:
+            if hook.channel_id == ctx.channel.id and hook.user.id == self.bot.user.id:
+                webhook = hook
+        if not webhook or not f'{webhook.id}' in f'{self.bot.db["rooms"]}':
+            return await ctx.send('This isn\'t a UniChat room!', ephemeral=True)
+        msg = await ctx.send('Generating...', ephemeral=True)
+        msgid = msg.id
+        try:
+            link1 = user.avatar.url
+            await self.bot.loop.run_in_executor(None, lambda: self.clueless_gen(link1, msgid))
+        except:
+            return await msg.edit('something went wrong and im clueless')
+        try:
+            await self.image_forward(ctx,f'{msgid}_clueless_output.png')
+        except:
+            return await msg.edit('something went wrong and im clueless')
+
 
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
