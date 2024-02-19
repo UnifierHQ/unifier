@@ -1643,6 +1643,7 @@ class Bridge(commands.Cog):
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             self.bot.owners[f'{message.author.id}'].append(msg.id)
+                            msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
                     else:
                         if message.author.bot:
                             embeds = message.embeds
@@ -1674,6 +1675,7 @@ class Bridge(commands.Cog):
                                     if not sameguild_tr:
                                         hookmsg_ids.update({f'{guild_id}': msg.id})
                                     self.bot.owners[f'{message.author.id}'].append(msg.id)
+                                    msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
 
                                 thread = threading.Thread(target=thread_msg)
                                 thread.start()
@@ -1692,6 +1694,7 @@ class Bridge(commands.Cog):
                                 else:
                                     hookmsg_ids.update({f'{msg.guild.id}': msg.id})
                                 self.bot.owners[f'{message.author.id}'].append(msg.id)
+                                msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
                         except discord.HTTPException as e:
                             if e.code == 413:
                                 files = []
