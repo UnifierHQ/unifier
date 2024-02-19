@@ -45,9 +45,6 @@ pr_ref_room_index = data["pr_ref_room_index"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
-webhook_cache = {}
-webhook_cache_sync = {}
-
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -87,6 +84,8 @@ class Bridge(commands.Cog):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = {}
+        if not hasattr(self.bot, 'bridged_urls'):
+            self.bot.bridged_urls = {}
         if not hasattr(self.bot, 'owners'):
             self.bot.owners = {}
         if not hasattr(self.bot, 'origin'):
@@ -97,6 +96,10 @@ class Bridge(commands.Cog):
             self.bot.notified = []
         if not hasattr(self.bot, 'reports'):
             self.bot.reports = {}
+        if not hasattr(self.bot, 'webhook_cache'):
+            self.bot.webhook_cache = {}
+        if not hasattr(self.bot, 'webhook_cache_sync'):
+            self.bot.webhook_cache_sync = {}
 
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
@@ -970,7 +973,7 @@ class Bridge(commands.Cog):
         identifier = ' (' + user_hash + guild_hash + ')'
 
         hookmsg_ids = {}
-        content = message.content
+        msg_urls = {}
 
         emojified = False
 
@@ -1127,21 +1130,21 @@ class Bridge(commands.Cog):
                 hooks = []
                 try:
                     for hook_id in hook_ids:
-                        if f'{hook_id}' in list(webhook_cache[key].keys()):
-                            hooks = [webhook_cache[key][f'{hook_id}']]
+                        if f'{hook_id}' in list(self.bot.webhook_cache[key].keys()):
+                            hooks = [self.bot.webhook_cache[key][f'{hook_id}']]
                             break
                 except:
                     pass
                 if len(hooks) == 0:
                     hooks = await guild.webhooks()
                     for hook in hooks:
-                        if not key in list(webhook_cache.keys()):
-                            webhook_cache.update({key: {}})
-                            webhook_cache_sync.update({key: {}})
+                        if not key in list(self.bot.webhook_cache.keys()):
+                            self.bot.webhook_cache.update({key: {}})
+                            self.bot.webhook_cache_sync.update({key: {}})
                         try:
                             hook_sync = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
-                            webhook_cache_sync[key].update({f'{hook.id}': hook_sync})
-                            webhook_cache[key].update({f'{hook.id}': hook})
+                            self.bot.webhook_cache_sync[key].update({f'{hook.id}': hook_sync})
+                            self.bot.webhook_cache[key].update({f'{hook.id}': hook})
                         except:
                             continue
             except:
@@ -1244,22 +1247,21 @@ class Bridge(commands.Cog):
                                 try:
                                     globalmoji = False
                                     if msg.webhook_id == None:
-                                        reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
+                                        msg_url = self.bot.bridged_urls[f'{msg.id}'][f'{webhook.guild_id}']
                                     else:
                                         try:
                                             reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
                                             globalmoji = True
+                                            msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
                                         except:
                                             for key in self.bot.bridged:
                                                 entry = self.bot.bridged[key]
                                                 if msg.id in entry.values():
                                                     try:
-                                                        reference_msg_id = self.bot.bridged[f'{key}'][
-                                                            f'{webhook.guild_id}']
+                                                        reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
+                                                        msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
                                                     except:
-                                                        msg = await webhook.channel.fetch_message(int(key))
-                                                        if not msg == None:
-                                                            reference_msg_id = int(key)
+                                                        msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
                                                     break
                                     if globalmoji:
                                         author = f'@{msg.author.name}'
@@ -1289,7 +1291,7 @@ class Bridge(commands.Cog):
                                     btns = discord.ui.ActionRow(
                                         discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',
                                                           disabled=False,
-                                                          url=f'https://discord.com/channels/{webhook.guild_id}/{webhook.channel_id}/{reference_msg_id}')
+                                                          url=msg_url)
                                     )
                                     if len(trimmed) > 0:
                                         btns2 = discord.ui.ActionRow(
@@ -1340,7 +1342,7 @@ class Bridge(commands.Cog):
                                         else:
                                             raise ValueError()
                                         try:
-                                            hook = webhook_cache[f'{webhook.guild.id}'][hook]
+                                            hook = self.bot.webhook_cache[f'{webhook.guild.id}'][hook]
                                         except:
                                             hooks_2 = await webhook.guild.webhooks()
                                             for hook_obj in hooks_2:
@@ -1400,6 +1402,7 @@ class Bridge(commands.Cog):
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             self.bot.owners[f'{message.author.id}'].append(msg.id)
+                            msg_urls.update({f'{msg.guild.id}':f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
                         except discord.HTTPException as e:
                             if e.code == 413:
                                 files = []
@@ -1435,7 +1438,7 @@ class Bridge(commands.Cog):
                             if not f'{message.author.id}' in list(self.bot.owners.keys()):
                                 self.bot.owners.update({f'{message.author.id}': []})
                             if webhook.guild_id in self.bot.db['experiments']['threaded_bridge']:
-                                synchook = webhook_cache_sync[f'{webhook.guild_id}'][f'{webhook.id}']
+                                synchook = self.bot.webhook_cache_sync[f'{webhook.guild_id}'][f'{webhook.id}']
 
                                 def thread_msg():
                                     sameguild_tr = sameguild
@@ -1498,8 +1501,10 @@ class Bridge(commands.Cog):
             self.bot.prs.update({pr_id: pr_ids})
         if emojified or is_pr_ref or is_pr:
             self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
+            self.bot.bridged_urls.update({f'{sameguild_id}': msg_urls})
         else:
             self.bot.bridged.update({f'{message.id}': hookmsg_ids})
+            self.bot.bridged_urls.update({f'{message.id}': msg_urls})
         try:
             del files
         except:
