@@ -425,6 +425,7 @@ class Bridge(commands.Cog):
         try:
             os.remove("cached/"+filename)
         except:
+            raise
             pass
 
     @commands.context_command(name='Reaction image')
@@ -1607,7 +1608,7 @@ class Bridge(commands.Cog):
                                     content = '**GLOBAL BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a global banned user or server. Global bans are placed on users and servers that break UniChat rules continuously or/and severely.'
                                 elif blocked:
                                     content = '**SERVER BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a server banned user or server. Server bans are placed on users and servers by this server\'s moderators.\nAsk them to unblock the origin user or server.'
-                            embed = discord.Embed(title=f'Replying to {author}', description=content, color=0xeba134)
+                            embed = discord.Embed(title=f'Reacting to {author}', description=content, color=0xeba134)
                             if not msg.author.avatar == None and not banned and not blocked:
                                 embed.set_author(name=author, icon_url=msg.author.avatar.url)
                             else:

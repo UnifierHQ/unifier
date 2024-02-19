@@ -87,7 +87,10 @@ async def on_ready():
         toreg = []
         for command in bot.commands:
             if isinstance(command, commands.core.ContextMenuCommand):
-                toreg.append(command)
+                if command.name=='Reaction image':
+                    toreg.insert(0,command)
+                else:
+                    toreg.append(command)
         await bot.register_application_commands(commands=toreg)
     print('ready hehe')
 
