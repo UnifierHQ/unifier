@@ -318,6 +318,7 @@ class Bridge(commands.Cog):
         except:
             await msg.edit('something went wrong and im clueless')
             raise
+        await msg.edit('Sent reaction image!')
 
 
     @commands.command(aliases=['find'])
@@ -1523,6 +1524,7 @@ class Bridge(commands.Cog):
                                                               emoji='\U0001F3DE', disabled=True)
                                         )
                                 except:
+                                    raise
                                     if is_pr_ref and sameguild and not blocked and not banned:
                                         btns = discord.ui.ActionRow(
                                             discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',
