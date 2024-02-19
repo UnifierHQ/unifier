@@ -1720,6 +1720,7 @@ class Bridge(commands.Cog):
         self.bot.owners[f'{message.author.id}'].append(message.id)
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id: pr_ids})
+        msg_urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
         if emojified or is_pr_ref or is_pr:
             self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
             self.bot.bridged_urls.update({f'{sameguild_id}': msg_urls})
