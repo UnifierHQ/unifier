@@ -22,7 +22,11 @@ import random
 import aiohttp
 import hashlib
 import json
-bot = commands.Bot(command_prefix='u!',intents=discord.Intents.all())
+
+with open('config.json', 'r') as file:
+    data = json.load(file)
+
+bot = commands.Bot(command_prefix=data['prefix'],intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
@@ -93,13 +97,8 @@ async def on_message(message):
         # webhook msg
         return
         
-    if message.content.startswith('U!'):
-        message.content = message.content.replace('U','u',1)
-
-    if message.content.startswith('u!') and not message.author.bot:
+    if message.content.lower().startswith(bot.command_prefix) and not message.author.bot:
+        message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
-
-with open('config.json', 'r') as file:
-    data = json.load(file)
 
 bot.run(data['token'])
