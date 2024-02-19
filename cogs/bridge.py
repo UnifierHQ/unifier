@@ -317,7 +317,7 @@ class Bridge(commands.Cog):
                                             except:
                                                 msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
                                             break
-                            identifier = msg.author.name.split('(')
+                            identifier = msg_resp.author.name.split('(')
                             identifier = identifier[len(identifier) - 1].replace(')', '')
                             if len(identifier)==6:
                                 author = f'@{msg_resp.author.name[:-9]}'
