@@ -1524,7 +1524,6 @@ class Bridge(commands.Cog):
                                                               emoji='\U0001F3DE', disabled=True)
                                         )
                                 except:
-                                    raise
                                     if is_pr_ref and sameguild and not blocked and not banned:
                                         btns = discord.ui.ActionRow(
                                             discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',
@@ -1724,7 +1723,6 @@ class Bridge(commands.Cog):
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id: pr_ids})
         msg_urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
-        print(msg_urls)
         if emojified or is_pr_ref or is_pr:
             self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
             self.bot.bridged_urls.update({f'{sameguild_id}': msg_urls})
