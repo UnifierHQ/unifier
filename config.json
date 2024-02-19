@@ -1,5 +1,6 @@
 {
   "owner": 356456393491873795,
+  "prefix": "u!",
   "branch": "main",
   "check_endpoint": "https://raw.githubusercontent.com/greeeen-dev/unifier-version",
   "files_endpoint": "https://github.com/greeeen-dev/unifier.git",
