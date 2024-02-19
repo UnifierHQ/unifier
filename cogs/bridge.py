@@ -112,7 +112,7 @@ class Bridge(commands.Cog):
         bg = Image.open('clueless.png').convert('RGBA')
         user = Image.open(io.BytesIO(user_resp.content)).convert('RGBA').resize((80, 80))
         bg.paste(user, (40, 8), user)
-        bg.save(f'{identifier}_clueless_output.png')
+        bg.save(f'cached/{identifier}_clueless_output.png')
 
     async def image_forward(self,ctx,filename):
         gbans = self.bot.db['banned']
