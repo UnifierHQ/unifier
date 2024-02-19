@@ -512,7 +512,7 @@ class Config(commands.Cog):
         embed = discord.Embed(title="Unifier and Unified Chat",description="Unify servers, make worthwhile conversations.",color=0xed4545)
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.set_footer(text="Version v0.3.9 (Beta)")
+        embed.set_footer(text="Version v0.4.0 (Beta)")
         await ctx.send(embed=embed)
 
     @commands.command()
