@@ -221,6 +221,7 @@ class Bridge(commands.Cog):
         user_hash = encrypt_string(f'{ctx.author.id}')[:3]
         guild_hash = encrypt_string(f'{ctx.guild.id}')[:3]
         identifier = ' (' + user_hash + guild_hash + ')'
+        identifier_og = identifier
 
         hookmsg_ids = {}
         msg_urls = {}
@@ -406,9 +407,14 @@ class Bridge(commands.Cog):
                             author = ctx.author.global_name
                     if not f'{ctx.author.id}' in list(self.bot.owners.keys()):
                         self.bot.owners.update({f'{ctx.author.id}': []})
-                    msg = await webhook.send(avatar_url=url, username=author + identifier,
-                                             file=discord.File(fp="cached/"+filename), allowed_mentions=mentions,
-                                             components=components, wait=True)
+                    if sameguild:
+                        msg = await webhook.send(avatar_url=url, username=author,
+                                                 file=discord.File(fp="cached/"+filename), allowed_mentions=mentions,
+                                                 components=components, wait=True)
+                    else:
+                        msg = await webhook.send(avatar_url=url, username=author + identifier_og,
+                                                 file=discord.File(fp="cached/" + filename), allowed_mentions=mentions,
+                                                 components=components, wait=True)
                     if sameguild:
                         sameguild_id = msg.id
                         self.bot.origin.update({f'{msg.id}': [ctx.guild.id, ctx.channel.id]})
