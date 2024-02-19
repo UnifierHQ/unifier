@@ -1640,9 +1640,12 @@ class Bridge(commands.Cog):
                                         msg_url = self.bot.bridged_urls[f'{msg.id}'][f'{webhook.guild_id}']
                                     else:
                                         try:
-                                            reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
-                                            globalmoji = True
-                                            msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
+                                            try:
+                                                reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
+                                                globalmoji = True
+                                                msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
+                                            except:
+                                                msg_url = self.bot.bridged_urls[f'{msg.id}'][f'{webhook.guild_id}']
                                         except:
                                             for key in self.bot.bridged:
                                                 entry = self.bot.bridged[key]
