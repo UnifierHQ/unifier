@@ -355,11 +355,11 @@ class Bridge(commands.Cog):
                             )
                             if len(trimmed) > 0:
                                 btns2 = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.blurple, label=trimmed, disabled=True)
+                                    discord.ui.Button(style=ButtonStyle.green, label=trimmed, disabled=True)
                                 )
                             else:
                                 btns2 = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.blurple,
+                                    discord.ui.Button(style=ButtonStyle.green,
                                                       label=f'x{len(msg_resp.embeds) + len(msg_resp.attachments)}',
                                                       emoji='\U0001F3DE', disabled=True)
                                 )
@@ -368,22 +368,22 @@ class Bridge(commands.Cog):
                                 if msg_resp.author.id == self.bot.user.id:
                                     btns = discord.ui.ActionRow(
                                         discord.ui.Button(style=ButtonStyle.gray,
-                                                          label=f'Replying to [system message]', disabled=True)
+                                                          label=f'Reacting to [system message]', disabled=True)
                                     )
                                 else:
                                     btns = discord.ui.ActionRow(
                                         discord.ui.Button(style=ButtonStyle.gray,
-                                                          label=f'Replying to [unknown]', disabled=True)
+                                                          label=f'Reacting to [unknown]', disabled=True)
                                     )
                             except:
                                 btns = discord.ui.ActionRow(
                                     discord.ui.Button(style=ButtonStyle.gray,
-                                                      label=f'Replying to [unknown]', disabled=True)
+                                                      label=f'Reacting to [unknown]', disabled=True)
                                 )
                     try:
                         if blocked or banned:
                             btns = discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.red, label=f'Replying to [hidden]',
+                                discord.ui.Button(style=discord.ButtonStyle.red, label=f'Reacting to [hidden]',
                                                   disabled=True)
                             )
                             raise ValueError()
