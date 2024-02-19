@@ -311,11 +311,13 @@ class Bridge(commands.Cog):
             link1 = user.avatar.url
             await self.bot.loop.run_in_executor(None, lambda: self.clueless_gen(link1, msgid))
         except:
-            return await msg.edit('something went wrong and im clueless')
+            await msg.edit('something went wrong and im clueless')
+            raise
         try:
             await self.image_forward(ctx,f'{msgid}_clueless_output.png')
         except:
-            return await msg.edit('something went wrong and im clueless')
+            await msg.edit('something went wrong and im clueless')
+            raise
 
 
     @commands.command(aliases=['find'])
