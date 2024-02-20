@@ -129,6 +129,10 @@ class Bridge(commands.Cog):
         bg.paste(user2, (753, 180), user2)
         im_draw = ImageDraw.Draw(bg)
         font = ImageFont.truetype('Kollektif.ttf', 50)
+        components = username.split('(')
+        component = components[len(components) - 1].replace(')', '')
+        if len(component) == 6 and len(username.split('(')) >= 2:
+            username = username[:-9]
         text = f'THINK, {username.upper()}, THINK!'
         text_width, text_height = im_draw.textsize(text, font)
         width = 1116 - text_width
