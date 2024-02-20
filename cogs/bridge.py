@@ -720,7 +720,10 @@ class Bridge(commands.Cog):
                         pass
                     break
 
-        await ctx.send(f'Deleted {deleted} forwarded messages')
+        if ctx.author.id in self.bot.moderators:
+            await ctx.send(f'Deleted {deleted} forwarded messages')
+        else:
+            await ctx.send('Deleted message!')
 
     @commands.context_command(name='Delete message')
     async def delete_ctx(self, ctx, msg: discord.Message):
@@ -831,7 +834,10 @@ class Bridge(commands.Cog):
                         pass
                     break
 
-        await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+        if ctx.author.id in self.bot.moderators:
+            await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+        else:
+            await msg_orig.edit(content='Deleted message!')
 
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
