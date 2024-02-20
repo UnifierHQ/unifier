@@ -1379,6 +1379,7 @@ class Bridge(commands.Cog):
 
         content = message.content.split('[emoji')
         parse_index = -1
+        og_msg_content = message.content
         for element in content:
             parse_index += 1
             if not message.content.startswith('[emoji') and parse_index == 0:
@@ -1426,6 +1427,9 @@ class Bridge(commands.Cog):
             else:
                 message.content = message.content.replace(f'[emoji{index}: {name}]', emoji_text, 1)
             emojified = True
+
+        if og_msg_content == message.content:
+            emojified = False
 
         is_pr = False
         is_pr_ref = False
