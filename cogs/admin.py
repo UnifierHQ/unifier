@@ -86,7 +86,10 @@ def status(code):
     if code != 0:
         raise RuntimeError("install failed")
 
-class Admin(commands.Cog):
+class Admin(commands.Cog, name=':wrench: Admin'):
+    """A fork of Nevira's Admin module. Lets Unifier owners manage the bot and its extensions and install Upgrader.
+
+    Developed by Green"""
     def __init__(self,bot):
         self.bot = bot
 
@@ -220,6 +223,54 @@ class Admin(commands.Cog):
                 await ctx.send(file=discord.File(fp='noeval.png'))
             except:
                 await ctx.send(noeval)
+
+    @commands.command(hidden=True,aliases=['cogs'])
+    async def extensions(self,ctx,*,extension=None):
+        if extension:
+            extension = extension.lower()
+        page = 0
+        try:
+            page = int(extension)-1
+            if page < 0:
+                page = 0
+            extension = None
+        except:
+            pass
+        if not extension:
+            offset = page*20
+            embed = discord.Embed(title='Unifier Extensions',color=0xed4545)
+            text = ''
+            extlist = list(self.bot.extensions)
+            if offset > len(extlist):
+                page = len(extlist) // 20 - 1
+                offset = page * 20
+            for x in range(offset,20+offset):
+                if x == len(list(self.bot.cogs)):
+                    break
+                cog = self.bot.cogs[list(self.bot.cogs)[x]]
+                ext = list(self.bot.extensions)[x]
+                if text=='':
+                    text = f'- {cog.qualified_name} (`{ext}`)'
+                else:
+                    text = f'{text}\n- {cog.qualified_name} (`{ext}`)'
+            embed.description = text
+            embed.set_footer(text="Page "+str(page+1))
+            return await ctx.send(embed=embed)
+        found = False
+        index = 0
+        for ext in list(self.bot.extensions):
+            if ext.replace('cogs.','',1) == extension or ext == extension:
+                found = True
+                break
+            index += 1
+        if found:
+            ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
+        else:
+            return await ctx.send('Could not find extension!')
+        embed = discord.Embed(title=ext_info.qualified_name,description=ext_info.description,color=0xed4545)
+        if extension=='admin' or extension=='cogs.admin':
+            embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
+        await ctx.send(embed=embed)
 
     @commands.command(hidden=True)
     async def reload(self,ctx,*,extensions):

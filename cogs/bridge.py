@@ -80,7 +80,10 @@ def bypass_killer(string):
     else:
         raise RuntimeError()
 
-class Bridge(commands.Cog):
+class Bridge(commands.Cog, name=':link: Bridge'):
+    """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
+
+    Developed by Green and ItsAsheer"""
     def __init__(self, bot):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):

@@ -82,7 +82,10 @@ def is_room_locked(room,db):
         traceback.print_exc()
         return False
 
-class Config(commands.Cog):
+class Config(commands.Cog, name=':construction_worker: Config'):
+    """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
+
+    Developed by Green and ItsAsheer"""
     def __init__(self,bot):
         self.bot = bot
         if not hasattr(bot, 'db'):
