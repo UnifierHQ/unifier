@@ -319,7 +319,7 @@ class Bridge(commands.Cog):
                                             break
                             identifier = msg_resp.author.name.split('(')
                             identifier = identifier[len(identifier) - 1].replace(')', '')
-                            if len(identifier)==6:
+                            if len(identifier)==6 and len(msg_resp.author.name.split('(')) >= 2:
                                 author = f'@{msg_resp.author.name[:-9]}'
                             else:
                                 author = f'@{msg_resp.author.name}'
