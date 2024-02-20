@@ -340,25 +340,6 @@ class Admin(commands.Cog):
         if not ctx.author.id==owner:
             return
         embed = discord.Embed(title='Finding Upgrader version...', description='Getting latest version from remote')
-        msg = await ctx.send(embed=embed)
-        try:
-            os.system('rm -rf ' + os.getcwd() + '/update_check')
-            status(os.system(
-                'git clone --branch ' + branch + ' ' + files_endpoint + '/unifier-version.git ' + os.getcwd() + '/update_check'))
-            with open('update_check/upgrader.json', 'r') as file:
-                new = json.load(file)
-            release = new['release']
-            version = new['version']
-            try:
-                desc = new['description']
-            except:
-                desc = 'No description is available for this upgrade.'
-        except:
-            embed.title = 'Failed to check for updates'
-            embed.description = 'Could not find a valid upgrader.json file on remote'
-            embed.colour = 0xff0000
-            await msg.edit(embed=embed)
-            raise
         try:
             x = open('cogs/upgrader.py','r',encoding='utf-8')
             x.close()
@@ -368,12 +349,27 @@ class Admin(commands.Cog):
             embed.title = 'Upgrader already installed'
             embed.description = f'Unifier Upgrader is already installed! Run `{self.bot.command_prefix}upgrade-upgrader` to upgrade the Upgrader.'
             embed.colour = 0x00ff00
-            await msg.edit(embed=embed)
+            await ctx.send(embed=embed)
             return
+        msg = await ctx.send(embed=embed)
+        try:
+            os.system('rm -rf ' + os.getcwd() + '/update_check')
+            status(os.system(
+                'git clone --branch ' + branch + ' ' + files_endpoint + '/unifier-version.git ' + os.getcwd() + '/update_check'))
+            with open('update_check/upgrader.json', 'r') as file:
+                new = json.load(file)
+            release = new['release']
+            version = new['version']
+        except:
+            embed.title = 'Failed to check for updates'
+            embed.description = 'Could not find a valid upgrader.json file on remote'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
         print('Upgrader install available: ' + new['version'])
         print('Confirm install through Discord.')
         embed.title = 'Upgrader available'
-        embed.description = f'Unifier Upgrader is available!\n\nVersion: {version} (`{release}`)\n\n{desc}'
+        embed.description = f'Unifier Upgrader is available!\n\nVersion: {version} (`{release}`)\n\nUnifier Upgrader is an extension that allows Unifier admins to easily upgrade Unifier to the newest version. This extension will be loaded on boot.'
         embed.colour = 0xffcc00
         row = [
             discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
