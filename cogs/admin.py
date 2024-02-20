@@ -268,7 +268,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         else:
             return await ctx.send('Could not find extension!')
         embed = discord.Embed(title=ext_info.qualified_name,description=ext_info.description,color=0xed4545)
-        if extension=='admin' or extension=='cogs.admin':
+        if extension=='admin' or extension=='cogs.admin' or extension == 'lockdown' or extension == 'cogs.lockdown':
             embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
         await ctx.send(embed=embed)
 
