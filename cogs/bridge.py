@@ -443,9 +443,37 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def reaction(self, ctx, message: discord.Message):
         hooks = await ctx.guild.webhooks()
         webhook = None
+        origin_room = 0
+        found = False
         for hook in hooks:
             if hook.channel_id == ctx.channel.id and hook.user.id == self.bot.user.id:
                 webhook = hook
+                index = 0
+                for key in self.bot.db['rooms']:
+                    data = self.bot.db['rooms'][key]
+                    if f'{ctx.guild.id}' in list(data.keys()):
+                        hook_ids = data[f'{ctx.guild.id}']
+                    else:
+                        hook_ids = []
+                    if webhook.id in hook_ids:
+                        origin_room = index
+                        found = True
+                        if key in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
+                            return
+                        break
+                    index += 1
+                break
+
+        if not found:
+            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
+        try:
+            roomname = list(self.bot.db['rooms'].keys())[origin_room]
+            if roomname in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
+                return await ctx.send('This room is locked!',ephemeral=True)
+        except:
+            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
+        if not ctx.channel.permissions_for(ctx.author).send_messages:
+            return await ctx.send('You can\'t type in here!',ephemeral=True)
         if not webhook or not f'{webhook.id}' in f'{self.bot.db["rooms"]}':
             return await ctx.send('This isn\'t a UniChat room!', ephemeral=True)
         components = discord.ui.MessageComponents(
