@@ -1606,9 +1606,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                 identifier_resp = identifier_resp[len(identifier_resp) - 1]
                                 author = author[:-(2 + len(identifier_resp))]
                             else:
-                                author = f'{msg.author.name}#{msg.author.discriminator}'
-                                if msg.author.discriminator == '0':
-                                    author = f'@{msg.author.name}'
+                                author = f'@{msg.author.global_name}'
                             content = discord.utils.remove_markdown(msg.clean_content)
                             if len(msg.content) == 0:
                                 if len(msg.attachments) == 0:
