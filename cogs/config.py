@@ -256,7 +256,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if ctx.guild.id in self.bot.db['experiments'][experiment]:
                 return await ctx.send('Your server is already a part of this experiment!')
             self.bot.db['experiments'][experiment].append(ctx.guild.id)
-            self.bot.db.update()
+            self.bot.db.save_data()
             return await ctx.send('Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         elif action.lower()=='unenroll' or action.lower()=='remove':
             if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
@@ -266,7 +266,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if not ctx.guild.id in self.bot.db['experiments'][experiment]:
                 return await ctx.send('Your server is not a part of this experiment!')
             self.bot.db['experiments'][experiment].remove(ctx.guild.id)
-            self.bot.db.update()
+            self.bot.db.save_data()
             return await ctx.send('Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         else:
             embed = discord.Embed(title=':test_tube: Experiments',
