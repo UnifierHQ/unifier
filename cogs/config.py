@@ -248,6 +248,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(aliases=['experiment'])
     async def experiments(self,ctx,action='',experiment=''):
+        """Shows a list of Unifier experiments, and lets you join or leave them."""
         if action.lower()=='enroll' or action.lower()=='add':
             if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
                 return await ctx.send('You don\'t have the necessary permissions.')
@@ -400,7 +401,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command()
     async def rules(self,ctx,*,room=''):
-        '''Displays room rules.'''
+        """Displays room rules for the specified room."""
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
         if room=='' or not room:

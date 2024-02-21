@@ -611,6 +611,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command()
     async def emojis(self, ctx, *, index=1):
+        """Shows a list of all global emojis available in Unified Chat."""
         text = ''
         index = index - 1
         if index < 0:
@@ -650,6 +651,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.command(aliases=['modcall'])
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
+        """Ping all moderators to the chat! Use only when necessary, or else."""
         hooks = await ctx.channel.webhooks()
         found = False
         room = ''
@@ -682,7 +684,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     role = data["moderator_role"]
                 except:
                     return await ctx.send('This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
-                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})')
+                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=discord.AllowedMentions(roles=True,everyone=False,users=False))
                 return await ctx.send('Moderators called!')
 
         await ctx.send('It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
@@ -697,7 +699,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command()
     async def delete(self, ctx):
-        '''Deletes all bridged messages. Does not delete the original.'''
+        """Deletes all bridged messages. Does not delete the original."""
         try:
             msg_id = ctx.message.reference.message_id
         except:
