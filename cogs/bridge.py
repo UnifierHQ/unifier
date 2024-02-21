@@ -619,8 +619,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         # wip
         return
 
-    @commands.command()
-    @commands.cooldown(rate=1, per=3000, type=commands.BucketType.user)
+    @commands.command(aliases=['modcall'])
+    @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
         hooks = await ctx.channel.webhooks()
         found = False
