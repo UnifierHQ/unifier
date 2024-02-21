@@ -316,7 +316,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                     for key in self.bot.bridged:
                                         entry = self.bot.bridged[key]
                                         if msg_resp.id in entry.values():
-                                            print(key)
                                             try:
                                                 reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
                                                 msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][
@@ -432,7 +431,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
-        print(hookmsg_ids)
         self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
         self.bot.bridged_urls.update({f'{sameguild_id}': msg_urls})
         try:
