@@ -495,7 +495,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             raise
         await msg.edit('Sent reaction image!')
 
-
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
@@ -619,6 +618,54 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def emoji(self, ctx, *, emoji=''):
         # wip
         return
+
+    @commands.command()
+    @commands.cooldown(rate=1, per=3000, type=commands.BucketType.user)
+    async def modping(self,ctx):
+        hooks = await ctx.channel.webhooks()
+        found = False
+        room = ''
+        for hook in hooks:
+            for key in self.bot.db['rooms']:
+                if not f'{ctx.guild.id}' in list(self.bot.db['rooms'][key].keys()):
+                    continue
+                if hook.id in self.bot.db['rooms'][key][f'{ctx.guild.id}']:
+                    found = True
+                    room = key
+                    break
+            if found:
+                break
+
+        if not found:
+            return await ctx.send('This isn\'t a UniChat room!')
+
+        hook_id = self.bot.db['rooms'][room][f'{home_guild}'][0]
+        guild = self.bot.get_guild(home_guild)
+        hooks = await guild.webhooks()
+
+        author = f'{ctx.author.name}#{ctx.author.discriminator}'
+        if ctx.author.discriminator=='0':
+            author = f'@{ctx.author.name}'
+
+        for hook in hooks:
+            if hook_id==hook.id:
+                ch = guild.get_channel(hook.channel_id)
+                try:
+                    role = data["moderator_role"]
+                except:
+                    return await ctx.send('This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
+                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})')
+                return await ctx.send('Moderators called!')
+
+        await ctx.send('It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
+
+    @modping.error
+    async def modping_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            t = int(error.retry_after)
+            await ctx.send(f'You\'ve recently pinged the moderators, try again in **{t//60}** minutes and **{t%60}** seconds.')
+        else:
+            await ctx.send('Something went wrong pinging moderators. Please contact the developers.')
 
     @commands.command()
     async def delete(self, ctx):
