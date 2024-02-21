@@ -399,7 +399,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             raise
 
     @commands.command()
-    async def rules(self,ctx,*,room):
+    async def rules(self,ctx,*,room=''):
         '''Displays room rules.'''
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
