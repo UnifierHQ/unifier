@@ -20,7 +20,6 @@ class Badge(commands.Cog):
 
     @commands.command(hidden=True)
     async def badge(self, ctx):
-        start = time.time()
         what = "user"
         if ctx.author.id in self.bot.db['banned']:
             user = "banned"
