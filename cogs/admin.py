@@ -27,6 +27,16 @@ import time
 import json
 import os
 
+class colors:
+    green = 0x2ecc71
+    dark_green = 0x1f8b4c
+    purple = 0x9b59b6
+    red = 0xe74c3c
+    blurple = 0x7289da
+    
+if not hasattr(self.bot, 'colors'):
+    self.bot.colors = colors
+    
 def log(type='???',status='ok',content='None'):
     from time import gmtime, strftime
     time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
