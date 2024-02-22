@@ -24,7 +24,10 @@ with open('config.json', 'r') as file:
     data = json.load(file)
 owner = data['owner']
 
-class Lockdown(commands.Cog):
+class Lockdown(commands.Cog, name=':lock: Lockdown'):
+    """An emergency extension that unloads literally everything.
+
+    Developed by Green and ItsAsheer"""
     def __init__(self,bot):
         self.bot = bot
         if not hasattr(self.bot, "locked"):

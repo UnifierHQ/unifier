@@ -80,7 +80,10 @@ def bypass_killer(string):
     else:
         raise RuntimeError()
 
-class Bridge(commands.Cog):
+class Bridge(commands.Cog, name=':link: Bridge'):
+    """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
+
+    Developed by Green and ItsAsheer"""
     def __init__(self, bot):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):
@@ -129,6 +132,10 @@ class Bridge(commands.Cog):
         bg.paste(user2, (753, 180), user2)
         im_draw = ImageDraw.Draw(bg)
         font = ImageFont.truetype('Kollektif.ttf', 50)
+        components = username.split('(')
+        component = components[len(components) - 1].replace(')', '')
+        if len(component) == 6 and len(username.split('(')) >= 2:
+            username = username[:-9]
         text = f'THINK, {username.upper()}, THINK!'
         text_width, text_height = im_draw.textsize(text, font)
         width = 1116 - text_width
@@ -221,6 +228,7 @@ class Bridge(commands.Cog):
         user_hash = encrypt_string(f'{ctx.author.id}')[:3]
         guild_hash = encrypt_string(f'{ctx.guild.id}')[:3]
         identifier = ' (' + user_hash + guild_hash + ')'
+        identifier_og = identifier
 
         hookmsg_ids = {}
         msg_urls = {}
@@ -308,7 +316,6 @@ class Bridge(commands.Cog):
                                     for key in self.bot.bridged:
                                         entry = self.bot.bridged[key]
                                         if msg_resp.id in entry.values():
-                                            print(key)
                                             try:
                                                 reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
                                                 msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][
@@ -316,9 +323,9 @@ class Bridge(commands.Cog):
                                             except:
                                                 msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
                                             break
-                            identifier = msg.author.name.split('(')
+                            identifier = msg_resp.author.name.split('(')
                             identifier = identifier[len(identifier) - 1].replace(')', '')
-                            if len(identifier)==6:
+                            if len(identifier)==6 and len(msg_resp.author.name.split('(')) >= 2:
                                 author = f'@{msg_resp.author.name[:-9]}'
                             else:
                                 author = f'@{msg_resp.author.name}'
@@ -348,17 +355,17 @@ class Bridge(commands.Cog):
                                     trimmed = clean_content
                                 trimmed = trimmed.replace('\n', ' ')
                             btns = discord.ui.ActionRow(
-                                discord.ui.Button(style=ButtonStyle.link, label=f'Replying to {author}',
+                                discord.ui.Button(style=ButtonStyle.link, label=f'Reacting to {author}',
                                                   disabled=False,
                                                   url=msg_url)
                             )
                             if len(trimmed) > 0:
                                 btns2 = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.blurple, label=trimmed, disabled=True)
+                                    discord.ui.Button(style=ButtonStyle.green, label=trimmed, disabled=True)
                                 )
                             else:
                                 btns2 = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.blurple,
+                                    discord.ui.Button(style=ButtonStyle.green,
                                                       label=f'x{len(msg_resp.embeds) + len(msg_resp.attachments)}',
                                                       emoji='\U0001F3DE', disabled=True)
                                 )
@@ -367,22 +374,22 @@ class Bridge(commands.Cog):
                                 if msg_resp.author.id == self.bot.user.id:
                                     btns = discord.ui.ActionRow(
                                         discord.ui.Button(style=ButtonStyle.gray,
-                                                          label=f'Replying to [system message]', disabled=True)
+                                                          label=f'Reacting to [system message]', disabled=True)
                                     )
                                 else:
                                     btns = discord.ui.ActionRow(
                                         discord.ui.Button(style=ButtonStyle.gray,
-                                                          label=f'Replying to [unknown]', disabled=True)
+                                                          label=f'Reacting to [unknown]', disabled=True)
                                     )
                             except:
                                 btns = discord.ui.ActionRow(
                                     discord.ui.Button(style=ButtonStyle.gray,
-                                                      label=f'Replying to [unknown]', disabled=True)
+                                                      label=f'Reacting to [unknown]', disabled=True)
                                 )
                     try:
                         if blocked or banned:
                             btns = discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.red, label=f'Replying to [hidden]',
+                                discord.ui.Button(style=discord.ButtonStyle.red, label=f'Reacting to [hidden]',
                                                   disabled=True)
                             )
                             raise ValueError()
@@ -406,9 +413,14 @@ class Bridge(commands.Cog):
                             author = ctx.author.global_name
                     if not f'{ctx.author.id}' in list(self.bot.owners.keys()):
                         self.bot.owners.update({f'{ctx.author.id}': []})
-                    msg = await webhook.send(avatar_url=url, username=author + identifier,
-                                             file=discord.File(fp="cached/"+filename), allowed_mentions=mentions,
-                                             components=components, wait=True)
+                    if sameguild:
+                        msg = await webhook.send(avatar_url=url, username=author,
+                                                 file=discord.File(fp="cached/"+filename), allowed_mentions=mentions,
+                                                 components=components, wait=True)
+                    else:
+                        msg = await webhook.send(avatar_url=url, username=author + identifier_og,
+                                                 file=discord.File(fp="cached/" + filename), allowed_mentions=mentions,
+                                                 components=components, wait=True)
                     if sameguild:
                         sameguild_id = msg.id
                         self.bot.origin.update({f'{msg.id}': [ctx.guild.id, ctx.channel.id]})
@@ -419,7 +431,6 @@ class Bridge(commands.Cog):
 
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
-        print(hookmsg_ids)
         self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
         self.bot.bridged_urls.update({f'{sameguild_id}': msg_urls})
         try:
@@ -432,9 +443,37 @@ class Bridge(commands.Cog):
     async def reaction(self, ctx, message: discord.Message):
         hooks = await ctx.guild.webhooks()
         webhook = None
+        origin_room = 0
+        found = False
         for hook in hooks:
             if hook.channel_id == ctx.channel.id and hook.user.id == self.bot.user.id:
                 webhook = hook
+                index = 0
+                for key in self.bot.db['rooms']:
+                    data = self.bot.db['rooms'][key]
+                    if f'{ctx.guild.id}' in list(data.keys()):
+                        hook_ids = data[f'{ctx.guild.id}']
+                    else:
+                        hook_ids = []
+                    if webhook.id in hook_ids:
+                        origin_room = index
+                        found = True
+                        if key in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
+                            return
+                        break
+                    index += 1
+                break
+
+        if not found:
+            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
+        try:
+            roomname = list(self.bot.db['rooms'].keys())[origin_room]
+            if roomname in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
+                return await ctx.send('This room is locked!',ephemeral=True)
+        except:
+            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
+        if not ctx.channel.permissions_for(ctx.author).send_messages:
+            return await ctx.send('You can\'t type in here!',ephemeral=True)
         if not webhook or not f'{webhook.id}' in f'{self.bot.db["rooms"]}':
             return await ctx.send('This isn\'t a UniChat room!', ephemeral=True)
         components = discord.ui.MessageComponents(
@@ -483,7 +522,6 @@ class Bridge(commands.Cog):
             await msg.edit('**oh no**\nAn unexpected error occurred sending the image. Please contact the developers.')
             raise
         await msg.edit('Sent reaction image!')
-
 
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
@@ -573,6 +611,7 @@ class Bridge(commands.Cog):
 
     @commands.command()
     async def emojis(self, ctx, *, index=1):
+        """Shows a list of all global emojis available in Unified Chat."""
         text = ''
         index = index - 1
         if index < 0:
@@ -609,9 +648,58 @@ class Bridge(commands.Cog):
         # wip
         return
 
+    @commands.command(aliases=['modcall'])
+    @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
+    async def modping(self,ctx):
+        """Ping all moderators to the chat! Use only when necessary, or else."""
+        hooks = await ctx.channel.webhooks()
+        found = False
+        room = ''
+        for hook in hooks:
+            for key in self.bot.db['rooms']:
+                if not f'{ctx.guild.id}' in list(self.bot.db['rooms'][key].keys()):
+                    continue
+                if hook.id in self.bot.db['rooms'][key][f'{ctx.guild.id}']:
+                    found = True
+                    room = key
+                    break
+            if found:
+                break
+
+        if not found:
+            return await ctx.send('This isn\'t a UniChat room!')
+
+        hook_id = self.bot.db['rooms'][room][f'{home_guild}'][0]
+        guild = self.bot.get_guild(home_guild)
+        hooks = await guild.webhooks()
+
+        author = f'{ctx.author.name}#{ctx.author.discriminator}'
+        if ctx.author.discriminator=='0':
+            author = f'@{ctx.author.name}'
+
+        for hook in hooks:
+            if hook_id==hook.id:
+                ch = guild.get_channel(hook.channel_id)
+                try:
+                    role = data["moderator_role"]
+                except:
+                    return await ctx.send('This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
+                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=discord.AllowedMentions(roles=True,everyone=False,users=False))
+                return await ctx.send('Moderators called!')
+
+        await ctx.send('It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
+
+    @modping.error
+    async def modping_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            t = int(error.retry_after)
+            await ctx.send(f'You\'ve recently pinged the moderators, try again in **{t//60}** minutes and **{t%60}** seconds.')
+        else:
+            await ctx.send('Something went wrong pinging moderators. Please contact the developers.')
+
     @commands.command()
     async def delete(self, ctx):
-        '''Deletes all bridged messages. Does not delete the original.'''
+        """Deletes all bridged messages. Does not delete the original."""
         try:
             msg_id = ctx.message.reference.message_id
         except:
@@ -714,7 +802,10 @@ class Bridge(commands.Cog):
                         pass
                     break
 
-        await ctx.send(f'Deleted {deleted} forwarded messages')
+        if ctx.author.id in self.bot.moderators:
+            await ctx.send(f'Deleted {deleted} forwarded messages')
+        else:
+            await ctx.send('Deleted message!')
 
     @commands.context_command(name='Delete message')
     async def delete_ctx(self, ctx, msg: discord.Message):
@@ -825,7 +916,10 @@ class Bridge(commands.Cog):
                         pass
                     break
 
-        await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+        if ctx.author.id in self.bot.moderators:
+            await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+        else:
+            await msg_orig.edit(content='Deleted message!')
 
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
@@ -1363,6 +1457,7 @@ class Bridge(commands.Cog):
 
         content = message.content.split('[emoji')
         parse_index = -1
+        og_msg_content = message.content
         for element in content:
             parse_index += 1
             if not message.content.startswith('[emoji') and parse_index == 0:
@@ -1410,6 +1505,9 @@ class Bridge(commands.Cog):
             else:
                 message.content = message.content.replace(f'[emoji{index}: {name}]', emoji_text, 1)
             emojified = True
+
+        if og_msg_content == message.content:
+            emojified = False
 
         is_pr = False
         is_pr_ref = False
@@ -1585,9 +1683,7 @@ class Bridge(commands.Cog):
                                 identifier_resp = identifier_resp[len(identifier_resp) - 1]
                                 author = author[:-(2 + len(identifier_resp))]
                             else:
-                                author = f'{msg.author.name}#{msg.author.discriminator}'
-                                if msg.author.discriminator == '0':
-                                    author = f'@{msg.author.name}'
+                                author = f'@{msg.author.global_name}'
                             content = discord.utils.remove_markdown(msg.clean_content)
                             if len(msg.content) == 0:
                                 if len(msg.attachments) == 0:
@@ -1608,7 +1704,7 @@ class Bridge(commands.Cog):
                                     content = '**GLOBAL BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a global banned user or server. Global bans are placed on users and servers that break UniChat rules continuously or/and severely.'
                                 elif blocked:
                                     content = '**SERVER BANNED - MESSAGE HIDDEN**\nThe author of this message replied to a server banned user or server. Server bans are placed on users and servers by this server\'s moderators.\nAsk them to unblock the origin user or server.'
-                            embed = discord.Embed(title=f'Reacting to {author}', description=content, color=0xeba134)
+                            embed = discord.Embed(title=f'Replying to {author}', description=content, color=0xeba134)
                             if not msg.author.avatar == None and not banned and not blocked:
                                 embed.set_author(name=author, icon_url=msg.author.avatar.url)
                             else:
@@ -1634,9 +1730,12 @@ class Bridge(commands.Cog):
                                         msg_url = self.bot.bridged_urls[f'{msg.id}'][f'{webhook.guild_id}']
                                     else:
                                         try:
-                                            reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
-                                            globalmoji = True
-                                            msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
+                                            try:
+                                                reference_msg_id = self.bot.bridged[f'{msg.id}'][f'{webhook.guild_id}']
+                                                globalmoji = True
+                                                msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
+                                            except:
+                                                msg_url = self.bot.bridged_urls[f'{msg.id}'][f'{webhook.guild_id}']
                                         except:
                                             for key in self.bot.bridged:
                                                 entry = self.bot.bridged[key]
@@ -1838,7 +1937,7 @@ class Bridge(commands.Cog):
                                     if not sameguild_tr:
                                         hookmsg_ids.update({f'{guild_id}': msg.id})
                                     self.bot.owners[f'{message.author.id}'].append(msg.id)
-                                    msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
+                                    msg_urls.update({f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
 
                                 thread = threading.Thread(target=thread_msg)
                                 thread.start()

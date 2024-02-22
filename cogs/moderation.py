@@ -72,7 +72,10 @@ def timetoint(t,timeoutcap=False):
             raise ValueError('invalid identifier')
     return total
 
-class Moderation(commands.Cog):
+class Moderation(commands.Cog, name=":shield: Moderation"):
+    """Moderation allows server moderators and UniChat moderators to punish bad actors.
+
+    Developed by Green and ItsAsheer"""
     def __init__(self,bot):
         self.bot = bot
 

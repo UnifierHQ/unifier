@@ -82,7 +82,10 @@ def is_room_locked(room,db):
         traceback.print_exc()
         return False
 
-class Config(commands.Cog):
+class Config(commands.Cog, name=':construction_worker: Config'):
+    """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
+
+    Developed by Green and ItsAsheer"""
     def __init__(self,bot):
         self.bot = bot
         if not hasattr(bot, 'db'):
@@ -245,6 +248,7 @@ class Config(commands.Cog):
 
     @commands.command(aliases=['experiment'])
     async def experiments(self,ctx,action='',experiment=''):
+        """Shows a list of Unifier experiments, and lets you join or leave them."""
         if action.lower()=='enroll' or action.lower()=='add':
             if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
                 return await ctx.send('You don\'t have the necessary permissions.')
@@ -253,7 +257,7 @@ class Config(commands.Cog):
             if ctx.guild.id in self.bot.db['experiments'][experiment]:
                 return await ctx.send('Your server is already a part of this experiment!')
             self.bot.db['experiments'][experiment].append(ctx.guild.id)
-            self.bot.db.update()
+            self.bot.db.save_data()
             return await ctx.send('Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         elif action.lower()=='unenroll' or action.lower()=='remove':
             if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
@@ -263,7 +267,7 @@ class Config(commands.Cog):
             if not ctx.guild.id in self.bot.db['experiments'][experiment]:
                 return await ctx.send('Your server is not a part of this experiment!')
             self.bot.db['experiments'][experiment].remove(ctx.guild.id)
-            self.bot.db.update()
+            self.bot.db.save_data()
             return await ctx.send('Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         else:
             embed = discord.Embed(title=':test_tube: Experiments',
@@ -396,8 +400,8 @@ class Config(commands.Cog):
             raise
 
     @commands.command()
-    async def rules(self,ctx,*,room):
-        '''Displays room rules.'''
+    async def rules(self,ctx,*,room=''):
+        """Displays room rules for the specified room."""
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
         if room=='' or not room:
@@ -512,7 +516,7 @@ class Config(commands.Cog):
         embed = discord.Embed(title="Unifier and Unified Chat",description="Unify servers, make worthwhile conversations.",color=0xed4545)
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.set_footer(text="Version v0.4.0 (Beta)")
+        embed.set_footer(text="Version v0.4.1 (Beta)")
         await ctx.send(embed=embed)
 
     @commands.command()

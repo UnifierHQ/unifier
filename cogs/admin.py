@@ -25,6 +25,7 @@ from contextlib import redirect_stdout
 import cpuinfo
 import time
 import json
+import os
 
 def log(type='???',status='ok',content='None'):
     from time import gmtime, strftime
@@ -43,6 +44,7 @@ def log(type='???',status='ok',content='None'):
 
 with open('config.json', 'r') as file:
     data = json.load(file)
+
 owner = data['owner']
 branch = data['branch']
 check_endpoint = data['check_endpoint']
@@ -80,7 +82,14 @@ def set_footer(embed,**kwargs):
     except:
         embed.set_footer(text=kwargs['text'])
 
-class Admin(commands.Cog):
+def status(code):
+    if code != 0:
+        raise RuntimeError("install failed")
+
+class Admin(commands.Cog, name=':wrench: Admin'):
+    """A fork of Nevira's Admin module. Lets Unifier owners manage the bot and its extensions and install Upgrader.
+
+    Developed by Green"""
     def __init__(self,bot):
         self.bot = bot
 
@@ -215,6 +224,54 @@ class Admin(commands.Cog):
             except:
                 await ctx.send(noeval)
 
+    @commands.command(hidden=True,aliases=['cogs'])
+    async def extensions(self,ctx,*,extension=None):
+        if extension:
+            extension = extension.lower()
+        page = 0
+        try:
+            page = int(extension)-1
+            if page < 0:
+                page = 0
+            extension = None
+        except:
+            pass
+        if not extension:
+            offset = page*20
+            embed = discord.Embed(title='Unifier Extensions',color=0xed4545)
+            text = ''
+            extlist = list(self.bot.extensions)
+            if offset > len(extlist):
+                page = len(extlist) // 20 - 1
+                offset = page * 20
+            for x in range(offset,20+offset):
+                if x == len(list(self.bot.cogs)):
+                    break
+                cog = self.bot.cogs[list(self.bot.cogs)[x]]
+                ext = list(self.bot.extensions)[x]
+                if text=='':
+                    text = f'- {cog.qualified_name} (`{ext}`)'
+                else:
+                    text = f'{text}\n- {cog.qualified_name} (`{ext}`)'
+            embed.description = text
+            embed.set_footer(text="Page "+str(page+1))
+            return await ctx.send(embed=embed)
+        found = False
+        index = 0
+        for ext in list(self.bot.extensions):
+            if ext.replace('cogs.','',1) == extension or ext == extension:
+                found = True
+                break
+            index += 1
+        if found:
+            ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
+        else:
+            return await ctx.send('Could not find extension!')
+        embed = discord.Embed(title=ext_info.qualified_name,description=ext_info.description,color=0xed4545)
+        if extension=='admin' or extension=='cogs.admin' or extension == 'lockdown' or extension == 'cogs.lockdown':
+            embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
+        await ctx.send(embed=embed)
+
     @commands.command(hidden=True)
     async def reload(self,ctx,*,extensions):
         if ctx.author.id==owner:
@@ -328,6 +385,135 @@ class Admin(commands.Cog):
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
             await ctx.send('**OOPS**: Only the owner can run unload! :x:')
+
+    @commands.command(name='install-upgrader', hidden=True)
+    async def install_upgrader(self, ctx):
+        if not ctx.author.id==owner:
+            return
+        embed = discord.Embed(title='Finding Upgrader version...', description='Getting latest version from remote')
+        try:
+            x = open('cogs/upgrader.py','r',encoding='utf-8')
+            x.close()
+        except:
+            pass
+        else:
+            embed.title = 'Upgrader already installed'
+            embed.description = f'Unifier Upgrader is already installed! Run `{self.bot.command_prefix}upgrade-upgrader` to upgrade the Upgrader.'
+            embed.colour = 0x00ff00
+            await ctx.send(embed=embed)
+            return
+        msg = await ctx.send(embed=embed)
+        try:
+            os.system('rm -rf ' + os.getcwd() + '/update_check')
+            status(os.system(
+                'git clone --branch ' + branch + ' ' + files_endpoint + '/unifier-version.git ' + os.getcwd() + '/update_check'))
+            with open('update_check/upgrader.json', 'r') as file:
+                new = json.load(file)
+            release = new['release']
+            version = new['version']
+        except:
+            embed.title = 'Failed to check for updates'
+            embed.description = 'Could not find a valid upgrader.json file on remote'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+        print('Upgrader install available: ' + new['version'])
+        print('Confirm install through Discord.')
+        embed.title = 'Upgrader available'
+        embed.description = f'Unifier Upgrader is available!\n\nVersion: {version} (`{release}`)\n\nUnifier Upgrader is an extension that allows Unifier admins to easily upgrade Unifier to the newest version. This extension will be loaded on boot.'
+        embed.colour = 0xffcc00
+        row = [
+            discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
+            discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+        ]
+        btns = discord.ui.ActionRow(row[0], row[1])
+        components = discord.ui.MessageComponents(btns)
+        await msg.edit(embed=embed, components=components)
+
+        def check(interaction):
+            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+        except:
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await msg.edit(components=components)
+        if interaction.custom_id == 'reject':
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await interaction.response.edit_message(components=components)
+        print('Installation confirmed, preparing...')
+        embed.title = 'Start the installation?'
+        embed.description = '- :x: Your files have **not** been backed up, as this is not a Unifier upgrade.\n- :tools: A new file called `upgrader.py` will be made in `[Unifier root directory]/cogs`.\n- :warning: Once started, you cannot abort the installation.'
+        await interaction.response.edit_message(embed=embed, components=components)
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+        except:
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await msg.edit(components=components)
+        if interaction.custom_id == 'reject':
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await interaction.response.edit_message(components=components)
+        print('Installation confirmed, installing Unifier Upgrader...')
+        print()
+        embed.title = 'Installing Unifier Upgrader'
+        embed.description = ':hourglass_flowing_sand: Downloading Upgrader\n:x: Installing Upgrader\n:x: Activating Upgrader'
+        await interaction.response.edit_message(embed=embed, components=None)
+        log(type='UPG', status='info', content='Starting install')
+        try:
+            log(type='GIT', status='info', content='Purging old update files')
+            os.system('rm -rf ' + os.getcwd() + '/update_upgrader')
+            log(type='GIT', status='info', content='Downloading from remote repository...')
+            status(os.system(
+                'git clone --branch main ' + files_endpoint + '/unifier-upgrader.git ' + os.getcwd() + '/update_upgrader'))
+            log(type='GIT', status='info', content='Confirming download...')
+            x = open(os.getcwd() + '/update_upgrader/upgrader.py', 'r')
+            x.close()
+            log(type='GIT', status='ok', content='Download confirmed, proceeding with install')
+        except:
+            log(type='UPG', status='error', content='Download failed, no rollback required')
+            embed.title = 'Upgrade failed'
+            embed.description = 'Could not download updates. Nothing new was installed.'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+        try:
+            log(type='INS', status='info', content='Installing Upgrader')
+            embed.description = ':white_check_mark: Downloading Upgrader\n:hourglass_flowing_sand: Installing Upgrader\n:x: Activating Upgrader'
+            await msg.edit(embed=embed)
+            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_upgrader/upgrader.py')
+            status(os.system(
+                'cp ' + os.getcwd() + '/update_upgrader/upgrader.py' + ' ' + os.getcwd() + '/cogs/upgrader.py'))
+            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_check/upgrader.json')
+            status(
+                os.system('cp ' + os.getcwd() + '/update_check/upgrader.json' + ' ' + os.getcwd() + '/upgrader.json'))
+            embed.description = ':white_check_mark: Downloading Upgrader\n:white_check_mark: Installing Upgrader\n:hourglass_flowing_sand: Activating Upgrader'
+            await msg.edit(embed=embed)
+            log(type='UPG', status='ok', content='Activating extension: cogs.upgrader')
+            self.bot.load_extension('cogs.upgrader')
+            log(type='UPG', status='ok', content='Installation complete')
+            embed.title = 'Installation successful'
+            embed.description = 'The installation was successful! :partying_face:\nUpgrader has been loaded and will be loaded on boot.'
+            embed.colour = 0x00ff00
+            await msg.edit(embed=embed)
+        except:
+            log(type='UPG', status='error', content='Install failed')
+            embed.title = 'Installation failed'
+            embed.description = 'The installation failed.'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
 
 def setup(bot):
     bot.add_cog(Admin(bot))

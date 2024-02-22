@@ -8,6 +8,7 @@
   "home_guild": 1097238317881380984,
   "logs_channel": 1189146414735953941,
   "reports_channel": 1203676755559452712,
+  "moderator_role": 1188892314924490772,
   "allow_prs": true,
   "pr_room_index": 1,
   "pr_ref_room_index": 2,
