@@ -28,6 +28,7 @@ import json
 import os
 
 class colors:
+    greens_hair = 0xa19e78
     unifier = 0xed4545
     green = 0x2ecc71
     dark_green = 0x1f8b4c
