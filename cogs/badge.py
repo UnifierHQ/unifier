@@ -7,12 +7,11 @@ from contextlib import redirect_stdout
 import cpuinfo
 import time
 
-class colors:
-    green = 0x2ecc71
-    dark_green = 0x1f8b4c
-    purple = 0x9b59b6
-    red = 0xe74c3c
-    blurple = 0x7289da
+if hasattr(self.bot, 'colors'):
+    colors = self.bot.colors
+else:
+    time.sleep(3) # wait for admin to set colors
+    colors = self.bot.colors
 
 class Badge(commands.Cog):
     def __init__(self, bot):
