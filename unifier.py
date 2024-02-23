@@ -77,6 +77,7 @@ async def on_ready():
         bot.load_extension("cogs.bridge")
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
+        bot.load_extension("cogs.badge")
         try:
             bot.load_extension("cogs.upgrader")
         except:

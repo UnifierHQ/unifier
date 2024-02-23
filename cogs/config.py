@@ -128,7 +128,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{user.name}'
         await ctx.send(f'**{mod}** is now a moderator!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,aliases=['remmod','delmod'])
     async def removemod(self,ctx,*,userid):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
