@@ -39,7 +39,7 @@ def log(type='???',status='ok',content='None'):
     elif status=='info':
         status = 'INFO '
     else:
-        raise ValueError('Invalid status type provided')
+        status = 'UNKNOWN '
     print(f'[{type} | {time1} | {status}] {content}')
 
 with open('config.json', 'r') as file:
