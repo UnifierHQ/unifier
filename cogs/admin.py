@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import traceback
 
 import discord
 from discord.ext import commands
@@ -396,6 +397,20 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
             await ctx.send('**OOPS**: Only the owner can run unload! :x:')
+
+    @commands.command(name='kill-revolt',hidden=True)
+    async def kill_revolt(self,ctx):
+        """Kills the Revolt client. This is automatically done when upgrading Unifier."""
+        if not ctx.author.id==owner:
+            return
+        try:
+            await self.bot.revolt_session.close()
+            del self.bot.revolt_client
+            del self.bot.revolt_session
+            await ctx.send('Revolt client killed')
+        except:
+            traceback.print_exc()
+            await ctx.send('Something went wrong while killing the instance.')
 
     @commands.command(name='install-upgrader', hidden=True)
     async def install_upgrader(self, ctx):
