@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import traceback
 
 import discord
 from discord.ext import commands, tasks
@@ -75,6 +76,10 @@ async def on_ready():
     if not locked:
         bot.load_extension("cogs.admin")
         bot.load_extension("cogs.bridge")
+        try:
+            bot.load_extension("cogs.bridge_revolt")
+        except:
+            traceback.print_exc()
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")
