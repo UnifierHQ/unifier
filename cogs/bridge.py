@@ -590,13 +590,23 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             origin_msg_id = key
                             break
                     await ctx.send(
-                        f'{origin_user} ({origin_user.id}) via {origin_guild.name} ({origin_guild.id})\nOriginal ID {origin_msg_id}')
+                        f'{origin_user} ({origin_user.id}) via {origin_guild.name} ({origin_guild.id}, Discord)\nOriginal ID {origin_msg_id}')
                 except:
                     await ctx.send(f'{origin_user} ({origin_user.id}) via {origin_guild.name} ({origin_guild.id})\nCould not find origin message ID')
                     raise
             else:
                 await ctx.send(f'{origin_user} ({origin_user.id}) via {origin_guild.name} ({origin_guild.id})')
         else:
+            for guild in self.bot.revolt_client.servers:
+                hashed = encrypt_string(f'{guild.id}')
+                guildhash = identifier[3:]
+                if hashed.startswith(guildhash):
+                    for member in guild.members:
+                        hashed = encrypt_string(f'{member.id}')
+                        userhash = identifier[:-3]
+                        if hashed.startswith(userhash):
+                            return await ctx.send(f'{member.name} ({member.id}) via {guild.name} ({guild.id}, Revolt)')
+
             await ctx.send('Could not identify user!')
 
     @commands.command()
