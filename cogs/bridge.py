@@ -1017,6 +1017,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     found = True
                     msg_id = int(key)
                     break
+            for key in self.bot.bridged_oob:
+                if str(msg.id) in str(self.bot.bridged[key]):
+                    # Found the parent!
+                    found = True
+                    break
             if not found:
                 # Nothing.
                 return await ctx.send('Could not find message in cache!', ephemeral=True)
