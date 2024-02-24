@@ -1017,7 +1017,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     found = True
                     msg_id = int(key)
                     break
-            for key in self.bot.bridged_oob:
+            for key in self.bot.bridged_obe:
                 if str(msg.id) in str(self.bot.bridged[key]):
                     # Found the parent!
                     found = True
