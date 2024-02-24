@@ -2056,7 +2056,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             for guild in self.bot.db['rooms_revolt'][roomname]:
                 guild = self.bot.revolt_client.get_server(guild)
-                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id])
+                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
                 identifier = ' (' + user_hash + guild_hash + ')'
                 author = message.author.global_name
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
@@ -2323,7 +2323,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for key in data:
                 try:
                     guild = self.bot.revolt_client.get_server(key)
-                    ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key])
+                    ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
                     msg = await ch.fetch_message(data[key])
                     await msg.delete()
                 except:
