@@ -2056,6 +2056,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
                 files.append(revolt.File(file.fp.read(),filename=file.filename,spoiler=file.spoiler))
 
+            ids = {}
+
             # for guild in self.bot.db['rooms_revolt'][roomname]:
             for guild in testrooms:
                 guild = self.bot.revolt_client.get_server(guild)
@@ -2065,7 +2067,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     persona = revolt.Masquerade(name=author + identifier, avatar=message.author.avatar.url)
                 except:
                     persona = revolt.Masquerade(name=author + identifier, avatar=None)
-                await ch.send(content=message.content,attachments=files,masquerade=persona)
+                msg_data = None
+                if not message.reference is None:
+                    try:
+                        msg_data = self.bot.bridged_external[f'{message.id}']
+                    except:
+                        for key in self.bot.bridged_external:
+                            if f'{message.id}' in str(self.bot.bridged_external[key]['revolt']):
+                                msg_data = self.bot.bridged_external[f'{key}']['revolt']
+                                break
+                if not msg_data:
+                    replies = []
+                else:
+                    msg = await ch.fetch_message(msg_data[guild.id])
+                    replies = [revolt.MessageReply(message=msg)]
+                msg = await ch.send(content=message.content, attachments=files, replies=replies, masquerade=persona)
+                ids.update({guild.id:msg.id})
+
+            self.bot.bridged_external.update({f'{message.id}':{'revolt':ids}})
 
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
