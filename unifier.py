@@ -77,9 +77,15 @@ async def on_ready():
         bot.load_extension("cogs.admin")
         bot.load_extension("cogs.bridge")
         try:
-            bot.load_extension("cogs.bridge_revolt")
+            if 'revolt' in data['externals']:
+                bot.load_extension("cogs.bridge_revolt")
         except:
-            traceback.print_exc()
+            try:
+                x = open('cogs/bridge_revolt.py','r')
+                x.close()
+                traceback.print_exc()
+            except:
+                print(f'WARNING: Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")

@@ -38,6 +38,7 @@ with open('config.json', 'r') as file:
 home_guild = data["home_guild"]
 logs_channel = data["logs_channel"]
 reports_channel = data["reports_channel"]
+externals = data["external"]
 
 # Configure PR and PR referencing here, if you need it for whatever reason.
 allow_prs = data["allow_prs"]
@@ -88,6 +89,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = {}
+        if not hasattr(self.bot, 'bridged_external'):
+            self.bot.bridged_external = {}
+        if not hasattr(self.bot, 'bridged_obe'):
+            # OBE = Owned By External
+            # Message wasn't sent from Discord.
+            self.bot.bridged_obe = {}
         if not hasattr(self.bot, 'bridged_urls'):
             self.bot.bridged_urls = {}
         if not hasattr(self.bot, 'owners'):
@@ -708,8 +715,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         ownedby = []
         if f'{ctx.author.id}' in list(self.bot.owners.keys()):
             ownedby = self.bot.owners[f'{ctx.author.id}']
-        if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
-            return await ctx.send('You didn\'t send this message!')
+
+        obe = False
+        obe_source = 'revolt'
+        guild_id = ''
+        channel_id = ''
 
         # Is this the parent?
         if not f'{msg_id}' in list(self.bot.bridged.keys()):
@@ -722,12 +732,38 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     msg_id = int(key)
                     break
             if not found:
-                # Nothing.
-                return await ctx.send('Could not find message in cache!')
+                # Nothing, possibly OBE?
+                for key in self.bot.bridged_obe:
+                    if str(msg_id) in str(self.bot.bridged_obe[key]):
+                        # The parent is OBE!
+                        found = True
+                        msg_id = key
+                        obe_source = self.bot.bridged_obe[key]['source']
+                        guild_id = self.bot.bridged_obe[msg_id]['server']
+                        break
+                if not found:
+                    return await ctx.send('Could not find message in cache!')
+
+        if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
+            return await ctx.send('You didn\'t send this message!')
 
         hooks = await ctx.channel.webhooks()
         found = False
         origin_room = 0
+
+        if obe:
+            for key in self.bot.db['rooms_revolt']:
+                # insert stuff here
+                if f'{guild_id}' in list(self.bot.db['rooms_revolt'][key].keys()):
+                    channel_id = self.bot.db['rooms_revolt'][key][f'{guild_id}']
+                    found = True
+                    break
+
+        if not found:
+            return
+
+        found = False
+        roomname = ''
 
         for webhook in hooks:
             index = 0
@@ -740,6 +776,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
+                    roomname = key
                     break
                 index += 1
             if found:
@@ -755,28 +792,39 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             guild = self.bot.get_guild(origins[0])
             ch = guild.get_channel(origins[1])
             try:
-                msg = await ch.fetch_message(msg_id)
-                await msg.delete()
-                if msg.webhook_id == None:
-                    # Parent is a user/bot message.
-                    # Since we have something to delete bridged copies on parent delete,
-                    # don't bother deleting the copies.
-                    # (note: webhook parents don't have bridged copies automatically deleted)
-                    return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
+                if obe:
+                    if obe_source=='revolt' and 'revolt' in externals:
+                        server_id = self.bot.bridged_obe[msg_id]['server']
+                        guild = self.bot.bridged_obe.get_server(guild_id)
+                        ch = guild.get_channel(channel_id)
+                        msg = await ch.fetch_message(msg_id)
+                        await msg.delete()
+                        if not msg.author.bot:
+                            return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
+                else:
+                    msg = await ch.fetch_message(msg_id)
+                    await msg.delete()
+                    if msg.webhook_id == None:
+                        # Parent is a user/bot message.
+                        # Since we have something to delete bridged copies on parent delete,
+                        # don't bother deleting the copies.
+                        # (note: webhook parents don't have bridged copies automatically deleted)
+                        return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
             except:
                 # Parent may be a webhook message, so try to delete as webhook.
-                if key in list(data.keys()):
-                    hook_ids = data[key]
-                else:
-                    hook_ids = []
-                try:
-                    hooks = await guild.webhooks()
-                except:
-                    raise ValueError('no hooks')
-                for webhook in hooks:
-                    if webhook.id in hook_ids:
-                        await webhook.delete_message(msg_id)
-                        break
+                if not obe:
+                    if key in list(data.keys()):
+                        hook_ids = data[key]
+                    else:
+                        hook_ids = []
+                    try:
+                        hooks = await guild.webhooks()
+                    except:
+                        raise ValueError('no hooks')
+                    for webhook in hooks:
+                        if webhook.id in hook_ids:
+                            await webhook.delete_message(msg_id)
+                            break
         except:
             # Failed to delete, move on
             pass
@@ -802,8 +850,27 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
                     break
 
+        ext_deleted = 0
+
+        if 'revolt' in externals:
+            data = self.bot.db['rooms_revolt'][roomname]
+            if obe:
+                should_delete = self.bot.bridged_obe[msg_id]
+            else:
+                should_delete = self.bot.bridged_revolt[f'{msg_id}']
+            for key in data:
+                guild = self.bot.revolt_client.get_server(key)
+                ch = guild.get_channel(data[guild.id])
+                if guild.id in list(should_delete.keys()):
+                    msg = await ch.fetch_message(should_delete[guild.id])
+                    try:
+                        await msg.delete()
+                        ext_deleted += 1
+                    except:
+                        pass
+
         if ctx.author.id in self.bot.moderators:
-            await ctx.send(f'Deleted {deleted} forwarded messages')
+            await ctx.send(f'Deleted {deleted} forwarded messages ({ext_deleted} from externals)')
         else:
             await ctx.send('Deleted message!')
 
@@ -1979,7 +2046,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         except:
                             await message.channel.send('**oh no**\nAn unexpected error occurred handling this message. Please contact the developers.')
                             raise
-
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
         self.bot.owners[f'{message.author.id}'].append(message.id)
