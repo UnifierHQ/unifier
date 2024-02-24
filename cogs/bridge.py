@@ -2082,7 +2082,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 for attachment in message.attachments:
                     file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
                     files.append(revolt.File(file.fp.read(), filename=file.filename, spoiler=file.spoiler))
-                msg = await ch.send(content=message.content, attachments=files, replies=replies, masquerade=persona)
+                if message.author.bot:
+                    msg = await ch.send(
+                        content=message.content, embeds=message.embeds, attachments=files, replies=replies,masquerade=persona
+                    )
+                else:
+                    msg = await ch.send(content=message.content, attachments=files, replies=replies, masquerade=persona)
                 ids.update({guild.id:msg.id})
 
             self.bot.bridged_external.update({f'{message.id}':{'revolt':ids}})
@@ -2309,6 +2314,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             # message wiped from cache
                             return
                         pass
+
+
 
 
 def setup(bot):
