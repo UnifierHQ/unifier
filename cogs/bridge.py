@@ -2148,10 +2148,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 author = message.author.global_name
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
                     author = self.bot.db['nicknames'][f'{message.author.id}']
+                author_rvt = author
+                if len(author) > 23:
+                    author_rvt = author_rvt[:-len(author)-23]
                 try:
-                    persona = revolt.Masquerade(name=author + identifier, avatar=message.author.avatar.url)
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url)
                 except:
-                    persona = revolt.Masquerade(name=author + identifier, avatar=None)
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None)
                 msg_data = None
                 origin_id = None
                 if not message.reference is None:
