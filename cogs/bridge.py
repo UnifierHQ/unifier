@@ -761,8 +761,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     found = True
                     break
 
-        if not found:
-            return
+            if not found:
+                return
 
         found = False
         roomname = ''
