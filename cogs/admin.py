@@ -541,7 +541,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await msg.edit(embed=embed)
             raise
 
-    @commands.command(name='install-revolt-support', hidden=True)
+    @commands.command(name='install-revolt', hidden=True, aliases=['install-revolt-support'])
     async def install_revolt(self, ctx):
         if not ctx.author.id == owner:
             return
