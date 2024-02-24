@@ -2054,7 +2054,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             for attachment in message.attachments:
                 file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
-                files.append(revolt.File(file.fp,filename=file.filename,spoiler=file.spoiler))
+                files.append(revolt.File(file.fp.read(),filename=file.filename,spoiler=file.spoiler))
 
             # for guild in self.bot.db['rooms_revolt'][roomname]:
             for guild in testrooms:
