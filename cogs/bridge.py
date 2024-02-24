@@ -2177,6 +2177,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         msg = await ch.fetch_message(origin_id)
                     replies = [revolt.MessageReply(message=msg)]
                 for attachment in message.attachments:
+                    if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
+                        not 'image' in attachment.content_type) or attachment.size > 25000000:
+                        continue
                     file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
                     files.append(revolt.File(file.fp.read(), filename=file.filename, spoiler=file.spoiler))
                 if message.author.bot:
