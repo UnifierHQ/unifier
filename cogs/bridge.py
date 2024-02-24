@@ -2154,6 +2154,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 color = message.author.color
                 if color.value==discord.Colour.default().value:
                     color = None
+                else:
+                    color = f'{color.value}'.replace('0x','')
                 try:
                     persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url, colour=color)
                 except:
