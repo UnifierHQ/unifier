@@ -2054,8 +2054,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
             ids = {}
 
-            # for guild in self.bot.db['rooms_revolt'][roomname]:
-            for guild in testrooms:
+            for guild in self.bot.db['rooms_revolt'][roomname]:
                 guild = self.bot.revolt_client.get_server(guild)
                 ch = guild.get_channel(testrooms[guild.id][0])
                 # ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id])
