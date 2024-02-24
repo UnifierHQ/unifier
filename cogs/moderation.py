@@ -91,7 +91,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             if userid==ctx.guild.id:
                 return await ctx.send('You can\'t restrict your own server :thinking:')
         except:
-            return await ctx.send('Invalid user/server!')
+            userid = target
+            if not len(userid) == 26:
+                return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators:
             return await ctx.send('UniChat moderators are immune to blocks!\n(Though, do feel free to report anyone who abuses this immunity.)')
         banlist = []
@@ -133,7 +135,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             if userid==ctx.author.id:
                 return await ctx.send('You can\'t restrict yourself :thinking:')
         except:
-            return await ctx.send('Invalid user/server!')
+            userid = target
+            if not len(userid) == 26:
+                return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         banlist = self.bot.db['banned']
@@ -155,11 +159,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if forever:
-            embed.color = 0xff0000
+            embed.colour = 0xff0000
             embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
         else:
             embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
         user = self.bot.get_user(userid)
+        if not user:
+            try:
+                user = self.bot.revolt_client.get_user(userid)
+                await user.send(f'## {embed.title}\n{embed.description}\n\n**Actions taken**\n{embed.fields[0].value}')
+                return await ctx.send('global banned <:nevheh:990994050607906816>')
+            except:
+                return await ctx.send('global banned <:nevheh:990994050607906816>')
         if not user==None:
             try:
                 await user.send(embed=embed)
@@ -175,7 +186,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
-            return await ctx.send('Invalid user/server!')
+            userid = target
+            if not len(target) == 26:
+                return await ctx.send('Invalid user/server!')
         banlist = []
         if f'{ctx.guild.id}' in list(self.bot.db['blocked'].keys()):
             banlist = self.bot.db['blocked'][f'{ctx.guild.id}']
@@ -192,7 +205,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
-            return await ctx.send('Invalid user/server!')
+            userid = target
+            if not len(target) == 26:
+                return await ctx.send('Invalid user/server!')
         banlist = self.bot.db['banned']
         if not f'{userid}' in list(banlist.keys()):
             return await ctx.send('User/server not banned!')
@@ -237,10 +252,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
-                pass
-                #return await ctx.send('You can\'t warn yourself :thinking:')
+                return await ctx.send('You can\'t warn yourself :thinking:')
         except:
-            return await ctx.send('Invalid user/server!')
+            userid = target
+            if not len(userid)==26:
+                return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         banlist = self.bot.db['banned']
@@ -254,8 +270,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.',inline=False)
         user = self.bot.get_user(userid)
-        if user==None:
-            return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
+        if not user:
+            try:
+                user = self.bot.revolt_client.get_user(userid)
+                await user.send(
+                    f'## {embed.title}\n{embed.description}\n\n**Actions taken**\n{embed.fields[0].value}')
+                return await ctx.send('user warned')
+            except:
+                return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
         if user.bot:
             return await ctx.send('...why would you want to warn a bot?')
         try:
@@ -290,7 +312,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
-            return await ctx.send('Invalid user/server!')
+            userid = target
+            if not len(userid) == 26:
+                return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         obvious = False
@@ -331,6 +355,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.set_footer(text='Please send what you see to the developers!')
         else:
             embed.set_footer(text='lol just kidding')
+        if not user:
+            try:
+                user = self.bot.revolt_client.get_user(userid)
+                return await user.send(f'## {embed.title}\n{embed.description}\n\n**Actions taken**\n{embed.fields[0].value}\n\n{embed.footer.text}')
+            except:
+                return
         if not user==None:
             try:
                 await user.send(embed=embed)
@@ -348,7 +378,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@', '').replace('!', '').replace('>', ''))
         except ValueError:
-            return await ctx.send("Invalid user mention.")
+            if len(target)==26:
+                userid = target
+            else:
+                return await ctx.send("Invalid user mention.")
 
         # Update or remove the nickname in the database
         if len(nickname) == 0:
