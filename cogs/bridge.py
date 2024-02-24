@@ -2053,7 +2053,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
 
             for attachment in message.attachments:
-                file = attachment.to_file()
+                file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
                 files.append(revolt.File(file.fp,filename=file.filename,spoiler=file.spoiler))
 
             # for guild in self.bot.db['rooms_revolt'][roomname]:
