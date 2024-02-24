@@ -2078,6 +2078,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                     msg_data = self.bot.bridged_external[f'{key}']['revolt']
                                     break
                     except:
+                        raise
                         for key in self.bot.bridged_external:
                             if f'{message.reference.message_id}' in str(self.bot.bridged_external[key]['revolt']):
                                 msg_data = self.bot.bridged_external[f'{key}']['revolt']
