@@ -2070,7 +2070,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 msg_data = None
                 if not message.reference is None:
                     try:
-                        msg_data = self.bot.bridged_external[f'{message.reference.message_id}']['revolt']
+                        try:
+                            msg_data = self.bot.bridged_external[f'{message.reference.message_id}']['revolt']
+                        except:
+                            for key in self.bot.bridged:
+                                if f'{message.reference.message_id}' in f'{self.bot.bridged[key]}':
+                                    msg_data = self.bot.bridged_external[f'{key}']['revolt']
+                                    break
                     except:
                         for key in self.bot.bridged_external:
                             if f'{message.reference.message_id}' in str(self.bot.bridged_external[key]['revolt']):
