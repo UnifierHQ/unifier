@@ -2318,6 +2318,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             return
                         pass
 
+        if 'revolt' in externals:
+            data = self.bot.bridged_external[f'{message.id}']['revolt']
+            for key in data:
+                try:
+                    guild = self.bot.revolt_client.get_server(key)
+                    ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key])
+                    msg = await ch.fetch_message(data[key])
+                    await msg.delete()
+                except:
+                    pass
+
 
 
 
