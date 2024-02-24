@@ -77,7 +77,7 @@ async def on_ready():
         bot.load_extension("cogs.admin")
         bot.load_extension("cogs.bridge")
         try:
-            if 'revolt' in data['externals']:
+            if 'revolt' in data['external']:
                 bot.load_extension("cogs.bridge_revolt")
         except:
             try:
