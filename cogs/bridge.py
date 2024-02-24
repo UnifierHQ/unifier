@@ -2151,10 +2151,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 author_rvt = author
                 if len(author) > 23:
                     author_rvt = author_rvt[:-(len(author)-23)]
+                color = message.author.color
+                if color.value==discord.Colour.default().value:
+                    color = None
                 try:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url)
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url, colour=color)
                 except:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None)
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=color)
                 msg_data = None
                 origin_id = None
                 if not message.reference is None:
