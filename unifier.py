@@ -15,7 +15,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import traceback
 
 import discord
 from discord.ext import commands, tasks
@@ -23,6 +22,8 @@ import random
 import aiohttp
 import hashlib
 import json
+import traceback
+from time import gmtime, strftime
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -30,6 +31,20 @@ with open('config.json', 'r') as file:
 bot = commands.Bot(command_prefix=data['prefix'],intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
+
+def log(type='???',status='ok',content='None'):
+    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
+    if status=='ok':
+        status = ' OK  '
+    elif status=='error':
+        status = 'ERROR'
+    elif status=='warn':
+        status = 'WARN '
+    elif status=='info':
+        status = 'INFO '
+    else:
+        raise ValueError('Invalid status type provided')
+    print(f'[{type} | {time1} | {status}] {content}')
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -67,7 +82,7 @@ async def changestatus():
 @bot.event
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
-    print("loading cogs...")
+    log("BOT","info","Loading Unifier extensions...")
     bot.load_extension("cogs.lockdown")
     try:
         locked = bot.locked
@@ -85,17 +100,17 @@ async def on_ready():
                 x.close()
                 traceback.print_exc()
             except:
-                print(f'WARNING: Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
+                log("BOT","warn",'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")
         try:
             bot.load_extension("cogs.upgrader")
         except:
-            print('WARNING: Upgrader is missing, consider installing it for an easier life.')
+            log('BOT','warn','Upgrader is missing, consider installing it for an easier life.')
         if not changestatus.is_running():
             changestatus.start()
-        print('registering commands...')
+        log("BOT","info","Registering context commands...")
         toreg = []
         for command in bot.commands:
             if isinstance(command, commands.core.ContextMenuCommand):
@@ -104,7 +119,7 @@ async def on_ready():
                 else:
                     toreg.append(command)
         await bot.register_application_commands(commands=toreg)
-    print('ready hehe')
+    log("BOT","ok","Unifier is ready!")
 
 @bot.event
 async def on_message(message):
