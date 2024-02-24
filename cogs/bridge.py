@@ -1036,12 +1036,48 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await ctx.send('I could not identify the room this was sent in.',ephemeral=True)
         userid = msg.author.id
         if not msg.webhook_id==None:
-            userid = int(list(filter(lambda x: msg.id in self.bot.owners[x], list(self.bot.owners.keys())))[0])
-        if not f'{msg.id}' in f'{self.bot.bridged}':
+            try:
+                userid = int(list(filter(lambda x: msg.id in self.bot.owners[x], list(self.bot.owners.keys())))[0])
+            except:
+                components = msg.author.name.split('(')
+                identifier = components[len(components)-1].replace(')','',1)
+                guildhash = identifier[3:]
+                for guild in self.bot.revolt_client.servers:
+                    hashed = encrypt_string(f'{guild.id}')
+                    if hashed.startswith(guildhash):
+                        userhash = identifier[:-3]
+                        found = False
+                        for member in guild.members:
+                            hashed = encrypt_string(f'{member.id}')
+                            if hashed.startswith(userhash):
+                                userid = member.id
+                                found = True
+                                break
+                        if found:
+                            break
+        if not f'{msg.id}' in f'{self.bot.bridged}' and not f'{msg.id}' in f'{self.bot.bridged_external}' and not f'{msg.id}' in f'{self.bot.obe}':
             if msg.webhook_id:
                 if not msg.webhook_id == webhook.id:
                     return await ctx.send('I didn\'t send this message!')
-                userid = int(list(filter(lambda x: msg.id in self.bot.owners[x], list(self.bot.owners.keys())))[0])
+                try:
+                    userid = int(list(filter(lambda x: msg.id in self.bot.owners[x], list(self.bot.owners.keys())))[0])
+                except:
+                    components = msg.author.name.split('(')
+                    identifier = components[len(components) - 1].replace(')', '', 1)
+                    guildhash = identifier[3:]
+                    for guild in self.bot.revolt_client.servers:
+                        hashed = encrypt_string(f'{guild.id}')
+                        if hashed.startswith(guildhash):
+                            userhash = identifier[:-3]
+                            found = False
+                            for member in guild.members:
+                                hashed = encrypt_string(f'{member.id}')
+                                if hashed.startswith(userhash):
+                                    userid = member.id
+                                    found = True
+                                    break
+                            if found:
+                                break
         content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
         ButtonStyle = discord.ButtonStyle
         btns = discord.ui.ActionRow(
@@ -1166,6 +1202,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
         try:
             user = self.bot.get_user(userid)
+            if not user:
+                user = self.bot.revolt_client.get_user(userid)
             sender = f'@{user.name}'
             if not user.discriminator == '0':
                 sender = f'{user.name}#{user.discriminator}'
