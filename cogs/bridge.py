@@ -19,6 +19,8 @@ import os
 
 import discord
 import hashlib
+
+import revolt
 from discord.ext import commands
 import traceback
 import time
@@ -755,7 +757,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for key in self.bot.db['rooms_revolt']:
                 # insert stuff here
                 if f'{guild_id}' in list(self.bot.db['rooms_revolt'][key].keys()):
-                    channel_id = self.bot.db['rooms_revolt'][key][f'{guild_id}']
+                    channel_id = self.bot.db['rooms_revolt'][key][f'{guild_id}'][0]
                     found = True
                     break
 
@@ -2046,6 +2048,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         except:
                             await message.channel.send('**oh no**\nAn unexpected error occurred handling this message. Please contact the developers.')
                             raise
+        files = []
+        if 'revolt' in externals:
+            testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
+
+            for attachment in message.attachments:
+                file = attachment.to_file()
+                files.append(revolt.File(file.fp,filename=file.filename,spoiler=file.spoiler))
+
+            # for guild in self.bot.db['rooms_revolt'][roomname]:
+            for guild in testrooms:
+                guild = self.bot.revolt_client.get_server(guild)
+                ch = guild.get_channel(testrooms[guild.id])
+                # ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id])
+                try:
+                    persona = revolt.Masquerade(name=author + identifier, avatar=message.author.avatar.url)
+                except:
+                    persona = revolt.Masquerade(name=author + identifier, avatar=None)
+                await ch.send(content=message.content,files=files,masquerade=persona)
+
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
         self.bot.owners[f'{message.author.id}'].append(message.id)
