@@ -290,10 +290,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
-            try:
-                userid = target
-                self.bot.revolt_client.get_iser(target)
-            except:
+            userid = target
+            if not len(userid) == 26:
                 return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
@@ -335,6 +333,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.set_footer(text='Please send what you see to the developers!')
         else:
             embed.set_footer(text='lol just kidding')
+        if not user:
+            try:
+                user = self.bot.revolt_client.get_user(userid)
+            except:
+                pass
         if not user==None:
             try:
                 await user.send(embed=embed)
