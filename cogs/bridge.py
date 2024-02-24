@@ -2065,7 +2065,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     persona = revolt.Masquerade(name=author + identifier, avatar=message.author.avatar.url)
                 except:
                     persona = revolt.Masquerade(name=author + identifier, avatar=None)
-                await ch.send(content=message.content,files=files,masquerade=persona)
+                await ch.send(content=message.content,attachments=files,masquerade=persona)
 
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
