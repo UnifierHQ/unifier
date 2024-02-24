@@ -2051,13 +2051,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         files = []
         cogs = list(self.bot.extensions)
         if 'revolt' in externals and 'cogs.bridge_revolt' in cogs:
-            testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
+            # testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
             ids = {}
 
             for guild in self.bot.db['rooms_revolt'][roomname]:
                 guild = self.bot.revolt_client.get_server(guild)
-                ch = guild.get_channel(testrooms[guild.id][0])
-                # ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id])
+                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id])
                 identifier = ' (' + user_hash + guild_hash + ')'
                 author = message.author.global_name
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
