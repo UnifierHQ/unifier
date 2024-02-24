@@ -1060,7 +1060,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                 break
                         if found:
                             break
-        if not f'{msg.id}' in f'{self.bot.bridged}' and not f'{msg.id}' in f'{self.bot.bridged_external}' and not f'{msg.id}' in f'{self.bot.obe}':
+        if not f'{msg.id}' in f'{self.bot.bridged}' and not f'{msg.id}' in f'{self.bot.bridged_external}' and not f'{msg.id}' in f'{self.bot.bridged_obe}':
             if msg.webhook_id:
                 if not msg.webhook_id == webhook.id:
                     return await ctx.send('I didn\'t send this message!')
