@@ -2194,6 +2194,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
+        if not f'{message.author.id}' in list(self.bot.owners.keys()):
+            self.bot.owners.update({f'{message.author.id}':[]})
         self.bot.owners[f'{message.author.id}'].append(message.id)
         if is_pr and not is_pr_ref:
             self.bot.prs.update({pr_id: pr_ids})
