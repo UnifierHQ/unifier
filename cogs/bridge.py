@@ -2049,7 +2049,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             await message.channel.send('**oh no**\nAn unexpected error occurred handling this message. Please contact the developers.')
                             raise
         files = []
-        if 'revolt' in externals:
+        cogs = list(self.bot.extensions)
+        if 'revolt' in externals and 'cogs.bridge_revolt' in cogs:
             testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
 
             for attachment in message.attachments:
