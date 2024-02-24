@@ -866,7 +866,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         ext_deleted = 0
 
-        if 'revolt' in externals:
+        if 'revolt' in externals and 'cogs.revolt' in list(self.bot.extensions):
             data = self.bot.db['rooms_revolt'][roomname]
             if obe:
                 should_delete = self.bot.bridged_obe[msg_id]
@@ -2310,7 +2310,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             return
                         pass
 
-        if 'revolt' in externals:
+        if 'revolt' in externals and 'cogs.revolt' in list(self.bot.extensions):
             data = self.bot.bridged_external[f'{message.id}']['revolt']
 
             components = message.content.split('<@')
@@ -2457,7 +2457,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             return
                         pass
 
-        if 'revolt' in externals:
+        if 'revolt' in externals and 'cogs.revolt' in list(self.bot.extensions):
             data = self.bot.bridged_external[f'{message.id}']['revolt']
             for key in data:
                 try:
