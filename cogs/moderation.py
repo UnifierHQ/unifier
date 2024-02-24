@@ -290,7 +290,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
-            return await ctx.send('Invalid user/server!')
+            try:
+                userid = target
+                self.bot.revolt_client.get_iser(target)
+            except:
+                return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         obvious = False

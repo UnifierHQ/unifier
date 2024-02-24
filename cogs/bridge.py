@@ -2066,6 +2066,26 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             # testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
             ids = {}
 
+            components = message.content.split('<@')
+            offset = 0
+            if message.content.startswith('<@'):
+                offset = 1
+
+            while offset < len(components):
+                if len(components) == 1 and offset == 0:
+                    break
+                try:
+                    userid = int(components[offset].split('>', 1)[0])
+                except:
+                    userid = components[offset].split('>', 1)[0]
+                user = self.bot.get_user(userid)
+                if user:
+                    message.content = message.content.replace(f'<@{userid}>',
+                                                              f'@{user.global_name or user.name}').replace(
+                        f'<@!{userid}>', f'@{user.global_name}')
+                offset += 1
+            revoltfriendly = message.content
+
             for guild in self.bot.db['rooms_revolt'][roomname]:
                 guild = self.bot.revolt_client.get_server(guild)
                 ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
@@ -2109,10 +2129,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     files.append(revolt.File(file.fp.read(), filename=file.filename, spoiler=file.spoiler))
                 if message.author.bot:
                     msg = await ch.send(
-                        content=message.content, embeds=message.embeds, attachments=files, replies=replies,masquerade=persona
+                        content=revoltfriendly, embeds=message.embeds, attachments=files, replies=replies,masquerade=persona
                     )
                 else:
-                    msg = await ch.send(content=message.content, attachments=files, replies=replies, masquerade=persona)
+                    msg = await ch.send(content=revoltfriendly, attachments=files, replies=replies, masquerade=persona)
                 ids.update({guild.id:msg.id})
 
             self.bot.bridged_external.update({f'{message.id}':{'revolt':ids}})
@@ -2240,12 +2260,33 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if 'revolt' in externals:
             data = self.bot.bridged_external[f'{message.id}']['revolt']
+
+            components = message.content.split('<@')
+            offset = 0
+            if message.content.startswith('<@'):
+                offset = 1
+
+            while offset < len(components):
+                if len(components) == 1 and offset == 0:
+                    break
+                try:
+                    userid = int(components[offset].split('>', 1)[0])
+                except:
+                    userid = components[offset].split('>', 1)[0]
+                user = self.bot.get_user(userid)
+                if user:
+                    message.content = message.content.replace(f'<@{userid}>',
+                                                              f'@{user.global_name or user.name}').replace(
+                        f'<@!{userid}>', f'@{user.global_name}')
+                offset += 1
+            revoltfriendly = message.content
+
             for key in data:
                 try:
                     guild = self.bot.revolt_client.get_server(key)
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
                     msg = await ch.fetch_message(data[key])
-                    await msg.edit(content=message.content)
+                    await msg.edit(content=revoltfriendly)
                 except:
                     pass
 
