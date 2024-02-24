@@ -2063,7 +2063,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 guild = self.bot.revolt_client.get_server(guild)
                 ch = guild.get_channel(testrooms[guild.id][0])
                 # ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id])
-                identifier = user_hash + guild_hash
+                identifier = ' (' + user_hash + guild_hash + ')'
                 author = message.author.global_name
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
                     author = self.bot.db['nicknames'][f'{message.author.id}']
