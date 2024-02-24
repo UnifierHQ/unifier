@@ -2150,7 +2150,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     author = self.bot.db['nicknames'][f'{message.author.id}']
                 author_rvt = author
                 if len(author) > 23:
-                    author_rvt = author_rvt[:-len(author)-23]
+                    author_rvt = author_rvt[:-(len(author)-23)]
                 try:
                     persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url)
                 except:
