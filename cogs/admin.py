@@ -372,6 +372,8 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                         raise ValueError('Cannot unload the admin extension, let\'s not break the bot here!')
                     if extension=='lockdown':
                         raise ValueError('Cannot unload lockdown extension for security purposes.')
+                    if extension=='bridge_revolt':
+                        raise ValueError('Revolt Bridge cannot be unloaded. Use u!stop-revolt instead.')
                     self.bot.unload_extension(f'cogs.{extension}')
                     if len(text)==0:
                         text = f'```diff\n+ [DONE] {extension}'
