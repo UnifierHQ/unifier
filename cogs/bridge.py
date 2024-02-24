@@ -99,6 +99,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridged_obe = {}
         if not hasattr(self.bot, 'bridged_urls'):
             self.bot.bridged_urls = {}
+        if not hasattr(self.bot, 'bridged_urls_external'):
+            self.bot.bridged_urls_external = {}
         if not hasattr(self.bot, 'owners'):
             self.bot.owners = {}
         if not hasattr(self.bot, 'origin'):
