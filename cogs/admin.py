@@ -398,8 +398,20 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         else:
             await ctx.send('**OOPS**: Only the owner can run unload! :x:')
 
-    @commands.command(name='kill-revolt',hidden=True)
-    async def kill_revolt(self,ctx):
+    @commands.command(name='start-revolt', hidden=True)
+    async def start_revolt(self, ctx):
+        """Starts the Revolt client. This is automatically done on boot"""
+        if not ctx.author.id == owner:
+            return
+        try:
+            self.bot.load_extension('cogs.bridge_revolt')
+            await ctx.send('Revolt client started.')
+        except:
+            traceback.print_exc()
+            await ctx.send('Something went wrong while killing the instance.')
+
+    @commands.command(name='stop-revolt',hidden=True)
+    async def stop_revolt(self,ctx):
         """Kills the Revolt client. This is automatically done when upgrading Unifier."""
         if not ctx.author.id==owner:
             return
@@ -407,7 +419,8 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await self.bot.revolt_session.close()
             del self.bot.revolt_client
             del self.bot.revolt_session
-            await ctx.send('Revolt client killed')
+            self.bot.unload_extension('cogs.bridge_revolt')
+            await ctx.send('Revolt client stopped.')
         except:
             traceback.print_exc()
             await ctx.send('Something went wrong while killing the instance.')
