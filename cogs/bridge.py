@@ -2059,7 +2059,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             # for guild in self.bot.db['rooms_revolt'][roomname]:
             for guild in testrooms:
                 guild = self.bot.revolt_client.get_server(guild)
-                ch = guild.get_channel(testrooms[guild.id])
+                ch = guild.get_channel(testrooms[guild.id][0])
                 # ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id])
                 try:
                     persona = revolt.Masquerade(name=author + identifier, avatar=message.author.avatar.url)
