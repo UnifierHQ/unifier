@@ -2068,6 +2068,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     persona = revolt.Masquerade(name=author + identifier, avatar=None)
                 msg_data = None
+                origin_id = None
                 if not message.reference is None:
                     try:
                         try:
@@ -2075,7 +2076,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         except:
                             for key in self.bot.bridged_obe:
                                 if f'{message.reference.message_id}' in f'{self.bot.bridged_obe[key]}':
-                                    msg_data = self.bot.bridged_obe[f'{key}']['discord']
+                                    msg_data = self.bot.bridged_obe[f'{key}']
+                                    origin_id = key
                                     break
                             if not msg_data:
                                 raise ValueError()
@@ -2088,7 +2090,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not msg_data:
                     replies = []
                 else:
-                    msg = await ch.fetch_message(msg_data[guild.id])
+                    try:
+                        msg = await ch.fetch_message(msg_data[guild.id])
+                    except:
+                        msg = await ch.fetch_message(origin_id)
                     replies = [revolt.MessageReply(message=msg)]
                 for attachment in message.attachments:
                     file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
