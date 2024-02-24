@@ -408,9 +408,11 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         try:
             self.bot.load_extension('cogs.bridge_revolt')
             await ctx.send('Revolt client started.')
-        except:
+        except Exception as e:
+            if isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                return await ctx.send('Revolt client is already online.')
             traceback.print_exc()
-            await ctx.send('Something went wrong while killing the instance.')
+            await ctx.send('Something went wrong while starting the instance.')
 
     @commands.command(name='stop-revolt',hidden=True)
     async def stop_revolt(self,ctx):
@@ -423,7 +425,9 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             del self.bot.revolt_session
             self.bot.unload_extension('cogs.bridge_revolt')
             await ctx.send('Revolt client stopped.')
-        except:
+        except Exception as e:
+            if isinstance(e, AttributeError):
+                return await ctx.send('Revolt client is already offline.')
             traceback.print_exc()
             await ctx.send('Something went wrong while killing the instance.')
 
