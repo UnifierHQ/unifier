@@ -2052,11 +2052,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         cogs = list(self.bot.extensions)
         if 'revolt' in externals and 'cogs.bridge_revolt' in cogs:
             testrooms = {"01HDS71G78AT18B9DEW3K6KXST":["01HDS71G78TTV3J3HMX3FB180Q"]}
-
-            for attachment in message.attachments:
-                file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
-                files.append(revolt.File(file.fp.read(),filename=file.filename,spoiler=file.spoiler))
-
             ids = {}
 
             # for guild in self.bot.db['rooms_revolt'][roomname]:
@@ -2086,6 +2081,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 else:
                     msg = await ch.fetch_message(msg_data[guild.id])
                     replies = [revolt.MessageReply(message=msg)]
+                for attachment in message.attachments:
+                    file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
+                    files.append(revolt.File(file.fp.read(), filename=file.filename, spoiler=file.spoiler))
                 msg = await ch.send(content=message.content, attachments=files, replies=replies, masquerade=persona)
                 ids.update({guild.id:msg.id})
 
