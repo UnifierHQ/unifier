@@ -2074,7 +2074,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 msg_data = None
                 if not message.reference is None:
                     try:
-                        msg_data = self.bot.bridged_external[f'{message.reference.message_id}']
+                        msg_data = self.bot.bridged_external[f'{message.reference.message_id}']['revolt']
                     except:
                         for key in self.bot.bridged_external:
                             if f'{message.reference.message_id}' in str(self.bot.bridged_external[key]['revolt']):
@@ -2083,7 +2083,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not msg_data:
                     replies = []
                 else:
-                    print(msg_data)
                     msg = await ch.fetch_message(msg_data[guild.id])
                     replies = [revolt.MessageReply(message=msg)]
                 msg = await ch.send(content=message.content, attachments=files, replies=replies, masquerade=persona)
