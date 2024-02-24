@@ -2130,7 +2130,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             revoltfriendly = message.content
 
             for guild in self.bot.db['rooms_revolt'][roomname]:
-                guild = self.bot.revolt_client.get_server(guild)
+                try:
+                    guild = self.bot.revolt_client.get_server(guild)
+                except:
+                    continue
+                try:
+                    if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(message.server.id) in str(
+                            self.bot.db["blocked"][f'{guild.id}']):
+                        continue
+                except:
+                    pass
                 ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
                 identifier = ' (' + user_hash + guild_hash + ')'
                 author = message.author.global_name
@@ -2326,7 +2335,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             for key in data:
                 try:
-                    guild = self.bot.revolt_client.get_server(key)
+                    try:
+                        guild = self.bot.revolt_client.get_server(key)
+                    except:
+                        continue
+                    try:
+                        if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
+                                message.server.id) in str(
+                                self.bot.db["blocked"][f'{guild.id}']):
+                            continue
+                    except:
+                        pass
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
                     msg = await ch.fetch_message(data[key])
                     await msg.edit(content=revoltfriendly)
@@ -2442,7 +2461,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             data = self.bot.bridged_external[f'{message.id}']['revolt']
             for key in data:
                 try:
-                    guild = self.bot.revolt_client.get_server(key)
+                    try:
+                        guild = self.bot.revolt_client.get_server(key)
+                    except:
+                        continue
+                    try:
+                        if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
+                                message.server.id) in str(
+                                self.bot.db["blocked"][f'{guild.id}']):
+                            continue
+                    except:
+                        pass
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
                     msg = await ch.fetch_message(data[key])
                     await msg.delete()
