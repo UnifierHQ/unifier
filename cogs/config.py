@@ -516,7 +516,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed = discord.Embed(title="Unifier and Unified Chat",description="Unify servers, make worthwhile conversations.",color=0xed4545)
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.set_footer(text="Version v0.4.1 (Beta)")
+        embed.set_footer(text="Version v1.0.0 (Release)")
         await ctx.send(embed=embed)
 
     @commands.command()

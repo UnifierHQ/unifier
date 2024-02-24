@@ -34,6 +34,9 @@ a server restriction, whether it be server-side or global is all it takes to sto
 there won't be forwarded when restricted. Restrictions don't delete or ban users, so any unintended restrictions can be revoked 
 right away. No member rejoin or anything required.
 
+And with **Revolt Support**, Unifier can also connect Revolt servers with Discord servers. So if you'd rather use an open source 
+alternative, then you can always use Unifier on Revolt.
+
 ## Setup
 Please follow our guides on GitBook to set up Unifier.
 

@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import traceback
 
 import discord
 from discord.ext import commands, tasks
@@ -75,6 +76,16 @@ async def on_ready():
     if not locked:
         bot.load_extension("cogs.admin")
         bot.load_extension("cogs.bridge")
+        try:
+            if 'revolt' in data['externals']:
+                bot.load_extension("cogs.bridge_revolt")
+        except:
+            try:
+                x = open('cogs/bridge_revolt.py','r')
+                x.close()
+                traceback.print_exc()
+            except:
+                print(f'WARNING: Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")
