@@ -2258,29 +2258,32 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         identifier = user_hash + guild_hash
 
-        guild = self.bot.get_guild(home_guild)
-        ch = guild.get_channel(logs_channel)
-
         roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
-        content = message.content
-
-        if len(message.content) == 0:
-            content = '[no content]'
-        embed = discord.Embed(title=f'Message deleted from `{roomname}`', description=content)
-        embed.add_field(name='Embeds', value=f'{len(message.embeds)} embeds, {len(message.attachments)} files',
-                        inline=False)
-        embed.add_field(name='IDs', value=f'MSG: {message.id}\nSVR: {message.guild.id}\nUSR: {message.author.id}',
-                        inline=False)
-        if message.author.discriminator == '0':
-            author = f'@{message.author.name}'
-        else:
-            author = f'{message.author.name}#{message.author.discriminator}'
         try:
-            embed.set_author(name=author, icon_url=message.author.avatar.url)
+            guild = self.bot.get_guild(home_guild)
+            ch = guild.get_channel(logs_channel)
+
+            content = message.content
+
+            if len(message.content) == 0:
+                content = '[no content]'
+            embed = discord.Embed(title=f'Message deleted from `{roomname}`', description=content)
+            embed.add_field(name='Embeds', value=f'{len(message.embeds)} embeds, {len(message.attachments)} files',
+                            inline=False)
+            embed.add_field(name='IDs', value=f'MSG: {message.id}\nSVR: {message.guild.id}\nUSR: {message.author.id}',
+                            inline=False)
+            if message.author.discriminator == '0':
+                author = f'@{message.author.name}'
+            else:
+                author = f'{message.author.name}#{message.author.discriminator}'
+            try:
+                embed.set_author(name=author, icon_url=message.author.avatar.url)
+            except:
+                embed.set_author(name=author)
+            await ch.send(embed=embed)
         except:
-            embed.set_author(name=author)
-        await ch.send(embed=embed)
+            pass
 
         for key in data:
             if int(key) == message.guild.id:
