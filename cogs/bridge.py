@@ -2073,9 +2073,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         try:
                             msg_data = self.bot.bridged_external[f'{message.reference.message_id}']['revolt']
                         except:
-                            for key in self.bot.bridged_oob:
-                                if f'{message.reference.message_id}' in f'{self.bot.bridged_oob[key]}':
-                                    msg_data = self.bot.bridged_oob[f'{key}']['discord']
+                            for key in self.bot.bridged_obe:
+                                if f'{message.reference.message_id}' in f'{self.bot.bridged_obe[key]}':
+                                    msg_data = self.bot.bridged_obe[f'{key}']['discord']
                                     break
                             if not msg_data:
                                 raise ValueError()
