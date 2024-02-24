@@ -336,8 +336,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not user:
             try:
                 user = self.bot.revolt_client.get_user(userid)
+                return await user.send(f'## {embed.title}\n{embed.description}\n**Actions taken**\n{embed.fields[0].value}\n\n{embed.footer.text}')
             except:
-                pass
+                return
         if not user==None:
             try:
                 await user.send(embed=embed)
