@@ -133,7 +133,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             if userid==ctx.author.id:
                 return await ctx.send('You can\'t restrict yourself :thinking:')
         except:
-            return await ctx.send('Invalid user/server!')
+            userid = target
+            if not len(userid) == 26:
+                return await ctx.send('Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         banlist = self.bot.db['banned']
