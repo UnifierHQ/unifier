@@ -26,7 +26,7 @@ real_url_names = ['discord', 'discordapp']
 
 # 100% positives - ban these URLs
 # Does not override whitelist
-blacklist = ['disboard.com']
+blacklist = ['disboard.com', 'mega.io', 'mega.nz', 'mega.co.nz', 'megapay.nz']
 
 try:
     discord_bl = json.loads(open('hashes.json', 'r', encoding='utf-8').read())
