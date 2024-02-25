@@ -34,7 +34,7 @@ class AutoSaveDict(dict):
         # Ensure necessary keys exist
         self.update({'rules':{},'rooms':{},'rooms_revolt':{},'emojis':[],'nicknames':{},'descriptions':{},
                      'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
-                     'avatars':{},'experiments':{},'experiments_info':{}})
+                     'avatars':{},'experiments':{},'experiments_info':{},'colors':{}})
 
         # Load data
         self.load_data()
