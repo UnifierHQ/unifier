@@ -325,16 +325,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                     except:
                                         msg_url = self.bot.bridged_urls[f'{msg_resp.id}'][f'{webhook.guild_id}']
                                 except:
-                                    for key in self.bot.bridged:
-                                        entry = self.bot.bridged[key]
-                                        if msg_resp.id in entry.values():
-                                            try:
-                                                reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
-                                                msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][
-                                                    f'{webhook.guild_id}']
-                                            except:
-                                                msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
-                                            break
+                                    try:
+                                        msg_url = self.bot.bridged_urls_external[f'{msg_resp.id}']
+                                    except:
+                                        for key in self.bot.bridged:
+                                            entry = self.bot.bridged[key]
+                                            if msg_resp.id in entry.values():
+                                                try:
+                                                    reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
+                                                    msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][
+                                                        f'{webhook.guild_id}']
+                                                except:
+                                                    msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
+                                                break
                             identifier = msg_resp.author.name.split('(')
                             identifier = identifier[len(identifier) - 1].replace(')', '')
                             if len(identifier)==6 and len(msg_resp.author.name.split('(')) >= 2:
@@ -440,6 +443,75 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         hookmsg_ids.update({f'{msg.guild.id}': msg.id})
                     self.bot.owners[f'{ctx.author.id}'].append(msg.id)
                     msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
+
+        files = []
+        cogs = list(self.bot.extensions)
+        if 'revolt' in externals and 'cogs.bridge_revolt' in cogs:
+            ids = {}
+
+            for guild in self.bot.db['rooms_revolt'][roomname]:
+                try:
+                    guild = self.bot.revolt_client.get_server(guild)
+                except:
+                    continue
+                try:
+                    if str(ctx.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
+                            ctx.server.id) in str(
+                            self.bot.db["blocked"][f'{guild.id}']):
+                        continue
+                except:
+                    pass
+                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                identifier = ' (' + user_hash + guild_hash + ')'
+                author = ctx.author.global_name
+                if f'{ctx.author.id}' in list(self.bot.db['nicknames'].keys()):
+                    author = self.bot.db['nicknames'][f'{ctx.author.id}']
+                author_rvt = author
+                rvtcolor = None
+                if len(author) > 23:
+                    author_rvt = author_rvt[:-(len(author) - 23)]
+                if f'{ctx.author.id}' in list(self.bot.db['colors'].keys()):
+                    color = self.bot.db['colors'][f'{ctx.author.id}']
+                    if color == 'inherit':
+                        rvtcolor = f'rgb({ctx.author.color.r},{ctx.author.color.g},{ctx.author.color.b})'
+                    else:
+                        rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
+                        rvtcolor = f'rgb{rgbtuple}'
+                try:
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=ctx.author.avatar.url,
+                                                colour=rvtcolor)
+                except:
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
+                msg_data = None
+                origin_id = None
+                try:
+                    try:
+                        msg_data = self.bot.bridged_external[f'{msg_resp.id}']['revolt']
+                    except:
+                        for key in self.bot.bridged_obe:
+                            if f'{msg_resp.id}' in f'{self.bot.bridged_obe[key]}':
+                                msg_data = self.bot.bridged_obe[f'{key}']
+                                origin_id = key
+                                break
+                        if not msg_data:
+                            raise ValueError()
+                except:
+                    for key in self.bot.bridged_external:
+                        if f'{msg_resp.id}' in str(self.bot.bridged_external[key]['revolt']):
+                            msg_data = self.bot.bridged_external[f'{key}']['revolt']
+                            break
+                if not msg_data:
+                    replies = []
+                else:
+                    try:
+                        msg = await ch.fetch_message(msg_data[guild.id])
+                    except:
+                        msg = await ch.fetch_message(origin_id)
+                    replies = [revolt.MessageReply(message=msg)]
+                msg = await ch.send(attachments=[revolt.File("cached/"+filename)], replies=replies, masquerade=persona)
+                ids.update({guild.id: msg.id})
+
+            self.bot.bridged_external.update({f'{sameguild_id}': {'revolt': ids}})
 
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
@@ -1897,15 +1969,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                             except:
                                                 msg_url = self.bot.bridged_urls[f'{msg.id}'][f'{webhook.guild_id}']
                                         except:
-                                            for key in self.bot.bridged:
-                                                entry = self.bot.bridged[key]
-                                                if msg.id in entry.values():
-                                                    try:
-                                                        reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
-                                                        msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
-                                                    except:
-                                                        msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
-                                                    break
+                                            try:
+                                                msg_url = self.bot.bridged_urls_external[f'{msg.id}']
+                                            except:
+                                                for key in self.bot.bridged:
+                                                    entry = self.bot.bridged[key]
+                                                    if msg.id in entry.values():
+                                                        try:
+                                                            reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
+                                                            msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
+                                                        except:
+                                                            msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
+                                                        break
+
                                     if globalmoji:
                                         author = f'@{msg.author.name}'
                                     if not trimmed:
