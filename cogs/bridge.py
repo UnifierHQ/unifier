@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import ast
 import os
 
 import discord
@@ -533,6 +534,38 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await msg.edit('**oh no**\nAn unexpected error occurred sending the image. Please contact the developers.')
             raise
         await msg.edit('Sent reaction image!')
+
+    @commands.command(aliases=['colour'])
+    async def color(self,ctx,*,color=''):
+        if color=='':
+            try:
+                current_color = self.bot.db['colors'][f'{ctx.author.id}']
+                if current_color=='':
+                    current_color = 'Default'
+                    embed_color = self.bot.colors.unifier
+                elif current_color=='inherit':
+                    current_color = 'Inherit from role'
+                    embed_color = ctx.author.color.value
+                else:
+                    embed_color = ast.literal_eval('0x'+current_color)
+            except:
+                current_color = 'Default'
+                embed_color = self.bot.colors.unifier
+            embed = discord.Embed(title='Your Revolt color',description=current_color,color=embed_color)
+            await ctx.send(embed=embed)
+        elif color=='inherit':
+            self.bot.db['colors'].update({f'{ctx.author.id}':'inherit'})
+            self.bot.db.save_data()
+            await ctx.send('Your Revolt messages will now inherit your Discord role color.')
+        else:
+            try:
+                tuple(int(color.replace('#','',1)[i:i + 2], 16) for i in (0, 2, 4))
+            except:
+                return await ctx.send('Invalid hex code!')
+            self.bot.db['colors'].update({f'{ctx.author.id}':color})
+            self.bot.db.save_data()
+            await ctx.send('Your Revolt messages will now inherit the custom color.')
+
 
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
@@ -2149,12 +2182,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
                     author = self.bot.db['nicknames'][f'{message.author.id}']
                 author_rvt = author
+                rvtcolor = None
                 if len(author) > 23:
                     author_rvt = author_rvt[:-(len(author)-23)]
+                if f'{message.author.id}' in list(self.bot.db['colors'].keys()):
+                    color = self.bot.db['colors'][f'{message.author.id}']
+                    if color=='inherit':
+                        rvtcolor = f'rgb({message.author.color.r},{message.author.color.g},{message.author.color.b})'
+                    else:
+                        rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
+                        rvtcolor = f'rgb{rgbtuple}'
                 try:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url)
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url, colour=rvtcolor)
                 except:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None)
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
                 msg_data = None
                 origin_id = None
                 if not message.reference is None:
