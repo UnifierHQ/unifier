@@ -2609,8 +2609,5 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     pass
 
-
-
-
 def setup(bot):
     bot.add_cog(Bridge(bot))
