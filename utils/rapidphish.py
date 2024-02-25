@@ -1,9 +1,9 @@
-'''
+"""
 NeoSoft RapidPhish - the simple, rapid, and offline phishing blocker
 
-Copyright NeoSoft 2018-2023. All rights reserved. This software is copyrighted
+Copyright NeoSoft 2018-2024. All rights reserved. This software is copyrighted
 work and should not be distributed outside the allowed areas.
-'''
+"""
 
 from urllib.parse import urlparse
 import jellyfish
@@ -11,21 +11,21 @@ import time
 import hashlib
 import json
 
-## Official Discord domains to compare the given URLs against
+# Official Discord domains to compare the given URLs against
 discord_urls = ['discord.gg', 'discord.com', 'discord.gift', 'discord.gifts', 'discordapp.com', 'dis.gd',
                 'steampowered.com', 'discordapp.net', 'discord.new', 'discordstatus.com']
 
-## Not Discord domains, but safe troll sites that can be safely ignored
-## Also contains common false positives
-## If there is no TLD, then it is considered as a keyword
+# Not Discord domains, but safe troll sites that can be safely ignored
+# Also contains common false positives
+# If there is no TLD, then it is considered as a keyword
 whitelist = ['discordgift.site', 'dlscord.life', 'l.discord.ski', 'dis.cord.gifts',
              'skribbl.io', 'dsc.gg', 'discord.py', 'disboard']
 
-## Official Discord domains without the TLDs
+# Official Discord domains without the TLDs
 real_url_names = ['discord', 'discordapp']
 
-## 100% positives - ban these URLs
-## Does not override whitelist
+# 100% positives - ban these URLs
+# Does not override whitelist
 blacklist = ['disboard.com']
 
 try:
