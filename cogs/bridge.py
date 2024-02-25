@@ -2279,6 +2279,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             revoltfriendly = message.content
 
             for guild in self.bot.db['rooms_revolt'][roomname]:
+                files = []
                 try:
                     guild = self.bot.revolt_client.get_server(guild)
                 except:
