@@ -176,7 +176,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 await user.send(embed=embed)
             except:
                 pass
+        # TODO Add a message in all rooms "A user has been removed from this chat."
+        room_keys = list(rooms.keys())
+        for rooms in room_keys:
+            for servers in self.bot.db['rooms'][rooms]:
+                for y in servers:
+                    channel_id = int(y.split("/")[-2])
+                    channel = bot.get_channel(channel_id)
+                    if channel:
+                        await channel.send('**A user has been removed from UniChat!**')
+                    
         await ctx.send('global banned <:nevheh:990994050607906816>')
+        
 
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,*,target):
