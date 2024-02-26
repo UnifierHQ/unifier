@@ -15,12 +15,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import ast
-import os
 
 import discord
 import hashlib
-
 import revolt
 from discord.ext import commands
 import traceback
@@ -31,6 +28,8 @@ import string
 import copy
 import json
 import re
+import ast
+import os
 from tld import get_tld
 from utils import rapidphish
 import threading
