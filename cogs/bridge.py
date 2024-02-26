@@ -1138,7 +1138,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
+                        if obe:
+                            await webhook.delete_message(self.bot.bridged_obe[f'{msg_id}']['discord'][key])
+                        else:
+                            await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
                         deleted += 1
                     except:
                         # likely deleted msg
