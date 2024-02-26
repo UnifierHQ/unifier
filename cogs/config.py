@@ -292,7 +292,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
-            return await ctx.send('Only Green and ItsAsheer can bind channels to restricted rooms.')
+            return await ctx.send('Only admins can bind channels to restricted rooms.')
         if room=='' or not room: #Added "not room" as a failback
             room = 'main'
             await ctx.send('**No room was given, defaulting to main**')
