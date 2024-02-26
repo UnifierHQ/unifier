@@ -1070,7 +1070,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             if obe:
-                channel_id = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]][guild_id]
+                channel_id = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]][guild_id][0]
         except:
             return
 
