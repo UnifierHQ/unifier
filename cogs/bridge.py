@@ -1144,6 +1144,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
                         deleted += 1
                     except:
+                        raise
                         # likely deleted msg
                         # skip cache check as it's already been done
                         pass
