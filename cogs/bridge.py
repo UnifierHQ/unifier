@@ -866,6 +866,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         msg_id = key
                         obe_source = self.bot.bridged_obe[key]['source']
                         guild_id = self.bot.bridged_obe[msg_id]['server']
+                        obe = True
                         break
                 if not found:
                     return await ctx.send('Could not find message in cache!')
@@ -996,7 +997,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
 
         if ctx.author.id in self.bot.moderators:
-            await ctx.send(f'Deleted {deleted} forwarded messages ({ext_deleted} from externals)')
+            await ctx.send(f'Deleted {deleted+ext_deleted} forwarded messages ({ext_deleted} from externals)')
         else:
             await ctx.send('Deleted message!')
 
@@ -1039,6 +1040,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         msg_id = key
                         obe_source = self.bot.bridged_obe[key]['source']
                         guild_id = self.bot.bridged_obe[msg_id]['server']
+                        obe = True
                         break
                 if not found:
                     return await ctx.send('Could not find message in cache!')
@@ -1144,13 +1146,33 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
                         deleted += 1
                     except:
+                        raise
                         # likely deleted msg
                         # skip cache check as it's already been done
                         pass
                     break
 
+        ext_deleted = 0
+
+        if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
+            data = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]]
+            if obe:
+                should_delete = self.bot.bridged_obe[msg_id]
+            else:
+                should_delete = self.bot.bridged_revolt[f'{msg_id}']
+            for key in data:
+                guild = self.bot.revolt_client.get_server(key)
+                ch = guild.get_channel(data[guild.id])
+                if guild.id in list(should_delete.keys()):
+                    msg = await ch.fetch_message(should_delete[guild.id])
+                    try:
+                        await msg.delete()
+                        ext_deleted += 1
+                    except:
+                        pass
+
         if ctx.author.id in self.bot.moderators:
-            await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+            await msg_orig.edit(content=f'Deleted {deleted+ext_deleted} forwarded messages ({ext_deleted} from externals)')
         else:
             await msg_orig.edit(content='Deleted message!')
 
