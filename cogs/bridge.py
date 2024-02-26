@@ -1087,7 +1087,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             try:
                 if obe:
                     if 'revolt' in externals:
-                        guild = self.bot.bridged_obe.get_server(guild_id)
+                        guild = self.bot.revolt_client.get_server(guild_id)
                         ch = guild.get_channel(channel_id)
                         msg = await ch.fetch_message(msg_id)
                         await msg.delete()
