@@ -41,8 +41,7 @@ home_guild = data["home_guild"]
 logs_channel = data["logs_channel"]
 reports_channel = data["reports_channel"]
 externals = data["external"]
-
-# Configure PR and PR referencing here, if you need it for whatever reason.
+owner = data["owner"]
 allow_prs = data["allow_prs"]
 pr_room_index = data["pr_room_index"] # If this is 0, then the oldest room will be used as the PR room.
 pr_ref_room_index = data["pr_ref_room_index"]
@@ -485,8 +484,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
                         rvtcolor = f'rgb{rgbtuple}'
                 try:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=url,
-                                                colour=rvtcolor)
+                    if f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=self.bot.db['avatars'][f'{ctx.author.id}'], colour=rvtcolor)
+                    else:
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=url,
+                                                    colour=rvtcolor)
                 except:
                     persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
                 msg_data = None
@@ -527,8 +529,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         try:
             os.remove("cached/"+filename)
         except:
-            raise
-            pass
+            traceback.print_exc()
 
     @commands.context_command(name='Reaction image')
     async def reaction(self, ctx, message: discord.Message):
