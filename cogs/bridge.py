@@ -1086,7 +1086,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         try:
             try:
                 if obe:
-                    if obe_source=='revolt' and 'revolt' in externals:
+                    if 'revolt' in externals:
                         guild = self.bot.bridged_obe.get_server(guild_id)
                         ch = guild.get_channel(channel_id)
                         msg = await ch.fetch_message(msg_id)
