@@ -449,6 +449,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if 'revolt' in externals and 'cogs.bridge_revolt' in cogs:
             ids = {}
 
+            try:
+                if f'{ctx.author.id}' in self.bot.db['avatars']:
+                    url = self.bot.db['avatars'][f'{ctx.author.id}']
+                else:
+                    url = ctx.author.avatar.url
+            except:
+                url = None
+
             for guild in self.bot.db['rooms_revolt'][roomname]:
                 try:
                     guild = self.bot.revolt_client.get_server(guild)
@@ -478,7 +486,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
                         rvtcolor = f'rgb{rgbtuple}'
                 try:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=ctx.author.avatar.url,
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=url,
                                                 colour=rvtcolor)
                 except:
                     persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
