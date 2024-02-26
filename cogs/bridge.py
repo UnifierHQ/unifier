@@ -1108,6 +1108,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                               ephemeral=True)
             except:
                 # Parent may be a webhook message, so try to delete as webhook.
+                origins = self.bot.origin[f'{msg_id}']
+                guild = self.bot.get_guild(origins[0])
                 if key in list(data.keys()):
                     hook_ids = data[key]
                 else:
