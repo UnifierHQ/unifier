@@ -2333,7 +2333,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
                         rvtcolor = f'rgb{rgbtuple}'
                 try:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url, colour=rvtcolor)
+                    if f'{message.author.id}' in list(self.bot.db['avatars'].keys()):
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=self.bot.db['avatars'][f'{message.author.id}'], colour=rvtcolor)
+                    else:
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url, colour=rvtcolor)
                 except:
                     persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
                 msg_data = None
