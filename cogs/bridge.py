@@ -1049,19 +1049,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         found = False
         origin_room = 0
 
-        if obe:
-            for key in self.bot.db['rooms_revolt']:
-                # insert stuff here
-                if f'{guild_id}' in list(self.bot.db['rooms_revolt'][key].keys()):
-                    channel_id = self.bot.db['rooms_revolt'][key][f'{guild_id}'][0]
-                    found = True
-                    break
-
-            if not found:
-                return
-
-        found = False
-
         for webhook in hooks:
             index = 0
             for key in self.bot.db['rooms']:
@@ -1079,6 +1066,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 break
 
         if not found:
+            return
+
+        try:
+            if obe:
+                channel_id = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]][guild_id]
+        except:
             return
 
         deleted = 0
