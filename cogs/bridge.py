@@ -1084,13 +1084,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         deleted = 0
 
         try:
-            origins = self.bot.origin[f'{msg_id}']
-            guild = self.bot.get_guild(origins[0])
-            ch = guild.get_channel(origins[1])
             try:
                 if obe:
                     if obe_source=='revolt' and 'revolt' in externals:
-                        server_id = self.bot.bridged_obe[msg_id]['server']
                         guild = self.bot.bridged_obe.get_server(guild_id)
                         ch = guild.get_channel(channel_id)
                         msg = await ch.fetch_message(msg_id)
@@ -1098,6 +1094,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         if not msg.author.bot:
                             return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
                 else:
+                    origins = self.bot.origin[f'{msg_id}']
+                    guild = self.bot.get_guild(origins[0])
+                    ch = guild.get_channel(origins[1])
                     msg = await ch.fetch_message(msg_id)
                     await msg.delete()
                     if msg.webhook_id == None:
@@ -1162,7 +1161,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 should_delete = self.bot.bridged_revolt[f'{msg_id}']
             for key in data:
                 guild = self.bot.revolt_client.get_server(key)
-                ch = guild.get_channel(data[guild.id])
+                ch = guild.get_channel(data[guild.id][0])
                 if guild.id in list(should_delete.keys()):
                     msg = await ch.fetch_message(should_delete[guild.id])
                     try:
