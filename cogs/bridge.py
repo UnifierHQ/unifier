@@ -2374,14 +2374,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                         not 'image' in attachment.content_type) or attachment.size > 25000000:
                         continue
-                    file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
-                    files.append(revolt.File(file.fp.read(), filename=file.filename, spoiler=file.spoiler))
-                if message.author.bot:
-                    msg = await ch.send(
-                        content=revoltfriendly, embeds=message.embeds, attachments=files, replies=replies,masquerade=persona
-                    )
-                else:
-                    msg = await ch.send(content=revoltfriendly, attachments=files, replies=replies, masquerade=persona)
+                    file = await attachment.to_file(use_cached=True)
+                    files.append(revolt.File(file.fp.read(), filename=file.filename))
+                try:
+                    if message.author.bot:
+                        msg = await ch.send(
+                            content=revoltfriendly, embeds=message.embeds, attachments=files, replies=replies,masquerade=persona
+                        )
+                    else:
+                        msg = await ch.send(content=revoltfriendly, attachments=files, replies=replies, masquerade=persona)
+                except:
+                    continue
                 ids.update({guild.id:msg.id})
 
             self.bot.bridged_external.update({f'{message.id}':{'revolt':ids}})
