@@ -2384,7 +2384,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     else:
                         msg = await ch.send(content=revoltfriendly, attachments=files, replies=replies, masquerade=persona)
                 except:
-                    continue
+                    try:
+                        msg = await ch.send(content=revoltfriendly, replies=replies,
+                                            masquerade=persona)
+                    except:
+                        continue
                 ids.update({guild.id:msg.id})
 
             self.bot.bridged_external.update({f'{message.id}':{'revolt':ids}})
