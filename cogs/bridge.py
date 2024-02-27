@@ -2317,7 +2317,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         continue
                 except:
                     pass
-                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                try:
+                    ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                except:
+                    continue
                 identifier = ' (' + user_hash + guild_hash + ')'
                 author = message.author.global_name
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
