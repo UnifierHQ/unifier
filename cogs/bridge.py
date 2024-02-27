@@ -2310,7 +2310,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 try:
                     guild = self.bot.revolt_client.get_server(guild)
                 except:
-                    continue
+                    try:
+                        guild = await self.bot.revolt_client.fetch_server(guild)
+                    except:
+                        continue
                 try:
                     if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(message.server.id) in str(
                             self.bot.db["blocked"][f'{guild.id}']):
@@ -2320,7 +2323,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 try:
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
                 except:
-                    continue
+                    try:
+                        ch = await self.bot.revolt_client.fetch_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                    except:
+                        continue
                 identifier = ' (' + user_hash + guild_hash + ')'
                 author = message.author.global_name
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
