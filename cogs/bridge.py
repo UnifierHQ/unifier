@@ -975,7 +975,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         ext_deleted = 0
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data = self.bot.db['rooms_revolt'][roomname]
+            data = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]]
             if obe:
                 should_delete = self.bot.bridged_obe[msg_id]
             else:
