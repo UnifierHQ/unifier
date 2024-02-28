@@ -15,12 +15,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import ast
-import os
 
 import discord
 import hashlib
-
 import revolt
 from discord.ext import commands
 import traceback
@@ -31,6 +28,8 @@ import string
 import copy
 import json
 import re
+import ast
+import os
 from tld import get_tld
 from utils import rapidphish
 import threading
@@ -42,8 +41,7 @@ home_guild = data["home_guild"]
 logs_channel = data["logs_channel"]
 reports_channel = data["reports_channel"]
 externals = data["external"]
-
-# Configure PR and PR referencing here, if you need it for whatever reason.
+owner = data["owner"]
 allow_prs = data["allow_prs"]
 pr_room_index = data["pr_room_index"] # If this is 0, then the oldest room will be used as the PR room.
 pr_ref_room_index = data["pr_ref_room_index"]
@@ -325,16 +323,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                     except:
                                         msg_url = self.bot.bridged_urls[f'{msg_resp.id}'][f'{webhook.guild_id}']
                                 except:
-                                    for key in self.bot.bridged:
-                                        entry = self.bot.bridged[key]
-                                        if msg_resp.id in entry.values():
-                                            try:
-                                                reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
-                                                msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][
-                                                    f'{webhook.guild_id}']
-                                            except:
-                                                msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
-                                            break
+                                    try:
+                                        msg_url = self.bot.bridged_urls_external[f'{msg_resp.id}']
+                                    except:
+                                        for key in self.bot.bridged:
+                                            entry = self.bot.bridged[key]
+                                            if msg_resp.id in entry.values():
+                                                try:
+                                                    reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
+                                                    msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][
+                                                        f'{webhook.guild_id}']
+                                                except:
+                                                    msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
+                                                break
                             identifier = msg_resp.author.name.split('(')
                             identifier = identifier[len(identifier) - 1].replace(')', '')
                             if len(identifier)==6 and len(msg_resp.author.name.split('(')) >= 2:
@@ -441,6 +442,86 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     self.bot.owners[f'{ctx.author.id}'].append(msg.id)
                     msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
 
+        files = []
+        cogs = list(self.bot.extensions)
+        if 'revolt' in externals and 'cogs.bridge_revolt' in cogs:
+            ids = {}
+
+            try:
+                if f'{ctx.author.id}' in self.bot.db['avatars']:
+                    url = self.bot.db['avatars'][f'{ctx.author.id}']
+                else:
+                    url = ctx.author.avatar.url
+            except:
+                url = None
+
+            for guild in self.bot.db['rooms_revolt'][roomname]:
+                try:
+                    guild = self.bot.revolt_client.get_server(guild)
+                except:
+                    continue
+                try:
+                    if str(ctx.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
+                            ctx.server.id) in str(
+                            self.bot.db["blocked"][f'{guild.id}']):
+                        continue
+                except:
+                    pass
+                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                identifier = ' (' + user_hash + guild_hash + ')'
+                author = ctx.author.global_name
+                if f'{ctx.author.id}' in list(self.bot.db['nicknames'].keys()):
+                    author = self.bot.db['nicknames'][f'{ctx.author.id}']
+                author_rvt = author
+                rvtcolor = None
+                if len(author) > 23:
+                    author_rvt = author_rvt[:-(len(author) - 23)]
+                if f'{ctx.author.id}' in list(self.bot.db['colors'].keys()):
+                    color = self.bot.db['colors'][f'{ctx.author.id}']
+                    if color == 'inherit':
+                        rvtcolor = f'rgb({ctx.author.color.r},{ctx.author.color.g},{ctx.author.color.b})'
+                    else:
+                        rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
+                        rvtcolor = f'rgb{rgbtuple}'
+                try:
+                    if f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=self.bot.db['avatars'][f'{ctx.author.id}'], colour=rvtcolor)
+                    else:
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=url,
+                                                    colour=rvtcolor)
+                except:
+                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
+                msg_data = None
+                origin_id = None
+                try:
+                    try:
+                        msg_data = self.bot.bridged_external[f'{msg_resp.id}']['revolt']
+                    except:
+                        for key in self.bot.bridged_obe:
+                            if f'{msg_resp.id}' in f'{self.bot.bridged_obe[key]}':
+                                msg_data = self.bot.bridged_obe[f'{key}']
+                                origin_id = key
+                                break
+                        if not msg_data:
+                            raise ValueError()
+                except:
+                    for key in self.bot.bridged_external:
+                        if f'{msg_resp.id}' in str(self.bot.bridged_external[key]['revolt']):
+                            msg_data = self.bot.bridged_external[f'{key}']['revolt']
+                            break
+                if not msg_data:
+                    replies = []
+                else:
+                    try:
+                        msg = await ch.fetch_message(msg_data[guild.id])
+                    except:
+                        msg = await ch.fetch_message(origin_id)
+                    replies = [revolt.MessageReply(message=msg)]
+                msg = await ch.send(attachments=[revolt.File("cached/"+filename)], replies=replies, masquerade=persona)
+                ids.update({guild.id: msg.id})
+
+            self.bot.bridged_external.update({f'{sameguild_id}': {'revolt': ids}})
+
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda: thread.join())
         self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
@@ -448,8 +529,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         try:
             os.remove("cached/"+filename)
         except:
-            raise
-            pass
+            traceback.print_exc()
 
     @commands.context_command(name='Reaction image')
     async def reaction(self, ctx, message: discord.Message):
@@ -787,6 +867,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         msg_id = key
                         obe_source = self.bot.bridged_obe[key]['source']
                         guild_id = self.bot.bridged_obe[msg_id]['server']
+                        obe = True
                         break
                 if not found:
                     return await ctx.send('Could not find message in cache!')
@@ -917,13 +998,28 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
 
         if ctx.author.id in self.bot.moderators:
-            await ctx.send(f'Deleted {deleted} forwarded messages ({ext_deleted} from externals)')
+            await ctx.send(f'Deleted {deleted+ext_deleted} forwarded messages ({ext_deleted} from externals)')
         else:
             await ctx.send('Deleted message!')
 
     @commands.context_command(name='Delete message')
     async def delete_ctx(self, ctx, msg: discord.Message):
         gbans = self.bot.db['banned']
+        ct = time.time()
+        if f'{ctx.author.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.author.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db.update()
+            else:
+                return
+        if f'{ctx.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.guild.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.guild.id}')
+                self.bot.db.update()
+            else:
+                return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
             return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
         msg_id = msg.id
@@ -936,6 +1032,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not msg.webhook_id and msg.author.id==ctx.author.id:
             return await ctx.send(':moyai:', ephemeral=True)
 
+        obe = False
+        obe_source = 'revolt'
+        guild_id = ''
+        channel_id = ''
+
         # Is this the parent?
         if not f'{msg_id}' in list(self.bot.bridged.keys()):
             # Not the parent.
@@ -947,8 +1048,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     msg_id = int(key)
                     break
             if not found:
-                # Nothing.
-                return await ctx.send('Could not find message in cache!', ephemeral=True)
+                # Nothing, possibly OBE?
+                for key in self.bot.bridged_obe:
+                    if str(msg_id) in str(self.bot.bridged_obe[key]):
+                        # The parent is OBE!
+                        found = True
+                        msg_id = key
+                        obe_source = self.bot.bridged_obe[key]['source']
+                        guild_id = self.bot.bridged_obe[msg_id]['server']
+                        obe = True
+                        break
+                if not found:
+                    return await ctx.send('Could not find message in cache!')
 
         hooks = await ctx.channel.webhooks()
         found = False
@@ -973,24 +1084,41 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
+        try:
+            if obe:
+                channel_id = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]][guild_id][0]
+        except:
+            return
+
         deleted = 0
 
         try:
-            origins = self.bot.origin[f'{msg_id}']
-            guild = self.bot.get_guild(origins[0])
-            ch = guild.get_channel(origins[1])
             try:
-                msg = await ch.fetch_message(msg_id)
-                await msg.delete()
-                if msg.webhook_id == None:
-                    # Parent is a user/bot message.
-                    # Since we have something to delete bridged copies on parent delete,
-                    # don't bother deleting the copies.
-                    # (note: webhook parents don't have bridged copies automatically deleted)
-                    return await ctx.send('Deleted parent, bridged messages should be automatically deleted.',
-                                          ephemeral=True)
+                if obe:
+                    if 'revolt' in externals:
+                        guild = self.bot.revolt_client.get_server(guild_id)
+                        ch = guild.get_channel(channel_id)
+                        msg = await ch.fetch_message(msg_id)
+                        await msg.delete()
+                        if not msg.author.bot:
+                            return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
+                else:
+                    origins = self.bot.origin[f'{msg_id}']
+                    guild = self.bot.get_guild(origins[0])
+                    ch = guild.get_channel(origins[1])
+                    msg = await ch.fetch_message(msg_id)
+                    await msg.delete()
+                    if msg.webhook_id == None:
+                        # Parent is a user/bot message.
+                        # Since we have something to delete bridged copies on parent delete,
+                        # don't bother deleting the copies.
+                        # (note: webhook parents don't have bridged copies automatically deleted)
+                        return await ctx.send('Deleted parent, bridged messages should be automatically deleted.',
+                                              ephemeral=True)
             except:
                 # Parent may be a webhook message, so try to delete as webhook.
+                origins = self.bot.origin[f'{msg_id}']
+                guild = self.bot.get_guild(origins[0])
                 if key in list(data.keys()):
                     hook_ids = data[key]
                 else:
@@ -1022,22 +1150,60 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
+                        if obe:
+                            await webhook.delete_message(self.bot.bridged_obe[f'{msg_id}']['discord'][key])
+                        else:
+                            await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
                         deleted += 1
                     except:
+                        raise
                         # likely deleted msg
                         # skip cache check as it's already been done
                         pass
                     break
 
+        ext_deleted = 0
+
+        if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
+            data = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]]
+            if obe:
+                should_delete = self.bot.bridged_obe[msg_id]
+            else:
+                should_delete = self.bot.bridged_revolt[f'{msg_id}']
+            for key in data:
+                guild = self.bot.revolt_client.get_server(key)
+                ch = guild.get_channel(data[guild.id][0])
+                if guild.id in list(should_delete.keys()):
+                    msg = await ch.fetch_message(should_delete[guild.id])
+                    try:
+                        await msg.delete()
+                        ext_deleted += 1
+                    except:
+                        pass
+
         if ctx.author.id in self.bot.moderators:
-            await msg_orig.edit(content=f'Deleted {deleted} forwarded messages')
+            await msg_orig.edit(content=f'Deleted {deleted+ext_deleted} forwarded messages ({ext_deleted} from externals)')
         else:
             await msg_orig.edit(content='Deleted message!')
 
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
         gbans = self.bot.db['banned']
+        ct = time.time()
+        if f'{ctx.author.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.author.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db.update()
+            else:
+                return
+        if f'{ctx.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.guild.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.guild.id}')
+                self.bot.db.update()
+            else:
+                return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
             return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
 
@@ -1897,15 +2063,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                             except:
                                                 msg_url = self.bot.bridged_urls[f'{msg.id}'][f'{webhook.guild_id}']
                                         except:
-                                            for key in self.bot.bridged:
-                                                entry = self.bot.bridged[key]
-                                                if msg.id in entry.values():
-                                                    try:
-                                                        reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
-                                                        msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
-                                                    except:
-                                                        msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
-                                                    break
+                                            try:
+                                                msg_url = self.bot.bridged_urls_external[f'{msg.id}']
+                                            except:
+                                                for key in self.bot.bridged:
+                                                    entry = self.bot.bridged[key]
+                                                    if msg.id in entry.values():
+                                                        try:
+                                                            reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
+                                                            msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
+                                                        except:
+                                                            msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
+                                                        break
+
                                     if globalmoji:
                                         author = f'@{msg.author.name}'
                                     if not trimmed:
@@ -2166,17 +2336,27 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             revoltfriendly = message.content
 
             for guild in self.bot.db['rooms_revolt'][roomname]:
+                files = []
                 try:
                     guild = self.bot.revolt_client.get_server(guild)
                 except:
-                    continue
+                    try:
+                        guild = await self.bot.revolt_client.fetch_server(guild)
+                    except:
+                        continue
                 try:
                     if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(message.server.id) in str(
                             self.bot.db["blocked"][f'{guild.id}']):
                         continue
                 except:
                     pass
-                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                try:
+                    ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                except:
+                    try:
+                        ch = await self.bot.revolt_client.fetch_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
+                    except:
+                        continue
                 identifier = ' (' + user_hash + guild_hash + ')'
                 author = message.author.global_name
                 if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
@@ -2193,7 +2373,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
                         rvtcolor = f'rgb{rgbtuple}'
                 try:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url, colour=rvtcolor)
+                    if f'{message.author.id}' in list(self.bot.db['avatars'].keys()):
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=self.bot.db['avatars'][f'{message.author.id}'], colour=rvtcolor)
+                    else:
+                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=message.author.avatar.url, colour=rvtcolor)
                 except:
                     persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
                 msg_data = None
@@ -2212,9 +2395,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                 raise ValueError()
                     except:
                         for key in self.bot.bridged_external:
-                            if f'{message.reference.message_id}' in str(self.bot.bridged_external[key]['revolt']):
-                                msg_data = self.bot.bridged_external[f'{key}']['revolt']
-                                break
+                            try:
+                                if f'{message.reference.message_id}' in str(self.bot.bridged[key]):
+                                    msg_data = self.bot.bridged_external[f'{key}']['revolt']
+                                    break
+                            except:
+                                pass
                 if not msg_data:
                     replies = []
                 else:
@@ -2227,14 +2413,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                         not 'image' in attachment.content_type) or attachment.size > 25000000:
                         continue
-                    file = await attachment.to_file(use_cached=True, spoiler=attachment.is_spoiler())
-                    files.append(revolt.File(file.fp.read(), filename=file.filename, spoiler=file.spoiler))
-                if message.author.bot:
-                    msg = await ch.send(
-                        content=revoltfriendly, embeds=message.embeds, attachments=files, replies=replies,masquerade=persona
-                    )
-                else:
-                    msg = await ch.send(content=revoltfriendly, attachments=files, replies=replies, masquerade=persona)
+                    file = await attachment.to_file(use_cached=True)
+                    files.append(revolt.File(file.fp.read(), filename=file.filename))
+                try:
+                    if message.author.bot:
+                        msg = await ch.send(
+                            content=revoltfriendly, embeds=message.embeds, attachments=files, replies=replies,masquerade=persona
+                        )
+                    else:
+                        msg = await ch.send(content=revoltfriendly, attachments=files, replies=replies, masquerade=persona)
+                except:
+                    try:
+                        msg = await ch.send(content=revoltfriendly, replies=replies,
+                                            masquerade=persona)
+                    except:
+                        continue
                 ids.update({guild.id:msg.id})
 
             self.bot.bridged_external.update({f'{message.id}':{'revolt':ids}})
@@ -2272,7 +2465,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
             ct = time.time()
-            cdt = datetime.utcnow()
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
@@ -2529,9 +2721,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     await msg.delete()
                 except:
                     pass
-
-
-
 
 def setup(bot):
     bot.add_cog(Bridge(bot))
