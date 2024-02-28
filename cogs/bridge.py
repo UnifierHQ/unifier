@@ -932,7 +932,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         # (note: webhook parents don't have bridged copies automatically deleted)
                         return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
             except:
-                raise
                 # Parent may be a webhook message, so try to delete as webhook.
                 origins = self.bot.origin[f'{msg_id}']
                 guild = self.bot.get_guild(origins[0])
@@ -949,7 +948,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         await webhook.delete_message(msg_id)
                         break
         except:
-            raise
             # Failed to delete, move on
             pass
 
