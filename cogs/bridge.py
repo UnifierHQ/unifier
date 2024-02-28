@@ -874,24 +874,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if not msg_id in ownedby and not ctx.author.id in self.bot.moderators:
             return await ctx.send('You didn\'t send this message!')
+        if not ctx.message.reference.cached_message.webhook_id and ctx.message.reference.cached_message.author.id==ctx.author.id:
+            return await ctx.send(':moyai:', ephemeral=True)
 
         hooks = await ctx.channel.webhooks()
         found = False
         origin_room = 0
-
-        if obe:
-            for key in self.bot.db['rooms_revolt']:
-                # insert stuff here
-                if f'{guild_id}' in list(self.bot.db['rooms_revolt'][key].keys()):
-                    channel_id = self.bot.db['rooms_revolt'][key][f'{guild_id}'][0]
-                    found = True
-                    break
-
-            if not found:
-                return
-
-        found = False
-        roomname = ''
 
         for webhook in hooks:
             index = 0
@@ -904,7 +892,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if webhook.id in hook_ids:
                     origin_room = index
                     found = True
-                    roomname = key
                     break
                 index += 1
             if found:
@@ -913,23 +900,29 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
+        try:
+            if obe:
+                channel_id = \
+                self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]][guild_id][0]
+        except:
+            return
+
         deleted = 0
 
         try:
-            origins = self.bot.origin[f'{msg_id}']
-            guild = self.bot.get_guild(origins[0])
-            ch = guild.get_channel(origins[1])
             try:
                 if obe:
-                    if obe_source=='revolt' and 'revolt' in externals:
-                        server_id = self.bot.bridged_obe[msg_id]['server']
-                        guild = self.bot.bridged_obe.get_server(guild_id)
+                    if 'revolt' in externals:
+                        guild = self.bot.revolt_client.get_server(guild_id)
                         ch = guild.get_channel(channel_id)
                         msg = await ch.fetch_message(msg_id)
                         await msg.delete()
                         if not msg.author.bot:
                             return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
                 else:
+                    origins = self.bot.origin[f'{msg_id}']
+                    guild = self.bot.get_guild(origins[0])
+                    ch = guild.get_channel(origins[1])
                     msg = await ch.fetch_message(msg_id)
                     await msg.delete()
                     if msg.webhook_id == None:
@@ -940,19 +933,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
             except:
                 # Parent may be a webhook message, so try to delete as webhook.
-                if not obe:
-                    if key in list(data.keys()):
-                        hook_ids = data[key]
-                    else:
-                        hook_ids = []
-                    try:
-                        hooks = await guild.webhooks()
-                    except:
-                        raise ValueError('no hooks')
-                    for webhook in hooks:
-                        if webhook.id in hook_ids:
-                            await webhook.delete_message(msg_id)
-                            break
+                origins = self.bot.origin[f'{msg_id}']
+                guild = self.bot.get_guild(origins[0])
+                if key in list(data.keys()):
+                    hook_ids = data[key]
+                else:
+                    hook_ids = []
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    raise ValueError('no hooks')
+                for webhook in hooks:
+                    if webhook.id in hook_ids:
+                        await webhook.delete_message(msg_id)
+                        break
         except:
             # Failed to delete, move on
             pass
@@ -981,14 +975,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         ext_deleted = 0
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data = self.bot.db['rooms_revolt'][roomname]
+            data = self.bot.db['rooms_revolt'][list(self.bot.db['rooms_revolt'].keys())[origin_room]]
             if obe:
                 should_delete = self.bot.bridged_obe[msg_id]
             else:
                 should_delete = self.bot.bridged_revolt[f'{msg_id}']
             for key in data:
                 guild = self.bot.revolt_client.get_server(key)
-                ch = guild.get_channel(data[guild.id])
+                ch = guild.get_channel(data[guild.id][0])
                 if guild.id in list(should_delete.keys()):
                     msg = await ch.fetch_message(should_delete[guild.id])
                     try:
@@ -1101,7 +1095,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         msg = await ch.fetch_message(msg_id)
                         await msg.delete()
                         if not msg.author.bot:
-                            return await ctx.send('Deleted parent, bridged messages should be automatically deleted.')
+                            return await ctx.send('Deleted parent, bridged messages should be automatically deleted.',ephemeral=True)
                 else:
                     origins = self.bot.origin[f'{msg_id}']
                     guild = self.bot.get_guild(origins[0])
@@ -1156,7 +1150,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             await webhook.delete_message(self.bot.bridged[f'{msg_id}'][key])
                         deleted += 1
                     except:
-                        raise
                         # likely deleted msg
                         # skip cache check as it's already been done
                         pass
