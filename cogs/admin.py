@@ -431,6 +431,23 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             traceback.print_exc()
             await ctx.send('Something went wrong while killing the instance.')
 
+    @commands.command(name='restart-revolt', hidden=True)
+    async def restart_revolt(self, ctx):
+        """Restarts the Revolt client."""
+        if not ctx.author.id == owner:
+            return
+        try:
+            await self.bot.revolt_session.close()
+            del self.bot.revolt_client
+            del self.bot.revolt_session
+            self.bot.reload_extension('cogs.bridge_revolt')
+            await ctx.send('Revolt client started.')
+        except Exception as e:
+            if isinstance(e, AttributeError):
+                return await ctx.send('Revolt client is not offline.')
+            traceback.print_exc()
+            await ctx.send('Something went wrong while restarting the instance.')
+
     @commands.command(name='install-upgrader', hidden=True)
     async def install_upgrader(self, ctx):
         if not ctx.author.id==owner:
