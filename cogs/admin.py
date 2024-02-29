@@ -441,7 +441,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             del self.bot.revolt_client
             del self.bot.revolt_session
             self.bot.reload_extension('cogs.bridge_revolt')
-            await ctx.send('Revolt client started.')
+            await ctx.send('Revolt client restarted.')
         except Exception as e:
             if isinstance(e, AttributeError):
                 return await ctx.send('Revolt client is not offline.')
