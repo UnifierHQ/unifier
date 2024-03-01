@@ -1053,7 +1053,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         obe = True
                         break
                 if not found:
-                    return await ctx.send('Could not find message in cache!')
+                    return await ctx.send('Could not find message in cache!',ephemeral=True)
 
         hooks = await ctx.channel.webhooks()
         found = False
