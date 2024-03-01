@@ -100,14 +100,14 @@ async def on_ready():
                 x.close()
                 traceback.print_exc()
             except:
-                log("BOT","warn",'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
+                log("BOT","warn",f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")
         try:
             bot.load_extension("cogs.upgrader")
         except:
-            log('BOT','warn','Upgrader is missing, consider installing it for an easier life.')
+            log("BOT","warn",f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
         if not changestatus.is_running():
             changestatus.start()
         if data['enable_ctx_commands']:
