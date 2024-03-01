@@ -110,15 +110,16 @@ async def on_ready():
             log('BOT','warn','Upgrader is missing, consider installing it for an easier life.')
         if not changestatus.is_running():
             changestatus.start()
-        log("BOT","info","Registering context commands...")
-        toreg = []
-        for command in bot.commands:
-            if isinstance(command, commands.core.ContextMenuCommand):
-                if command.name=='Reaction image':
-                    toreg.insert(0,command)
-                else:
-                    toreg.append(command)
-        await bot.register_application_commands(commands=toreg)
+        if data['enable_ctx_commands']:
+            log("BOT","info","Registering context commands...")
+            toreg = []
+            for command in bot.commands:
+                if isinstance(command, commands.core.ContextMenuCommand):
+                    if command.name=='Reaction image':
+                        toreg.insert(0,command)
+                    else:
+                        toreg.append(command)
+            await bot.register_application_commands(commands=toreg)
     log("BOT","ok","Unifier is ready!")
 
 @bot.event
