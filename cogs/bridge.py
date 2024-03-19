@@ -533,87 +533,88 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.context_command(name='Reaction image')
     async def reaction(self, ctx, message: discord.Message):
-        hooks = await ctx.guild.webhooks()
-        webhook = None
-        origin_room = 0
-        found = False
-        for hook in hooks:
-            if hook.channel_id == ctx.channel.id and hook.user.id == self.bot.user.id:
-                webhook = hook
-                index = 0
-                for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
-                    if f'{ctx.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{ctx.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        origin_room = index
-                        found = True
-                        if key in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
-                            return
-                        break
-                    index += 1
-                break
-
-        if not found:
-            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
-        try:
-            roomname = list(self.bot.db['rooms'].keys())[origin_room]
-            if roomname in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
-                return await ctx.send('This room is locked!',ephemeral=True)
-        except:
-            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
-        if not ctx.channel.permissions_for(ctx.author).send_messages:
-            return await ctx.send('You can\'t type in here!',ephemeral=True)
-        if not webhook or not f'{webhook.id}' in f'{self.bot.db["rooms"]}':
-            return await ctx.send('This isn\'t a UniChat room!', ephemeral=True)
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.blurple,label='Clueless',custom_id='clueless'),
-                discord.ui.Button(style=discord.ButtonStyle.blurple, label='THINK, MARK, THINK!', custom_id='think'),
-            ),
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.green, label='THICC, MARK, THICC!', custom_id='thicc'),
-            )
-        )
-        msg = await ctx.send('Choose a reaction image to generate!\n\n**Blue**: Static images\n**Green**: GIFs', ephemeral=True, components=components)
-
-        def check(interaction):
-            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
-
-        try:
-            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
-        except:
-            try:
-                return await msg.edit(content='Timed out.', components=None)
-            except:
-                return
-
-        await interaction.response.edit_message(content='Generating...', components=None)
-        msgid = msg.id
-        filename = ''
-        try:
-            if interaction.custom_id=='clueless':
-                link1 = message.author.avatar.url
-                filename = await self.bot.loop.run_in_executor(None, lambda: self.clueless_gen(link1, msgid))
-            elif interaction.custom_id=='think':
-                link1 = ctx.author.avatar.url
-                link2 = message.author.avatar.url
-                filename = await self.bot.loop.run_in_executor(None, lambda: self.think(link1, link2, message.author.global_name, msgid))
-            elif interaction.custom_id=='thicc':
-                link1 = ctx.author.avatar.url
-                link2 = message.author.avatar.url
-                filename = await self.bot.loop.run_in_executor(None, lambda: self.omniman(link1, link2, msgid))
-        except:
-            await msg.edit('**oh no**\nAn unexpected error occurred generating the image. Please contact the developers.')
-            raise
-        try:
-            await self.image_forward(ctx,message,filename)
-        except:
-            await msg.edit('**oh no**\nAn unexpected error occurred sending the image. Please contact the developers.')
-            raise
-        await msg.edit('Sent reaction image!')
+        return await ctx.send("Reaction images are currently disabled.",ephemeral=True)
+        # hooks = await ctx.guild.webhooks()
+        # webhook = None
+        # origin_room = 0
+        # found = False
+        # for hook in hooks:
+        #     if hook.channel_id == ctx.channel.id and hook.user.id == self.bot.user.id:
+        #         webhook = hook
+        #         index = 0
+        #         for key in self.bot.db['rooms']:
+        #             data = self.bot.db['rooms'][key]
+        #             if f'{ctx.guild.id}' in list(data.keys()):
+        #                 hook_ids = data[f'{ctx.guild.id}']
+        #             else:
+        #                 hook_ids = []
+        #             if webhook.id in hook_ids:
+        #                 origin_room = index
+        #                 found = True
+        #                 if key in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
+        #                     return
+        #                 break
+        #             index += 1
+        #         break
+        #
+        # if not found:
+        #     return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
+        # try:
+        #     roomname = list(self.bot.db['rooms'].keys())[origin_room]
+        #     if roomname in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
+        #         return await ctx.send('This room is locked!',ephemeral=True)
+        # except:
+        #     return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
+        # if not ctx.channel.permissions_for(ctx.author).send_messages:
+        #     return await ctx.send('You can\'t type in here!',ephemeral=True)
+        # if not webhook or not f'{webhook.id}' in f'{self.bot.db["rooms"]}':
+        #     return await ctx.send('This isn\'t a UniChat room!', ephemeral=True)
+        # components = discord.ui.MessageComponents(
+        #     discord.ui.ActionRow(
+        #         discord.ui.Button(style=discord.ButtonStyle.blurple,label='Clueless',custom_id='clueless'),
+        #         discord.ui.Button(style=discord.ButtonStyle.blurple, label='THINK, MARK, THINK!', custom_id='think'),
+        #     ),
+        #     discord.ui.ActionRow(
+        #         discord.ui.Button(style=discord.ButtonStyle.green, label='THICC, MARK, THICC!', custom_id='thicc'),
+        #     )
+        # )
+        # msg = await ctx.send('Choose a reaction image to generate!\n\n**Blue**: Static images\n**Green**: GIFs', ephemeral=True, components=components)
+        #
+        # def check(interaction):
+        #     return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+        #
+        # try:
+        #     interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+        # except:
+        #     try:
+        #         return await msg.edit(content='Timed out.', components=None)
+        #     except:
+        #         return
+        #
+        # await interaction.response.edit_message(content='Generating...', components=None)
+        # msgid = msg.id
+        # filename = ''
+        # try:
+        #     if interaction.custom_id=='clueless':
+        #         link1 = message.author.avatar.url
+        #         filename = await self.bot.loop.run_in_executor(None, lambda: self.clueless_gen(link1, msgid))
+        #     elif interaction.custom_id=='think':
+        #         link1 = ctx.author.avatar.url
+        #         link2 = message.author.avatar.url
+        #         filename = await self.bot.loop.run_in_executor(None, lambda: self.think(link1, link2, message.author.global_name, msgid))
+        #     elif interaction.custom_id=='thicc':
+        #         link1 = ctx.author.avatar.url
+        #         link2 = message.author.avatar.url
+        #         filename = await self.bot.loop.run_in_executor(None, lambda: self.omniman(link1, link2, msgid))
+        # except:
+        #     await msg.edit('**oh no**\nAn unexpected error occurred generating the image. Please contact the developers.')
+        #     raise
+        # try:
+        #     await self.image_forward(ctx,message,filename)
+        # except:
+        #     await msg.edit('**oh no**\nAn unexpected error occurred sending the image. Please contact the developers.')
+        #     raise
+        # await msg.edit('Sent reaction image!')
 
     @commands.command(aliases=['colour'])
     async def color(self,ctx,*,color=''):
@@ -1053,7 +1054,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         obe = True
                         break
                 if not found:
-                    return await ctx.send('Could not find message in cache!')
+                    return await ctx.send('Could not find message in cache!',ephemeral=True)
 
         hooks = await ctx.channel.webhooks()
         found = False
