@@ -382,7 +382,7 @@ class UnifierBridge:
                         components = discord.ui.MessageComponents(
                             pr_actionrow,
                             discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.url,label=author_text,
+                                discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
                                                   url=await reply_msg.fetch_url(guild))
                             ),
                             discord.ui.ActionRow(
