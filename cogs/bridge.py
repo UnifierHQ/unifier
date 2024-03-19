@@ -270,6 +270,21 @@ class UnifierBridge:
         # Broadcast message
         for guild in list(guilds.keys()):
             sameguild = guild == str(message.guild.id)
+
+            # Destination guild object
+            destguild = None
+
+            if platform == 'discord':
+                destguild = self.bot.get_guild(int(guild))
+                if not destguild:
+                    continue
+            elif platform == 'revolt':
+                try:
+                    destguild = self.bot.revolt_client.get_server(guild)
+                except:
+                    continue
+
+
             if sameguild:
                 if not should_resend:
                     continue
@@ -414,14 +429,6 @@ class UnifierBridge:
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',reference=message)
                     break
                 files.append(await to_file(attachment))
-
-            # Destination guild object
-            destguild = None
-
-            if platform=='discord':
-                destguild = self.bot.get_guild(int(guild))
-            elif platform=='revolt':
-                destguild = self.bot.revolt_client.get_server(guild)
 
             identifier = ' (' + user_hash + guild_hash + ')'
 
