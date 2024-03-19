@@ -133,7 +133,7 @@ class UnifierBridge:
 
     def __init__(self, bot, webhook_cache=None):
         self.bot = bot
-        self.bridged = {}
+        self.bridged = []
         self.prs = {}
         self.webhook_cache = webhook_cache or {}
 
@@ -554,7 +554,7 @@ class UnifierBridge:
                 copies = message_ids
             else:
                 external_copies = {platform:message_ids}
-            self.bot.bridged.append(UnifierMessage(
+            self.bridged.append(UnifierMessage(
                 author_id=message.author.id,
                 guild_id=message.guild.id,
                 channel_id=message.channel.id,
