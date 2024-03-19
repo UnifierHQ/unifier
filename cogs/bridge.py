@@ -2311,6 +2311,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         identifier = user_hash + guild_hash
 
+        msg = await self.bot.bridge.fetch_message(message.id)
+
         for key in data:
             if int(key) == message.guild.id:
                 continue
@@ -2334,7 +2336,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        await webhook.edit_message(self.bot.bridged[f'{message.id}'][key],
+                        await webhook.edit_message(await msg.fetch_id(key),
                                                    content=message.content, allowed_mentions=mentions)
                     except:
                         # likely deleted msg
@@ -2346,7 +2348,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data = self.bot.bridged_external[f'{message.id}']['revolt']
+            data = msg.external_copies['revolt']
 
             components = message.content.split('<@')
             offset = 0
@@ -2459,6 +2461,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             pass
 
+        msg = await self.bot.bridge.fetch_message(message.id)
+
         for key in data:
             if int(key) == message.guild.id:
                 continue
@@ -2482,7 +2486,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        await webhook.delete_message(self.bot.bridged[f'{message.id}'][key])
+                        await webhook.delete_message(await msg.fetch_id(key))
                     except:
                         # likely deleted msg
                         try:
@@ -2493,7 +2497,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data = self.bot.bridged_external[f'{message.id}']['revolt']
+            data = msg.external_copiesf['revolt']
             for key in data:
                 try:
                     try:
