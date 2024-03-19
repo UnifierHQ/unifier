@@ -2331,7 +2331,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         identifier = user_hash + guild_hash
 
-        msg = await self.bot.bridge.fetch_message(message.id)
+        msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
 
         for key in data:
             if int(key) == message.guild.id:
@@ -2404,8 +2404,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     except:
                         pass
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
-                    msg = await ch.fetch_message(data[key])
-                    await msg.edit(content=revoltfriendly)
+                    msg_revolt = await ch.fetch_message(data[key])
+                    await msg_revolt.edit(content=revoltfriendly)
                 except:
                     pass
 
@@ -2481,7 +2481,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             pass
 
-        msg = await self.bot.bridge.fetch_message(message.id)
+        msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
 
         for key in data:
             if int(key) == message.guild.id:
@@ -2532,8 +2532,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     except:
                         pass
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
-                    msg = await ch.fetch_message(data[key])
-                    await msg.delete()
+                    msg_revolt = await ch.fetch_message(data[key])
+                    await msg_revolt.delete()
                 except:
                     pass
 
