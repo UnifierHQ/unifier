@@ -143,6 +143,14 @@ class UnifierBridge:
                 return message
         raise ValueError("No message found")
 
+    async def indexof(self,message_id):
+        index = 0
+        for message in self.bridged:
+            if str(message.id)==str(message_id) or str(message_id) in str(message.copies) or str(message_id) in str(message.copies_external):
+                return index
+            index += 1
+        raise ValueError("No message found")
+
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', postthread: bool = False):
         user_hash = encrypt_string(f'{message.author.id}')[:3]
@@ -550,7 +558,16 @@ class UnifierBridge:
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda:thread.join())
         try:
+            index = await self.indexof(message.id)
             msg_object = await self.fetch_message(message.id)
+            if msg_object.source==platform:
+                msg_object.copies = msg_object.copies | message_ids
+            else:
+                try:
+                    msg_object.external_copies['discord'] = msg_object.external_copies['discord'] | message_ids
+                except:
+                    msg_object.external_copies.update({'discord':message_ids})
+            self.bridged[index] = msg_object
         except:
             copies = {}
             external_copies = {}
