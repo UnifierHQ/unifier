@@ -517,14 +517,18 @@ class UnifierBridge:
 
                 # Processing replies for Revolt here for efficiency
                 replies = []
-                if reply_msg:
-                    if reply_msg.source=='revolt':
-                        try:
-                            replies = [revolt.MessageReply(await reply_msg.fetch_id(destguild.id))]
-                        except:
-                            pass
-                    else:
-                        replies = [revolt.MessageReply(await reply_msg.fetch_external('revolt',destguild.id).id)]
+                try:
+                    if reply_msg:
+                        if reply_msg.source=='revolt':
+                            try:
+                                replies = [revolt.MessageReply(await reply_msg.fetch_id(destguild.id))]
+                            except:
+                                pass
+                        else:
+                            msg_ref = await reply_msg.fetch_external('revolt',destguild.id)
+                            replies = [revolt.MessageReply(msg_ref.id)]
+                except:
+                    pass
 
                 rvtcolor = None
                 if message.author.id in list(self.bot.db['colors'].keys()):
