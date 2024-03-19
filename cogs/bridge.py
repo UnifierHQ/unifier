@@ -2029,6 +2029,26 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.register_application_commands(commands=toreg)
         return await ctx.send(f'Registered {len(toreg)} commands to bot')
 
+    @commands.command(hidden=True)
+    async def viewmsg(self,ctx):
+        if not ctx.author.id == 356456393491873795:
+            return
+        try:
+            msgid = ctx.message.reference.message_id
+        except:
+            return await ctx.send('No message detected')
+        msg: UnifierMessage = await self.bot.bridge.fetch_message(msgid)
+        text = f'Author: {msg.author_id}\nGuild: {msg.guild_id}\nSource: {msg.source}\nParent is webhook: {msg.webhook}\n\nCopies (samesource):'
+        for key in msg.copies:
+            info = msg.copies[key]
+            text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+        for platform in msg.external_copies:
+            text = f'{text}\n\n Copies ({platform}):'
+            for key in msg.external_copies[platform]:
+                info = msg.external_copies[platform][key]
+                text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+        await ctx.send(text)
+
     @commands.Cog.listener()
     async def on_message(self, message):
         author_rp = message.author
@@ -2497,7 +2517,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data = msg.external_copiesf['revolt']
+            data = msg.external_copies['revolt']
             for key in data:
                 try:
                     try:
