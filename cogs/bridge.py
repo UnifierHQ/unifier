@@ -573,7 +573,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     def __init__(self, bot):
         self.bot = bot
         if not hasattr(self.bot, 'bridged'):
-            self.bot.bridged = {}
+            self.bot.bridged = []
         if not hasattr(self.bot, 'bridged_external'):
             self.bot.bridged_external = {}
         if not hasattr(self.bot, 'bridged_obe'):
