@@ -93,7 +93,7 @@ class SelfDeleteException(Exception):
     pass
 
 class UnifierMessage:
-    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, webhook=False):
+    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, external_urls=None, webhook=False):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -101,7 +101,7 @@ class UnifierMessage:
         self.copies = copies
         self.external_copies = external_copies
         self.urls = urls
-        self.external_urls = external_urls
+        self.external_urls = external_urls or {}
         self.source = source
         self.webhook = webhook
 
