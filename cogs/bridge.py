@@ -82,6 +82,59 @@ def bypass_killer(string):
     else:
         raise RuntimeError()
 
+class ExternalReference:
+    def __init__(self, guild_id, channel_id, message_id):
+        self.guild = guild_id
+        self.channel = channel_id
+        self.id = message_id
+
+
+class UnifierBridge:
+    class Message:
+        def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source):
+            self.author_id = author_id
+            self.guild_id = guild_id
+            self.channel_id = channel_id
+            self.id = original
+            self.copies = copies
+            self.external_copies = external_copies
+            self.urls = urls
+            self.source = source;
+
+        async def fetch_id(self, guild_id):
+            if guild_id == self.guild_id:
+                raise ValueError("Same guild as original, use UnifierMessage.id instead")
+
+            return self.copies[guild_id][1]
+
+        async def fetch_channel(self, guild_id):
+            if guild_id == self.guild_id:
+                raise ValueError("Same guild as original, use UnifierMessage.channel_id instead")
+
+            return self.copies[guild_id][0]
+
+        async def fetch_external(self, guild_id: str):
+            return ExternalReference(guild_id, self.copies[guild_id][0], self.copies[guild_id][1])
+
+    def __init__(self, bot, webhook_cache=None):
+        self.bot = bot
+        self.bridged = {}
+        self.bridged_external = {}
+        self.bridged_obe = {}
+        self.bridged_urls = {}
+        self.bridged_urls_external = {}
+        self.owners = {}
+        self.origin = {}
+        self.prs = {}
+        self.webhook_cache = webhook_cache or {}
+
+    async def send(self, name: str, avatar_url: str = None, content: str = None, embeds=None,
+                   files: [discord.File] = None, reference=None):
+
+    async def send_revolt(self, name: str, avatar_url: str = None, content: str = None, embeds=None,
+                          files: [revolt.File] = None, reference=None):
+        raise RuntimeError("Revolt support not yet initialized.")
+
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
 
