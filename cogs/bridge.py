@@ -161,6 +161,8 @@ class UnifierBridge:
             raise ValueError("Unsupported platform")
 
         guilds = self.bot.db['rooms'][room]
+        if platform=='revolt':
+            guilds = self.bot.db['rooms_revolt'][room]
 
         try:
             roomindex = list(self.bot.db['rooms'].keys()).index(room)
@@ -456,6 +458,7 @@ class UnifierBridge:
             if platform=='discord':
                 try:
                     if guild in str(self.bot.db['experiments']['threaded_bridge']):
+                        raise ValueError() # wip
                         synchook = None
                         try:
                             synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][guild]}']
