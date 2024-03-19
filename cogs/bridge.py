@@ -524,7 +524,7 @@ class UnifierBridge:
                         except:
                             pass
                     else:
-                        replies = [revolt.MessageReply(await reply_msg.fetch_external(destguild.id).id)]
+                        replies = [revolt.MessageReply(await reply_msg.fetch_external('revolt',destguild.id).id)]
 
                 rvtcolor = None
                 if message.author.id in list(self.bot.db['colors'].keys()):
