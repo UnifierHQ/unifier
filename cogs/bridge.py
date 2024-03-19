@@ -93,7 +93,7 @@ class SelfDeleteException(Exception):
     pass
 
 class UnifierMessage:
-    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, external_urls, source, webhook=False):
+    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, webhook=False):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -2063,6 +2063,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 info = msg.external_copies[platform][key]
                 text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
         await ctx.send(text)
+
+    @commands.command(hidden=True)
+    async def initbridge(self, ctx):
+        if not ctx.author.id == 356456393491873795:
+            return
+        del self.bot.bridge
+        self.bot.bridge = UnifierBridge(self.bot)
+        await ctx.send('Bridge initialized')
 
     @commands.Cog.listener()
     async def on_message(self, message):
