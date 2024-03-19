@@ -521,12 +521,14 @@ class UnifierBridge:
                     if reply_msg:
                         if reply_msg.source=='revolt':
                             try:
-                                replies = [revolt.MessageReply(await reply_msg.fetch_id(destguild.id))]
+                                msg = await ch.fetch_message(await reply_msg.fetch_id(destguild.id))
+                                replies = [revolt.MessageReply(msg)]
                             except:
                                 pass
                         else:
                             msg_ref = await reply_msg.fetch_external('revolt',destguild.id)
-                            replies = [revolt.MessageReply(msg_ref.id)]
+                            msg = await ch.fetch_message(msg_ref.id)
+                            replies = [revolt.MessageReply(msg)]
                 except:
                     pass
 
