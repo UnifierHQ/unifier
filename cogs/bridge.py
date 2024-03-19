@@ -468,7 +468,7 @@ class UnifierBridge:
                         raise ValueError() # wip
                         synchook = None
                         try:
-                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][guild]}']
+                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][roomname][guild]}']
                         except:
                             hooks = await destguild.webhooks()
                             for hook in hooks:
@@ -482,10 +482,14 @@ class UnifierBridge:
                 except:
                     webhook = None
                     try:
-                        webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][guild]}']
+                        webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
                     except:
                         hooks = await destguild.webhooks()
                         for hook in hooks:
+                            if f'{guild}' in list(self.bot.webhook_cache.keys()):
+                                self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
+                            else:
+                                self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
                             if hook.id in self.bot.db['rooms'][room][guild]:
                                 webhook = hook
                                 break
@@ -501,7 +505,7 @@ class UnifierBridge:
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
 
             elif platform=='revolt':
-                ch = destguild.get_channel(self.bot.db['rooms_revolt'][guild][0])
+                ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
 
                 # Processing replies for Revolt here for efficiency
                 replies = []
