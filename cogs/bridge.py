@@ -564,9 +564,9 @@ class UnifierBridge:
                 msg_object.copies = msg_object.copies | message_ids
             else:
                 try:
-                    msg_object.external_copies['discord'] = msg_object.external_copies['discord'] | message_ids
+                    msg_object.external_copies[platform] = msg_object.external_copies[platform] | message_ids
                 except:
-                    msg_object.external_copies.update({'discord':message_ids})
+                    msg_object.external_copies.update({platform:message_ids})
             self.bridged[index] = msg_object
         except:
             copies = {}
