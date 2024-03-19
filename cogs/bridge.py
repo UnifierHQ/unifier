@@ -2079,7 +2079,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             info = msg.copies[key]
             text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
         for platform in msg.external_copies:
-            text = f'{text}\n\n Copies ({platform}):'
+            text = f'{text}\n\nCopies ({platform}):'
             for key in msg.external_copies[platform]:
                 info = msg.external_copies[platform][key]
                 text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
