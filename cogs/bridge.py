@@ -144,7 +144,7 @@ class UnifierBridge:
         raise ValueError("No message found")
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
-                   platform: str = 'discord'):
+                   platform: str = 'discord', postthread: bool = False):
         user_hash = encrypt_string(f'{message.author.id}')[:3]
         guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         source = 'discord'
@@ -304,7 +304,11 @@ class UnifierBridge:
                             )
                 if reply_msg:
                     if not trimmed:
-                        clean_content = discord.utils.remove_markdown(reply_msg.content)
+                        try:
+                            content = message.reference.cached_message.content
+                        except:
+                            content = await message.channel.fetch_message(message.reference.message_id).content
+                        clean_content = discord.utils.remove_markdown(content)
 
                         msg_components = clean_content.split('<@')
                         offset = 0
@@ -334,6 +338,7 @@ class UnifierBridge:
                     try:
                         if source=='revolt':
                             button_style = discord.ButtonStyle.red
+                        if reply_msg.source=='revolt':
                             user = self.bot.revolt_client.get_user(reply_msg.author_id)
                             if not user.display_name:
                                 author_text = f'@{user.name}'
@@ -2356,15 +2361,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        await webhook.edit_message(await msg.fetch_id(key),
-                                                   content=message.content, allowed_mentions=mentions)
+                        if msg.source=='discord':
+                            msgid = await msg.fetch_id(key)
+                        else:
+                            msgid = await msg.fetch_external('discord',key)
+                        await webhook.edit_message(msgid,content=message.content, allowed_mentions=mentions)
                     except:
                         # likely deleted msg
-                        try:
-                            self.bot.bridged[f'{message.id}']
-                        except:
-                            # message wiped from cache
-                            return
                         pass
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
@@ -2506,14 +2509,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        await webhook.delete_message(await msg.fetch_id(key))
+                        if msg.source=='discord':
+                            msgid = await msg.fetch_id(key)
+                        else:
+                            msgid = await msg.fetch_external('discord',key)
+                        await webhook.delete_message(msgid)
                     except:
                         # likely deleted msg
-                        try:
-                            self.bot.bridged[f'{message.id}']
-                        except:
-                            # message wiped from cache
-                            return
                         pass
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
