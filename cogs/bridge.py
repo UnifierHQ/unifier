@@ -2128,10 +2128,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        roomname = list(self.bot.db['rooms'].keys())[origin_room]
-        if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
-            return
-
         user_hash = encrypt_string(f'{message.author.id}')[:3]
         guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         identifier = user_hash + guild_hash
@@ -2141,6 +2137,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if not str(msg.id)==str(message.id):
                 raise ValueError()
         except:
+            return
+
+        roomname = msg.room
+
+        if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
             return
 
         for key in data:
