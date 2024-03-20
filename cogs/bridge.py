@@ -346,7 +346,6 @@ class UnifierBridge:
 
         # Threading
         thread_sameguild = []
-        thread_results = {}
         thread_urls = {}
         threads = []
 
@@ -592,7 +591,6 @@ class UnifierBridge:
 
                         thread = threading.Thread(target=thread_msg)
                         thread.start()
-                        print(f'Thread to: '+str(synchook.guild_id))
                         threads.append(thread)
                     else:
                         raise ValueError()
@@ -677,7 +675,7 @@ class UnifierBridge:
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
-        message_ids = message_ids | thread_results
+        message_ids = message_ids
         try:
             index = await self.indexof(message.id)
             msg_object = await self.fetch_message(message.id)
@@ -713,7 +711,6 @@ class UnifierBridge:
                 webhook=should_resend,
                 room=room
             ))
-            print('Added message '+str(message.id))
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
