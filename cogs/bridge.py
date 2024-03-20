@@ -283,6 +283,8 @@ class UnifierBridge:
         for guild in list(guilds.keys()):
             if source=='discord':
                 sameguild = guild == str(message.guild.id)
+            else:
+                sameguild = False
 
             # Destination guild object
             destguild = None
