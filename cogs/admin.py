@@ -104,6 +104,8 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         self.bot = bot
         if not hasattr(self.bot, 'colors'):
             self.bot.colors = colors
+        if not hasattr(self.bot, 'pid'):
+            self.bot.pid = None
 
     @commands.command(hidden=True)
     async def dashboard(self,ctx):
