@@ -710,5 +710,139 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await msg.edit(embed=embed)
             raise
 
+    @commands.command(name='install-guilded', hidden=True, aliases=['install-guilded-support'])
+    async def install_guilded(self, ctx):
+        if not ctx.author.id == owner:
+            return
+        embed = discord.Embed(title='Finding Guilded Support version...',
+                              description='Getting latest version from remote')
+        try:
+            x = open('cogs/bridge_guilded.py', 'r', encoding='utf-8')
+            x.close()
+        except:
+            pass
+        else:
+            embed.title = 'Guilded Support already installed'
+            embed.description = f'Guilded Support is already installed! Run `{self.bot.command_prefix}upgrade-guilded` to upgrade Guilded Support (Upgrader required).'
+            embed.colour = 0x00ff00
+            await ctx.send(embed=embed)
+            return
+        msg = await ctx.send(embed=embed)
+        try:
+            os.system('rm -rf ' + os.getcwd() + '/update_check')
+            status(os.system(
+                'git clone --branch ' + branch + ' ' + files_endpoint + '/unifier-version.git ' + os.getcwd() + '/update_check'))
+            with open('update_check/guilded.json', 'r') as file:
+                new = json.load(file)
+            release = new['release']
+            version = new['version']
+        except:
+            embed.title = 'Failed to check for updates'
+            embed.description = 'Could not find a valid upgrader.json file on remote'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+        print('Guilded Support install available: ' + new['version'])
+        print('Confirm install through Discord.')
+        embed.title = 'Guilded Support available'
+        embed.description = f'Unifier Guilded Support is available!\n\nVersion: {version} (`{release}`)\n\nUnifier Revolt Support is an extension that allows Unifier to bridge messages between Discord and Revolt. This extension will be loaded on boot.'
+        embed.colour = 0xffcc00
+        row = [
+            discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
+            discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+        ]
+        btns = discord.ui.ActionRow(row[0], row[1])
+        components = discord.ui.MessageComponents(btns)
+        await msg.edit(embed=embed, components=components)
+
+        def check(interaction):
+            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+        except:
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await msg.edit(components=components)
+        if interaction.custom_id == 'reject':
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await interaction.response.edit_message(components=components)
+        print('Installation confirmed, preparing...')
+        embed.title = 'Start the installation?'
+        embed.description = '- :x: Your files have **not** been backed up, as this is not a Unifier upgrade.\n- :tools: A new file called `bridge_guilded.py` will be made in `[Unifier root directory]/cogs`.\n- :warning: Once started, you cannot abort the installation.'
+        await interaction.response.edit_message(embed=embed, components=components)
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+        except:
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await msg.edit(components=components)
+        if interaction.custom_id == 'reject':
+            row[0].disabled = True
+            row[1].disabled = True
+            btns = discord.ui.ActionRow(row[0], row[1])
+            components = discord.ui.MessageComponents(btns)
+            return await interaction.response.edit_message(components=components)
+        print('Installation confirmed, installing Guilded Support...')
+        print()
+        embed.title = 'Installing Guilded Support'
+        embed.description = ':hourglass_flowing_sand: Downloading Guilded Support\n:x: Installing Guilded Support dependencies\n:x: Installing Guilded Support\n:x: Activating Guilded Support'
+        await interaction.response.edit_message(embed=embed, components=None)
+        log(type='UPG', status='info', content='Starting install')
+        try:
+            log(type='GIT', status='info', content='Purging old update files')
+            os.system('rm -rf ' + os.getcwd() + '/update_guilded')
+            log(type='GIT', status='info', content='Downloading from remote repository...')
+            status(os.system(
+                'git clone --branch main ' + files_endpoint + '/unifier-guilded.git ' + os.getcwd() + '/update_guilded'))
+            log(type='GIT', status='info', content='Confirming download...')
+            x = open(os.getcwd() + '/update_guilded/bridge_guilded.py', 'r')
+            x.close()
+            log(type='GIT', status='ok', content='Download confirmed, proceeding with install')
+        except:
+            log(type='UPG', status='error', content='Download failed, no rollback required')
+            embed.title = 'Upgrade failed'
+            embed.description = 'Could not download updates. Nothing new was installed.'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+        try:
+            log(type='INS', status='info', content='Installing Upgrader')
+            embed.description = ':white_check_mark: Downloading Guilded Support\n:hourglass_flowing_sand: Installing Guilded Support dependencies\n:x: Installing Guilded Support\n:x: Activating Guilded Support'
+            await msg.edit(embed=embed)
+            log(type='PIP', status='info', content='Installing: revolt.py')
+            status(os.system('python3 -m pip install -U revolt.py'))
+            embed.description = ':white_check_mark: Downloading Guilded Support\n:white_check_mark: Installing Guilded Support dependencies\n:hourglass_flowing_sand: Installing Guilded Support\n:x: Activating Guilded Support'
+            await msg.edit(embed=embed)
+            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_guilded/bridge_guilded.py')
+            status(os.system(
+                'cp ' + os.getcwd() + '/update_guilded/bridge_guilded.py' + ' ' + os.getcwd() + '/cogs/bridge_guilded.py'))
+            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_check/guilded.json')
+            status(
+                os.system('cp ' + os.getcwd() + '/update_check/guilded.json' + ' ' + os.getcwd() + '/guilded.json'))
+            embed.description = ':white_check_mark: Downloading Guilded Support\n:white_check_mark: Installing Guilded Support dependencies\n:white_check_mark: Installing Guilded Support\n:hourglass_flowing_sand: Activating Guilded Support'
+            await msg.edit(embed=embed)
+            log(type='UPG', status='ok', content='Activating extension: cogs.bridge_guilded')
+            self.bot.load_extension('cogs.bridge_guilded')
+            log(type='UPG', status='ok', content='Installation complete')
+            embed.title = 'Installation successful'
+            embed.description = 'The installation was successful! :partying_face:\nGuilded Support has been loaded and will be loaded on boot.'
+            embed.colour = 0x00ff00
+            await msg.edit(embed=embed)
+        except:
+            log(type='UPG', status='error', content='Install failed')
+            embed.title = 'Installation failed'
+            embed.description = 'The installation failed.'
+            embed.colour = 0xff0000
+            await msg.edit(embed=embed)
+            raise
+
 def setup(bot):
     bot.add_cog(Admin(bot))
