@@ -486,6 +486,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             return
         try:
             await self.bot.guilded_client.close()
+            self.bot.guilded_client_task.cancel()
             del self.bot.guilded_client
             self.bot.reload_extension('cogs.bridge_guilded')
             await ctx.send('Guilded client restarted.')
