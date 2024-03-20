@@ -2210,6 +2210,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if msg.source=='revolt':
                         msg_revolt = await ch.fetch_message(await msg.fetch_id(key))
                     else:
+                        print(await msg.fetch_external('revolt',key))
                         msg_revolt = await ch.fetch_message(await msg.fetch_external('revolt',key))
                     await msg_revolt.edit(content=revoltfriendly)
                 except:
