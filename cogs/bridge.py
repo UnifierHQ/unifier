@@ -281,10 +281,10 @@ class UnifierBridge:
 
         # Broadcast message
         for guild in list(guilds.keys()):
-            if source=='discord':
-                sameguild = guild == str(message.guild.id)
+            if source=='revolt':
+                sameguild = guild == str(message.server.id)
             else:
-                sameguild = False
+                sameguild = guild == str(message.guild.id)
 
             # Destination guild object
             destguild = None
@@ -301,7 +301,7 @@ class UnifierBridge:
 
 
             if sameguild:
-                if not should_resend:
+                if not should_resend and not platform=='discord':
                     continue
 
             # Reply processing
