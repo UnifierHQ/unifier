@@ -192,6 +192,7 @@ class UnifierBridge:
                     await webhook.delete_message(int(msgs[key][1]))
                     count += 1
                 except:
+                    traceback.print_exc()
                     pass
             return count
 
@@ -558,7 +559,7 @@ class UnifierBridge:
             if not message.author.bot:
                 embeds = []
 
-            if platform=='discord':
+            if platform=='discord' and source=='discord':
                 try:
                     if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components:
                         synchook = None
