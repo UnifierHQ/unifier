@@ -599,6 +599,7 @@ class UnifierBridge:
                 source=source,
                 webhook=should_resend
             ))
+            print('Added message '+str(message.id))
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
