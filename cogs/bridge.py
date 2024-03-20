@@ -524,8 +524,6 @@ class UnifierBridge:
                         thread_sameguild = [msg.id]
                     else:
                         message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                    if source=='revolt':
-                        print(f'Adding: {destguild.id}/{webhook.channel.id}/{msg.id}')
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
 
             elif platform=='revolt':
@@ -592,6 +590,7 @@ class UnifierBridge:
                     msg_object.external_copies[platform] = msg_object.external_copies[platform] | message_ids
                 except:
                     msg_object.external_copies.update({platform:message_ids})
+            msg_object.urls = msg_object.urls | urls
             self.bridged[index] = msg_object
         except:
             copies = {}
