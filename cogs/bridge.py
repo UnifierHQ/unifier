@@ -2138,7 +2138,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
-            if not msg.id==str(message.id):
+            if not str(msg.id)==str(message.id):
                 raise ValueError()
         except:
             return
