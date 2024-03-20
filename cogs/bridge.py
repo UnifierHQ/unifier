@@ -562,9 +562,9 @@ class UnifierBridge:
             if not message.author.bot:
                 embeds = []
 
-            if platform=='discord' and source=='discord':
+            if platform=='discord':
                 try:
-                    if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components:
+                    if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord':
                         synchook = None
                         try:
                             synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
