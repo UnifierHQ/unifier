@@ -301,6 +301,8 @@ class UnifierBridge:
 
             if sameguild:
                 if not should_resend or not platform=='discord':
+                    if platform=='discord':
+                        urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
                     continue
 
             # Reply processing
