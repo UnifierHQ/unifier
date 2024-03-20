@@ -634,7 +634,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not hasattr(self.bot, 'webhook_cache_sync'):
             self.bot.webhook_cache_sync = {}
         msgs = []
-        if not hasattr(self.bot, 'bridge'):
+        if hasattr(self.bot, 'bridge'):
             msgs = self.bot.bridge.bridged
         del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot)
@@ -2104,7 +2104,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send(text)
 
     @commands.command(hidden=True)
-    async def initbridge(self, ctx, *, args):
+    async def initbridge(self, ctx, *, args=''):
         if not ctx.author.id == 356456393491873795:
             return
         msgs = None
