@@ -199,11 +199,12 @@ class UnifierBridge:
             count = 0
             for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
                 try:
-                    ch = await self.bot.revolt_client.fetch_channel(self.bot.db['rooms_revolt'][msg.room][key])
-                    todelete = await ch.fetch_message(msgs['revolt'][key])
+                    ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
+                    todelete = await ch.fetch_message(msgs[key][1])
                     await todelete.delete()
                     count += 1
                 except:
+                    traceback.print_exc()
                     continue
             return count
 
