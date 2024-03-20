@@ -153,11 +153,15 @@ class UnifierBridge:
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', postthread: bool = False):
-        user_hash = encrypt_string(f'{message.author.id}')[:3]
-        guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         source = 'discord'
         if type(message) is revolt.Message:
             source = 'revolt'
+
+        user_hash = encrypt_string(f'{message.author.id}')[:3]
+        if source == 'revolt':
+            guild_hash = encrypt_string(f'{message.server.id}')[:3]
+        else:
+            guild_hash = encrypt_string(f'{message.guild.id}')[:3]
 
         if platform=='revolt':
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
