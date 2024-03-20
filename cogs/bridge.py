@@ -628,8 +628,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.webhook_cache = {}
         if not hasattr(self.bot, 'webhook_cache_sync'):
             self.bot.webhook_cache_sync = {}
+        msgs = []
         if not hasattr(self.bot, 'bridge'):
-            self.bot.bridge = UnifierBridge(self.bot)
+            msgs = self.bot.bridge.bridged
+        del self.bot.bridge
+        self.bot.bridge = UnifierBridge(self.bot)
+        self.bot.bridge.bridged = msgs
 
     def clueless_gen(self, user, identifier):
         from PIL import Image
