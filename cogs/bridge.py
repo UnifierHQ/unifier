@@ -568,6 +568,11 @@ class UnifierBridge:
                             for hook in hooks:
                                 if hook.id in self.bot.db['rooms'][room][guild]:
                                     synchook = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
+                                    try:
+                                        self.bot.webhook_cache_sync[f'{guild}'].update(
+                                            {f'{synchook.id}':synchook})
+                                    except:
+                                        self.bot.webhook_cache_sync.update({f'{guild}': {f'{synchook.id}': synchook}})
                                     break
                         if not synchook:
                             continue
