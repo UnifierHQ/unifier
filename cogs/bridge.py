@@ -784,8 +784,8 @@ class UnifierBridge:
                 if sameguild:
                     thread_sameguild = [msg.id]
                 else:
-                    message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                    message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
+                #urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{msg.channel.id}/{msg.id}'})
 
         # Update cache
         for thread in threads:
