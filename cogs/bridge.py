@@ -128,7 +128,7 @@ class UnifierMessage:
         return self.external_urls[source][guild_id]
 
     async def fetch_external(self, platform: str, guild_id: str):
-        return ExternalReference(guild_id, self.external_copies[platform][guild_id][0], self.external_copies[platform][guild_id][1])
+        return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0], self.external_copies[platform][str(guild_id)][1])
 
 class UnifierBridge:
 
