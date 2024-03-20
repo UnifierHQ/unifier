@@ -592,6 +592,7 @@ class UnifierBridge:
                     else:
                         raise ValueError()
                 except:
+                    traceback.print_exc()
                     webhook = None
                     try:
                         webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
