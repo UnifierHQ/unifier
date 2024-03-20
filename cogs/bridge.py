@@ -2136,7 +2136,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         guild_hash = encrypt_string(f'{message.guild.id}')[:3]
         identifier = user_hash + guild_hash
 
-        msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+        try:
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+            if not msg.id==str(message.id):
+                raise ValueError()
+        except:
+            return
 
         for key in data:
             if int(key) == message.guild.id:
