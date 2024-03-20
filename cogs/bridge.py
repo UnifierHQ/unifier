@@ -685,8 +685,8 @@ class UnifierBridge:
         else:
             parent_id = message.id
         try:
-            index = await self.indexof(message.id)
-            msg_object = await self.fetch_message(message.id)
+            index = await self.indexof(parent_id)
+            msg_object = await self.fetch_message(parent_id)
             if msg_object.source==platform:
                 msg_object.copies = msg_object.copies | message_ids
             else:
