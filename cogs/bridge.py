@@ -1827,13 +1827,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         return await ctx.send(f'Registered {len(toreg)} commands to bot')
 
     @commands.command(hidden=True)
-    async def viewmsg(self,ctx):
+    async def viewmsg(self,ctx,*,msgid=None):
         if not ctx.author.id == 356456393491873795:
             return
         try:
             msgid = ctx.message.reference.message_id
         except:
-            return await ctx.send('No message detected')
+            if not msgid:
+                return await ctx.send('No message detected')
+            try:
+                msgid = int(msgid)
+            except:
+                return await ctx.send('No message detected')
         msg: UnifierMessage = await self.bot.bridge.fetch_message(msgid)
         text = f'Author: {msg.author_id}\nGuild: {msg.guild_id}\nSource: {msg.source}\nParent is webhook: {msg.webhook}\n\nCopies (samesource):'
         for key in msg.copies:
