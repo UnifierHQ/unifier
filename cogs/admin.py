@@ -745,7 +745,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         print('Guilded Support install available: ' + new['version'])
         print('Confirm install through Discord.')
         embed.title = 'Guilded Support available'
-        embed.description = f'Unifier Guilded Support is available!\n\nVersion: {version} (`{release}`)\n\nUnifier Revolt Support is an extension that allows Unifier to bridge messages between Discord and Revolt. This extension will be loaded on boot.'
+        embed.description = f'Unifier Guilded Support is available!\n\nVersion: {version} (`{release}`)\n\nUnifier Guilded Support is an extension that allows Unifier to bridge messages between Discord and Guilded. This extension will be loaded on boot.'
         embed.colour = 0xffcc00
         row = [
             discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
