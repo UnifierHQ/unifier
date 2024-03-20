@@ -174,8 +174,11 @@ class UnifierBridge:
         async def delete_discord(msgs):
             count = 0
             for key in list(self.bot.db['rooms'][msg.room].keys()):
-                guild = self.bot.get_guild(key)
-                hooks = await guild.webhooks()
+                guild = self.bot.get_guild(int(key))
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    continue
                 webhook = None
 
                 # Fetch webhook
