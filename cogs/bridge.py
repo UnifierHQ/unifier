@@ -524,6 +524,8 @@ class UnifierBridge:
                         thread_sameguild = [msg.id]
                     else:
                         message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
+                    if source=='revolt':
+                        print(f'Adding: {destguild.id}/{webhook.channel.id}/{msg.id}')
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
 
             elif platform=='revolt':
