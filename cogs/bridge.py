@@ -2207,7 +2207,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     except:
                         pass
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
-                    msg_revolt = await ch.fetch_message(data[key])
+                    if msg.source=='revolt':
+                        msg_revolt = await ch.fetch_message(await msg.fetch_id(key))
+                    else:
+                        msg_revolt = await ch.fetch_message(await msg.fetch_external('revolt',key))
                     await msg_revolt.edit(content=revoltfriendly)
                 except:
                     traceback.print_exc()
