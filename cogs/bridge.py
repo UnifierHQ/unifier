@@ -164,6 +164,11 @@ class UnifierBridge:
             ch = guild.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
             await todelete.delete()
+        elif msg.source=='guilded':
+            guild = self.bot.guilded_client.get_guild(msg.guild_id)
+            ch = guild.get_channel(msg.channel_id)
+            todelete = await ch.fetch_message(msg.id)
+            await todelete.delete()
         elif msg.source=='revolt':
             ch = await self.bot.revolt_client.fetch_channel(msg.channel_id)
             todelete = await ch.fetch_message(msg.id)
@@ -201,6 +206,34 @@ class UnifierBridge:
                     pass
             return count
 
+        async def delete_guilded(msgs):
+            count = 0
+            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
+                guild = self.bot.guilded_client.get_guild(key)
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    continue
+                webhook = None
+
+                # Fetch webhook
+                for hook in hooks:
+                    if int(self.bot.db['rooms_guilded'][msg.room][key][0])==hook.id:
+                        webhook: guilded.Webhook = hook
+                        break
+
+                if not webhook:
+                    # No webhook found
+                    continue
+
+                try:
+                    await webhook.delete_message(msgs[key][1])
+                    count += 1
+                except:
+                    traceback.print_exc()
+                    pass
+            return count
+
         async def delete_revolt(msgs):
             count = 0
             for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
@@ -218,6 +251,8 @@ class UnifierBridge:
             count += await delete_discord(msg.copies)
         elif msg.source=='revolt':
             count += await delete_revolt(msg.copies)
+        elif msg.source=='guilded':
+            count += await delete_guilded(msg.copies)
 
         for platform in list(msg.external_copies.keys()):
             print(platform)
@@ -232,12 +267,14 @@ class UnifierBridge:
                    platform: str = 'discord', postthread: bool = False):
         source = 'discord'
         extlist = list(self.bot.extensions)
-        if 'cogs.bridge_revolt' in extlist:
-            if type(message) is revolt.Message:
-                source = 'revolt'
-        if 'cogs.bridge_guilded' in extlist:
-            if type(message) is guilded.ChatMessage:
-                source = 'guilded'
+        if type(message) is revolt.Message:
+            if not 'cogs.bridge_revolt' in extlist:
+                raise RuntimeError('Revolt Support not initialized')
+            source = 'revolt'
+        if type(message) is guilded.ChatMessage:
+            if not 'cogs.bridge_guilded' in extlist:
+                raise RuntimeError('Guilded Support not initialized')
+            source = 'guilded'
 
         user_hash = encrypt_string(f'{message.author.id}')[:3]
         if source == 'revolt':
@@ -370,6 +407,13 @@ class UnifierBridge:
                 sameguild = guild == str(message.server.id)
             else:
                 sameguild = guild == str(message.guild.id)
+
+            try:
+                bans = self.bot.db['blocked'][str(guild)]
+                if message.author.id in bans and not sameguild:
+                    continue
+            except:
+                pass
 
             # Destination guild object
             destguild = None
@@ -2141,8 +2185,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await self.bot.bridge.send(room=roomname,message=message,platform='discord')
 
-        if 'cogs.bridge_revolt' in self.bot.extensions:
-            await self.bot.bridge.send(room=roomname, message=message, platform='revolt')
+        for platform in externals:
+            await self.bot.bridge.send(room=roomname, message=message, platform=platform)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
