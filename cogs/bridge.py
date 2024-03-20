@@ -588,9 +588,13 @@ class UnifierBridge:
                 copies = message_ids
             else:
                 external_copies = {platform:message_ids}
+            if source=='revolt':
+                server_id = message.server.id
+            else:
+                server_id = message.guild.id
             self.bridged.append(UnifierMessage(
                 author_id=message.author.id,
-                guild_id=message.guild.id,
+                guild_id=server_id,
                 channel_id=message.channel.id,
                 original=message.id,
                 copies=copies,
