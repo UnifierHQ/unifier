@@ -303,7 +303,11 @@ class UnifierBridge:
             pr_actionrow = None
 
             try:
-                reply_msg = await self.fetch_message(message.reference.message_id)
+                if source=='revolt':
+                    msgid = message.replies[0].id
+                else:
+                    msgid = message.reference.message_id
+                reply_msg = await self.fetch_message(msgid)
             except:
                 pass
             if platform=='discord':
