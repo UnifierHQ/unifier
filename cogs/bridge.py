@@ -168,7 +168,7 @@ class UnifierBridge:
             await todelete.delete()
 
     async def delete_copies(self, message):
-        msg: UnifierMessage = await self.fetch_message(message.id)
+        msg: UnifierMessage = await self.fetch_message(message)
         count = 0
 
         async def delete_discord(msgs):
