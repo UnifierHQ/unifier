@@ -1511,8 +1511,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
-            if not msg.webhook:
-                return await ctx.send('Deleted message (parent deleted, copies will follow)')
+            if msg.webhook:
+                raise ValueError()
+            return await ctx.send('Deleted message (parent deleted, copies will follow)')
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
