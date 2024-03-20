@@ -2209,7 +2209,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             continue
                     except:
                         pass
-                    ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
+                    ch = guild.get_channel(data2[key][0])
                     msg_revolt = await ch.fetch_message(data2[key][1])
                     await msg_revolt.edit(content=revoltfriendly)
                 except:
@@ -2346,8 +2346,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                 continue
                         except:
                             pass
-                        ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
-                        msg_revolt = await ch.fetch_message(data[key])
+                        ch = guild.get_channel(data[key][0])
+                        msg_revolt = await ch.fetch_message(data[key][1])
                         await msg_revolt.delete()
                     except:
                         pass
