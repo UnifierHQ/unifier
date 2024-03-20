@@ -516,7 +516,7 @@ class UnifierBridge:
                 try:
                     ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
                 except:
-                    ch = await destguild.fetch_channel(self.bot.db['rooms_revolt'][room][guild][0])
+                    ch = await self.bot.revolt_client.fetch_channel(self.bot.db['rooms_revolt'][room][guild][0])
 
                 # Processing replies for Revolt here for efficiency
                 replies = []
