@@ -587,6 +587,7 @@ class UnifierBridge:
 
                         thread = threading.Thread(target=thread_msg)
                         thread.start()
+                        print(f'Thread to: '+str(synchook.guild.id))
                         threads.append(thread)
                     else:
                         raise ValueError()
