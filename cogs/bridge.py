@@ -214,8 +214,9 @@ class UnifierBridge:
             count += await delete_revolt(msg.copies)
 
         for platform in list(msg.external_copies.keys()):
+            print(platform)
             if platform=='discord':
-                count += await delete_discord(msg.external_copies['revolt'])
+                count += await delete_discord(msg.external_copies['discord'])
             elif platform=='revolt':
                 count += await delete_revolt(msg.external_copies['revolt'])
 
