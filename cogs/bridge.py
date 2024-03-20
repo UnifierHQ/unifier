@@ -2210,6 +2210,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     msg_revolt = await ch.fetch_message(data[key])
                     await msg_revolt.edit(content=revoltfriendly)
                 except:
+                    traceback.print_exc()
                     pass
 
     @commands.Cog.listener()
