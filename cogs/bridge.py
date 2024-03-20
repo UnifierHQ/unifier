@@ -2166,17 +2166,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 if webhook.id in hook_ids:
                     try:
-                        if msg.source=='discord':
-                            msgid = await msg.fetch_id(key)
-                        else:
-                            msgid = await msg.fetch_external('discord',key)
+                        msgid = await msg.fetch_id(key)
                         await webhook.edit_message(msgid,content=message.content, allowed_mentions=mentions)
                     except:
                         # likely deleted msg
                         pass
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data = msg.external_copies['revolt']
+            data2 = msg.external_copies['revolt']
 
             components = message.content.split('<@')
             offset = 0
@@ -2198,7 +2195,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 offset += 1
             revoltfriendly = message.content
 
-            for key in data:
+            for key in data2:
                 try:
                     try:
                         guild = self.bot.revolt_client.get_server(key)
@@ -2212,7 +2209,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     except:
                         pass
                     ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
-                    msg_revolt = await ch.fetch_message(data[key])
+                    msg_revolt = await ch.fetch_message(data2[key])
                     await msg_revolt.edit(content=revoltfriendly)
                 except:
                     traceback.print_exc()
