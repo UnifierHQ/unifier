@@ -299,7 +299,6 @@ class UnifierBridge:
                 except:
                     continue
 
-
             if sameguild:
                 if not should_resend or not platform=='discord':
                     continue
@@ -343,7 +342,11 @@ class UnifierBridge:
                         try:
                             content = message.reference.cached_message.content
                         except:
-                            content = await message.channel.fetch_message(message.reference.message_id).content
+                            if source=='revolt':
+                                msg = await message.channel.fetch_message(message.replies[0].id)
+                            else:
+                                msg = await message.channel.fetch_message(message.reference.message_id).content
+                            content = msg.content
                         clean_content = discord.utils.remove_markdown(content)
 
                         msg_components = clean_content.split('<@')
