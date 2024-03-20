@@ -559,8 +559,7 @@ class UnifierBridge:
 
             if platform=='discord':
                 try:
-                    print(str(guild) in str(self.bot.db['experiments']['threaded_bridge']))
-                    print(components)
+                    print(str(self.bot.db['experiments']['threaded_bridge']))
                     if guild in str(self.bot.db['experiments']['threaded_bridge']) and not components:
                         synchook = None
                         try:
