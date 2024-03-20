@@ -1566,8 +1566,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
-            if not msg.webhook:
-                return await msgconf.edit('Deleted message (parent deleted, copies will follow)',ephemeral=True)
+            if msg.webhook:
+                raise ValueError()
+            return await msgconf.edit('Deleted message (parent deleted, copies will follow)',ephemeral=True)
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
@@ -1786,9 +1787,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             try:
                 await self.bot.bridge.delete_parent(msg_id)
-                if not msg.webhook:
-                    await interaction.message.edit(components=components)
-                    return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
+                if msg.webhook:
+                    raise ValueError()
+                await interaction.message.edit(components=components)
+                return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
             except:
                 try:
                     deleted = await self.bot.bridge.delete_copies(msg_id)
