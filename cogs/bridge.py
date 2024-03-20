@@ -93,7 +93,7 @@ class SelfDeleteException(Exception):
     pass
 
 class UnifierMessage:
-    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room, external_urls=None, webhook=False):
+    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room, external_urls=None, webhook=False, prehook=None):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -105,6 +105,7 @@ class UnifierMessage:
         self.source = source
         self.room = room
         self.webhook = webhook
+        self.prehook = prehook
 
     async def fetch_id(self, guild_id):
         if guild_id == self.guild_id:
@@ -140,14 +141,16 @@ class UnifierBridge:
 
     async def fetch_message(self,message_id):
         for message in self.bridged:
-            if str(message.id)==str(message_id) or str(message_id) in str(message.copies) or str(message_id) in str(message.external_copies):
+            if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
+                    str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
                 return message
         raise ValueError("No message found")
 
     async def indexof(self,message_id):
         index = 0
         for message in self.bridged:
-            if str(message.id)==str(message_id) or str(message_id) in str(message.copies) or str(message_id) in str(message.external_copies):
+            if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
+                    str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
                 return index
             index += 1
         raise ValueError("No message found")
@@ -717,6 +720,7 @@ class UnifierBridge:
                 urls=urls,
                 source=source,
                 webhook=should_resend,
+                prehook=parent_id,
                 room=room
             ))
 
