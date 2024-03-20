@@ -2095,11 +2095,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send(text)
 
     @commands.command(hidden=True)
-    async def initbridge(self, ctx):
+    async def initbridge(self, ctx, *, args):
         if not ctx.author.id == 356456393491873795:
             return
+        msgs = None
+        if 'preserve' in args:
+            msgs = self.bot.bridge.bridged
         del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot)
+        if 'preserve' in args and msgs:
+            self.bot.bridge.bridged = msgs
         await ctx.send('Bridge initialized')
 
     @commands.Cog.listener()
