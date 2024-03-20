@@ -2284,7 +2284,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             pass
 
-        msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+        try:
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+            if not msg.id == message.id:
+                raise ValueError()
+        except:
+            return
 
         for key in data:
             if int(key) == message.guild.id:
@@ -2319,25 +2324,29 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
 
         if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data = msg.external_copies['revolt']
-            for key in data:
-                try:
+            try:
+                data = msg.external_copies['revolt']
+            except:
+                pass
+            else:
+                for key in data:
                     try:
-                        guild = self.bot.revolt_client.get_server(key)
-                    except:
-                        continue
-                    try:
-                        if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
-                                message.server.id) in str(
-                                self.bot.db["blocked"][f'{guild.id}']):
+                        try:
+                            guild = self.bot.revolt_client.get_server(key)
+                        except:
                             continue
+                        try:
+                            if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
+                                    message.server.id) in str(
+                                    self.bot.db["blocked"][f'{guild.id}']):
+                                continue
+                        except:
+                            pass
+                        ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
+                        msg_revolt = await ch.fetch_message(data[key])
+                        await msg_revolt.delete()
                     except:
                         pass
-                    ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][key][0])
-                    msg_revolt = await ch.fetch_message(data[key])
-                    await msg_revolt.delete()
-                except:
-                    pass
 
 def setup(bot):
     bot.add_cog(Bridge(bot))
