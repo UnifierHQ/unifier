@@ -798,7 +798,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if len(component) == 6 and len(username.split('(')) >= 2:
             username = username[:-9]
         text = f'THINK, {username.upper()}, THINK!'
-        text_width, text_height = im_draw.textsize(text, font)
+        text_width = im_draw.textlength(text, font)
         width = 1116 - text_width
         width = width / 2
         width = int(width)
