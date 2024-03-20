@@ -301,7 +301,7 @@ class UnifierBridge:
 
 
             if sameguild:
-                if not should_resend and not platform=='discord':
+                if not should_resend or not platform=='discord':
                     continue
 
             # Reply processing
