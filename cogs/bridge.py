@@ -152,10 +152,7 @@ class UnifierBridge:
             index += 1
         raise ValueError("No message found")
 
-    async def delete_parent(self, message, webhook):
-        if not webhook:
-            await message.delete()
-            return
+    async def delete_parent(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
         if msg.source=='discord':
             guild = self.bot.get_guild(int(msg.guild_id))
@@ -192,7 +189,7 @@ class UnifierBridge:
                     continue
 
                 try:
-                    await webhook.delete_message(int(msgs[key]))
+                    await webhook.delete_message(int(msgs[key][1]))
                     count += 1
                 except:
                     pass
@@ -1513,7 +1510,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await ctx.send('You didn\'t send this message!')
 
         try:
-            await self.bot.bridge.delete_parent(msg_id,msg.webhook)
+            await self.bot.bridge.delete_parent(msg_id)
             if not msg.webhook:
                 return await ctx.send('Deleted message (parent deleted, copies will follow)')
         except:
