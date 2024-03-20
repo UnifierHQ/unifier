@@ -513,7 +513,10 @@ class UnifierBridge:
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
 
             elif platform=='revolt':
-                ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
+                try:
+                    ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
+                except:
+                    ch = await destguild.fetch_channel(self.bot.db['rooms_revolt'][room][guild][0])
 
                 # Processing replies for Revolt here for efficiency
                 replies = []
