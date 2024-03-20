@@ -2115,6 +2115,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for key in msg.external_copies[platform]:
                 info = msg.external_copies[platform][key]
                 text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+        text = f'{text}\n\nURLs (discord):'
+        for key in msg.urls:
+            text = f'{text}\n{key}: [link](<{msg.urls[key]}>)'
         await ctx.send(text)
 
     @commands.command(hidden=True)
