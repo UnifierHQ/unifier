@@ -101,6 +101,16 @@ async def on_ready():
                 traceback.print_exc()
             except:
                 log("BOT","warn",f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
+        try:
+            if 'guilded' in data['external']:
+                bot.load_extension("cogs.bridge_guilded")
+        except:
+            try:
+                x = open('cogs/bridge_guilded.py','r')
+                x.close()
+                traceback.print_exc()
+            except:
+                log("BOT","warn",f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")
