@@ -752,7 +752,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msgs = []
         if hasattr(self.bot, 'bridge'):
             msgs = self.bot.bridge.bridged
-        del self.bot.bridge
+            del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot)
         self.bot.bridge.bridged = msgs
 
