@@ -281,7 +281,8 @@ class UnifierBridge:
 
         # Broadcast message
         for guild in list(guilds.keys()):
-            sameguild = guild == str(message.guild.id)
+            if source=='discord':
+                sameguild = guild == str(message.guild.id)
 
             # Destination guild object
             destguild = None
