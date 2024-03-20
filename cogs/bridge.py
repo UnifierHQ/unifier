@@ -139,14 +139,14 @@ class UnifierBridge:
 
     async def fetch_message(self,message_id):
         for message in self.bridged:
-            if str(message.id)==str(message_id) or str(message_id) in str(message.copies) or str(message_id) in str(message.copies_external):
+            if str(message.id)==str(message_id) or str(message_id) in str(message.copies) or str(message_id) in str(message.external_copies):
                 return message
         raise ValueError("No message found")
 
     async def indexof(self,message_id):
         index = 0
         for message in self.bridged:
-            if str(message.id)==str(message_id) or str(message_id) in str(message.copies) or str(message_id) in str(message.copies_external):
+            if str(message.id)==str(message_id) or str(message_id) in str(message.copies) or str(message_id) in str(message.external_copies):
                 return index
             index += 1
         raise ValueError("No message found")
