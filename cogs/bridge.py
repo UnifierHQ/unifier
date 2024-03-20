@@ -586,7 +586,7 @@ class UnifierBridge:
 
                             if sameguild_tr:
                                 thread_sameguild.append(msg.id)
-                            thread_results.update({f'{guild_id}':[msg.channel_id, msg.id]})
+                            message_ids.update({f'{guild_id}':[msg.channel.id, msg.id]})
                             thread_urls.update(
                                 {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
 
