@@ -683,7 +683,7 @@ class UnifierBridge:
             await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
         message_ids = message_ids
-        if len(thread_sameguild) > 0:
+        if len(thread_sameguild) > 0 and platform=='discord' and source=='discord':
             parent_id = thread_sameguild[0]
         else:
             parent_id = message.id
@@ -720,7 +720,7 @@ class UnifierBridge:
                 urls=urls,
                 source=source,
                 webhook=should_resend,
-                prehook=parent_id,
+                prehook=message.id,
                 room=room
             ))
 
