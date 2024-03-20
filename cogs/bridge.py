@@ -650,21 +650,25 @@ class UnifierBridge:
                     pass
 
                 rvtcolor = None
-                if message.author.id in list(self.bot.db['colors'].keys()):
-                    color = self.bot.db['colors'][message.author.id]
+                if str(message.author.id) in list(self.bot.db['colors'].keys()):
+                    color = self.bot.db['colors'][str(message.author.id)]
                     if color == 'inherit':
-                        try:
-                            color = message.author.roles[len(message.author.roles) - 1].colour.replace('#', '')
-                            rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
-                            rvtcolor = f'rgb{rgbtuple}'
-                        except:
-                            pass
+                        if source=='revolt':
+                            try:
+                                color = message.author.roles[len(message.author.roles) - 1].colour.replace('#', '')
+                                rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
+                                rvtcolor = f'rgb{rgbtuple}'
+                            except:
+                                pass
+                        else:
+                            rvtcolor = f'rgb({message.author.color.r},{message.author.color.g},{message.author.color.b})'
                     else:
                         try:
                             rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
                             rvtcolor = f'rgb{rgbtuple}'
                         except:
                             pass
+
                 try:
                     persona = revolt.Masquerade(name=msg_author, avatar=url, colour=rvtcolor)
                 except:
