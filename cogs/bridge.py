@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 import hashlib
+
+import guilded
 import revolt
 from discord.ext import commands
 import traceback
@@ -229,8 +231,13 @@ class UnifierBridge:
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', postthread: bool = False):
         source = 'discord'
-        if type(message) is revolt.Message:
-            source = 'revolt'
+        extlist = list(self.bot.extensions)
+        if 'cogs.bridge_revolt' in extlist:
+            if type(message) is revolt.Message:
+                source = 'revolt'
+        if 'cogs.bridge_guilded' in extlist:
+            if type(message) is guilded.ChatMessage:
+                source = 'guilded'
 
         user_hash = encrypt_string(f'{message.author.id}')[:3]
         if source == 'revolt':
@@ -250,6 +257,8 @@ class UnifierBridge:
         guilds = self.bot.db['rooms'][room]
         if platform=='revolt':
             guilds = self.bot.db['rooms_revolt'][room]
+        elif platform=='guilded':
+            guilds = self.bot.db['rooms_guilded'][room]
 
         try:
             roomindex = list(self.bot.db['rooms'].keys()).index(room)
@@ -357,7 +366,7 @@ class UnifierBridge:
 
         # Broadcast message
         for guild in list(guilds.keys()):
-            if source=='revolt':
+            if source=='revolt' or source=='guilded':
                 sameguild = guild == str(message.server.id)
             else:
                 sameguild = guild == str(message.guild.id)
@@ -372,6 +381,11 @@ class UnifierBridge:
             elif platform == 'revolt':
                 try:
                     destguild = self.bot.revolt_client.get_server(guild)
+                except:
+                    continue
+            elif platform == 'guilded':
+                try:
+                    destguild = self.bot.guilded_client.get_server(guild)
                 except:
                     continue
 
@@ -389,6 +403,8 @@ class UnifierBridge:
             try:
                 if source=='revolt':
                     msgid = message.replies[0].id
+                elif source=='guilded':
+                    msgid = message.replied_to[0].id
                 else:
                     msgid = message.reference.message_id
                 reply_msg = await self.fetch_message(msgid)
@@ -506,13 +522,31 @@ class UnifierBridge:
                     elif source=='revolt':
                         filebytes = await source_file.read()
                         return discord.File(fp=BytesIO(filebytes), filename=source_file.filename)
+                    elif source=='guilded':
+                        tempfile = await source_file.to_file()
+                        return discord.File(fp=tempfile.fp, filename=source_file.filename)
                 elif platform=='revolt':
                     if source=='discord':
                         f = await source_file.to_file(use_cached=True)
                         return revolt.File(f.fp.read(), filename=f.filename)
+                    elif source=='guilded':
+                        f = await source_file.to_file()
+                        return revolt.File(f.fp.read(), filename=f.filename)
                     elif source=='revolt':
                         filebytes = await source_file.read()
                         return revolt.File(filebytes, filename=source_file.filename)
+                elif platform=='guilded':
+                    if source=='guilded':
+                        try:
+                            return await source_file.to_file()
+                        except:
+                            return await source_file.to_file()
+                    elif source=='revolt':
+                        filebytes = await source_file.read()
+                        return guilded.File(fp=BytesIO(filebytes), filename=source_file.filename)
+                    elif source=='discord':
+                        tempfile = await source_file.to_file(use_cached=True)
+                        return guilded.File(fp=tempfile.fp, filename=source_file.filename)
 
             for attachment in message.attachments:
                 if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
@@ -525,8 +559,12 @@ class UnifierBridge:
                         if source=='revolt':
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
                                                        replies=[revolt.MessageReply(message)])
+                        elif source=='guilded':
+                            await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                                       reply_to=message)
                         else:
-                            await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',reference=message)
+                            await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                                       reference=message)
                     break
                 files.append(await to_file(attachment))
 
@@ -538,6 +576,8 @@ class UnifierBridge:
                     author = message.author.name
                 else:
                     author = message.author.display_name
+            elif source=='guilded':
+                author = message.author.name
             else:
                 author = message.author.global_name
             if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
@@ -625,7 +665,6 @@ class UnifierBridge:
                     else:
                         message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
-
             elif platform=='revolt':
                 try:
                     ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
@@ -680,6 +719,30 @@ class UnifierBridge:
                 )
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
+            elif platform=='guilded':
+                webhook = None
+                try:
+                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild]}']
+                except:
+                    hooks = await destguild.webhooks()
+                    for hook in hooks:
+                        if f'{guild}' in list(self.bot.webhook_cache.keys()):
+                            self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
+                        else:
+                            self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
+                        if hook.id in self.bot.db['rooms_guilded'][room][guild]:
+                            webhook = hook
+                            break
+                if not webhook:
+                    continue
+                msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
+                                         content=message.content,files=files, allowed_mentions=mentions,
+                                         components=components, wait=True)
+                if sameguild:
+                    thread_sameguild = [msg.id]
+                else:
+                    message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
+                urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
 
         # Update cache
         for thread in threads:
