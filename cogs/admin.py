@@ -817,8 +817,8 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             log(type='INS', status='info', content='Installing Upgrader')
             embed.description = ':white_check_mark: Downloading Guilded Support\n:hourglass_flowing_sand: Installing Guilded Support dependencies\n:x: Installing Guilded Support\n:x: Activating Guilded Support'
             await msg.edit(embed=embed)
-            log(type='PIP', status='info', content='Installing: revolt.py')
-            status(os.system('python3 -m pip install -U revolt.py'))
+            log(type='PIP', status='info', content='Installing: guilded.py')
+            status(os.system('python3 -m pip install -U guilded.py'))
             embed.description = ':white_check_mark: Downloading Guilded Support\n:white_check_mark: Installing Guilded Support dependencies\n:hourglass_flowing_sand: Installing Guilded Support\n:x: Activating Guilded Support'
             await msg.edit(embed=embed)
             log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_guilded/bridge_guilded.py')
