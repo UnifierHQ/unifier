@@ -448,6 +448,52 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             traceback.print_exc()
             await ctx.send('Something went wrong while restarting the instance.')
 
+    @commands.command(name='start-guilded', hidden=True)
+    async def start_guilded(self, ctx):
+        """Starts the Guilded client. This is automatically done on boot"""
+        if not ctx.author.id == owner:
+            return
+        try:
+            self.bot.load_extension('cogs.bridge_guilded')
+            await ctx.send('Guilded client started.')
+        except Exception as e:
+            if isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                return await ctx.send('Guilded client is already online.')
+            traceback.print_exc()
+            await ctx.send('Something went wrong while starting the instance.')
+
+    @commands.command(name='stop-guilded', hidden=True)
+    async def stop_guilded(self, ctx):
+        """Kills the Guilded client. This is automatically done when upgrading Unifier."""
+        if not ctx.author.id == owner:
+            return
+        try:
+            await self.bot.guilded_client.close()
+            del self.bot.guilded_client
+            self.bot.unload_extension('cogs.bridge_guilded')
+            await ctx.send('Guilded client stopped.')
+        except Exception as e:
+            if isinstance(e, AttributeError):
+                return await ctx.send('Guilded client is already offline.')
+            traceback.print_exc()
+            await ctx.send('Something went wrong while killing the instance.')
+
+    @commands.command(name='restart-guilded', hidden=True)
+    async def restart_guilded(self, ctx):
+        """Restarts the Guilded client."""
+        if not ctx.author.id == owner:
+            return
+        try:
+            await self.bot.guilded_client.close()
+            del self.bot.guilded_client
+            self.bot.reload_extension('cogs.bridge_guilded')
+            await ctx.send('Guilded client restarted.')
+        except Exception as e:
+            if isinstance(e, AttributeError):
+                return await ctx.send('Guilded client is not offline.')
+            traceback.print_exc()
+            await ctx.send('Something went wrong while restarting the instance.')
+
     @commands.command(name='install-upgrader', hidden=True)
     async def install_upgrader(self, ctx):
         if not ctx.author.id==owner:
