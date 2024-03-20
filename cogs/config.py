@@ -32,7 +32,7 @@ class AutoSaveDict(dict):
         self.file_path = 'data.json'
         
         # Ensure necessary keys exist
-        self.update({'rules':{},'rooms':{},'rooms_revolt':{},'emojis':[],'nicknames':{},'descriptions':{},
+        self.update({'rules':{},'rooms':{},'rooms_revolt':{},'rooms_guilded':{},'emojis':[],'nicknames':{},'descriptions':{},
                      'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
                      'avatars':{},'experiments':{},'experiments_info':{},'colors':{}})
 
