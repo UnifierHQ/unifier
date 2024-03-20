@@ -346,7 +346,7 @@ class UnifierBridge:
 
         # Threading
         thread_sameguild = []
-        thread_results = []
+        thread_results = {}
         thread_urls = {}
         threads = []
 
@@ -586,7 +586,7 @@ class UnifierBridge:
 
                             if sameguild_tr:
                                 thread_sameguild.append(msg.id)
-                            message_ids.update({f'{guild_id}':[msg.channel_id, msg.id]})
+                            thread_results.update({f'{guild_id}':[msg.channel_id, msg.id]})
                             thread_urls.update(
                                 {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
 
@@ -677,6 +677,7 @@ class UnifierBridge:
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
+        message_ids = message_ids | thread_results
         try:
             index = await self.indexof(message.id)
             msg_object = await self.fetch_message(message.id)
