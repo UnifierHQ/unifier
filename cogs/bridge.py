@@ -346,6 +346,8 @@ class UnifierBridge:
 
         # Threading
         thread_sameguild = []
+        thread_results = []
+        thread_urls = {}
         threads = []
 
         # Broadcast message
@@ -557,11 +559,10 @@ class UnifierBridge:
 
             if platform=='discord':
                 try:
-                    if guild in str(self.bot.db['experiments']['threaded_bridge']):
-                        raise ValueError() # wip
+                    if guild in str(self.bot.db['experiments']['threaded_bridge']) and not components:
                         synchook = None
                         try:
-                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][roomname][guild]}']
+                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
                         except:
                             hooks = await destguild.webhooks()
                             for hook in hooks:
@@ -570,6 +571,23 @@ class UnifierBridge:
                                     break
                         if not synchook:
                             continue
+
+                        def thread_msg():
+                            sameguild_tr = sameguild
+                            guild_id = synchook.guild_id
+                            msg = synchook.send(avatar_url=url, username=msg_author,
+                                                content=message.content, embeds=embeds,
+                                                files=files, allowed_mentions=mentions, wait=True)
+
+                            if sameguild_tr:
+                                thread_sameguild.append(msg.id)
+                            message_ids.update({f'{guild_id}':msg.id})
+                            thread_urls.update(
+                                {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
+
+                        thread = threading.Thread(target=thread_msg)
+                        thread.start()
+                        threads.append(thread)
                     else:
                         raise ValueError()
                 except:
@@ -651,6 +669,7 @@ class UnifierBridge:
         # Update cache
         for thread in threads:
             await self.bot.loop.run_in_executor(None, lambda:thread.join())
+        urls = urls | thread_urls
         try:
             index = await self.indexof(message.id)
             msg_object = await self.fetch_message(message.id)
