@@ -43,9 +43,11 @@ asciiart = """  _    _       _  __ _
  | |__| | | | | | | | |  __/ |   
   \\____/|_| |_|_|_| |_|\\___|_| """
 
+print(asciiart)
 print('Version: '+vinfo['version'])
 print('Release '+str(vinfo['release']))
-print('')
+print()
+
 def log(type='???',status='ok',content='None'):
     time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
     if status=='ok':
