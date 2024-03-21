@@ -18,7 +18,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 import hashlib
-import emoji as emojilib
 import asyncio
 import guilded
 import revolt
