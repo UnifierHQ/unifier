@@ -204,7 +204,7 @@ class UnifierBridge:
             todelete = await ch.fetch_message(int(msg.id))
             await todelete.delete()
         elif msg.source=='guilded':
-            guild = self.bot.guilded_client.get_guild(msg.guild_id)
+            guild = self.bot.guilded_client.get_server(msg.guild_id)
             ch = guild.get_channel(msg.channel_id)
             todelete = await ch.fetch_message(msg.id)
             await todelete.delete()
