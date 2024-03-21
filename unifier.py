@@ -114,7 +114,8 @@ async def on_ready():
                     await bot.bridge.restore()
                     log('SYS','ok','Restored '+str(len(bot.bridge.bridged))+ 'messages')
             except:
-                pass
+                traceback.print_exc()
+                log('SYS','warn','Message restore failed')
         try:
             if 'revolt' in data['external']:
                 bot.load_extension("cogs.bridge_revolt")
