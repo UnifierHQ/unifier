@@ -15,11 +15,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import asyncio
 
 import discord
 import hashlib
-
+import emoji as emojilib
+import asyncio
 import guilded
 import revolt
 from discord.ext import commands
@@ -685,6 +685,10 @@ class UnifierBridge:
             embeds = message.embeds
             if not message.author.bot:
                 embeds = []
+
+            # Convert unicode emojis to markdown
+            if source=='discord' and not platform=='discord':
+                message.content = emojilib.demojize(message.content)
 
             if platform=='discord':
                 try:
