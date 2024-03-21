@@ -540,9 +540,9 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             traceback.print_exc()
             return
         log("BOT", "info", "Closing bot session")
-        await self.bot.close()
         await self.bot.session.close()
         log("SYS", "info", "Shutdown complete")
+        await self.bot.close()
         sys.exit(0)
 
     @commands.command(name='install-upgrader', hidden=True)
