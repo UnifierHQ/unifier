@@ -367,7 +367,7 @@ class UnifierBridge:
 
                 # Fetch webhook
                 for hook in hooks:
-                    if self.bot.db['rooms'][msg.room][key][0]==hook.id:
+                    if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
                         webhook: discord.Webhook = hook
                         break
 
@@ -402,7 +402,7 @@ class UnifierBridge:
 
                 # Fetch webhook
                 for hook in hooks:
-                    if int(self.bot.db['rooms_guilded'][msg.room][key][0])==hook.id:
+                    if self.bot.db['rooms_guilded'][msg.room][key][0]==hook.id:
                         webhook: guilded.Webhook = hook
                         break
 
