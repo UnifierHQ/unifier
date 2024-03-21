@@ -606,9 +606,12 @@ class UnifierBridge:
                 pass
             if platform=='discord':
                 if is_pr or is_pr_ref:
-                    button_style = discord.ButtonStyle.blurple
-                    if source == 'revolt':
+                    if source == 'discord':
+                        button_style = discord.ButtonStyle.blurple
+                    elif source == 'revolt':
                         button_style = discord.ButtonStyle.red
+                    else:
+                        button_style = discord.ButtonStyle.gray
                     if is_pr:
                         pr_actionrow = discord.ui.ActionRow(
                             discord.ui.Button(style=button_style, label=f'PR ID: {pr_id}',
@@ -660,11 +663,15 @@ class UnifierBridge:
                             trimmed = clean_content
                         trimmed = trimmed.replace('\n', ' ')
 
-                    button_style = discord.ButtonStyle.blurple
                     author_text = '[unknown]'
+                    if source == 'discord':
+                        button_style = discord.ButtonStyle.blurple
+                    elif source == 'revolt':
+                        button_style = discord.ButtonStyle.red
+                    else:
+                        button_style = discord.ButtonStyle.gray
+
                     try:
-                        if source=='revolt':
-                            button_style = discord.ButtonStyle.red
                         if reply_msg.source=='revolt':
                             user = self.bot.revolt_client.get_user(reply_msg.author_id)
                             if not user.display_name:
