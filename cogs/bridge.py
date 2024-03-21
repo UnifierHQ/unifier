@@ -166,7 +166,7 @@ class UnifierBridge:
                 author_id=data[f'{x}']['author_id'],
                 guild_id=data[f'{x}']['guild_id'],
                 channel_id=data[f'{x}']['channel_id'],
-                original=data[f'{x}']['original'],
+                original=data[f'{x}']['id'],
                 copies=data[f'{x}']['copies'],
                 external_copies=data[f'{x}']['external_copies'],
                 urls=data[f'{x}']['urls'],
