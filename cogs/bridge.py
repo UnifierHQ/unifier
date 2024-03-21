@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import asyncio
 
 import discord
 import hashlib
@@ -2224,7 +2225,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.bridge.send(room=roomname,message=message,platform='discord')
 
         for platform in externals:
-            await self.bot.bridge.send(room=roomname, message=message, platform=platform)
+            asyncio.run(self.bot.bridge.send(room=roomname, message=message, platform=platform))
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
