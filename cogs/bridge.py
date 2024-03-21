@@ -2458,62 +2458,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             return
 
-        for key in data:
-            if int(key) == message.guild.id:
-                continue
-            if key in gbans:
-                continue
-            banlist = []
-            if f'{message.guild.id}' in list(self.bot.db['blocked'].keys()):
-                banlist = self.bot.db['blocked'][f'{message.guild.id}']
-            if message.author.id in banlist and not message.author.id in self.bot.moderators:
-                continue
-            if key in list(data.keys()):
-                hook_ids = data[key]
-            else:
-                hook_ids = []
-            sent = False
-            guild = self.bot.get_guild(int(key))
-            try:
-                hooks = await guild.webhooks()
-            except:
-                continue
-            for webhook in hooks:
-                if webhook.id in hook_ids:
-                    try:
-                        if msg.source=='discord':
-                            msgid = await msg.fetch_id(key)
-                        else:
-                            msgid = await msg.fetch_external('discord',key)
-                        await webhook.delete_message(msgid)
-                    except:
-                        # likely deleted msg
-                        pass
-
-        if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            try:
-                data = msg.external_copies['revolt']
-            except:
-                pass
-            else:
-                for key in data:
-                    try:
-                        try:
-                            guild = self.bot.revolt_client.get_server(key)
-                        except:
-                            continue
-                        try:
-                            if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
-                                    message.server.id) in str(
-                                    self.bot.db["blocked"][f'{guild.id}']):
-                                continue
-                        except:
-                            pass
-                        ch = guild.get_channel(data[key][0])
-                        msg_revolt = await ch.fetch_message(data[key][1])
-                        await msg_revolt.delete()
-                    except:
-                        pass
+        await self.bot.bridge.delete_copies(msg.id)
 
 def setup(bot):
     bot.add_cog(Bridge(bot))
