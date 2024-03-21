@@ -447,10 +447,10 @@ class UnifierBridge:
 
         if platform=='revolt':
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
-                raise ValueError("Revolt Support not initialized.")
+                return
         elif platform=='guilded':
             if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
-                raise ValueError("Guilded Support not initialized.")
+                return
         elif not platform=='discord':
             raise ValueError("Unsupported platform")
 
