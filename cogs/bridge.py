@@ -686,10 +686,6 @@ class UnifierBridge:
             if not message.author.bot:
                 embeds = []
 
-            # Convert unicode emojis to markdown
-            if source=='discord' and not platform=='discord':
-                message.content = emojilib.demojize(message.content)
-
             if platform=='discord':
                 try:
                     if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord':
