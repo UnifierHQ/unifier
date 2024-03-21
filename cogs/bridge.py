@@ -246,6 +246,8 @@ class UnifierBridge:
             return count
 
         async def delete_guilded(msgs):
+            if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
+                return
             count = 0
             for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
                 guild = self.bot.guilded_client.get_guild(key)
@@ -274,6 +276,8 @@ class UnifierBridge:
             return count
 
         async def delete_revolt(msgs):
+            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
+                return
             count = 0
             for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
                 try:
@@ -366,6 +370,8 @@ class UnifierBridge:
                     pass
 
         async def edit_guilded(msgs,friendly=False):
+            if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
+                return
             if friendly:
                 text = await make_friendly(content)
             else:
@@ -397,6 +403,8 @@ class UnifierBridge:
                     pass
 
         async def edit_revolt(msgs,friendly=False):
+            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
+                return
             if friendly:
                 text = await make_friendly(content)
             else:
