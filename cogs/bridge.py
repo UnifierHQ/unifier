@@ -250,7 +250,7 @@ class UnifierBridge:
                 return
             count = 0
             for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
-                guild = self.bot.guilded_client.get_guild(key)
+                guild = self.bot.guilded_client.get_server(key)
                 try:
                     hooks = await guild.webhooks()
                 except:
@@ -378,7 +378,7 @@ class UnifierBridge:
                 text = content
 
             for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
-                guild = self.bot.guilded_client.get_guild(key)
+                guild = self.bot.guilded_client.get_server(key)
                 try:
                     hooks = await guild.webhooks()
                 except:
