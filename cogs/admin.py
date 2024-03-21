@@ -541,6 +541,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             return
         log("BOT", "info", "Closing bot session")
         await self.bot.close()
+        await self.bot.session.close()
         log("SYS", "info", "Shutdown complete")
         sys.exit(0)
 
