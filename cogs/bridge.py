@@ -2224,8 +2224,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await self.bot.bridge.send(room=roomname,message=message,platform='discord')
 
+        tasks = []
+
         for platform in externals:
-            asyncio.run(self.bot.bridge.send(room=roomname, message=message, platform=platform))
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform)))
+
+        await asyncio.gather(*tasks)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
