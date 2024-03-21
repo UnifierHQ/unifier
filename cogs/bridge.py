@@ -163,18 +163,18 @@ class UnifierBridge:
 
         for x in range(len(data)):
             msg = UnifierMessage(
-                author_id=data[x]['author_id'],
-                guild_id=data[x]['guild_id'],
-                channel_id=data[x]['channel_id'],
-                original=data[x]['original'],
-                copies=data[x]['copies'],
-                external_copies=data[x]['external_copies'],
-                urls=data[x]['urls'],
-                source=data[x]['source'],
-                room=data[x]['room'],
-                external_urls=data[x]['external_urls'],
-                webhook=data[x]['webhook'],
-                prehook=data[x]['prehook']
+                author_id=data[f'{x}']['author_id'],
+                guild_id=data[f'{x}']['guild_id'],
+                channel_id=data[f'{x}']['channel_id'],
+                original=data[f'{x}']['original'],
+                copies=data[f'{x}']['copies'],
+                external_copies=data[f'{x}']['external_copies'],
+                urls=data[f'{x}']['urls'],
+                source=data[f'{x}']['source'],
+                room=data[f'{x}']['room'],
+                external_urls=data[f'{x}']['external_urls'],
+                webhook=data[f'{x}']['webhook'],
+                prehook=data[f'{x}']['prehook']
             )
             self.bridged.append(msg)
         del data
