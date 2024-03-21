@@ -220,6 +220,9 @@ class UnifierBridge:
         async def delete_discord(msgs):
             count = 0
             for key in list(self.bot.db['rooms'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
                 guild = self.bot.get_guild(int(key))
                 try:
                     hooks = await guild.webhooks()
@@ -250,6 +253,9 @@ class UnifierBridge:
                 return
             count = 0
             for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
                 guild = self.bot.guilded_client.get_server(key)
                 try:
                     hooks = await guild.webhooks()
@@ -280,6 +286,9 @@ class UnifierBridge:
                 return
             count = 0
             for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
                 try:
                     ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
                     todelete = await ch.fetch_message(msgs[key][1])
@@ -346,6 +355,9 @@ class UnifierBridge:
                 text = content
 
             for key in list(self.bot.db['rooms'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
                 guild = self.bot.get_guild(int(key))
                 try:
                     hooks = await guild.webhooks()
@@ -378,6 +390,9 @@ class UnifierBridge:
                 text = content
 
             for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
                 guild = self.bot.guilded_client.get_server(key)
                 try:
                     hooks = await guild.webhooks()
@@ -411,6 +426,9 @@ class UnifierBridge:
                 text = content
 
             for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
                 try:
                     ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
                     toedit = await ch.fetch_message(msgs[key][1])
