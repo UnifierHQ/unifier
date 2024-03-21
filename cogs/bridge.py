@@ -635,8 +635,10 @@ class UnifierBridge:
                         except:
                             if source=='revolt':
                                 msg = await message.channel.fetch_message(message.replies[0].id)
+                            elif source=='guilded':
+                                msg = await message.channel.fetch_message(message.replied_to[0].id)
                             else:
-                                msg = await message.channel.fetch_message(message.reference.message_id).content
+                                msg = await message.channel.fetch_message(message.reference.message_id)
                             content = msg.content
                         clean_content = discord.utils.remove_markdown(content)
 
