@@ -29,10 +29,23 @@ from time import gmtime, strftime
 with open('config.json', 'r') as file:
     data = json.load(file)
 
+with open('update.json', 'r') as file:
+    vinfo = json.load(file)
+
 bot = commands.Bot(command_prefix=data['prefix'],intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
+asciiart = """  _    _       _  __ _           
+ | |  | |     (_)/ _(_)          
+ | |  | |_ __  _| |_ _  ___ _ __ 
+ | |  | | '_ \\| |  _| |/ _ \\ '__|
+ | |__| | | | | | | | |  __/ |   
+  \\____/|_| |_|_|_| |_|\\___|_| """
+
+print('Version: '+vinfo['version'])
+print('Release '+str(vinfo['release']))
+print('')
 def log(type='???',status='ok',content='None'):
     time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
     if status=='ok':
@@ -85,14 +98,20 @@ async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     log("BOT","info","Loading Unifier extensions...")
     bot.load_extension("cogs.lockdown")
-    try:
+    if hasattr(bot, 'locked'):
         locked = bot.locked
-    except:
+    else:
         locked = False
     if not locked:
         bot.load_extension("cogs.admin")
         bot.pid = os.getpid()
         bot.load_extension("cogs.bridge")
+        if hasattr(bot, 'bridge'):
+            try:
+                if len(bot.bridge.bridged)==0:
+                    await bot.bridge.restore()
+            except:
+                pass
         try:
             if 'revolt' in data['external']:
                 bot.load_extension("cogs.bridge_revolt")

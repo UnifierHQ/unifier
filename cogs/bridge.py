@@ -162,7 +162,21 @@ class UnifierBridge:
             data = json.load(file)
 
         for x in range(len(data)):
-            self.bridged.append(data[x])
+            msg = UnifierMessage(
+                author_id=data[x]['author_id'],
+                guild_id=data[x]['guild_id'],
+                channel_id=data[x]['channel_id'],
+                original=data[x]['original'],
+                copies=data[x]['copies'],
+                external_copies=data[x]['external_copies'],
+                urls=data[x]['urls'],
+                source=data[x]['source'],
+                room=data[x]['room'],
+                external_urls=data[x]['external_urls'],
+                webhook=data[x]['webhook'],
+                prehook=data[x]['prehook']
+            )
+            self.bridged.append(msg)
         del data
         return
 
