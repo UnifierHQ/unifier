@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import sys
 import traceback
 
 import discord
@@ -59,6 +60,7 @@ owner = data['owner']
 branch = data['branch']
 check_endpoint = data['check_endpoint']
 files_endpoint = data['files_endpoint']
+externals = data["external"]
 
 noeval = '''```-------------No eval?-------------
 ⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝
@@ -497,6 +499,50 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 return await ctx.send('Guilded client is not offline.')
             traceback.print_exc()
             await ctx.send('Something went wrong while restarting the instance.')
+
+    @commands.command(aliases=['stop','poweroff','kill'],hidden=True)
+    async def shutdown(self, ctx):
+        """Gracefully shuts the bot down."""
+        if not ctx.author.id == owner:
+            return
+        log("SYS","info","Attempting graceful shutdown...")
+        try:
+            if 'revolt' in externals:
+                log("RVT", "info", "Shutting down Revolt client...")
+                try:
+                    await self.bot.revolt_session.close()
+                    self.bot.revolt_client_task.cancel()
+                    del self.bot.revolt_client
+                    del self.bot.revolt_session
+                    self.bot.unload_extension('cogs.bridge_revolt')
+                    log("RVT", "ok", "Revolt client has been shut down.")
+                except:
+                    log("RVT", "error", "Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
+                    pass
+            if 'guilded' in externals:
+                log("GLD", "info", "Shutting down Revolt client...")
+                try:
+                    await self.bot.guilded_client.close()
+                    self.bot.guilded_client_task.cancel()
+                    del self.bot.guilded_client
+                    self.bot.unload_extension('cogs.bridge_guilded')
+                    log("GLD", "ok", "Guilded client has been shut down.")
+                except:
+                    log("GLD", "error", "Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
+                    pass
+            log("SYS", "info", "Backing up message cache...")
+            await self.bot.bridge.backup(limit=10000)
+            log("SYS", "info", "Backup complete")
+            await ctx.send('Shutting down...')
+        except:
+            log("SYS", "error", "Graceful shutdown failed")
+            await ctx.send('Shutting failed')
+            traceback.print_exc()
+            return
+        log("BOT", "info", "Closing bot session")
+        await self.bot.close()
+        log("SYS", "info", "Shutdown complete")
+        sys.exit(0)
 
     @commands.command(name='install-upgrader', hidden=True)
     async def install_upgrader(self, ctx):

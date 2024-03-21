@@ -109,6 +109,9 @@ class UnifierMessage:
         self.webhook = webhook
         self.prehook = prehook
 
+    def to_dict(self):
+        return self.__dict__
+
     async def fetch_id(self, guild_id):
         if guild_id == self.guild_id:
             return self.id
@@ -140,6 +143,28 @@ class UnifierBridge:
         self.bridged = []
         self.prs = {}
         self.webhook_cache = webhook_cache or {}
+
+    async def backup(self,filename='bridge.json',limit=10000):
+        data = {}
+        index = 0
+        for msg in self.bridged:
+            data.update({f'{index}':msg.to_dict()})
+            index += 1
+            if index==limit:
+                break
+        with open(filename, "w+") as file:
+            json.dump(data,file)
+        del data
+        return
+
+    async def restore(self,filename='bridge.json'):
+        with open(filename, "r") as file:
+            data = json.load(file)
+
+        for x in range(len(data)):
+            self.bridged.append(data[x])
+        del data
+        return
 
     async def fetch_message(self,message_id):
         for message in self.bridged:
