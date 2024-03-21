@@ -112,6 +112,7 @@ async def on_ready():
             try:
                 if len(bot.bridge.bridged)==0:
                     await bot.bridge.restore()
+                    log('SYS','ok','Restored '+str(len(bot.bridge.bridged))+ 'messages')
             except:
                 pass
         try:
