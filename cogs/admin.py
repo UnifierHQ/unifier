@@ -520,7 +520,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                     log("RVT", "error", "Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
                     pass
             if 'guilded' in externals:
-                log("GLD", "info", "Shutting down Revolt client...")
+                log("GLD", "info", "Shutting down Guilded client...")
                 try:
                     await self.bot.guilded_client.close()
                     self.bot.guilded_client_task.cancel()
