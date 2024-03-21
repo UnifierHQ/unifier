@@ -302,6 +302,130 @@ class UnifierBridge:
 
         return count
 
+    async def edit(self, message, content):
+        msg: UnifierMessage = await self.fetch_message(message)
+
+        async def make_friendly(text):
+            components = text.split('<@')
+            offset = 0
+            if text.startswith('<@'):
+                offset = 1
+
+            while offset < len(components):
+                if len(components) == 1 and offset == 0:
+                    break
+                try:
+                    userid = int(components[offset].split('>', 1)[0])
+                except:
+                    userid = components[offset].split('>', 1)[0]
+                try:
+                    if msg.source=='revolt':
+                        user = self.bot.revolt_client.get_user(userid)
+                    elif msg.source=='guilded':
+                        user = self.bot.guilded_client.get_user(userid)
+                    else:
+                        user = self.bot.get_user(userid)
+                    if not user:
+                        raise ValueError()
+                except:
+                    offset += 1
+                    continue
+                text = text.replace(f'<@{userid}>',f'@{user.display_name or user.name}').replace(
+                    f'<@!{userid}>', f'@{user.display_name or user.name}')
+                offset += 1
+            return text
+
+        async def edit_discord(msgs,friendly=False):
+            if friendly:
+                text = await make_friendly(content)
+            else:
+                text = content
+
+            for key in list(self.bot.db['rooms'][msg.room].keys()):
+                guild = self.bot.get_guild(int(key))
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    continue
+                webhook = None
+
+                # Fetch webhook
+                for hook in hooks:
+                    if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
+                        webhook: discord.Webhook = hook
+                        break
+
+                if not webhook:
+                    # No webhook found
+                    continue
+
+                try:
+                    await webhook.edit_message(int(msgs[key][1]),content=text,allowed_mentions=mentions)
+                except:
+                    traceback.print_exc()
+                    pass
+
+        async def edit_guilded(msgs,friendly=False):
+            if friendly:
+                text = await make_friendly(content)
+            else:
+                text = content
+
+            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
+                guild = self.bot.guilded_client.get_guild(key)
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    continue
+                webhook = None
+
+                # Fetch webhook
+                for hook in hooks:
+                    if int(self.bot.db['rooms_guilded'][msg.room][key][0])==hook.id:
+                        webhook: guilded.Webhook = hook
+                        break
+
+                if not webhook:
+                    # No webhook found
+                    continue
+
+                try:
+                    target_msg = await webhook.fetch_message(msgs[key][1])
+                    await target_msg.edit(content=text)
+                except:
+                    traceback.print_exc()
+                    pass
+
+        async def edit_revolt(msgs,friendly=False):
+            if friendly:
+                text = await make_friendly(content)
+            else:
+                text = content
+
+            for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
+                try:
+                    ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
+                    toedit = await ch.fetch_message(msgs[key][1])
+                    await toedit.edit(content=text)
+                except:
+                    traceback.print_exc()
+                    continue
+
+        if msg.source=='discord':
+            await edit_discord(msg.copies)
+        elif msg.source=='revolt':
+            await edit_revolt(msg.copies)
+        elif msg.source=='guilded':
+            await edit_guilded(msg.copies)
+
+        for platform in list(msg.external_copies.keys()):
+            if platform=='discord':
+                await edit_discord(msg.external_copies['discord'],friendly=True)
+            elif platform=='revolt':
+                await edit_revolt(msg.external_copies['revolt'],friendly=True)
+            elif platform=='guilded':
+                await edit_guilded(msg.external_copies['guilded'],friendly=True)
+
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', postthread: bool = False):
         source = 'discord'
@@ -2268,7 +2392,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         hooks = await message.channel.webhooks()
         found = False
-        origin_room = 0
+        origin_room = 0 # keeping this in case i decide to log this
 
         for webhook in hooks:
             index = 0
@@ -2302,82 +2426,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             return
 
-        roomname = msg.room
-
-        if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
-            return
-
-        for key in data:
-            if int(key) == message.guild.id:
-                continue
-            if key in gbans:
-                continue
-            banlist = []
-            if f'{message.guild.id}' in list(self.bot.db['blocked'].keys()):
-                banlist = self.bot.db['blocked'][f'{message.guild.id}']
-            if message.author.id in banlist and not message.author.id in self.bot.moderators:
-                continue
-            if key in list(data.keys()):
-                hook_ids = data[key]
-            else:
-                hook_ids = []
-            sent = False
-            guild = self.bot.get_guild(int(key))
-            try:
-                hooks = await guild.webhooks()
-            except:
-                continue
-            for webhook in hooks:
-                if webhook.id in hook_ids:
-                    try:
-                        msgid = await msg.fetch_id(key)
-                        await webhook.edit_message(msgid,content=message.content, allowed_mentions=mentions)
-                    except:
-                        # likely deleted msg
-                        pass
-
-        if 'revolt' in externals and 'cogs.bridge_revolt' in list(self.bot.extensions):
-            data2 = msg.external_copies['revolt']
-
-            components = message.content.split('<@')
-            offset = 0
-            if message.content.startswith('<@'):
-                offset = 1
-
-            while offset < len(components):
-                if len(components) == 1 and offset == 0:
-                    break
-                try:
-                    userid = int(components[offset].split('>', 1)[0])
-                except:
-                    userid = components[offset].split('>', 1)[0]
-                user = self.bot.get_user(userid)
-                if user:
-                    message.content = message.content.replace(f'<@{userid}>',
-                                                              f'@{user.global_name or user.name}').replace(
-                        f'<@!{userid}>', f'@{user.global_name}')
-                offset += 1
-            revoltfriendly = message.content
-
-            for key in data2:
-                try:
-                    try:
-                        guild = self.bot.revolt_client.get_server(key)
-                    except:
-                        continue
-                    try:
-                        if str(message.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
-                                message.server.id) in str(
-                                self.bot.db["blocked"][f'{guild.id}']):
-                            continue
-                    except:
-                        pass
-                    ch = guild.get_channel(data2[key][0])
-                    msg_revolt = await ch.fetch_message(data2[key][1])
-                    await msg_revolt.edit(content=revoltfriendly)
-                except:
-                    traceback.print_exc()
-                    pass
+        await self.bot.bridge.edit(msg.id,message.content)
 
     @commands.Cog.listener()
     async def on_message_delete(self, message):
