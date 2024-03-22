@@ -660,6 +660,7 @@ class UnifierBridge:
                         try:
                             msg = await self.fetch_message(self.prs[str(pr_id)])
                         except:
+                            traceback.print_exc()
                             # Hide PR reference to avoid issues
                             is_pr_ref = False
                         else:
