@@ -1085,7 +1085,7 @@ class UnifierBridge:
                 # Processing replies for Revolt here for efficiency
                 replytext = ''
 
-                if not trimmed:
+                if not trimmed and reply_msg:
                     is_copy = False
                     try:
                         content = message.reference.cached_message.content
