@@ -812,6 +812,8 @@ class UnifierBridge:
             # Add identifier
             msg_author = author
             if not sameguild or system:
+                if system:
+                    author = self.bot.user.global_name
                 msg_author = author + identifier
 
             # Send message
