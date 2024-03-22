@@ -645,6 +645,9 @@ class UnifierBridge:
                                 discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post {pr_id}',
                                                   emoji='\U0001F517', disabled=True,url=await msg.fetch_url(guild))
                             )
+                    components = discord.ui.MessageComponents(
+                        pr_actionrow
+                    )
                 if reply_msg:
                     if not trimmed:
                         try:
