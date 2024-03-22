@@ -176,7 +176,7 @@ class UnifierBridge:
         with open(filename, "r") as file:
             data = json.load(file)
 
-        for x in range(len(data)-1):
+        for x in range(len(data['messages'])):
             msg = UnifierMessage(
                 author_id=data['messages'][f'{x}']['author_id'],
                 guild_id=data['messages'][f'{x}']['guild_id'],
