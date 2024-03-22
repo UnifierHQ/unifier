@@ -487,7 +487,7 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        pr_msg_id = None
+        pr_id = None
         if roomindex == pr_ref_room_index and message.content.startswith('['):
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
@@ -496,14 +496,14 @@ class UnifierBridge:
                             components[0].lower() == 'newest'):
                         is_pr_ref = True
                         if len(self.prs) > 0:
-                            pr_msg_id = self.prs[list(self.prs.keys())[len(self.prs)-1]]
+                            pr_id = list(self.prs.keys())[len(self.prs)-1]
                             message.content = message.content.replace(f'[{components[0]}]','',1)
                         else:
                             is_pr_ref = False
                     else:
                         if components[0].lower() in list(self.prs.keys()):
                             is_pr_ref = True
-                            pr_msg_id = components[0].lower()
+                            pr_id = components[0].lower()
                             message.content = message.content.replace(f'[{components[0]}]', '', 1)
 
         # Global Emojis processing
