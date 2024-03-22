@@ -1156,14 +1156,13 @@ class UnifierBridge:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
             if msg_object.source==platform:
-                msg_object.copies = msg_object.copies | message_ids
+                self.bridged[index].copies = msg_object.copies | message_ids
             else:
                 try:
-                    msg_object.external_copies[platform] = msg_object.external_copies[platform] | message_ids
+                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[platform] | message_ids
                 except:
-                    msg_object.external_copies.update({platform:message_ids})
-            msg_object.urls = msg_object.urls | urls
-            self.bridged[index] = msg_object
+                    self.bridged[index].external_copies.update({platform:message_ids})
+            self.bridged[index].urls = self.bridged[index].urls | urls
         except:
             copies = {}
             external_copies = {}
@@ -2556,9 +2555,47 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 '**Hold up a sec!**\nThis channel is marked as NSFW, meaning Discord won\'t go mad when you try sending adult content over UniChat. We don\'t want that!'
                 + '\n\nPlease ask your server admins to unmark this channel as NSFW.', reference=message)
 
-        await self.bot.bridge.send(room=roomname,message=message,platform='discord')
+        multisend_exp = False
+        try:
+            multisend_exp = str(message.guild.id) in str(self.bot.db['experiments']['multisend'])
+        except:
+            pass
+
+        if multisend_exp:
+            if message.content.startswith('['):
+                parts = message.content.replace('[','',1).replace('\n',' ').split('] ',1)
+                if len(parts) > 1 and len(parts[0])==6:
+                    if (parts[0].lower()=='newest' or parts[0].lower()=='recent' or
+                            parts[0].lower() == 'latest'):
+                        multisend_exp = False
+                    elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
+                        multisend_exp = False
+            if '[emoji:' in message.content:
+                multisend_exp = False
 
         tasks = []
+
+        if multisend_exp:
+            # Multisend experiment
+            # Sends Discord message along with other platforms to minimize
+            # latency on external platforms.
+            self.bot.bridge.bridged.append(
+                msg=UnifierMessage(
+                    author_id=message.author.id,
+                    guild_id=message.guild.id,
+                    channel_id=message.channel.id,
+                    original=message.id,
+                    copies={},
+                    external_copies={},
+                    urls={},
+                    source='discord',
+                    room=roomname,
+                    external_urls={}
+                )
+            )
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord'))
+        else:
+            await self.bot.bridge.send(room=roomname, message=message, platform='discord')
 
         for platform in externals:
             tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform)))
