@@ -417,7 +417,7 @@ class UnifierBridge:
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
-                   platform: str = 'discord', postthread: bool = False):
+                   platform: str = 'discord', system: bool = False):
         source = 'discord'
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
@@ -586,7 +586,7 @@ class UnifierBridge:
                 except:
                     continue
 
-            if sameguild:
+            if sameguild and not system:
                 if not should_resend or not platform=='discord':
                     if platform=='discord':
                         urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
@@ -778,6 +778,8 @@ class UnifierBridge:
                 files.append(await to_file(attachment))
 
             identifier = ' (' + user_hash + guild_hash + ')'
+            if system:
+                identifier = ' (system)'
 
             # Username
             if source == 'revolt':
@@ -801,9 +803,15 @@ class UnifierBridge:
             except:
                 url = None
 
+            if system:
+                try:
+                    url = self.bot.user.avatar.url
+                except:
+                    url = None
+
             # Add identifier
             msg_author = author
-            if not sameguild:
+            if not sameguild or system:
                 msg_author = author + identifier
 
             # Send message
@@ -2137,6 +2145,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if 'preserve' in args and msgs:
             self.bot.bridge.bridged = msgs
         await ctx.send('Bridge initialized')
+
+    @commands.command(hidden=True)
+    async def system(self, ctx, room):
+        if not ctx.author.id == 356456393491873795:
+            return
+        ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}')
+        await self.bot.bridge.send(room,ctx.message,'discord',system=True)
+        for platform in externals:
+            await self.bot.bridge.send(room, ctx.message, platform, system=True)
+        await ctx.send('Sent as system')
 
     @commands.Cog.listener()
     async def on_message(self, message):
