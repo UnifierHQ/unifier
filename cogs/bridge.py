@@ -160,7 +160,7 @@ class UnifierBridge:
 
         pr_ids = list(self.prs.keys())
         if len(pr_ids) < og_limit:
-            limit = len(self.bridged)
+            limit = len(pr_ids)
         for index in range(len(pr_ids)):
             if index==limit:
                 break
