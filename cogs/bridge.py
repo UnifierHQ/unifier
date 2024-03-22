@@ -1103,9 +1103,9 @@ class UnifierBridge:
                         pass
 
                     try:
-                        replytext = f'[Replying to {author_text}]({reply_msg.urls[destguild.id]}) - *{trimmed}*\n'
+                        replytext = f'**[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
                     except:
-                        replytext = f'Replying to [unknown]\n'
+                        replytext = f'**Replying to [unknown]**\n'
 
                 msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
                                          content=replytext+message.content,files=files)
