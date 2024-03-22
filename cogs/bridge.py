@@ -95,7 +95,8 @@ class SelfDeleteException(Exception):
     pass
 
 class UnifierMessage:
-    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room, external_urls=None, webhook=False, prehook=None):
+    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
+                 external_urls=None, webhook=False, prehook=None, reply=False):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -108,6 +109,7 @@ class UnifierMessage:
         self.room = room
         self.webhook = webhook
         self.prehook = prehook
+        self.reply = reply
 
     def to_dict(self):
         return self.__dict__
@@ -585,6 +587,7 @@ class UnifierBridge:
         urls = {}
         limit_notified = False
         trimmed = ''
+        replying = False
 
         # Threading
         thread_sameguild = []
@@ -693,6 +696,9 @@ class UnifierBridge:
                             content = msg.content
                         clean_content = discord.utils.remove_markdown(content)
 
+                        if reply_msg.reply and source=='guilded':
+                            clean_content = clean_content.split('\n',1)[1]
+
                         msg_components = clean_content.split('<@')
                         offset = 0
                         if clean_content.startswith('<@'):
@@ -784,6 +790,8 @@ class UnifierBridge:
                                     discord.ui.Button(style=button_style, label=trimmed, disabled=True)
                                 )
                             )
+
+                    replying = True
 
             # Attachment processing
             files = []
@@ -1022,13 +1030,42 @@ class UnifierBridge:
                             break
                 if not webhook:
                     continue
+
+                # Processing replies for Revolt here for efficiency
+                replytext = ''
+                if reply_msg:
+                    author_text = '[unknown]'
+
+                    try:
+                        if reply_msg.source == 'revolt':
+                            user = self.bot.revolt_client.get_user(reply_msg.author_id)
+                            if not user.display_name:
+                                author_text = f'@{user.name}'
+                            else:
+                                author_text = f'@{user.display_name}'
+                        elif reply_msg.source == 'guilded':
+                            user = self.bot.guilded_client.get_user(reply_msg.author_id)
+                            author_text = f'@{user.name}'
+                        else:
+                            user = self.bot.get_user(int(reply_msg.author_id))
+                            author_text = f'@{user.global_name}'
+                        if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
+                            author_text = '@' + self.bot.db['nicknames'][f'{reply_msg.author_id}']
+                    except:
+                        pass
+
+                    try:
+                        replytext = f'[Replying to {author_text}]({reply_msg.urls[destguild.id]})\n'
+                    except:
+                        replytext = f'Replying to [unknown]\n'
+
                 msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
-                                         content=message.content,files=files)
+                                         content=replytext+message.content,files=files)
                 if sameguild:
                     thread_sameguild = [msg.id]
                 else:
                     message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
-                #urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{msg.channel.id}/{msg.id}'})
+                urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
         for thread in threads:
@@ -1075,7 +1112,8 @@ class UnifierBridge:
                 source=source,
                 webhook=should_resend or system,
                 prehook=message.id,
-                room=room
+                room=room,
+                reply=replying
             ))
 
 class Bridge(commands.Cog, name=':link: Bridge'):
