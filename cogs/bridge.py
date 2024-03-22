@@ -703,6 +703,7 @@ class UnifierBridge:
 
                         if reply_msg.reply and source=='guilded' and is_copy:
                             clean_content = clean_content.split('\n',1)[1]
+                            print(clean_content.split('\n',1))
 
                         msg_components = clean_content.split('<@')
                         offset = 0
@@ -726,6 +727,7 @@ class UnifierBridge:
                         else:
                             trimmed = clean_content
                         trimmed = trimmed.replace('\n', ' ')
+                        print(trimmed)
 
                     author_text = '[unknown]'
                     if source == 'discord':
