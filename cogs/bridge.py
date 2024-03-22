@@ -158,13 +158,13 @@ class UnifierBridge:
             msg = self.bridged[limit-index-1]
             data['messages'].update({f'{limit-index-1}':msg.to_dict()})
 
-        pr_ids = list(self.bot.bridge.prs.keys())
+        pr_ids = list(self.prs.keys())
         if len(pr_ids) < og_limit:
             limit = len(self.bridged)
         for index in range(len(pr_ids)):
             if index==limit:
                 break
-            code = self.bot.bridgee.prs[pr_ids[limit - index - 1]]
+            code = self.prs[pr_ids[limit - index - 1]]
             data['prs'].update({pr_ids[limit - index - 1]: code})
 
         with open(filename, "w+") as file:
@@ -178,20 +178,22 @@ class UnifierBridge:
 
         for x in range(len(data)):
             msg = UnifierMessage(
-                author_id=data[f'{x}']['author_id'],
-                guild_id=data[f'{x}']['guild_id'],
-                channel_id=data[f'{x}']['channel_id'],
-                original=data[f'{x}']['id'],
-                copies=data[f'{x}']['copies'],
-                external_copies=data[f'{x}']['external_copies'],
-                urls=data[f'{x}']['urls'],
-                source=data[f'{x}']['source'],
-                room=data[f'{x}']['room'],
-                external_urls=data[f'{x}']['external_urls'],
-                webhook=data[f'{x}']['webhook'],
-                prehook=data[f'{x}']['prehook']
+                author_id=data[f'{x}']['messages']['author_id'],
+                guild_id=data[f'{x}']['messages']['guild_id'],
+                channel_id=data[f'{x}']['messages']['channel_id'],
+                original=data[f'{x}']['messages']['id'],
+                copies=data[f'{x}']['messages']['copies'],
+                external_copies=data[f'{x}']['messages']['external_copies'],
+                urls=data[f'{x}']['messages']['urls'],
+                source=data[f'{x}']['messages']['source'],
+                room=data[f'{x}']['messages']['room'],
+                external_urls=data[f'{x}']['messages']['external_urls'],
+                webhook=data[f'{x}']['messages']['webhook'],
+                prehook=data[f'{x}']['messages']['prehook']
             )
             self.bridged.append(msg)
+        
+        self.prs = data['prs'] 
         del data
         return
 
