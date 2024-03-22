@@ -833,13 +833,13 @@ class UnifierBridge:
                 if size_total > 25000000:
                     if not limit_notified:
                         limit_notified = True
-                        if source=='revolt':
+                        if source==platform=='revolt':
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
                                                        replies=[revolt.MessageReply(message)])
-                        elif source=='guilded':
+                        elif source==platform=='guilded':
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
                                                        reply_to=message)
-                        else:
+                        elif source==platform:
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
                                                        reference=message)
                     break
