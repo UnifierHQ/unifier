@@ -2609,14 +2609,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_urls={}
                 )
             )
-            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True))
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord'))
         else:
             await self.bot.bridge.send(room=roomname, message=message, platform='discord')
 
         for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform)))
 
         await asyncio.gather(*tasks)
+        print('test')
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
