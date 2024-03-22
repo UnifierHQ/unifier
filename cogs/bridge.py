@@ -738,26 +738,46 @@ class UnifierBridge:
 
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
-                        components = discord.ui.MessageComponents(
-                            pr_actionrow,
-                            discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
-                                                  url=await reply_msg.fetch_url(guild))
-                            ),
-                            discord.ui.ActionRow(
-                                discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                        try:
+                            components = discord.ui.MessageComponents(
+                                pr_actionrow,
+                                discord.ui.ActionRow(
+                                    discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
+                                                      url=await reply_msg.fetch_url(guild))
+                                ),
+                                discord.ui.ActionRow(
+                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                                )
                             )
-                        )
+                        except:
+                            components = discord.ui.MessageComponents(
+                                pr_actionrow,
+                                discord.ui.ActionRow(
+                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                                                      disabled=True)
+                                )
+                            )
                     else:
-                        components = discord.ui.MessageComponents(
-                            discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
-                                                  url=await reply_msg.fetch_url(guild))
-                            ),
-                            discord.ui.ActionRow(
-                                discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                        try:
+                            components = discord.ui.MessageComponents(
+                                discord.ui.ActionRow(
+                                    discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
+                                                      url=await reply_msg.fetch_url(guild))
+                                ),
+                                discord.ui.ActionRow(
+                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                                )
                             )
-                        )
+                        except:
+                            components = discord.ui.MessageComponents(
+                                discord.ui.ActionRow(
+                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                                                      disabled=True)
+                                ),
+                                discord.ui.ActionRow(
+                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                                )
+                            )
 
             # Attachment processing
             files = []
