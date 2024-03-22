@@ -680,6 +680,9 @@ class UnifierBridge:
                                 author_text = f'@{user.name}'
                             else:
                                 author_text = f'@{user.display_name}'
+                        elif reply_msg.source=='guilded':
+                            user = self.bot.guilded_client.get_user(reply_msg.author_id)
+                            author_text = f'@{user.name}'
                         else:
                             user = self.bot.get_user(int(reply_msg.author_id))
                             author_text = f'@{user.global_name}'
