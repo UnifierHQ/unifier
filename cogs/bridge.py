@@ -487,8 +487,8 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        pr_id = None
-        if roomindex == pr_ref_room_index and message.content.startswith('['):
+        if roomindex == pr_ref_room_index and message.content.startswith('[') and source==platform=='discord':
+            pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
                 if len(components[1]) > 0 and len(components[0])==6:
@@ -573,13 +573,13 @@ class UnifierBridge:
                     await message.channel.send('Parent message could not be deleted. I may be missing the `Manage Messages` permission.')
                     raise SelfDeleteException('Could not delete parent message')
                 elif is_pr:
-                    if source=='discord':
-                        await message.channel.send(f'Post ID assigned: `{pr_id}`',reference=message)
-                    elif source=='revolt':
-                        await message.channel.send(f'Post ID assigned: `{pr_id}`',replies=[revolt.MessageReply(message)])
-                    elif source == 'guilded':
-                        await message.channel.send(f'Post ID assigned: `{pr_id}`',reply_to=message)
+                    await message.channel.send(f'Post ID assigned: `{pr_id}`',reference=message)
                 should_resend = False
+        elif is_pr and source==platform:
+            if source == 'revolt':
+                await message.channel.send(f'Post ID assigned: `{pr_id}`', replies=[revolt.MessageReply(message)])
+            elif source == 'guilded':
+                await message.channel.send(f'Post ID assigned: `{pr_id}`', reply_to=[message])
 
         message_ids = {}
         urls = {}
