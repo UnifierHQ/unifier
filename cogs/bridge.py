@@ -85,6 +85,21 @@ def bypass_killer(string):
     else:
         raise RuntimeError()
 
+def log(type='???',status='ok',content='None'):
+    from time import gmtime, strftime
+    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
+    if status=='ok':
+        status = ' OK  '
+    elif status=='error':
+        status = 'ERROR'
+    elif status=='warn':
+        status = 'WARN '
+    elif status=='info':
+        status = 'INFO '
+    else:
+        raise ValueError('Invalid status type provided')
+    print(f'[{type} | {time1} | {status}] {content}')
+
 class ExternalReference:
     def __init__(self, guild_id, channel_id, message_id):
         self.guild = guild_id
@@ -460,8 +475,10 @@ class UnifierBridge:
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
-                   platform: str = 'discord', system: bool = False):
+                   platform: str = 'discord', system: bool = False, multisend_debug=False):
         source = 'discord'
+        if multisend_debug:
+            log('BOT','info','Sending to '+platform)
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
             if not 'cogs.bridge_revolt' in extlist:
@@ -2592,12 +2609,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_urls={}
                 )
             )
-            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord'))
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True))
         else:
             await self.bot.bridge.send(room=roomname, message=message, platform='discord')
 
         for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform)))
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
 
         await asyncio.gather(*tasks)
 
