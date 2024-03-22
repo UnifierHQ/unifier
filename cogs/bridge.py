@@ -477,8 +477,7 @@ class UnifierBridge:
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False, multisend_debug=False):
         source = 'discord'
-        if multisend_debug:
-            log('BOT','info','Sending to '+platform)
+        pt = time.time()
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
             if not 'cogs.bridge_revolt' in extlist:
@@ -1205,6 +1204,10 @@ class UnifierBridge:
                 room=room,
                 reply=replying
             ))
+        if multisend_debug:
+            ct = time.time()
+            diff = round(ct-pt,3)
+            log('BOT', 'info', f'{platform} finished in {diff}s, sent {len(message_ids)} copies')
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
@@ -2609,12 +2612,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_urls={}
                 )
             )
-            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord'))
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True))
         else:
             await self.bot.bridge.send(room=roomname, message=message, platform='discord')
 
         for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform)))
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
 
         pt = time.time()
         await asyncio.gather(*tasks)
