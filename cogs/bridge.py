@@ -276,20 +276,11 @@ class UnifierBridge:
                     continue
 
                 guild = self.bot.guilded_client.get_server(key)
-                try:
-                    hooks = await guild.webhooks()
-                except:
-                    continue
-                webhook = None
 
                 # Fetch webhook
-                for hook in hooks:
-                    if self.bot.db['rooms_guilded'][msg.room][key][0]==hook.id:
-                        webhook: guilded.Webhook = hook
-                        break
-
-                if not webhook:
-                    # No webhook found
+                try:
+                    webhook = await guild.fetch_webhook(self.bot.db['rooms_guilded'][msg.room][key][0])
+                except:
                     continue
 
                 try:
@@ -1060,15 +1051,14 @@ class UnifierBridge:
                 try:
                     webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild]}']
                 except:
-                    hooks = await destguild.webhooks()
-                    for hook in hooks:
+                    try:
+                        hook = await destguild.fetch_webhook(self.bot.db["rooms_guilded"][room][guild])
                         if f'{guild}' in list(self.bot.webhook_cache.keys()):
                             self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
                         else:
                             self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
-                        if hook.id in self.bot.db['rooms_guilded'][room][guild]:
-                            webhook = hook
-                            break
+                    except:
+                        continue
                 if not webhook:
                     continue
 
