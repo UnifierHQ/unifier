@@ -988,6 +988,8 @@ class UnifierBridge:
             parent_id = thread_sameguild[0]
         else:
             parent_id = message.id
+        if is_pr and not pr_id in list(self.prs.keys()) and platform==source:
+            self.prs.update({pr_id:parent_id})
         try:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
