@@ -941,9 +941,14 @@ class UnifierBridge:
                                 break
                     if not webhook:
                         continue
-                    msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
-                                             content=message.content,files=files, allowed_mentions=mentions,
-                                             components=components, wait=True)
+                    if not components:
+                        msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
+                                                 content=message.content,files=files, allowed_mentions=mentions,
+                                                 wait=True)
+                    else:
+                        msg = await webhook.send(avatar_url=url, username=msg_author, embeds=embeds,
+                                                 content=message.content, files=files, allowed_mentions=mentions,
+                                                 components=components, wait=True)
                     if sameguild:
                         thread_sameguild = [msg.id]
                     else:
