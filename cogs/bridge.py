@@ -462,10 +462,7 @@ class UnifierBridge:
         elif msg.source=='revolt':
             await edit_revolt(msg.copies)
         elif msg.source=='guilded':
-            try:
-                await edit_guilded(msg.copies)
-            except:
-                traceback.print_exc()
+            await edit_guilded(msg.copies)
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
@@ -473,10 +470,7 @@ class UnifierBridge:
             elif platform=='revolt':
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
             elif platform=='guilded':
-                try:
-                    await edit_guilded(msg.external_copies['guilded'],friendly=True)
-                except:
-                    traceback.print_exc()
+                await edit_guilded(msg.external_copies['guilded'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False):
