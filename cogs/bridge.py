@@ -1677,6 +1677,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         found = False
         origin_guild = None
         origin_user = None
+        if identifier=='system':
+            return await ctx.send('This is a system message.')
         for guild in self.bot.guilds:
             hashed = encrypt_string(f'{guild.id}')
             guildhash = identifier[3:]
