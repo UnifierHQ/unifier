@@ -1073,7 +1073,7 @@ class UnifierBridge:
                 external_copies=external_copies,
                 urls=urls,
                 source=source,
-                webhook=should_resend,
+                webhook=should_resend or system,
                 prehook=message.id,
                 room=room
             ))
