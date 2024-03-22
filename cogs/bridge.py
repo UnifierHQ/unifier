@@ -658,9 +658,8 @@ class UnifierBridge:
                         )
                     else:
                         try:
-                            msg = await self.fetch_message(self.prs[pr_id])
+                            msg = await self.fetch_message(self.prs[str(pr_id)])
                         except:
-                            traceback.print_exc()
                             # Hide PR reference to avoid issues
                             is_pr_ref = False
                         else:
