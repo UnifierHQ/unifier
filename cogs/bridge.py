@@ -487,8 +487,8 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        pr_id = None
         if roomindex == pr_ref_room_index and message.content.startswith('['):
+            pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
                 if len(components[1]) > 0 and len(components[0])==6:
