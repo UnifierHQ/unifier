@@ -145,7 +145,9 @@ class UnifierBridge:
         self.webhook_cache = webhook_cache or {}
 
     async def backup(self,filename='bridge.json',limit=10000):
-        data = {}
+        data = {'messages':{},'prs':{}}
+        og_limit = limit
+
         if limit<=0:
             raise ValueError('limit must be a positive integer')
         if len(self.bridged) < limit:
@@ -154,7 +156,17 @@ class UnifierBridge:
             if index==limit:
                 break
             msg = self.bridged[limit-index-1]
-            data.update({f'{limit-index-1}':msg.to_dict()})
+            data['messages'].update({f'{limit-index-1}':msg.to_dict()})
+
+        pr_ids = list(self.bot.bridge.prs.keys())
+        if len(pr_ids) < og_limit:
+            limit = len(self.bridged)
+        for index in range(len(pr_ids)):
+            if index==limit:
+                break
+            code = self.bot.bridgee.prs[pr_ids[limit - index - 1]]
+            data['prs'].update({pr_ids[limit - index - 1]: code})
+
         with open(filename, "w+") as file:
             json.dump(data,file)
         del data
