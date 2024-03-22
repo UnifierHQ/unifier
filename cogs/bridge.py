@@ -1066,11 +1066,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not hasattr(self.bot, 'webhook_cache_sync'):
             self.bot.webhook_cache_sync = {}
         msgs = []
+        prs = {}
         if hasattr(self.bot, 'bridge'):
             msgs = self.bot.bridge.bridged
+            prs = self.bot.bridge.prs
             del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot)
         self.bot.bridge.bridged = msgs
+        self.bot.bridge.prs = prs
 
     def clueless_gen(self, user, identifier):
         from PIL import Image
@@ -2164,13 +2167,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def initbridge(self, ctx, *, args=''):
         if not ctx.author.id == 356456393491873795:
             return
-        msgs = None
+        msgs = []
+        prs = {}
         if 'preserve' in args:
             msgs = self.bot.bridge.bridged
+            prs = self.bot.bridge.prs
         del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot)
-        if 'preserve' in args and msgs:
+        if 'preserve' in args:
             self.bot.bridge.bridged = msgs
+            self.bot.bridge.prs = prs
         await ctx.send('Bridge initialized')
 
     @commands.command(hidden=True)
