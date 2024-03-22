@@ -1064,7 +1064,6 @@ class UnifierBridge:
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
-                webhook = None
                 try:
                     webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild][0]}']
                 except:
@@ -1076,8 +1075,6 @@ class UnifierBridge:
                             self.bot.webhook_cache.update({f'{guild}':{f'{webhook.id}':webhook}})
                     except:
                         continue
-                if not webhook:
-                    continue
 
                 # Processing replies for Revolt here for efficiency
                 replytext = ''
@@ -1149,6 +1146,9 @@ class UnifierBridge:
                         replytext = f'**[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
                     except:
                         replytext = f'**Replying to [unknown]**\n'
+
+                if len(replytext+message.content)==0:
+                    replytext = '[empty message]'
 
                 msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
                                          content=replytext+message.content,files=files)
