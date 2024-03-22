@@ -934,7 +934,7 @@ class UnifierBridge:
                     if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord':
                         synchook = None
                         try:
-                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
+                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
                         except:
                             hooks = await destguild.webhooks()
                             for hook in hooks:
