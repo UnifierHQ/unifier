@@ -549,10 +549,10 @@ class UnifierBridge:
         if og_msg_content == message.content:
             emojified = False
 
-        should_resend = (is_pr or emojified) and source=='discord'
+        should_resend = (is_pr or is_pr_ref or emojified) and source==platform=='discord'
 
         # Try to delete message if it should be resent as a webhook message
-        if should_resend and source==platform and (source=='discord' or source=='guilded'):
+        if should_resend:
             try:
                 await message.delete()
             except:
