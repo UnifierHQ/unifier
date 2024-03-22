@@ -2579,8 +2579,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             # Multisend experiment
             # Sends Discord message along with other platforms to minimize
             # latency on external platforms.
-            self.bot.bridge.bridged.append(
-                msg=UnifierMessage(
+            self.bot.bridge.bridged.append(UnifierMessage(
                     author_id=message.author.id,
                     guild_id=message.guild.id,
                     channel_id=message.channel.id,
