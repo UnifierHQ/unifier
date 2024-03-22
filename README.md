@@ -48,5 +48,4 @@ Please follow our guides on GitBook to set up Unifier.
 ## Note
 Unifier's icon was co-created by @green. and @thegodlypenguin on Discord.
 
-"Discord" and its logos are registered trademarks of Discord Inc. We are not affiliated with Discord whatsoever. Any 
-reference made to Discord in this README is for clarification purposes only.
+Unifier and UnifierHQ developers are not affiliated or associated with, or endorsed by Discord Inc., Guilded Inc. and Revolt.
