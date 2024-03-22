@@ -971,7 +971,7 @@ class UnifierBridge:
                 except:
                     webhook = None
                     try:
-                        webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
+                        webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
                     except:
                         hooks = await destguild.webhooks()
                         for hook in hooks:
@@ -1049,10 +1049,10 @@ class UnifierBridge:
             elif platform=='guilded':
                 webhook = None
                 try:
-                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild]}']
+                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild][0]}']
                 except:
                     try:
-                        hook = await destguild.fetch_webhook(self.bot.db["rooms_guilded"][room][guild])
+                        hook = await destguild.fetch_webhook(self.bot.db["rooms_guilded"][room][guild][0])
                         if f'{guild}' in list(self.bot.webhook_cache.keys()):
                             self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
                         else:
