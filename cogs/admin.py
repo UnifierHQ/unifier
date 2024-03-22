@@ -536,7 +536,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await ctx.send('Shutting down...')
         except:
             log("SYS", "error", "Graceful shutdown failed")
-            await ctx.send('Shutting failed')
+            await ctx.send('Shutdown failed')
             traceback.print_exc()
             return
         log("BOT", "info", "Closing bot session")

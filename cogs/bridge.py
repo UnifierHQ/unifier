@@ -148,6 +148,8 @@ class UnifierBridge:
         data = {}
         if limit<=0:
             raise ValueError('limit must be a positive integer')
+        if len(self.bridged) < limit:
+            limit = len(self.bridged)
         for index in range(len(self.bridged)):
             if index==limit:
                 break
