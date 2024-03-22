@@ -178,18 +178,18 @@ class UnifierBridge:
 
         for x in range(len(data)):
             msg = UnifierMessage(
-                author_id=data[f'{x}']['messages']['author_id'],
-                guild_id=data[f'{x}']['messages']['guild_id'],
-                channel_id=data[f'{x}']['messages']['channel_id'],
-                original=data[f'{x}']['messages']['id'],
-                copies=data[f'{x}']['messages']['copies'],
-                external_copies=data[f'{x}']['messages']['external_copies'],
-                urls=data[f'{x}']['messages']['urls'],
-                source=data[f'{x}']['messages']['source'],
-                room=data[f'{x}']['messages']['room'],
-                external_urls=data[f'{x}']['messages']['external_urls'],
-                webhook=data[f'{x}']['messages']['webhook'],
-                prehook=data[f'{x}']['messages']['prehook']
+                author_id=data['messages'][f'{x}']['author_id'],
+                guild_id=data['messages'][f'{x}']['guild_id'],
+                channel_id=data['messages'][f'{x}']['channel_id'],
+                original=data['messages'][f'{x}']['id'],
+                copies=data['messages'][f'{x}']['copies'],
+                external_copies=data['messages'][f'{x}']['external_copies'],
+                urls=data['messages'][f'{x}']['urls'],
+                source=data['messages'][f'{x}']['source'],
+                room=data['messages'][f'{x}']['room'],
+                external_urls=data['messages'][f'{x}']['external_urls'],
+                webhook=data['messages'][f'{x}']['webhook'],
+                prehook=data['messages'][f'{x}']['prehook']
             )
             self.bridged.append(msg)
         
