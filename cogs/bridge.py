@@ -478,7 +478,8 @@ class UnifierBridge:
             if source==platform:
                 pr_id = genid()
             else:
-                for pr, msgid in self.prs:
+                for pr in self.prs:
+                    msgid = self.prs[pr]
                     if str(msgid)==str(message.id):
                         pr_id = pr
                         break
