@@ -487,7 +487,7 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        if roomindex == pr_ref_room_index and message.content.startswith('['):
+        if roomindex == pr_ref_room_index and message.content.startswith('[') and source==platform=='discord':
             pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
