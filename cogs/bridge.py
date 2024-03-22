@@ -421,16 +421,62 @@ class UnifierBridge:
                     traceback.print_exc()
                     continue
 
+        async def edit_guilded(msgs,friendly=False):
+            if friendly:
+                text = await make_friendly(content)
+            else:
+                text = content
+
+            for key in list(self.bot.db['rooms'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
+                guild = self.bot.get_guild(int(key))
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    continue
+                webhook = None
+
+                # Fetch webhook
+                for hook in hooks:
+                    if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
+                        webhook: discord.Webhook = hook
+                        break
+
+                if not webhook:
+                    # No webhook found
+                    continue
+
+                try:
+                    toedit = await webhook.fetch_message(msgs[key][1])
+                    if msg.reply:
+                        text = toedit.content.split('\n',1)[0]+'\n'+text
+                    await toedit.edit(content=text)
+                except:
+                    traceback.print_exc()
+                    pass
+
         if msg.source=='discord':
             await edit_discord(msg.copies)
         elif msg.source=='revolt':
             await edit_revolt(msg.copies)
+        elif msg.source=='guilded':
+            try:
+                await edit_guilded(msg.copies)
+            except:
+                traceback.print_exc()
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
                 await edit_discord(msg.external_copies['discord'],friendly=True)
             elif platform=='revolt':
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
+            elif platform=='guilded':
+                try:
+                    await edit_guilded(msg.external_copies['guilded'],friendly=True)
+                except:
+                    traceback.print_exc()
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False):
