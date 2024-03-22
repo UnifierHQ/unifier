@@ -494,8 +494,11 @@ class UnifierBridge:
                     if (components[0].lower()=='latest' or components[0].lower() == 'recent' or
                             components[0].lower() == 'newest'):
                         is_pr_ref = True
-                        pr_id = self.prs[list(self.prs.keys())[len(self.prs)-1]]
-                        message.content = message.content.replace(f'[{components[0]}]','',1)
+                        if len(self.prs) > 0:
+                            pr_id = self.prs[list(self.prs.keys())[len(self.prs)-1]]
+                            message.content = message.content.replace(f'[{components[0]}]','',1)
+                        else:
+                            is_pr_ref = False
                     else:
                         if components[0].lower() in list(self.prs.keys()):
                             is_pr_ref = True
