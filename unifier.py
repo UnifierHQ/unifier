@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 
 import discord
 from discord.ext import commands, tasks
@@ -28,9 +29,54 @@ from time import gmtime, strftime
 with open('config.json', 'r') as file:
     data = json.load(file)
 
+with open('update.json', 'r') as file:
+    vinfo = json.load(file)
+
 bot = commands.Bot(command_prefix=data['prefix'],intents=discord.Intents.all())
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
+
+asciiart = """  _    _       _  __ _           
+ | |  | |     (_)/ _(_)          
+ | |  | |_ __  _| |_ _  ___ _ __ 
+ | |  | | '_ \\| |  _| |/ _ \\ '__|
+ | |__| | | | | | | | |  __/ |   
+  \\____/|_| |_|_|_| |_|\\___|_| """
+
+print(asciiart)
+print('Version: '+vinfo['version'])
+print('Release '+str(vinfo['release']))
+print()
+
+try:
+    with open('upgrader.json', 'r') as file:
+        uvinfo = json.load(file)
+    print('Upgrader is installed')
+    print('Version: ' + uvinfo['version'])
+    print('Release ' + str(uvinfo['release']))
+    print()
+except:
+    pass
+
+try:
+    with open('revolt.json', 'r') as file:
+        rvinfo = json.load(file)
+    print('Revolt Support is installed')
+    print('Version: ' + rvinfo['version'])
+    print('Release ' + str(rvinfo['release']))
+    print()
+except:
+    pass
+
+try:
+    with open('guilded.json', 'r') as file:
+        gvinfo = json.load(file)
+    print('Guilded Support is installed')
+    print('Version: ' + gvinfo['version'])
+    print('Release ' + str(gvinfo['release']))
+    print()
+except:
+    pass
 
 def log(type='???',status='ok',content='None'):
     time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
@@ -84,13 +130,22 @@ async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     log("BOT","info","Loading Unifier extensions...")
     bot.load_extension("cogs.lockdown")
-    try:
+    if hasattr(bot, 'locked'):
         locked = bot.locked
-    except:
+    else:
         locked = False
     if not locked:
         bot.load_extension("cogs.admin")
+        bot.pid = os.getpid()
         bot.load_extension("cogs.bridge")
+        if hasattr(bot, 'bridge'):
+            try:
+                if len(bot.bridge.bridged)==0:
+                    await bot.bridge.restore()
+                    log('SYS','ok','Restored '+str(len(bot.bridge.bridged))+' messages')
+            except:
+                traceback.print_exc()
+                log('SYS','warn','Message restore failed')
         try:
             if 'revolt' in data['external']:
                 bot.load_extension("cogs.bridge_revolt")
@@ -101,6 +156,16 @@ async def on_ready():
                 traceback.print_exc()
             except:
                 log("BOT","warn",f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
+        try:
+            if 'guilded' in data['external']:
+                bot.load_extension("cogs.bridge_guilded")
+        except:
+            try:
+                x = open('cogs/bridge_guilded.py','r')
+                x.close()
+                traceback.print_exc()
+            except:
+                log("BOT","warn",f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")
