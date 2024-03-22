@@ -631,7 +631,7 @@ class UnifierBridge:
                         button_style = discord.ButtonStyle.gray
                     if is_pr:
                         pr_actionrow = discord.ui.ActionRow(
-                            discord.ui.Button(style=button_style, label=f'PR ID: {pr_id}',
+                            discord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
                                               emoji='\U0001F4AC', disabled=True)
                         )
                     else:
@@ -642,7 +642,7 @@ class UnifierBridge:
                             is_pr_ref = False
                         else:
                             pr_actionrow = discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing PR {pr_id}',
+                                discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post {pr_id}',
                                                   emoji='\U0001F517', disabled=True,url=await msg.fetch_url(guild))
                             )
                 if reply_msg:
