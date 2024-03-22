@@ -641,10 +641,16 @@ class UnifierBridge:
                             # Hide PR reference to avoid issues
                             is_pr_ref = False
                         else:
-                            pr_actionrow = discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post {pr_id}',
-                                                  emoji='\U0001F517', disabled=True,url=await msg.fetch_url(guild))
-                            )
+                            try:
+                                pr_actionrow = discord.ui.ActionRow(
+                                    discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post {pr_id}',
+                                                      emoji='\U0001F517',url=await msg.fetch_url(guild))
+                                )
+                            except:
+                                pr_actionrow = discord.ui.ActionRow(
+                                    discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Referencing Post {pr_id}',
+                                                      emoji='\U0001F517', disabled=True)
+                                )
                     components = discord.ui.MessageComponents(
                         pr_actionrow
                     )
