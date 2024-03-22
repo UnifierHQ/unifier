@@ -427,11 +427,11 @@ class UnifierBridge:
             else:
                 text = content
 
-            for key in list(self.bot.db['rooms'][msg.room].keys()):
+            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
-                guild = self.bot.get_guild(int(key))
+                guild = self.bot.guilded_client.get_server(key)
                 try:
                     hooks = await guild.webhooks()
                 except:
@@ -440,8 +440,8 @@ class UnifierBridge:
 
                 # Fetch webhook
                 for hook in hooks:
-                    if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
-                        webhook: discord.Webhook = hook
+                    if self.bot.db['rooms_guilded'][msg.room][key][0]==hook.id:
+                        webhook: guilded.Webhook = hook
                         break
 
                 if not webhook:
@@ -461,16 +461,12 @@ class UnifierBridge:
             await edit_discord(msg.copies)
         elif msg.source=='revolt':
             await edit_revolt(msg.copies)
-        elif msg.source=='guilded':
-            await edit_guilded(msg.copies)
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
                 await edit_discord(msg.external_copies['discord'],friendly=True)
             elif platform=='revolt':
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
-            elif platform=='guilded':
-                await edit_guilded(msg.external_copies['guilded'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False):
