@@ -684,6 +684,7 @@ class UnifierBridge:
                         )
                 if reply_msg:
                     if not trimmed:
+                        is_copy = False
                         try:
                             content = message.reference.cached_message.content
                         except:
@@ -691,12 +692,14 @@ class UnifierBridge:
                                 msg = await message.channel.fetch_message(message.replies[0].id)
                             elif source=='guilded':
                                 msg = await message.channel.fetch_message(message.replied_to[0].id)
+                                if msg.webhook_id:
+                                    is_copy = True
                             else:
                                 msg = await message.channel.fetch_message(message.reference.message_id)
                             content = msg.content
                         clean_content = discord.utils.remove_markdown(content)
 
-                        if reply_msg.reply and source=='guilded':
+                        if reply_msg.reply and source=='guilded' and is_copy:
                             clean_content = clean_content.split('\n',1)[1]
 
                         msg_components = clean_content.split('<@')
