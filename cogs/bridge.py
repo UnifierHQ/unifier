@@ -1038,6 +1038,49 @@ class UnifierBridge:
 
                 # Processing replies for Revolt here for efficiency
                 replytext = ''
+
+                if not trimmed:
+                    is_copy = False
+                    try:
+                        content = message.reference.cached_message.content
+                    except:
+                        if source == 'revolt':
+                            msg = await message.channel.fetch_message(message.replies[0].id)
+                        elif source == 'guilded':
+                            msg = await message.channel.fetch_message(message.replied_to[0].id)
+                            if msg.webhook_id:
+                                is_copy = True
+                        else:
+                            msg = await message.channel.fetch_message(message.reference.message_id)
+                        content = msg.content
+                    clean_content = discord.utils.remove_markdown(content)
+
+                    if reply_msg.reply and source == 'guilded' and is_copy:
+                        clean_content = clean_content.split('\n', 1)[1]
+
+                    msg_components = clean_content.split('<@')
+                    offset = 0
+                    if clean_content.startswith('<@'):
+                        offset = 1
+
+                    while offset < len(msg_components):
+                        try:
+                            userid = int(msg_components[offset].split('>', 1)[0])
+                        except:
+                            offset += 1
+                            continue
+                        user = self.bot.get_user(userid)
+                        if user:
+                            clean_content = clean_content.replace(f'<@{userid}>',
+                                                                  f'@{user.global_name}').replace(
+                                f'<@!{userid}>', f'@{user.global_name}')
+                        offset += 1
+                    if len(clean_content) > 80:
+                        trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
+                    else:
+                        trimmed = clean_content
+                    trimmed = trimmed.replace('\n', ' ')
+
                 if reply_msg:
                     author_text = '[unknown]'
 
@@ -1058,8 +1101,6 @@ class UnifierBridge:
                             author_text = '@' + self.bot.db['nicknames'][f'{reply_msg.author_id}']
                     except:
                         pass
-
-                    print(trimmed)
 
                     try:
                         replytext = f'[Replying to {author_text}]({reply_msg.urls[destguild.id]}) - {trimmed}\n'
