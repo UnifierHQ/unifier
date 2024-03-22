@@ -2616,8 +2616,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         for platform in externals:
             tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform)))
 
+        pt = time.time()
         await asyncio.gather(*tasks)
-        print('test')
+        if multisend_exp:
+            ct = time.time()
+            msg = await self.bot.bridge.fetch_message(message.id)
+            count = len(msg.copies)
+            for platform in externals:
+                count += len(msg.external_copies[platform])
+            diff = round(ct - pt, 3)
+            log('BOT','info',f'Multisend took {diff}s, sent {count} copies')
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
