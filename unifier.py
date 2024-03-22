@@ -48,6 +48,36 @@ print('Version: '+vinfo['version'])
 print('Release '+str(vinfo['release']))
 print()
 
+try:
+    with open('upgrader.json', 'r') as file:
+        uvinfo = json.load(file)
+    print('Upgrader is installed')
+    print('Version: ' + uvinfo['version'])
+    print('Release ' + str(uvinfo['release']))
+    print()
+except:
+    pass
+
+try:
+    with open('revolt.json', 'r') as file:
+        rvinfo = json.load(file)
+    print('Revolt Support is installed')
+    print('Version: ' + rvinfo['version'])
+    print('Release ' + str(rvinfo['release']))
+    print()
+except:
+    pass
+
+try:
+    with open('guilded.json', 'r') as file:
+        gvinfo = json.load(file)
+    print('Guilded Support is installed')
+    print('Version: ' + gvinfo['version'])
+    print('Release ' + str(gvinfo['release']))
+    print()
+except:
+    pass
+
 def log(type='???',status='ok',content='None'):
     time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
     if status=='ok':
