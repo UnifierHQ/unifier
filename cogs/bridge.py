@@ -660,6 +660,7 @@ class UnifierBridge:
                         try:
                             msg = await self.fetch_message(self.prs[pr_id])
                         except:
+                            traceback.print_exc()
                             # Hide PR reference to avoid issues
                             is_pr_ref = False
                         else:
@@ -673,9 +674,10 @@ class UnifierBridge:
                                     discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
                                                       emoji='\U0001F517', disabled=True)
                                 )
-                    components = discord.ui.MessageComponents(
-                        pr_actionrow
-                    )
+                    if pr_actionrow:
+                        components = discord.ui.MessageComponents(
+                            pr_actionrow
+                        )
                 if reply_msg:
                     if not trimmed:
                         try:
@@ -941,14 +943,9 @@ class UnifierBridge:
                                 break
                     if not webhook:
                         continue
-                    if not components:
-                        msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
-                                                 content=message.content,files=files, allowed_mentions=mentions,
-                                                 wait=True)
-                    else:
-                        msg = await webhook.send(avatar_url=url, username=msg_author, embeds=embeds,
-                                                 content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                    msg = await webhook.send(avatar_url=url, username=msg_author, embeds=embeds,
+                                             content=message.content, files=files, allowed_mentions=mentions,
+                                             components=components, wait=True)
                     if sameguild:
                         thread_sameguild = [msg.id]
                     else:
