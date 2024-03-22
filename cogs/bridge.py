@@ -579,7 +579,7 @@ class UnifierBridge:
             if source == 'revolt':
                 await message.channel.send(f'Post ID assigned: `{pr_id}`', replies=[revolt.MessageReply(message)])
             elif source == 'guilded':
-                await message.channel.send(f'Post ID assigned: `{pr_id}`', reply_to=message)
+                await message.channel.send(f'Post ID assigned: `{pr_id}`', reply_to=[message])
 
         message_ids = {}
         urls = {}
