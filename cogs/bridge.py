@@ -475,7 +475,15 @@ class UnifierBridge:
 
         # PR ID generation
         if is_pr:
-            pr_id = genid()
+            if source==platform:
+                pr_id = genid()
+            else:
+                for pr, msgid in self.prs:
+                    if str(msgid)==str(message.id):
+                        pr_id = pr
+                        break
+                if len(pr_id)==0:
+                    is_pr = False
 
         # PR ID identification
         if roomindex == pr_ref_room_index and message.content.startswith('['):
@@ -556,7 +564,17 @@ class UnifierBridge:
             try:
                 await message.delete()
             except:
-                raise SelfDeleteException('Could not delete parent message')
+                if emojified or is_pr_ref:
+                    await message.channel.send('Parent message could not be deleted. I may be missing the `Manage Messages` permission.')
+                    raise SelfDeleteException('Could not delete parent message')
+                elif is_pr:
+                    if source=='discord':
+                        await message.channel.send(f'Post ID assigned: `{pr_id}`',reference=message)
+                    elif source=='revolt':
+                        await message.channel.send(f'Post ID assigned: `{pr_id}`',replies=[revolt.MessageReply(message)])
+                    elif source == 'guilded':
+                        await message.channel.send(f'Post ID assigned: `{pr_id}`',reply_to=message)
+                should_resend = False
 
         message_ids = {}
         urls = {}
