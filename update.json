@@ -1,6 +1,6 @@
 {
-  "version": "v1.0.1",
-  "release": 18,
-  "reboot": 15,
-  "description": "- Adds toggle in config for context menu commands"
+  "version": "v1.1.0",
+  "release": 20,
+  "reboot": 19,
+  "description": "- Bridge has been overhauled for better stability and future platform support.\n- Message deletion has been rewritten completely to use Bridge v2.\n- Revolt Support is now in stable release.\n- Fixed Reaction Images broken due to deprecation of Pillow `ImageDraw.textsize`\n- Experimental Guilded support\n- Graceful shutdown (`u!shutdown`) to prevent Guilded Support hanging shutdown process"
 }
