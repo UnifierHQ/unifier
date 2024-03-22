@@ -1055,7 +1055,7 @@ class UnifierBridge:
                         pass
 
                     try:
-                        replytext = f'[Replying to {author_text}]({reply_msg.urls[destguild.id]})\n'
+                        replytext = f'[Replying to {author_text}]({reply_msg.urls[destguild.id]}) - {trimmed}\n'
                     except:
                         replytext = f'Replying to [unknown]\n'
 
