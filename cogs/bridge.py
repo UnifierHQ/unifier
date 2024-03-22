@@ -146,12 +146,13 @@ class UnifierBridge:
 
     async def backup(self,filename='bridge.json',limit=10000):
         data = {}
-        index = 0
-        for msg in self.bridged:
-            data.update({f'{index}':msg.to_dict()})
-            index += 1
+        if limit<=0:
+            raise ValueError('limit must be a positive integer')
+        for index in range(len(self.bridged)):
             if index==limit:
                 break
+            msg = self.bridged[limit-index-1]
+            data.update({f'{limit-index-1}':msg.to_dict()})
         with open(filename, "w+") as file:
             json.dump(data,file)
         del data
