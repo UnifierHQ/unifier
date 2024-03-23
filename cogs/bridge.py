@@ -1011,7 +1011,7 @@ class UnifierBridge:
                 except:
                     try:
                         tb_v2 = str(message.guild.id) in str(
-                            self.bot.db['experiments']['threaded_bridge_v2']) and not components and source == 'discord'
+                            self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
                     except:
                         pass
 
