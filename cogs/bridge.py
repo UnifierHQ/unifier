@@ -2348,18 +2348,33 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if not msgid:
                 return await ctx.send('No message detected')
         msg: UnifierMessage = await self.bot.bridge.fetch_message(msgid)
-        text = f'Author: {msg.author_id}\nGuild: {msg.guild_id}\nSource: {msg.source}\nParent is webhook: {msg.webhook}\n\nCopies (samesource):'
+        embed = discord.Embed(title=f'Viewing message {msg.id}',
+                              description=f'Guild: {msg.guild_id}\nSource: {msg.source}\nParent is webhook: {msg.webhook}',
+                              color=self.bot.colors.unifier)
+        text = ''
         for key in msg.copies:
             info = msg.copies[key]
-            text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+            if len(text)==0:
+                text = f'{key}: {info[1]}, sent in {info[0]}'
+            else:
+                text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+        embed.add_field(name='Copies (samesource)',value=text,inline=False)
         for platform in msg.external_copies:
-            text = f'{text}\n\nCopies ({platform}):'
+            text = ''
             for key in msg.external_copies[platform]:
                 info = msg.external_copies[platform][key]
-                text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
-        text = f'{text}\n\nURLs (discord):'
+                if len(text) == 0:
+                    text = f'{key}: {info[1]}, sent in {info[0]}'
+                else:
+                    text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+            embed.add_field(name=f'Copies ({platform})', value=text, inline=False)
+        text = ''
         for key in msg.urls:
-            text = f'{text}\n{key}: [link](<{msg.urls[key]}>)'
+            if len(text) == 0:
+                text = f'{key}: [link](<{msg.urls[key]}>)'
+            else:
+                text = f'{text}\n{key}: [link](<{msg.urls[key]}>)'
+        embed.add_field(name=f'URLs', value=text, inline=False)
         await ctx.send(text)
 
     @commands.command(hidden=True)
