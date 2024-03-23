@@ -796,6 +796,26 @@ class UnifierBridge:
                     except:
                         pass
 
+                    # Prevent empty buttons
+                    try:
+                        count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
+                    except:
+                        if source == 'revolt':
+                            msg = await message.channel.fetch_message(message.replies[0].id)
+                        elif source == 'guilded':
+                            msg = await message.channel.fetch_message(message.replied_to[0].id)
+                        else:
+                            msg = await message.channel.fetch_message(message.reference.message_id)
+                        count = len(msg.embeds) + len(msg.attachments)
+
+                    if len(trimmed)==0:
+                        content_btn = discord.ui.Button(style=button_style,
+                                                        label=f'x{count}', emoji='\U0001F3DE', disabled=True)
+                    else:
+                        content_btn = discord.ui.ActionRow(
+                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                                )
+
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
                         try:
@@ -805,9 +825,7 @@ class UnifierBridge:
                                     discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
                                                       url=await reply_msg.fetch_url(guild))
                                 ),
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
-                                )
+                                content_btn
                             )
                         except:
                             components = discord.ui.MessageComponents(
