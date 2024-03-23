@@ -1032,23 +1032,24 @@ class UnifierBridge:
                         continue
 
                     async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
-                                     urls,thread_sameguild,message_ids):
+                                     thread_sameguild):
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  components=components, wait=True)
+                        tbresult = []
                         if sameguild:
                             if len(thread_sameguild) > 0:
                                 thread_sameguild.clear()
                                 thread_sameguild.append(msg.id)
                         else:
-                            message_ids.update({f'{destguild.id}': [webhook.channel.id, msg.id]})
-                        urls.update({
+                            tbresult.append({f'{destguild.id}': [webhook.channel.id, msg.id]})
+                        tbresult.append({
                                         f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                        return tbresult
 
                     if tb_v2:
                         threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
-                                                                  mentions,components,sameguild,urls,thread_sameguild,
-                                                                  message_ids)))
+                                                                  mentions,components,sameguild,thread_sameguild)))
                     else:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
@@ -1222,13 +1223,22 @@ class UnifierBridge:
                 urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
+        tbv2_results = []
         if tb_v2:
-            await asyncio.wait(threads)
+            tbv2_results = await asyncio.gather(*threads)
         else:
             for thread in threads:
                 await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
-        message_ids = message_ids
+
+        if tb_v2:
+            for result in tbv2_results:
+                if len(result)==0:
+                    urls.update(result[0])
+                else:
+                    message_ids.update(result[0])
+                    urls.update(result[1])
+
         if len(thread_sameguild) > 0 and platform=='discord' and source=='discord':
             parent_id = thread_sameguild[0]
         else:
