@@ -1817,7 +1817,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
         )
         msg = await ctx.send('Choose a reaction image to generate!\n\n**Blue**: Static images\n**Green**: GIFs', ephemeral=True, components=components)
-        #
+
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
         #
@@ -1884,7 +1884,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.db['colors'].update({f'{ctx.author.id}':color})
             self.bot.db.save_data()
             await ctx.send('Your Revolt messages will now inherit the custom color.')
-
 
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
