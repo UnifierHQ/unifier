@@ -636,6 +636,7 @@ class UnifierBridge:
         thread_sameguild = []
         thread_urls = {}
         threads = []
+        tb_v1 = False
         tb_v2 = False
 
         # Broadcast message
@@ -971,44 +972,45 @@ class UnifierBridge:
                     id_rv = id_rv[len(id_rv) - 1]
                     msg_author_dc = msg_author[:-(len(msg_author) - 26)] + ' (' + id_rv
                 try:
-                    if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord':
-                        synchook = None
-                        try:
-                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
-                        except:
-                            hooks = await destguild.webhooks()
-                            for hook in hooks:
-                                if hook.id in self.bot.db['rooms'][room][guild]:
-                                    synchook = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
-                                    try:
-                                        self.bot.webhook_cache_sync[f'{guild}'].update(
-                                            {f'{synchook.id}':synchook})
-                                    except:
-                                        self.bot.webhook_cache_sync.update({f'{guild}': {f'{synchook.id}': synchook}})
-                                    break
-                        if not synchook:
-                            continue
-
-                        def thread_msg():
-                            sameguild_tr = sameguild
-                            guild_id = synchook.guild_id
-                            msg = synchook.send(avatar_url=url, username=msg_author_dc,
-                                                content=message.content, embeds=embeds,
-                                                files=files, allowed_mentions=mentions, wait=True)
-
-                            if sameguild_tr:
-                                thread_sameguild.append(msg.id)
-                            else:
-                                message_ids.update({f'{guild_id}':[msg.channel.id, msg.id]})
-                            thread_urls.update(
-                                {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
-
-                        thread = threading.Thread(target=thread_msg)
-                        thread.start()
-                        threads.append(thread)
-                    else:
-                        raise ValueError()
+                    tb_v1 = str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord'
                 except:
+                    tb_v1 = False
+                if tb_v1:
+                    synchook = None
+                    try:
+                        synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
+                    except:
+                        hooks = await destguild.webhooks()
+                        for hook in hooks:
+                            if hook.id in self.bot.db['rooms'][room][guild]:
+                                synchook = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
+                                try:
+                                    self.bot.webhook_cache_sync[f'{guild}'].update(
+                                        {f'{synchook.id}':synchook})
+                                except:
+                                    self.bot.webhook_cache_sync.update({f'{guild}': {f'{synchook.id}': synchook}})
+                                break
+                    if not synchook:
+                        continue
+
+                    def thread_msg():
+                        sameguild_tr = sameguild
+                        guild_id = synchook.guild_id
+                        msg = synchook.send(avatar_url=url, username=msg_author_dc,
+                                            content=message.content, embeds=embeds,
+                                            files=files, allowed_mentions=mentions, wait=True)
+
+                        if sameguild_tr:
+                            thread_sameguild.append(msg.id)
+                        else:
+                            message_ids.update({f'{guild_id}':[msg.channel.id, msg.id]})
+                        thread_urls.update(
+                            {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
+
+                    thread = threading.Thread(target=thread_msg)
+                    thread.start()
+                    threads.append(thread)
+                else:
                     try:
                         tb_v2 = str(message.guild.id) in str(
                             self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
@@ -1310,7 +1312,7 @@ class UnifierBridge:
         if multisend_debug:
             ct = time.time()
             diff = round(ct-pt,3)
-            log('BOT', 'info', f'{platform} finished in {diff}s, sent {len(message_ids)} copies, TBv2 {tb_v2}')
+            log('BOT', 'info', f'{platform} finished in {diff}s, sent {len(message_ids)} copies, TBv2 {tb_v2 and not tb_v1}')
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
