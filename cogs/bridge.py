@@ -51,6 +51,8 @@ pr_ref_room_index = data["pr_ref_room_index"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
+multisend_logs = []
+
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -1312,7 +1314,7 @@ class UnifierBridge:
         if multisend_debug:
             ct = time.time()
             diff = round(ct-pt,3)
-            log('BOT', 'info', f'{platform} finished in {diff}s, sent {len(message_ids)} copies, TBv2 {tb_v2 and not tb_v1}')
+            return [platform,diff,len(message_ids),tb_v2 and not tb_v1]
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
@@ -2739,7 +2741,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
 
         pt = time.time()
-        await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks)
         if multisend_exp:
             ct = time.time()
             msg = await self.bot.bridge.fetch_message(message.id)
@@ -2747,7 +2749,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for platform in externals:
                 count += len(msg.external_copies[platform])
             diff = round(ct - pt, 3)
-            log('BOT','info',f'Multisend took {diff}s, sent {count} copies, {len(message.attachments)} attachments')
+            mslog = {'duration':diff}
+            for result in results:
+                mslog.update({result[0]:{'duration':result[1],'copies':result[2],'tb2':result[3]}})
+            multisend_logs.append(mslog)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
