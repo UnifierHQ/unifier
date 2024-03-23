@@ -842,9 +842,7 @@ class UnifierBridge:
                                     discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
                                                       url=await reply_msg.fetch_url(guild))
                                 ),
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
-                                )
+                                content_btn
                             )
                         except:
                             components = discord.ui.MessageComponents(
@@ -852,9 +850,7 @@ class UnifierBridge:
                                     discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
                                                       disabled=True)
                                 ),
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
-                                )
+                                content_btn
                             )
 
                     replying = True
