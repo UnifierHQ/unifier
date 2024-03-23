@@ -514,7 +514,7 @@ class UnifierBridge:
         except:
             raise ValueError('Invalid room')
 
-        is_pr = roomindex == pr_room_index
+        is_pr = roomindex == pr_room_index and allow_prs
         is_pr_ref = False
         pr_id = ""
 
@@ -532,7 +532,7 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        if roomindex == pr_ref_room_index and message.content.startswith('[') and source==platform=='discord':
+        if roomindex == pr_ref_room_index and message.content.startswith('[') and source==platform=='discord' and allow_prs:
             pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
