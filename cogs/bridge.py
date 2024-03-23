@@ -1252,14 +1252,14 @@ class UnifierBridge:
 
         # Update cache
         tbv2_results = []
-        if tb_v2:
+        if tb_v2 and not tb_v1:
             tbv2_results = await asyncio.gather(*threads)
         else:
             for thread in threads:
                 await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
 
-        if tb_v2:
+        if tb_v2 and not tb_v1:
             for result in tbv2_results:
                 if len(result)==0:
                     urls.update(result[0])
