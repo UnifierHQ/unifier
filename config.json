@@ -11,6 +11,7 @@
   "moderator_role": 1212461330309849128,
   "allow_prs": true,
   "enable_ctx_commands": true,
+  "enable_rotating_status": true,
   "pr_room_index": 1,
   "pr_ref_room_index": 2,
   "external": ["revolt"],

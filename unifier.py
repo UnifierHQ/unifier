@@ -173,7 +173,7 @@ async def on_ready():
             bot.load_extension("cogs.upgrader")
         except:
             log("BOT","warn",f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
-        if not changestatus.is_running():
+        if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
         if data['enable_ctx_commands']:
             log("BOT","info","Registering context commands...")
