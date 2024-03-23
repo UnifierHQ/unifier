@@ -1032,7 +1032,7 @@ class UnifierBridge:
                         continue
 
                     async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
-                                     thread_sameguild):
+                                     thread_sameguild,destguild):
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  components=components, wait=True)
@@ -1050,7 +1050,8 @@ class UnifierBridge:
                     if tb_v2:
                         log('BOT','info',f'TBv2: Sending to {guild}')
                         threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
-                                                                  mentions,components,sameguild,thread_sameguild)))
+                                                                  mentions,components,sameguild,thread_sameguild,
+                                                                  destguild)))
                     else:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
@@ -1231,8 +1232,6 @@ class UnifierBridge:
             for thread in threads:
                 await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
-
-        print(tbv2_results)
 
         if tb_v2:
             for result in tbv2_results:
