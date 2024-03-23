@@ -1310,7 +1310,7 @@ class UnifierBridge:
         if multisend_debug:
             ct = time.time()
             diff = round(ct-pt,3)
-            log('BOT', 'info', f'{platform} finished in {diff}s, sent {len(message_ids)} copies')
+            log('BOT', 'info', f'{platform} finished in {diff}s, sent {len(message_ids)} copies, TBv2 {tb_v2}')
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
