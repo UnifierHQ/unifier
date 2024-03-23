@@ -972,7 +972,7 @@ class UnifierBridge:
                     id_rv = id_rv[len(id_rv) - 1]
                     msg_author_dc = msg_author[:-(len(msg_author) - 26)] + ' (' + id_rv
                 try:
-                    tb_v1 = str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord'
+                    tb_v1 = not components and source=='discord'
                 except:
                     tb_v1 = False
                 if tb_v1:
