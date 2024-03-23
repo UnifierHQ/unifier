@@ -1235,6 +1235,7 @@ class UnifierBridge:
                     else:
                         gdresult.append({f'{destguild.id}': [msg.channel.id, msg.id]})
                     gdresult.append({f'{destguild.id}': msg.share_url})
+                    return gdresult
 
                 if tb_v2:
                     threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
