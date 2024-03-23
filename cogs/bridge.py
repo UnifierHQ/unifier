@@ -636,7 +636,6 @@ class UnifierBridge:
         thread_sameguild = []
         thread_urls = {}
         threads = []
-        tb_v2 = False
 
         # Broadcast message
         for guild in list(guilds.keys()):
@@ -1009,12 +1008,6 @@ class UnifierBridge:
                     else:
                         raise ValueError()
                 except:
-                    try:
-                        if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge_async']) and not components and source == 'discord':
-                            tb_v2 = True
-                    except:
-                        pass
-
                     webhook = None
                     try:
                         webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
@@ -1022,38 +1015,23 @@ class UnifierBridge:
                         hooks = await destguild.webhooks()
                         for hook in hooks:
                             if f'{guild}' in list(self.bot.webhook_cache.keys()):
-                                self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}': hook})
+                                self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
                             else:
-                                self.bot.webhook_cache.update({f'{guild}': {f'{hook.id}': hook}})
+                                self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
                             if hook.id in self.bot.db['rooms'][room][guild]:
                                 webhook = hook
                                 break
                     if not webhook:
                         continue
 
-                    async def thread_msg():
-                        try:
-                            global thread_sameguild
-                            global webhook
-                            global message_ids
-                            global urls
-                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                     content=message.content, files=files, allowed_mentions=mentions,
-                                                     components=components, wait=True)
-                            if sameguild:
-                                thread_sameguild = [msg.id]
-                            else:
-                                message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                            urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
-                        except:
-                            log('BOT', 'error', 'TBv2: Could not bridge.')
-                        return
-
-                    if tb_v2:
-                        threads.append(asyncio.create_task(thread_msg()))
-                        log('BOT','info','TBv2: Added thread.')
+                    msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                             content=message.content, files=files, allowed_mentions=mentions,
+                                             components=components, wait=True)
+                    if sameguild:
+                        thread_sameguild = [msg.id]
                     else:
-                        await thread_msg()
+                        message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
+                    urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
             elif platform=='revolt':
                 try:
                     ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
@@ -1218,11 +1196,8 @@ class UnifierBridge:
                 urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
-        if tb_v2:
-            await asyncio.wait(threads)
-        else:
-            for thread in threads:
-                await self.bot.loop.run_in_executor(None, lambda: thread.join())
+        for thread in threads:
+            await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
         message_ids = message_ids
         if len(thread_sameguild) > 0 and platform=='discord' and source=='discord':
