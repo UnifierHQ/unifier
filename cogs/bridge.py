@@ -964,6 +964,11 @@ class UnifierBridge:
                 embeds = []
 
             if platform=='discord':
+                msg_author_dc = msg_author
+                if len(msg_author) > 35:
+                    id_rv = msg_author.split('(')
+                    id_rv = id_rv[len(id_rv) - 1]
+                    msg_author_dc = msg_author[:-(len(msg_author) - 26)] + ' (' + id_rv
                 try:
                     if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord':
                         synchook = None
@@ -986,7 +991,7 @@ class UnifierBridge:
                         def thread_msg():
                             sameguild_tr = sameguild
                             guild_id = synchook.guild_id
-                            msg = synchook.send(avatar_url=url, username=msg_author,
+                            msg = synchook.send(avatar_url=url, username=msg_author_dc,
                                                 content=message.content, embeds=embeds,
                                                 files=files, allowed_mentions=mentions, wait=True)
 
@@ -1018,7 +1023,7 @@ class UnifierBridge:
                                 break
                     if not webhook:
                         continue
-                    msg = await webhook.send(avatar_url=url, username=msg_author, embeds=embeds,
+                    msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                              content=message.content, files=files, allowed_mentions=mentions,
                                              components=components, wait=True)
                     if sameguild:
@@ -1069,18 +1074,23 @@ class UnifierBridge:
                         except:
                             pass
 
+                msg_author_rv = msg_author
+                if len(msg_author) > 32:
+                    id_rv = msg_author.split('(')
+                    id_rv = id_rv[len(id_rv)-1]
+                    msg_author_rv = msg_author[:-(len(msg_author)-23)]+' ('+id_rv
+
                 try:
-                    persona = revolt.Masquerade(name=msg_author, avatar=url, colour=rvtcolor)
+                    persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
                 except:
-                    persona = revolt.Masquerade(name=msg_author, avatar=None, colour=rvtcolor)
+                    persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
                 try:
                     msg = await ch.send(
                         content=message.content, embeds=message.embeds, attachments=files, replies=replies,
                         masquerade=persona
                     )
                 except:
-                    print(f'Failed: {ch.name}, length {len(message.content)}, {message.embeds}, {files}, {replies}, {persona}')
-                    traceback.print_exc()
+                    continue
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
@@ -1170,7 +1180,13 @@ class UnifierBridge:
                 if len(replytext+message.content)==0:
                     replytext = '[empty message]'
 
-                msg = await webhook.send(avatar_url=url, username=msg_author.encode("ascii", errors="ignore").decode(),
+                msg_author_gd = msg_author
+                if len(msg_author) > 25:
+                    id_rv = msg_author.split('(')
+                    id_rv = id_rv[len(id_rv) - 1]
+                    msg_author_gd = msg_author[:-(len(msg_author) - 12)] + ' (' + id_rv
+
+                msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
                                          embeds=embeds,content=replytext+message.content,files=files)
                 if sameguild:
                     thread_sameguild = [msg.id]
