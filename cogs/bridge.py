@@ -2375,7 +2375,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 text = f'{text}\n{key}: [link](<{msg.urls[key]}>)'
         embed.add_field(name=f'URLs', value=text, inline=False)
-        await ctx.send(text)
+        await ctx.send(embed=embed)
 
     @commands.command(hidden=True)
     async def initbridge(self, ctx, *, args=''):
