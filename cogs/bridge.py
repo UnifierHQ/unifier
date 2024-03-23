@@ -1210,8 +1210,11 @@ class UnifierBridge:
                 urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
-        for thread in threads:
-            await self.bot.loop.run_in_executor(None, lambda:thread.join())
+        if tb_v2:
+            await asyncio.wait(threads)
+        else:
+            for thread in threads:
+                await self.bot.loop.run_in_executor(None, lambda: thread.join())
         urls = urls | thread_urls
         message_ids = message_ids
         if len(thread_sameguild) > 0 and platform=='discord' and source=='discord':
