@@ -974,6 +974,7 @@ class UnifierBridge:
                 try:
                     tb_v1 = str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord'
                 except:
+                    raise
                     tb_v1 = False
                 if tb_v1:
                     synchook = None
