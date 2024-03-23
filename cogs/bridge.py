@@ -1043,7 +1043,7 @@ class UnifierBridge:
                         urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
 
                     if tb_v2:
-                        threads.append(thread_msg())
+                        threads.append(asyncio.create_task(thread_msg()))
                     else:
                         await thread_msg()
             elif platform=='revolt':
