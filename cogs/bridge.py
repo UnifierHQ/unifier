@@ -1031,22 +1031,24 @@ class UnifierBridge:
                     if not webhook:
                         continue
 
-                    async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild):
-                        global thread_sameguild
-                        global message_ids
-                        global urls
+                    async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
+                                     urls,thread_sameguild,message_ids):
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  components=components, wait=True)
                         if sameguild:
-                            thread_sameguild = [msg.id]
+                            if len(thread_sameguild) > 0:
+                                thread_sameguild.clear()
+                                thread_sameguild.append(msg.id)
                         else:
                             message_ids.update({f'{destguild.id}': [webhook.channel.id, msg.id]})
                         urls.update({
                                         f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
 
                     if tb_v2:
-                        threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild)))
+                        threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
+                                                                  mentions,components,sameguild,urls,thread_sameguild,
+                                                                  message_ids)))
                     else:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
