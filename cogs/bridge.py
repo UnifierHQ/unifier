@@ -1169,8 +1169,8 @@ class UnifierBridge:
                 if len(replytext+message.content)==0:
                     replytext = '[empty message]'
 
-                msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
-                                         content=replytext+message.content,files=files)
+                msg = await webhook.send(avatar_url=url, username=msg_author.encode("ascii", errors="ignore").decode(),
+                                         embeds=embeds,content=replytext+message.content,files=files)
                 if sameguild:
                     thread_sameguild = [msg.id]
                 else:
