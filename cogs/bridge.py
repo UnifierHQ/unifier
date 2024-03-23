@@ -1232,6 +1232,8 @@ class UnifierBridge:
                 await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
 
+        print(tbv2_results)
+
         if tb_v2:
             for result in tbv2_results:
                 if len(result)==0:
