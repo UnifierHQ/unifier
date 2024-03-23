@@ -1073,11 +1073,14 @@ class UnifierBridge:
                     persona = revolt.Masquerade(name=msg_author, avatar=url, colour=rvtcolor)
                 except:
                     persona = revolt.Masquerade(name=msg_author, avatar=None, colour=rvtcolor)
-
-                msg = await ch.send(
-                    content=message.content, embeds=message.embeds, attachments=files, replies=replies,
-                    masquerade=persona
-                )
+                try:
+                    msg = await ch.send(
+                        content=message.content, embeds=message.embeds, attachments=files, replies=replies,
+                        masquerade=persona
+                    )
+                except:
+                    print(f'Failed: {ch.name}, length {len(message.content)}, {message.embeds}, {files}, {replies}, {persona}')
+                    traceback.print_exc()
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
