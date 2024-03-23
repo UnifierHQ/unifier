@@ -1031,14 +1031,33 @@ class UnifierBridge:
                     if not webhook:
                         continue
 
-                    msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                             content=message.content, files=files, allowed_mentions=mentions,
-                                             components=components, wait=True)
-                    if sameguild:
-                        thread_sameguild = [msg.id]
+                    async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
+                                     urls,thread_sameguild,message_ids):
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                 content=message.content, files=files, allowed_mentions=mentions,
+                                                 components=components, wait=True)
+                        if sameguild:
+                            if len(thread_sameguild) > 0:
+                                thread_sameguild.clear()
+                                thread_sameguild.append(msg.id)
+                        else:
+                            message_ids.update({f'{destguild.id}': [webhook.channel.id, msg.id]})
+                        urls.update({
+                                        f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+
+                    if tb_v2:
+                        threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
+                                                                  mentions,components,sameguild,urls,thread_sameguild,
+                                                                  message_ids)))
                     else:
-                        message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                    urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                 content=message.content, files=files, allowed_mentions=mentions,
+                                                 components=components, wait=True)
+                        if sameguild:
+                            thread_sameguild = [msg.id]
+                        else:
+                            message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
+                        urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
             elif platform=='revolt':
                 try:
                     ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
@@ -1203,9 +1222,11 @@ class UnifierBridge:
                 urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
-        for thread in threads:
-            await self.bot.loop.run_in_executor(None, lambda:thread.join())
-
+        if tb_v2:
+            await asyncio.wait(threads)
+        else:
+            for thread in threads:
+                await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
         message_ids = message_ids
         if len(thread_sameguild) > 0 and platform=='discord' and source=='discord':
