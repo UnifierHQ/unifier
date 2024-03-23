@@ -1125,6 +1125,11 @@ class UnifierBridge:
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
                 try:
+                    tb_v2 = str(message.guild.id) in str(
+                        self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
+                except:
+                    pass
+                try:
                     webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild][0]}']
                 except:
                     try:
@@ -1216,13 +1221,32 @@ class UnifierBridge:
                     id_rv = id_rv[len(id_rv) - 1]
                     msg_author_gd = msg_author[:-(len(msg_author) - 12)] + ' (' + id_rv
 
-                msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                         embeds=embeds,content=replytext+message.content,files=files)
-                if sameguild:
-                    thread_sameguild = [msg.id]
+                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, files, sameguild, destguild,
+                                 thread_sameguild):
+                    msg = await webhook.send(avatar_url=url,
+                                             username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                             embeds=embeds, content=replytext + message.content, files=files)
+
+                    gdresult = []
+                    if sameguild:
+                        if len(thread_sameguild) > 0:
+                            thread_sameguild.clear()
+                            thread_sameguild.append(msg.id)
+                    else:
+                        gdresult.append({f'{destguild.id}': [msg.channel.id, msg.id]})
+                    gdresult.append({f'{destguild.id}': msg.share_url})
+
+                if tb_v2:
+                    threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
+                                                              files, sameguild, destguild, thread_sameguild)))
                 else:
-                    message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
-                urls.update({f'{destguild.id}':msg.share_url})
+                    msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                             embeds=embeds,content=replytext+message.content,files=files)
+                    if sameguild:
+                        thread_sameguild = [msg.id]
+                    else:
+                        message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
+                    urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
         tbv2_results = []
