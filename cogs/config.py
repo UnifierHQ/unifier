@@ -271,7 +271,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         else:
             embed = discord.Embed(title=':test_tube: Experiments',
-                                  description='Help us test Unifier\'s experimental features! Run `u!experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
+                                  description=f'Help us test Unifier\'s experimental features! Run `{self.bot.command_prefix}experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
                                   color=0x0000ff)
             for experiment in self.bot.db['experiments']:
                 name = self.bot.db['experiments_info'][experiment]['name'] + f" (`{experiment}`"
@@ -306,11 +306,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             except:
                 guild = []
             if len(guild) >= 1:
-                return await ctx.send('Your server is already linked to this room.\n**Accidentally deleted the webhook?** `u!unlink` it then `u!link` it back.')
+                return await ctx.send(f'Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{self.bot.command_prefix}unlink` it then `{self.bot.command_prefix}link` it back.')
             index = 0
             text = ''
             if len(self.bot.db['rules'][room])==0:
-                text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `u!rules {room}`.'
+                text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `{self.bot.command_prefix}rules {room}`.'
             else:
                 for rule in self.bot.db['rules'][room]:
                     if text=='':
@@ -408,7 +408,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             room = 'main'
 
         if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send('This room doesn\'t exist! Run `u!rooms` to get a full list.')
+            return await ctx.send(f'This room doesn\'t exist! Run `{self.bot.command_prefix}rooms` to get a full list.')
         
         index = 0
         text = ''
@@ -464,7 +464,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command()
     async def rooms(self,ctx):
-        embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description='Use `u!bind <room>` to bind to a room.')
+        embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description=f'Use `{self.bot.command_prefix}bind <room>` to bind to a room.')
         if len(self.bot.db['rooms'])==0:
             embed.add_field(name='',value='No rooms here <:notlikenevira:1144718936986882088>')
             return await ctx.send(embed=embed)
@@ -525,13 +525,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command()
     async def avatar(self,ctx,*,url=''):
-        desc = 'You have no avatar! Run `u!avatar <url>` or set an avatar in your profile settings.'
+        desc = f'You have no avatar! Run `{self.bot.command_prefix}avatar <url>` or set an avatar in your profile settings.'
         try:
             if f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
                 avurl = self.bot.db['avatars'][f'{ctx.author.id}']
-                desc = 'You have a custom avatar! Run `u!avatar <url>` to change it, or run `u!avatar remove` to remove it.'
+                desc = f'You have a custom avatar! Run `{self.bot.command_prefix}avatar <url>` to change it, or run `{self.bot.command_prefix}avatar remove` to remove it.'
             else:
-                desc = 'You have a default avatar! Run `u!avatar <url>` to set a custom one for UniChat.'
+                desc = f'You have a default avatar! Run `{self.bot.command_prefix}avatar <url>` to set a custom one for UniChat.'
                 avurl = ctx.author.avatar.url
         except:
             avurl = None
@@ -561,7 +561,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         btns = discord.ui.ActionRow(row[0], row[1])
         components = discord.ui.MessageComponents(btns)
         if url=='':
-            embed.set_footer(text='To change your avatar, run u!avatar <url>.')
+            embed.set_footer(text=f'To change your avatar, run {self.bot.command_prefix}avatar <url>.')
             components = None
         msg = await ctx.send(embed=embed,components=components)
         if not url == '':
