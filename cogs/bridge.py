@@ -1048,7 +1048,6 @@ class UnifierBridge:
                         return tbresult
 
                     if tb_v2:
-                        log('BOT','info',f'TBv2: Sending to {guild}')
                         threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
                                                                   mentions,components,sameguild,thread_sameguild,
                                                                   destguild)))
