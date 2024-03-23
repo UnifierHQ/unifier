@@ -812,9 +812,7 @@ class UnifierBridge:
                         content_btn = discord.ui.Button(style=button_style,
                                                         label=f'x{count}', emoji='\U0001F3DE', disabled=True)
                     else:
-                        content_btn = discord.ui.ActionRow(
-                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
-                                )
+                        content_btn = discord.ui.Button(style=button_style, label=trimmed, disabled=True)
 
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
