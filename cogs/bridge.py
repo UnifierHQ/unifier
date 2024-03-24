@@ -216,21 +216,44 @@ class UnifierBridge:
         del data
         return
 
-    async def fetch_message(self,message_id):
+    async def fetch_message(self,message_id,prehook=False,not_prehook=False):
+        if prehook and not_prehook:
+            raise ValueError('Conflicting arguments')
         for message in self.bridged:
             if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
                     str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
-                return message
+                if prehook and str(message.prehook)==str(message_id) and not str(message.id) == str(message_id):
+                    return message
+                elif not_prehook and not str(message.prehook) == str(message_id):
+                    return message
+                elif not prehook:
+                    return message
         raise ValueError("No message found")
 
-    async def indexof(self,message_id):
+    async def indexof(self,message_id,prehook=False,not_prehook=False):
+        if prehook and not_prehook:
+            raise ValueError('Conflicting arguments')
         index = 0
         for message in self.bridged:
             if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
                     str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
-                return index
+                if prehook and str(message.prehook) == str(message_id) and not str(message.id) == str(message_id):
+                    return index
+                elif not_prehook and not str(message.prehook) == str(message_id):
+                    return index
+                elif not prehook:
+                    return index
             index += 1
         raise ValueError("No message found")
+
+    async def merge_prehook(self,message_id):
+        index = await self.indexof(message_id,prehook=True)
+        index_tomerge = await self.indexof(message_id, not_prehook=True)
+        msg_tomerge: UnifierMessage = await self.fetch_message(message_id,not_prehook=True)
+        self.bridged[index]['copies'] = self.bridged[index]['copies'] | msg_tomerge.copies
+        self.bridged[index]['external_copies'] = self.bridged[index]['external_copies'] | msg_tomerge.external_copies
+        self.bridged[index]['urls'] = self.bridged[index]['urls'] | msg_tomerge.urls
+        self.bridged.pop(index_tomerge)
 
     async def delete_parent(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
@@ -2741,7 +2764,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
 
         pt = time.time()
-        results = await asyncio.gather(*tasks)
+        try:
+            results = await asyncio.gather(*tasks)
+        except:
+            log('BOT','warn','Multisend partially failed')
+
+        if multisend_exp:
+            try:
+                await self.bot.bridge.merge_prehook(message.id)
+            except:
+                pass
+
         if multisend_exp:
             ct = time.time()
             msg = await self.bot.bridge.fetch_message(message.id)
