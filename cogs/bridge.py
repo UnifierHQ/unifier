@@ -1424,7 +1424,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         bg.paste(user1, (280, 170), user1)
         bg.paste(user2, (753, 180), user2)
         im_draw = ImageDraw.Draw(bg)
-        font = ImageFont.truetype('Kollektif.ttf', 50)]
+        font = ImageFont.truetype('Kollektif.ttf', 50)
         text = f'THINK, {username.upper()}, THINK!'
         text_width = im_draw.textlength(text, font)
         width = 1116 - text_width
