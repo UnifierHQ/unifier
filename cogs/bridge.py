@@ -999,9 +999,7 @@ class UnifierBridge:
             if platform=='discord':
                 msg_author_dc = msg_author
                 if len(msg_author) > 35:
-                    id_rv = msg_author.split('(')
-                    id_rv = id_rv[len(id_rv) - 1]
-                    msg_author_dc = msg_author[:-(len(msg_author) - 26)] + ' (' + id_rv
+                    msg_author_dc = msg_author[:-(len(msg_author) - 35)]
                 try:
                     tb_v1 = not components and source=='discord'
                 except:
@@ -1144,9 +1142,7 @@ class UnifierBridge:
 
                 msg_author_rv = msg_author
                 if len(msg_author) > 32:
-                    id_rv = msg_author.split('(')
-                    id_rv = id_rv[len(id_rv)-1]
-                    msg_author_rv = msg_author[:-(len(msg_author)-23)]+' ('+id_rv
+                    msg_author_rv = msg_author[:-(len(msg_author)-32)]
 
                 try:
                     persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
@@ -1255,9 +1251,7 @@ class UnifierBridge:
 
                 msg_author_gd = msg_author
                 if len(msg_author) > 25:
-                    id_rv = msg_author.split('(')
-                    id_rv = id_rv[len(id_rv) - 1]
-                    msg_author_gd = msg_author[:-(len(msg_author) - 12)] + ' (' + id_rv
+                    msg_author_gd = msg_author[:-(len(msg_author) - 25)]
 
                 async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, files, sameguild, destguild,
                                  thread_sameguild):
@@ -1430,11 +1424,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         bg.paste(user1, (280, 170), user1)
         bg.paste(user2, (753, 180), user2)
         im_draw = ImageDraw.Draw(bg)
-        font = ImageFont.truetype('Kollektif.ttf', 50)
-        components = username.split('(')
-        component = components[len(components) - 1].replace(')', '')
-        if len(component) == 6 and len(username.split('(')) >= 2:
-            username = username[:-9]
+        font = ImageFont.truetype('Kollektif.ttf', 50)]
         text = f'THINK, {username.upper()}, THINK!'
         text_width = im_draw.textlength(text, font)
         width = 1116 - text_width
@@ -1742,8 +1732,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     author = self.bot.db['nicknames'][f'{ctx.author.id}']
                 author_rvt = author
                 rvtcolor = None
-                if len(author) > 23:
-                    author_rvt = author_rvt[:-(len(author) - 23)]
+                if len(author) > 32:
+                    author_rvt = author_rvt[:-(len(author) - 32)]
                 if f'{ctx.author.id}' in list(self.bot.db['colors'].keys()):
                     color = self.bot.db['colors'][f'{ctx.author.id}']
                     if color == 'inherit':
