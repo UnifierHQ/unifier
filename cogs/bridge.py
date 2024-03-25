@@ -1393,13 +1393,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.webhook_cache_sync = {}
         msgs = []
         prs = {}
+        restored = False
         if hasattr(self.bot, 'bridge'):
             msgs = self.bot.bridge.bridged
             prs = self.bot.bridge.prs
+            restored = self.bot.bridge.restored
             del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
+        self.bot.bridge.restored = restored
 
     def clueless_gen(self, user, identifier):
         from PIL import Image
