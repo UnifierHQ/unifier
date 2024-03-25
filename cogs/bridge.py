@@ -51,6 +51,8 @@ pr_ref_room_index = data["pr_ref_room_index"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
+multisend_logs = []
+
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -85,6 +87,21 @@ def bypass_killer(string):
     else:
         raise RuntimeError()
 
+def log(type='???',status='ok',content='None'):
+    from time import gmtime, strftime
+    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
+    if status=='ok':
+        status = ' OK  '
+    elif status=='error':
+        status = 'ERROR'
+    elif status=='warn':
+        status = 'WARN '
+    elif status=='info':
+        status = 'INFO '
+    else:
+        raise ValueError('Invalid status type provided')
+    print(f'[{type} | {time1} | {status}] {content}')
+
 class ExternalReference:
     def __init__(self, guild_id, channel_id, message_id):
         self.guild = guild_id
@@ -95,7 +112,8 @@ class SelfDeleteException(Exception):
     pass
 
 class UnifierMessage:
-    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room, external_urls=None, webhook=False, prehook=None):
+    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
+                 external_urls=None, webhook=False, prehook=None, reply=False):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -108,6 +126,7 @@ class UnifierMessage:
         self.room = room
         self.webhook = webhook
         self.prehook = prehook
+        self.reply = reply
 
     def to_dict(self):
         return self.__dict__
@@ -176,7 +195,7 @@ class UnifierBridge:
         with open(filename, "r") as file:
             data = json.load(file)
 
-        for x in range(len(data)):
+        for x in range(len(data['messages'])):
             msg = UnifierMessage(
                 author_id=data['messages'][f'{x}']['author_id'],
                 guild_id=data['messages'][f'{x}']['guild_id'],
@@ -197,21 +216,44 @@ class UnifierBridge:
         del data
         return
 
-    async def fetch_message(self,message_id):
+    async def fetch_message(self,message_id,prehook=False,not_prehook=False):
+        if prehook and not_prehook:
+            raise ValueError('Conflicting arguments')
         for message in self.bridged:
             if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
                     str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
-                return message
+                if prehook and str(message.prehook)==str(message_id) and not str(message.id) == str(message_id):
+                    return message
+                elif not_prehook and not str(message.prehook) == str(message_id):
+                    return message
+                elif not prehook:
+                    return message
         raise ValueError("No message found")
 
-    async def indexof(self,message_id):
+    async def indexof(self,message_id,prehook=False,not_prehook=False):
+        if prehook and not_prehook:
+            raise ValueError('Conflicting arguments')
         index = 0
         for message in self.bridged:
             if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
                     str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
-                return index
+                if prehook and str(message.prehook) == str(message_id) and not str(message.id) == str(message_id):
+                    return index
+                elif not_prehook and not str(message.prehook) == str(message_id):
+                    return index
+                elif not prehook:
+                    return index
             index += 1
         raise ValueError("No message found")
+
+    async def merge_prehook(self,message_id):
+        index = await self.indexof(message_id,prehook=True)
+        index_tomerge = await self.indexof(message_id, not_prehook=True)
+        msg_tomerge: UnifierMessage = await self.fetch_message(message_id,not_prehook=True)
+        self.bridged[index]['copies'] = self.bridged[index]['copies'] | msg_tomerge.copies
+        self.bridged[index]['external_copies'] = self.bridged[index]['external_copies'] | msg_tomerge.external_copies
+        self.bridged[index]['urls'] = self.bridged[index]['urls'] | msg_tomerge.urls
+        self.bridged.pop(index_tomerge)
 
     async def delete_parent(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
@@ -274,20 +316,11 @@ class UnifierBridge:
                     continue
 
                 guild = self.bot.guilded_client.get_server(key)
-                try:
-                    hooks = await guild.webhooks()
-                except:
-                    continue
-                webhook = None
 
                 # Fetch webhook
-                for hook in hooks:
-                    if self.bot.db['rooms_guilded'][msg.room][key][0]==hook.id:
-                        webhook: guilded.Webhook = hook
-                        break
-
-                if not webhook:
-                    # No webhook found
+                try:
+                    webhook = await guild.fetch_webhook(self.bot.db['rooms_guilded'][msg.room][key][0])
+                except:
                     continue
 
                 try:
@@ -419,6 +452,42 @@ class UnifierBridge:
                     traceback.print_exc()
                     continue
 
+        async def edit_guilded(msgs,friendly=False):
+            if friendly:
+                text = await make_friendly(content)
+            else:
+                text = content
+
+            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
+                if not key in list(msgs.keys()):
+                    continue
+
+                guild = self.bot.guilded_client.get_server(key)
+                try:
+                    hooks = await guild.webhooks()
+                except:
+                    continue
+                webhook = None
+
+                # Fetch webhook
+                for hook in hooks:
+                    if self.bot.db['rooms_guilded'][msg.room][key][0]==hook.id:
+                        webhook: guilded.Webhook = hook
+                        break
+
+                if not webhook:
+                    # No webhook found
+                    continue
+
+                try:
+                    toedit = await webhook.fetch_message(msgs[key][1])
+                    if msg.reply:
+                        text = toedit.content.split('\n',1)[0]+'\n'+text
+                    await toedit.edit(content=text)
+                except:
+                    traceback.print_exc()
+                    pass
+
         if msg.source=='discord':
             await edit_discord(msg.copies)
         elif msg.source=='revolt':
@@ -431,8 +500,9 @@ class UnifierBridge:
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
-                   platform: str = 'discord', system: bool = False):
+                   platform: str = 'discord', system: bool = False, multisend_debug=False):
         source = 'discord'
+        pt = time.time()
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
             if not 'cogs.bridge_revolt' in extlist:
@@ -469,7 +539,7 @@ class UnifierBridge:
         except:
             raise ValueError('Invalid room')
 
-        is_pr = roomindex == pr_room_index
+        is_pr = roomindex == pr_room_index and allow_prs
         is_pr_ref = False
         pr_id = ""
 
@@ -487,7 +557,7 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        if roomindex == pr_ref_room_index and message.content.startswith('[') and source==platform=='discord':
+        if roomindex == pr_ref_room_index and message.content.startswith('[') and source==platform=='discord' and allow_prs:
             pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
@@ -585,11 +655,14 @@ class UnifierBridge:
         urls = {}
         limit_notified = False
         trimmed = ''
+        replying = False
 
         # Threading
         thread_sameguild = []
         thread_urls = {}
         threads = []
+        tb_v1 = False
+        tb_v2 = False
 
         # Broadcast message
         for guild in list(guilds.keys()):
@@ -627,6 +700,8 @@ class UnifierBridge:
                 if not should_resend or not platform=='discord':
                     if platform=='discord':
                         urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
+                    elif platform=='guilded':
+                        urls.update({f'{message.server.id}': message.share_url})
                     continue
 
             # Reply processing
@@ -681,6 +756,7 @@ class UnifierBridge:
                         )
                 if reply_msg:
                     if not trimmed:
+                        is_copy = False
                         try:
                             content = message.reference.cached_message.content
                         except:
@@ -688,10 +764,15 @@ class UnifierBridge:
                                 msg = await message.channel.fetch_message(message.replies[0].id)
                             elif source=='guilded':
                                 msg = await message.channel.fetch_message(message.replied_to[0].id)
+                                if msg.webhook_id:
+                                    is_copy = True
                             else:
                                 msg = await message.channel.fetch_message(message.reference.message_id)
                             content = msg.content
                         clean_content = discord.utils.remove_markdown(content)
+
+                        if reply_msg.reply and source=='guilded' and is_copy:
+                            clean_content = clean_content.split('\n',1)[1]
 
                         msg_components = clean_content.split('<@')
                         offset = 0
@@ -742,6 +823,24 @@ class UnifierBridge:
                     except:
                         pass
 
+                    # Prevent empty buttons
+                    try:
+                        count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
+                    except:
+                        if source == 'revolt':
+                            msg = await message.channel.fetch_message(message.replies[0].id)
+                        elif source == 'guilded':
+                            msg = await message.channel.fetch_message(message.replied_to[0].id)
+                        else:
+                            msg = await message.channel.fetch_message(message.reference.message_id)
+                        count = len(msg.embeds) + len(msg.attachments)
+
+                    if len(trimmed)==0:
+                        content_btn = discord.ui.Button(style=button_style,
+                                                        label=f'x{count}', emoji='\U0001F3DE', disabled=True)
+                    else:
+                        content_btn = discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
                         try:
@@ -752,7 +851,7 @@ class UnifierBridge:
                                                       url=await reply_msg.fetch_url(guild))
                                 ),
                                 discord.ui.ActionRow(
-                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                                    content_btn
                                 )
                             )
                         except:
@@ -771,7 +870,7 @@ class UnifierBridge:
                                                       url=await reply_msg.fetch_url(guild))
                                 ),
                                 discord.ui.ActionRow(
-                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                                    content_btn
                                 )
                             )
                         except:
@@ -781,9 +880,11 @@ class UnifierBridge:
                                                       disabled=True)
                                 ),
                                 discord.ui.ActionRow(
-                                    discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                                    content_btn
                                 )
                             )
+
+                    replying = True
 
             # Attachment processing
             files = []
@@ -833,13 +934,13 @@ class UnifierBridge:
                 if size_total > 25000000:
                     if not limit_notified:
                         limit_notified = True
-                        if source=='revolt':
+                        if source==platform=='revolt':
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
                                                        replies=[revolt.MessageReply(message)])
-                        elif source=='guilded':
+                        elif source==platform=='guilded':
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
                                                        reply_to=message)
-                        else:
+                        elif source==platform:
                             await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
                                                        reference=message)
                     break
@@ -890,48 +991,60 @@ class UnifierBridge:
                 embeds = []
 
             if platform=='discord':
+                msg_author_dc = msg_author
+                if len(msg_author) > 35:
+                    id_rv = msg_author.split('(')
+                    id_rv = id_rv[len(id_rv) - 1]
+                    msg_author_dc = msg_author[:-(len(msg_author) - 26)] + ' (' + id_rv
                 try:
-                    if str(message.guild.id) in str(self.bot.db['experiments']['threaded_bridge']) and not components and source=='discord':
-                        synchook = None
-                        try:
-                            synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
-                        except:
-                            hooks = await destguild.webhooks()
-                            for hook in hooks:
-                                if hook.id in self.bot.db['rooms'][room][guild]:
-                                    synchook = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
-                                    try:
-                                        self.bot.webhook_cache_sync[f'{guild}'].update(
-                                            {f'{synchook.id}':synchook})
-                                    except:
-                                        self.bot.webhook_cache_sync.update({f'{guild}': {f'{synchook.id}': synchook}})
-                                    break
-                        if not synchook:
-                            continue
-
-                        def thread_msg():
-                            sameguild_tr = sameguild
-                            guild_id = synchook.guild_id
-                            msg = synchook.send(avatar_url=url, username=msg_author,
-                                                content=message.content, embeds=embeds,
-                                                files=files, allowed_mentions=mentions, wait=True)
-
-                            if sameguild_tr:
-                                thread_sameguild.append(msg.id)
-                            else:
-                                message_ids.update({f'{guild_id}':[msg.channel.id, msg.id]})
-                            thread_urls.update(
-                                {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
-
-                        thread = threading.Thread(target=thread_msg)
-                        thread.start()
-                        threads.append(thread)
-                    else:
-                        raise ValueError()
+                    tb_v1 = not components and source=='discord'
                 except:
+                    tb_v1 = False
+                if tb_v1:
+                    synchook = None
+                    try:
+                        synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
+                    except:
+                        hooks = await destguild.webhooks()
+                        for hook in hooks:
+                            if hook.id in self.bot.db['rooms'][room][guild]:
+                                synchook = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
+                                try:
+                                    self.bot.webhook_cache_sync[f'{guild}'].update(
+                                        {f'{synchook.id}':synchook})
+                                except:
+                                    self.bot.webhook_cache_sync.update({f'{guild}': {f'{synchook.id}': synchook}})
+                                break
+                    if not synchook:
+                        continue
+
+                    def thread_msg():
+                        sameguild_tr = sameguild
+                        guild_id = synchook.guild_id
+                        msg = synchook.send(avatar_url=url, username=msg_author_dc,
+                                            content=message.content, embeds=embeds,
+                                            files=files, allowed_mentions=mentions, wait=True)
+
+                        if sameguild_tr:
+                            thread_sameguild.append(msg.id)
+                        else:
+                            message_ids.update({f'{guild_id}':[msg.channel.id, msg.id]})
+                        thread_urls.update(
+                            {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
+
+                    thread = threading.Thread(target=thread_msg)
+                    thread.start()
+                    threads.append(thread)
+                else:
+                    try:
+                        tb_v2 = str(message.guild.id) in str(
+                            self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
+                    except:
+                        pass
+
                     webhook = None
                     try:
-                        webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild]}']
+                        webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
                     except:
                         hooks = await destguild.webhooks()
                         for hook in hooks:
@@ -944,14 +1057,42 @@ class UnifierBridge:
                                 break
                     if not webhook:
                         continue
-                    msg = await webhook.send(avatar_url=url, username=msg_author, embeds=embeds,
-                                             content=message.content, files=files, allowed_mentions=mentions,
-                                             components=components, wait=True)
-                    if sameguild:
-                        thread_sameguild = [msg.id]
+
+                    async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
+                                     thread_sameguild,destguild):
+                        try:
+                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                     content=message.content, files=files, allowed_mentions=mentions,
+                                                     components=components, wait=True)
+                        except:
+                            return None
+                        tbresult = []
+                        if sameguild:
+                            if len(thread_sameguild) > 0:
+                                thread_sameguild.clear()
+                                thread_sameguild.append(msg.id)
+                        else:
+                            tbresult.append({f'{destguild.id}': [webhook.channel.id, msg.id]})
+                        tbresult.append({
+                                        f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                        return tbresult
+
+                    if tb_v2:
+                        threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
+                                                                  mentions,components,sameguild,thread_sameguild,
+                                                                  destguild)))
                     else:
-                        message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                    urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                        try:
+                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                     content=message.content, files=files, allowed_mentions=mentions,
+                                                     components=components, wait=True)
+                        except:
+                            continue
+                        if sameguild:
+                            thread_sameguild = [msg.id]
+                        else:
+                            message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
+                        urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
             elif platform=='revolt':
                 try:
                     ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
@@ -995,46 +1136,176 @@ class UnifierBridge:
                         except:
                             pass
 
-                try:
-                    persona = revolt.Masquerade(name=msg_author, avatar=url, colour=rvtcolor)
-                except:
-                    persona = revolt.Masquerade(name=msg_author, avatar=None, colour=rvtcolor)
+                msg_author_rv = msg_author
+                if len(msg_author) > 32:
+                    id_rv = msg_author.split('(')
+                    id_rv = id_rv[len(id_rv)-1]
+                    msg_author_rv = msg_author[:-(len(msg_author)-23)]+' ('+id_rv
 
-                msg = await ch.send(
-                    content=message.content, embeds=message.embeds, attachments=files, replies=replies,
-                    masquerade=persona
-                )
+                try:
+                    persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
+                except:
+                    persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
+                try:
+                    msg = await ch.send(
+                        content=message.content, embeds=message.embeds, attachments=files, replies=replies,
+                        masquerade=persona
+                    )
+                except:
+                    continue
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
-                webhook = None
                 try:
-                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild]}']
+                    tb_v2 = str(message.guild.id) in str(
+                        self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
                 except:
-                    hooks = await destguild.webhooks()
-                    for hook in hooks:
+                    pass
+                try:
+                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild][0]}']
+                except:
+                    try:
+                        webhook = await destguild.fetch_webhook(self.bot.db["rooms_guilded"][room][guild][0])
                         if f'{guild}' in list(self.bot.webhook_cache.keys()):
-                            self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
+                            self.bot.webhook_cache[f'{guild}'].update({f'{webhook.id}':webhook})
                         else:
-                            self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
-                        if hook.id in self.bot.db['rooms_guilded'][room][guild]:
-                            webhook = hook
-                            break
-                if not webhook:
-                    continue
-                msg = await webhook.send(avatar_url=url, username=msg_author,embeds=embeds,
-                                         content=message.content,files=files)
-                if sameguild:
-                    thread_sameguild = [msg.id]
+                            self.bot.webhook_cache.update({f'{guild}':{f'{webhook.id}':webhook}})
+                    except:
+                        continue
+
+                # Processing replies for Revolt here for efficiency
+                replytext = ''
+
+                if not trimmed and reply_msg:
+                    is_copy = False
+                    try:
+                        content = message.reference.cached_message.content
+                    except:
+                        if source == 'revolt':
+                            msg = await message.channel.fetch_message(message.replies[0].id)
+                        elif source == 'guilded':
+                            msg = await message.channel.fetch_message(message.replied_to[0].id)
+                            if msg.webhook_id:
+                                is_copy = True
+                        else:
+                            msg = await message.channel.fetch_message(message.reference.message_id)
+                        content = msg.content
+                    clean_content = discord.utils.remove_markdown(content)
+
+                    if reply_msg.reply and source == 'guilded' and is_copy:
+                        clean_content = clean_content.split('\n', 1)[1]
+
+                    msg_components = clean_content.split('<@')
+                    offset = 0
+                    if clean_content.startswith('<@'):
+                        offset = 1
+
+                    while offset < len(msg_components):
+                        try:
+                            userid = int(msg_components[offset].split('>', 1)[0])
+                        except:
+                            offset += 1
+                            continue
+                        user = self.bot.get_user(userid)
+                        if user:
+                            clean_content = clean_content.replace(f'<@{userid}>',
+                                                                  f'@{user.global_name}').replace(
+                                f'<@!{userid}>', f'@{user.global_name}')
+                        offset += 1
+                    if len(clean_content) > 80:
+                        trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
+                    else:
+                        trimmed = clean_content
+                    trimmed = trimmed.replace('\n', ' ')
+
+                if reply_msg:
+                    author_text = '[unknown]'
+
+                    try:
+                        if reply_msg.source == 'revolt':
+                            user = self.bot.revolt_client.get_user(reply_msg.author_id)
+                            if not user.display_name:
+                                author_text = f'@{user.name}'
+                            else:
+                                author_text = f'@{user.display_name}'
+                        elif reply_msg.source == 'guilded':
+                            user = self.bot.guilded_client.get_user(reply_msg.author_id)
+                            author_text = f'@{user.name}'
+                        else:
+                            user = self.bot.get_user(int(reply_msg.author_id))
+                            author_text = f'@{user.global_name}'
+                        if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
+                            author_text = '@' + self.bot.db['nicknames'][f'{reply_msg.author_id}']
+                    except:
+                        pass
+
+                    try:
+                        replytext = f'**[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
+                    except:
+                        replytext = f'**Replying to [unknown]**\n'
+
+                if len(replytext+message.content)==0:
+                    replytext = '[empty message]'
+
+                msg_author_gd = msg_author
+                if len(msg_author) > 25:
+                    id_rv = msg_author.split('(')
+                    id_rv = id_rv[len(id_rv) - 1]
+                    msg_author_gd = msg_author[:-(len(msg_author) - 12)] + ' (' + id_rv
+
+                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, files, sameguild, destguild,
+                                 thread_sameguild):
+                    try:
+                        msg = await webhook.send(avatar_url=url,
+                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                                 embeds=embeds, content=replytext + message.content, files=files)
+                    except:
+                        return None
+
+                    gdresult = []
+                    if sameguild:
+                        if len(thread_sameguild) > 0:
+                            thread_sameguild.clear()
+                            thread_sameguild.append(msg.id)
+                    else:
+                        gdresult.append({f'{destguild.id}': [msg.channel.id, msg.id]})
+                    gdresult.append({f'{destguild.id}': msg.share_url})
+                    return gdresult
+
+                if tb_v2:
+                    threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
+                                                              files, sameguild, destguild, thread_sameguild)))
                 else:
-                    message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
-                #urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{msg.channel.id}/{msg.id}'})
+                    try:
+                        msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                                 embeds=embeds,content=replytext+message.content,files=files)
+                    except:
+                        continue
+                    if sameguild:
+                        thread_sameguild = [msg.id]
+                    else:
+                        message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
+                    urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
-        for thread in threads:
-            await self.bot.loop.run_in_executor(None, lambda:thread.join())
+        tbv2_results = []
+        if tb_v2 and not tb_v1:
+            tbv2_results = await asyncio.gather(*threads)
+        else:
+            for thread in threads:
+                await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
-        message_ids = message_ids
+
+        if tb_v2 and not tb_v1:
+            for result in tbv2_results:
+                if not result:
+                    continue
+                if len(result)==0:
+                    urls.update(result[0])
+                else:
+                    message_ids.update(result[0])
+                    urls.update(result[1])
+
         if len(thread_sameguild) > 0 and platform=='discord' and source=='discord':
             parent_id = thread_sameguild[0]
         else:
@@ -1045,14 +1316,13 @@ class UnifierBridge:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
             if msg_object.source==platform:
-                msg_object.copies = msg_object.copies | message_ids
+                self.bridged[index].copies = msg_object.copies | message_ids
             else:
                 try:
-                    msg_object.external_copies[platform] = msg_object.external_copies[platform] | message_ids
+                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[platform] | message_ids
                 except:
-                    msg_object.external_copies.update({platform:message_ids})
-            msg_object.urls = msg_object.urls | urls
-            self.bridged[index] = msg_object
+                    self.bridged[index].external_copies.update({platform:message_ids})
+            self.bridged[index].urls = self.bridged[index].urls | urls
         except:
             copies = {}
             external_copies = {}
@@ -1073,10 +1343,15 @@ class UnifierBridge:
                 external_copies=external_copies,
                 urls=urls,
                 source=source,
-                webhook=should_resend,
+                webhook=should_resend or system,
                 prehook=message.id,
-                room=room
+                room=room,
+                reply=replying
             ))
+        if multisend_debug:
+            ct = time.time()
+            diff = round(ct-pt,3)
+            return [platform,diff,len(message_ids),tb_v2 and not tb_v1]
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
@@ -1583,7 +1858,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
         )
         msg = await ctx.send('Choose a reaction image to generate!\n\n**Blue**: Static images\n**Green**: GIFs', ephemeral=True, components=components)
-        #
+
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
         #
@@ -1651,7 +1926,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.db.save_data()
             await ctx.send('Your Revolt messages will now inherit the custom color.')
 
-
     @commands.command(aliases=['find'])
     async def identify(self, ctx):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
@@ -1677,6 +1951,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         found = False
         origin_guild = None
         origin_user = None
+        if identifier=='system':
+            return await ctx.send('This is a system message.')
         for guild in self.bot.guilds:
             hashed = encrypt_string(f'{guild.id}')
             guildhash = identifier[3:]
@@ -2194,19 +2470,41 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if not msgid:
                 return await ctx.send('No message detected')
         msg: UnifierMessage = await self.bot.bridge.fetch_message(msgid)
-        text = f'Author: {msg.author_id}\nGuild: {msg.guild_id}\nSource: {msg.source}\nParent is webhook: {msg.webhook}\n\nCopies (samesource):'
+        embed = discord.Embed(title=f'Viewing message {msg.id}',
+                              description=f'Guild: {msg.guild_id}\nSource: {msg.source}\nParent is webhook: {msg.webhook}',
+                              color=self.bot.colors.unifier)
+        text = ''
         for key in msg.copies:
             info = msg.copies[key]
-            text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+            if len(text)==0:
+                text = f'{key}: {info[1]}, sent in {info[0]}'
+            else:
+                text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+        embed.add_field(name='Copies (samesource)',value=text,inline=False)
         for platform in msg.external_copies:
-            text = f'{text}\n\nCopies ({platform}):'
+            text = ''
             for key in msg.external_copies[platform]:
                 info = msg.external_copies[platform][key]
-                text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
-        text = f'{text}\n\nURLs (discord):'
+                if len(text) == 0:
+                    text = f'{key}: {info[1]}, sent in {info[0]}'
+                else:
+                    text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
+            embed.add_field(name=f'Copies ({platform})', value=text, inline=False)
+        text = ''
         for key in msg.urls:
-            text = f'{text}\n{key}: [link](<{msg.urls[key]}>)'
-        await ctx.send(text)
+            if len(text) == 0:
+                text = f'{key}: [link](<{msg.urls[key]}>)'
+            else:
+                text = f'{text}\n{key}: [link](<{msg.urls[key]}>)'
+        embed.add_field(name=f'URLs', value=text, inline=False)
+        await ctx.send(embed=embed)
+
+    @commands.command(hidden=True)
+    async def mstiming(self,ctx,*,index):
+        if not ctx.author.id == 356456393491873795:
+            return
+        index = int(index)
+        await ctx.send(f'{multisend_logs[index]}')
 
     @commands.command(hidden=True)
     async def initbridge(self, ctx, *, args=''):
@@ -2442,14 +2740,74 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 '**Hold up a sec!**\nThis channel is marked as NSFW, meaning Discord won\'t go mad when you try sending adult content over UniChat. We don\'t want that!'
                 + '\n\nPlease ask your server admins to unmark this channel as NSFW.', reference=message)
 
-        await self.bot.bridge.send(room=roomname,message=message,platform='discord')
+        multisend_exp = False
+        try:
+            multisend_exp = str(message.guild.id) in str(self.bot.db['experiments']['multisend'])
+        except:
+            pass
+
+        if multisend_exp:
+            if message.content.startswith('['):
+                parts = message.content.replace('[','',1).replace('\n',' ').split('] ',1)
+                if len(parts) > 1 and len(parts[0])==6:
+                    if (parts[0].lower()=='newest' or parts[0].lower()=='recent' or
+                            parts[0].lower() == 'latest'):
+                        multisend_exp = False
+                    elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
+                        multisend_exp = False
+            if '[emoji:' in message.content:
+                multisend_exp = False
 
         tasks = []
 
-        for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform)))
+        if multisend_exp:
+            # Multisend experiment
+            # Sends Discord message along with other platforms to minimize
+            # latency on external platforms.
+            self.bot.bridge.bridged.append(UnifierMessage(
+                    author_id=message.author.id,
+                    guild_id=message.guild.id,
+                    channel_id=message.channel.id,
+                    original=message.id,
+                    copies={},
+                    external_copies={},
+                    urls={},
+                    source='discord',
+                    room=roomname,
+                    external_urls={}
+                )
+            )
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True))
+        else:
+            await self.bot.bridge.send(room=roomname, message=message, platform='discord')
 
-        await asyncio.gather(*tasks)
+        for platform in externals:
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
+
+        pt = time.time()
+        try:
+            results = await asyncio.gather(*tasks)
+        except:
+            if multisend_exp:
+                log('BOT','warn','Multisend partially failed')
+
+        if multisend_exp:
+            try:
+                await self.bot.bridge.merge_prehook(message.id)
+            except:
+                pass
+
+        if multisend_exp:
+            ct = time.time()
+            msg = await self.bot.bridge.fetch_message(message.id)
+            count = len(msg.copies)
+            for platform in externals:
+                count += len(msg.external_copies[platform])
+            diff = round(ct - pt, 3)
+            mslog = {'duration':diff}
+            for result in results:
+                mslog.update({result[0]:{'duration':result[1],'copies':result[2],'tb2':result[3]}})
+            multisend_logs.append(mslog)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):

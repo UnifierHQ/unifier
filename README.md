@@ -2,7 +2,7 @@
   <img width=64 src=https://github.com/greeeen-dev/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae>
   
   Unifier</h1>
-<p align=center>A "simple" bot to unite Discord servers with webhooks, brought to you by Green and ItsAsheer<br>
+<p align=center>A sophisticated Discord bot uniting Discord servers via webhooks, brought to you by Green and ItsAsheer<br>
 Inspired by matrix-t2bot</p>
 
 ## Why did I make Unifier?
