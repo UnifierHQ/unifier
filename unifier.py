@@ -15,16 +15,21 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import discord
 from discord.ext import commands, tasks
 import random
 import aiohttp
+import asyncio
 import hashlib
 import json
 import traceback
 from time import gmtime, strftime
+import os
+
+if os.name != "nt":
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 with open('config.json', 'r') as file:
     data = json.load(file)
