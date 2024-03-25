@@ -673,7 +673,6 @@ class UnifierBridge:
         thread_sameguild = []
         thread_urls = {}
         threads = []
-        tb_v1 = False
         tb_v2 = False
 
         # Broadcast message
@@ -1001,102 +1000,62 @@ class UnifierBridge:
                 if len(msg_author) > 35:
                     msg_author_dc = msg_author[:-(len(msg_author) - 35)]
                 try:
-                    tb_v1 = not components and source=='discord'
+                    tb_v2 = str(message.guild.id) in str(
+                        self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
                 except:
-                    tb_v1 = False
-                if tb_v1:
-                    synchook = None
-                    try:
-                        synchook = self.bot.webhook_cache_sync[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
-                    except:
-                        hooks = await destguild.webhooks()
-                        for hook in hooks:
-                            if hook.id in self.bot.db['rooms'][room][guild]:
-                                synchook = await self.bot.loop.run_in_executor(None, lambda: discord.SyncWebhook.partial(hook.id, hook.token).fetch())
-                                try:
-                                    self.bot.webhook_cache_sync[f'{guild}'].update(
-                                        {f'{synchook.id}':synchook})
-                                except:
-                                    self.bot.webhook_cache_sync.update({f'{guild}': {f'{synchook.id}': synchook}})
-                                break
-                    if not synchook:
-                        continue
+                    pass
 
-                    def thread_msg():
-                        sameguild_tr = sameguild
-                        guild_id = synchook.guild_id
-                        msg = synchook.send(avatar_url=url, username=msg_author_dc,
-                                            content=message.content, embeds=embeds,
-                                            files=files, allowed_mentions=mentions, wait=True)
-
-                        if sameguild_tr:
-                            thread_sameguild.append(msg.id)
+                webhook = None
+                try:
+                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
+                except:
+                    hooks = await destguild.webhooks()
+                    for hook in hooks:
+                        if f'{guild}' in list(self.bot.webhook_cache.keys()):
+                            self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
                         else:
-                            message_ids.update({f'{guild_id}':[msg.channel.id, msg.id]})
-                        thread_urls.update(
-                            {f'{guild_id}': f'https://discord.com/channels/{guild_id}/{msg.channel.id}/{msg.id}'})
+                            self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
+                        if hook.id in self.bot.db['rooms'][room][guild]:
+                            webhook = hook
+                            break
+                if not webhook:
+                    continue
 
-                    thread = threading.Thread(target=thread_msg)
-                    thread.start()
-                    threads.append(thread)
+                async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
+                                 thread_sameguild,destguild):
+                    try:
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                 content=message.content, files=files, allowed_mentions=mentions,
+                                                 components=components, wait=True)
+                    except:
+                        return None
+                    tbresult = []
+                    if sameguild:
+                        if len(thread_sameguild) > 0:
+                            thread_sameguild.clear()
+                            thread_sameguild.append(msg.id)
+                    else:
+                        tbresult.append({f'{destguild.id}': [webhook.channel.id, msg.id]})
+                    tbresult.append({
+                                    f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                    return tbresult
+
+                if tb_v2:
+                    threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
+                                                              mentions,components,sameguild,thread_sameguild,
+                                                              destguild)))
                 else:
                     try:
-                        tb_v2 = str(message.guild.id) in str(
-                            self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                 content=message.content, files=files, allowed_mentions=mentions,
+                                                 components=components, wait=True)
                     except:
-                        pass
-
-                    webhook = None
-                    try:
-                        webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
-                    except:
-                        hooks = await destguild.webhooks()
-                        for hook in hooks:
-                            if f'{guild}' in list(self.bot.webhook_cache.keys()):
-                                self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
-                            else:
-                                self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
-                            if hook.id in self.bot.db['rooms'][room][guild]:
-                                webhook = hook
-                                break
-                    if not webhook:
                         continue
-
-                    async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
-                                     thread_sameguild,destguild):
-                        try:
-                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                     content=message.content, files=files, allowed_mentions=mentions,
-                                                     components=components, wait=True)
-                        except:
-                            return None
-                        tbresult = []
-                        if sameguild:
-                            if len(thread_sameguild) > 0:
-                                thread_sameguild.clear()
-                                thread_sameguild.append(msg.id)
-                        else:
-                            tbresult.append({f'{destguild.id}': [webhook.channel.id, msg.id]})
-                        tbresult.append({
-                                        f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
-                        return tbresult
-
-                    if tb_v2:
-                        threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
-                                                                  mentions,components,sameguild,thread_sameguild,
-                                                                  destguild)))
+                    if sameguild:
+                        thread_sameguild = [msg.id]
                     else:
-                        try:
-                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                     content=message.content, files=files, allowed_mentions=mentions,
-                                                     components=components, wait=True)
-                        except:
-                            continue
-                        if sameguild:
-                            thread_sameguild = [msg.id]
-                        else:
-                            message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                        urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                        message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
+                    urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
             elif platform=='revolt':
                 try:
                     ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
@@ -1289,14 +1248,14 @@ class UnifierBridge:
 
         # Update cache
         tbv2_results = []
-        if tb_v2 and not tb_v1:
+        if tb_v2:
             tbv2_results = await asyncio.gather(*threads)
         else:
             for thread in threads:
                 await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
 
-        if tb_v2 and not tb_v1:
+        if tb_v2:
             for result in tbv2_results:
                 if not result:
                     continue
@@ -1351,7 +1310,7 @@ class UnifierBridge:
         if multisend_debug:
             ct = time.time()
             diff = round(ct-pt,3)
-            return [platform,diff,len(message_ids),tb_v2 and not tb_v1]
+            return [platform,diff,len(message_ids),tb_v2]
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
