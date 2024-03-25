@@ -36,7 +36,6 @@ import os
 from io import BytesIO
 from tld import get_tld
 from utils import rapidphish
-import threading
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -1250,9 +1249,6 @@ class UnifierBridge:
         tbv2_results = []
         if tb_v2:
             tbv2_results = await asyncio.gather(*threads)
-        else:
-            for thread in threads:
-                await self.bot.loop.run_in_executor(None, lambda:thread.join())
         urls = urls | thread_urls
 
         if tb_v2:
@@ -1342,8 +1338,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.reports = {}
         if not hasattr(self.bot, 'webhook_cache'):
             self.bot.webhook_cache = {}
-        if not hasattr(self.bot, 'webhook_cache_sync'):
-            self.bot.webhook_cache_sync = {}
         msgs = []
         prs = {}
         restored = False
