@@ -1060,9 +1060,12 @@ class UnifierBridge:
 
                     async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
                                      thread_sameguild,destguild):
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                        try:
+                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                     content=message.content, files=files, allowed_mentions=mentions,
+                                                     components=components, wait=True)
+                        except:
+                            return None
                         tbresult = []
                         if sameguild:
                             if len(thread_sameguild) > 0:
@@ -1079,9 +1082,12 @@ class UnifierBridge:
                                                                   mentions,components,sameguild,thread_sameguild,
                                                                   destguild)))
                     else:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                        try:
+                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                     content=message.content, files=files, allowed_mentions=mentions,
+                                                     components=components, wait=True)
+                        except:
+                            continue
                         if sameguild:
                             thread_sameguild = [msg.id]
                         else:
@@ -1249,9 +1255,12 @@ class UnifierBridge:
 
                 async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, files, sameguild, destguild,
                                  thread_sameguild):
-                    msg = await webhook.send(avatar_url=url,
-                                             username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                             embeds=embeds, content=replytext + message.content, files=files)
+                    try:
+                        msg = await webhook.send(avatar_url=url,
+                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                                 embeds=embeds, content=replytext + message.content, files=files)
+                    except:
+                        return None
 
                     gdresult = []
                     if sameguild:
@@ -1267,8 +1276,11 @@ class UnifierBridge:
                     threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
                                                               files, sameguild, destguild, thread_sameguild)))
                 else:
-                    msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                             embeds=embeds,content=replytext+message.content,files=files)
+                    try:
+                        msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                                 embeds=embeds,content=replytext+message.content,files=files)
+                    except:
+                        continue
                     if sameguild:
                         thread_sameguild = [msg.id]
                     else:
@@ -1286,6 +1298,8 @@ class UnifierBridge:
 
         if tb_v2 and not tb_v1:
             for result in tbv2_results:
+                if not result:
+                    continue
                 if len(result)==0:
                     urls.update(result[0])
                 else:
@@ -2767,7 +2781,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         try:
             results = await asyncio.gather(*tasks)
         except:
-            log('BOT','warn','Multisend partially failed')
+            if multisend_exp:
+                log('BOT','warn','Multisend partially failed')
 
         if multisend_exp:
             try:
