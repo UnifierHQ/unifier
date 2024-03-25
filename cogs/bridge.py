@@ -2500,6 +2500,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True)
+    async def mstiming(self,ctx,*,index):
+        if not ctx.author.id == 356456393491873795:
+            return
+        index = int(index)
+        await ctx.send(f'{multisend_logs[index]}')
+
+    @commands.command(hidden=True)
     async def initbridge(self, ctx, *, args=''):
         if not ctx.author.id == 356456393491873795:
             return
