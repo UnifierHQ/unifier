@@ -29,6 +29,7 @@ import random
 import string
 import copy
 import json
+import compress_json
 import re
 import ast
 import os
@@ -48,6 +49,7 @@ owner = data["owner"]
 allow_prs = data["allow_prs"]
 pr_room_index = data["pr_room_index"] # If this is 0, then the oldest room will be used as the PR room.
 pr_ref_room_index = data["pr_ref_room_index"]
+compress_cache = data["compress_cache"]
 
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
@@ -162,6 +164,7 @@ class UnifierBridge:
         self.bridged = []
         self.prs = {}
         self.webhook_cache = webhook_cache or {}
+        self.restored = False
 
     async def backup(self,filename='bridge.json',limit=10000):
         data = {'messages':{},'posts':{}}
@@ -186,14 +189,22 @@ class UnifierBridge:
             code = self.prs[pr_ids[limit - index - 1]]
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
-        with open(filename, "w+") as file:
-            json.dump(data,file)
+        if compress_cache:
+            compress_json.dump(data,filename+'.lzma')
+        else:
+            with open(filename, "w+") as file:
+                json.dump(data, file)
         del data
         return
 
     async def restore(self,filename='bridge.json'):
-        with open(filename, "r") as file:
-            data = json.load(file)
+        if self.restored:
+            raise RuntimeError('Already restored from backup')
+        if compress_cache:
+            data = compress_json.load(filename+'.lzma')
+        else:
+            with open(filename, "r") as file:
+                data = json.load(file)
 
         for x in range(len(data['messages'])):
             msg = UnifierMessage(
@@ -214,6 +225,7 @@ class UnifierBridge:
         
         self.prs = data['posts']
         del data
+        self.restored = True
         return
 
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
@@ -946,10 +958,6 @@ class UnifierBridge:
                     break
                 files.append(await to_file(attachment))
 
-            identifier = ' (' + user_hash + guild_hash + ')'
-            if system:
-                identifier = ' (system)'
-
             # Username
             if source == 'revolt':
                 if not message.author.display_name:
@@ -978,12 +986,10 @@ class UnifierBridge:
                 except:
                     url = None
 
-            # Add identifier
+            # Add system identifier
             msg_author = author
-            if not sameguild or system:
-                if system:
-                    author = self.bot.user.global_name
-                msg_author = author + identifier
+            if system:
+                msg_author = msg_author + ' (system)'
 
             # Send message
             embeds = message.embeds
@@ -1515,15 +1521,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        user_hash = encrypt_string(f'{ctx.author.id}')[:3]
-        guild_hash = encrypt_string(f'{ctx.guild.id}')[:3]
-        identifier = ' (' + user_hash + guild_hash + ')'
-        identifier_og = identifier
-
         hookmsg_ids = {}
         msg_urls = {}
 
-        identifier_cache = identifier
         banned = False
 
         # Forwarding
@@ -1543,12 +1543,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         for key in data:
             blocked = False
             sameguild = False
-            if len(identifier) == 0:
-                # restore identifier
-                identifier = identifier_cache
             if int(key) == ctx.guild.id:
                 sameguild = True
-                identifier = ''
             if key in list(gbans.keys()):
                 continue
             banlist = []
@@ -1616,12 +1612,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                                 except:
                                                     msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
                                                 break
-                            identifier = msg_resp.author.name.split('(')
-                            identifier = identifier[len(identifier) - 1].replace(')', '')
-                            if len(identifier)==6 and len(msg_resp.author.name.split('(')) >= 2:
-                                author = f'@{msg_resp.author.name[:-9]}'
-                            else:
-                                author = f'@{msg_resp.author.name}'
+                            author = f'@{msg_resp.author.name}'
                             if not trimmed:
                                 clean_content = discord.utils.remove_markdown(msg_resp.content)
 
@@ -1706,14 +1697,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             author = ctx.author.global_name
                     if not f'{ctx.author.id}' in list(self.bot.owners.keys()):
                         self.bot.owners.update({f'{ctx.author.id}': []})
-                    if sameguild:
-                        msg = await webhook.send(avatar_url=url, username=author,
-                                                 file=discord.File(fp="cached/"+filename), allowed_mentions=mentions,
-                                                 components=components, wait=True)
-                    else:
-                        msg = await webhook.send(avatar_url=url, username=author + identifier_og,
-                                                 file=discord.File(fp="cached/" + filename), allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                    msg = await webhook.send(avatar_url=url, username=author,
+                                             file=discord.File(fp="cached/"+filename), allowed_mentions=mentions,
+                                             components=components, wait=True)
                     if sameguild:
                         sameguild_id = msg.id
                         self.bot.origin.update({f'{msg.id}': [ctx.guild.id, ctx.channel.id]})
@@ -1748,7 +1734,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     pass
                 ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
-                identifier = ' (' + user_hash + guild_hash + ')'
                 author = ctx.author.global_name
                 if f'{ctx.author.id}' in list(self.bot.db['nicknames'].keys()):
                     author = self.bot.db['nicknames'][f'{ctx.author.id}']
@@ -1765,12 +1750,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         rvtcolor = f'rgb{rgbtuple}'
                 try:
                     if f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
-                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=self.bot.db['avatars'][f'{ctx.author.id}'], colour=rvtcolor)
+                        persona = revolt.Masquerade(name=author_rvt, avatar=self.bot.db['avatars'][f'{ctx.author.id}'], colour=rvtcolor)
                     else:
-                        persona = revolt.Masquerade(name=author_rvt + identifier, avatar=url,
+                        persona = revolt.Masquerade(name=author_rvt, avatar=url,
                                                     colour=rvtcolor)
                 except:
-                    persona = revolt.Masquerade(name=author_rvt + identifier, avatar=None, colour=rvtcolor)
+                    persona = revolt.Masquerade(name=author_rvt, avatar=None, colour=rvtcolor)
                 msg_data = None
                 origin_id = None
                 try:
@@ -1937,71 +1922,48 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
         except:
             return await ctx.send('Invalid message!')
-        hookfound = False
-        for key in self.bot.db['rooms']:
-            room_guilds = self.bot.db['rooms'][key]
-            if f'{msg.webhook_id}' in f'{room_guilds}':
-                hookfound = True
-                break
-        if not hookfound:
-            return await ctx.send('I didn\'t forward this!')
-        identifier = msg.author.name.split('(')
-        identifier = identifier[len(identifier) - 1].replace(')', '')
-        username = msg.author.name[:-9]
-        found = False
-        origin_guild = None
-        origin_user = None
-        if identifier=='system':
-            return await ctx.send('This is a system message.')
-        for guild in self.bot.guilds:
-            hashed = encrypt_string(f'{guild.id}')
-            guildhash = identifier[3:]
-            if hashed.startswith(guildhash):
-                origin_guild = guild
-                userhash = identifier[:-3]
-                try:
-                    matches = list(filter(lambda x: encrypt_string(f'{x.id}').startswith(userhash), guild.members))
-                    if len(matches) == 1:
-                        origin_user = matches[0]
-                    else:
-                        if len(matches)==0:
-                            raise ValueError()
-                        text = f'Found multiple matches for {origin_guild.name} ({origin_guild.id})'
-                        for match in matches:
-                            text = text + '\n{match} ({match.id})'
-                        return await ctx.send(text)
-                    found = True
-                except:
-                    continue
-
-        if found:
-            if ctx.author.id in self.bot.moderators:
-                try:
-                    for key in self.bot.bridged:
-                        origin_msg = self.bot.bridged[key]
-                        values = list(origin_msg.values())
-                        if ctx.message.reference.message_id in values:
-                            origin_msg_id = key
-                            break
-                    await ctx.send(
-                        f'{origin_user} ({origin_user.id}) via {origin_guild.name} ({origin_guild.id}, Discord)\nOriginal ID {origin_msg_id}')
-                except:
-                    await ctx.send(f'{origin_user} ({origin_user.id}) via {origin_guild.name} ({origin_guild.id})\nCould not find origin message ID')
-                    raise
-            else:
-                await ctx.send(f'{origin_user} ({origin_user.id}) via {origin_guild.name} ({origin_guild.id})')
+        try:
+            msg_obj: UnifierMessage = await self.bot.bridge.fetch_message(msg.id)
+        except:
+            return await ctx.send('Could not find message in cache!')
+        if msg_obj.source=='discord':
+            try:
+                username = self.bot.get_user(int(msg_obj.author_id)).name
+            except:
+                username = '[unknown]'
+            try:
+                guild = self.bot.get_guild(int(msg_obj.guild_id))
+                guildname = guild.name
+                channelname = guild.get_channel(int(msg_obj.channel_id)).name
+            except:
+                guildname = '[unknown]'
+                channelname = '[unknown]'
+        elif msg_obj.source=='revolt':
+            try:
+                username = self.bot.revolt_client.get_user(msg_obj.author_id).name
+            except:
+                username = '[unknown]'
+            try:
+                guild = self.bot.revolt_client.get_server(msg_obj.guild_id)
+                guildname = guild.name
+                channel = await self.bot.revolt_client.fetch_channel(msg_obj.channel_id)
+                channelname = channel.name
+            except:
+                guildname = '[unknown]'
+                channelname = '[unknown]'
         else:
-            for guild in self.bot.revolt_client.servers:
-                hashed = encrypt_string(f'{guild.id}')
-                guildhash = identifier[3:]
-                if hashed.startswith(guildhash):
-                    for member in guild.members:
-                        hashed = encrypt_string(f'{member.id}')
-                        userhash = identifier[:-3]
-                        if hashed.startswith(userhash):
-                            return await ctx.send(f'{member.name} ({member.id}) via {guild.name} ({guild.id}, Revolt)')
-
-            await ctx.send('Could not identify user!')
+            try:
+                username = self.bot.guilded_client.get_user(msg_obj.author_id).name
+            except:
+                username = '[unknown]'
+            try:
+                guild = self.bot.guilded_client.get_server(msg_obj.guild_id)
+                guildname = guild.name
+                channelname = guild.get_channel(msg_obj.channel_id).name
+            except:
+                guildname = '[unknown]'
+                channelname = '[unknown]'
+        await ctx.send(f'Sent by @{username} in {guildname} #{channelname}\n\nParent ID: {msg_obj.id}')
 
     @commands.command()
     async def getbridged(self, ctx, *, msg_id):
@@ -2870,10 +2832,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        user_hash = encrypt_string(f'{message.author.id}')[:3]
-        guild_hash = encrypt_string(f'{message.guild.id}')[:3]
-        identifier = user_hash + guild_hash
-
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
             if not str(msg.id)==str(message.id):
@@ -2923,10 +2881,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if not found:
             return
-
-        user_hash = encrypt_string(f'{message.author.id}')[:3]
-        guild_hash = encrypt_string(f'{message.guild.id}')[:3]
-        identifier = user_hash + guild_hash
 
         roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
