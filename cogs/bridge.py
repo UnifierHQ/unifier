@@ -1935,38 +1935,28 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 username = '[unknown]'
             try:
-                guild = self.bot.get_guild(int(msg_obj.guild_id))
-                guildname = guild.name
-                channelname = guild.get_channel(int(msg_obj.channel_id)).name
+                guildname = self.bot.get_guild(int(msg_obj.guild_id)).name
             except:
                 guildname = '[unknown]'
-                channelname = '[unknown]'
         elif msg_obj.source=='revolt':
             try:
                 username = self.bot.revolt_client.get_user(msg_obj.author_id).name
             except:
                 username = '[unknown]'
             try:
-                guild = self.bot.revolt_client.get_server(msg_obj.guild_id)
-                guildname = guild.name
-                channel = await self.bot.revolt_client.fetch_channel(msg_obj.channel_id)
-                channelname = channel.name
+                guildname = self.bot.revolt_client.get_server(msg_obj.guild_id).name
             except:
                 guildname = '[unknown]'
-                channelname = '[unknown]'
         else:
             try:
                 username = self.bot.guilded_client.get_user(msg_obj.author_id).name
             except:
                 username = '[unknown]'
             try:
-                guild = self.bot.guilded_client.get_server(msg_obj.guild_id)
-                guildname = guild.name
-                channelname = guild.get_channel(msg_obj.channel_id).name
+                guildname = self.bot.guilded_client.get_server(msg_obj.guild_id).name
             except:
                 guildname = '[unknown]'
-                channelname = '[unknown]'
-        await ctx.send(f'Sent by @{username} in {guildname} #{channelname}\n\nParent ID: {msg_obj.id}')
+        await ctx.send(f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
 
     @commands.command()
     async def getbridged(self, ctx, *, msg_id):
