@@ -1260,6 +1260,12 @@ class UnifierBridge:
             parent_id = message.id
         if is_pr and not pr_id in list(self.prs.keys()) and platform==source:
             self.prs.update({pr_id:parent_id})
+
+        if system:
+            msg_author = self.bot.user.id
+        else:
+            msg_author = message.author.id
+
         try:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
@@ -1283,7 +1289,7 @@ class UnifierBridge:
             else:
                 server_id = message.guild.id
             self.bridged.append(UnifierMessage(
-                author_id=message.author.id,
+                author_id=msg_author,
                 guild_id=server_id,
                 channel_id=message.channel.id,
                 original=parent_id,
