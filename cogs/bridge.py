@@ -980,7 +980,7 @@ class UnifierBridge:
             # Add system identifier
             msg_author = author
             if system:
-                msg_author = msg_author + ' (system)'
+                msg_author = self.bot.user.global_name + ' (system)'
 
             # Send message
             embeds = message.embeds
