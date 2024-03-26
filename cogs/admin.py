@@ -1,6 +1,6 @@
 """
-Unifier - A "simple" bot to unite Discord servers with webhooks
-Copyright (C) 2024  Green and ItsAsheer
+Unifier - A sophisticated Discord bot uniting servers and platforms
+Copyright (C) 2024  Green, ItsAsheer
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,8 +15,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import sys
-import traceback
 
 import discord
 from discord.ext import commands
@@ -28,6 +26,8 @@ import cpuinfo
 import time
 import json
 import os
+import sys
+import traceback
 
 class colors:
     greens_hair = 0xa19e78
