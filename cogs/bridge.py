@@ -1218,6 +1218,8 @@ class UnifierBridge:
                         if len(thread_sameguild) > 0:
                             thread_sameguild.clear()
                             thread_sameguild.append(msg.id)
+                        if system:
+                            gdresult.append({f'{destguild.id}': [msg.channel.id, msg.id]})
                     else:
                         gdresult.append({f'{destguild.id}': [msg.channel.id, msg.id]})
                     gdresult.append({f'{destguild.id}': msg.share_url})
