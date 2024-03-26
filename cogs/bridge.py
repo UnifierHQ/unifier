@@ -1,6 +1,6 @@
 """
-Unifier - A "simple" bot to unite Discord servers with webhooks
-Copyright (C) 2024  Green and ItsAsheer
+Unifier - A sophisticated Discord bot uniting servers and platforms
+Copyright (C) 2024  Green, ItsAsheer
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -2343,11 +2343,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
 
         pt = time.time()
+        results = None
         try:
             results = await asyncio.gather(*tasks)
         except:
-            if multisend_exp:
-                log('BOT','warn','Multisend partially failed')
+            pass
 
         if multisend_exp:
             try:
@@ -2355,7 +2355,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 pass
 
-        if multisend_exp:
+        if multisend_exp and results:
             ct = time.time()
             msg = await self.bot.bridge.fetch_message(message.id)
             count = len(msg.copies)
