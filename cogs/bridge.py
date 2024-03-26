@@ -984,7 +984,7 @@ class UnifierBridge:
 
             # Send message
             embeds = message.embeds
-            if not message.author.bot:
+            if not message.author.bot and not system:
                 embeds = []
 
             if platform=='discord':
