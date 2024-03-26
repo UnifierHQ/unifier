@@ -28,7 +28,7 @@ Please follow our guides on GitBook to set up Unifier.
 
 - [If you're using the official Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
 
-- [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosting/getting-started)
+- [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
 
 ## License
 Unifier is licensed under the GPLv3. If you wish to use its source code, please read the license carefully before doing so.
