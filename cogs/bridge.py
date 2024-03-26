@@ -511,6 +511,8 @@ class UnifierBridge:
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False, multisend_debug=False):
+        if is_room_locked(room,self.bot.db):
+            return
         source = 'discord'
         pt = time.time()
         extlist = list(self.bot.extensions)
