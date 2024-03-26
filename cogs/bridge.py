@@ -2093,7 +2093,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        if 'discord.gg/' in message.content or 'discord.com/invite/' in message.content:
+        if 'discord.gg/' in message.content or 'discord.com/invite/' in message.content or 'discord.com/invite/' in message.content:
             try:
                 await message.delete()
             except:
@@ -2172,6 +2172,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 urls[key] = f'http://{url}'
             if '](' in url:
                 urls[key] = url.replace('](', ' ', 1).split()[0]
+            if 'discord.gg/' in url or 'discord.com/invite/' in url or 'discord.com/invite/' in url:
+                try:
+                    await message.delete()
+                except:
+                    pass
+                return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
             key = key + 1
 
         if len(urls) > 0:
