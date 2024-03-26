@@ -14,6 +14,7 @@
   "enable_rotating_status": true,
   "pr_room_index": 1,
   "pr_ref_room_index": 2,
+  "compress_cache": true,
   "external": ["revolt"],
   "token": "token",
   "revolt_token": "token"
