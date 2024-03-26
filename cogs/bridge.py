@@ -32,7 +32,6 @@ import json
 import compress_json
 import re
 import ast
-import os
 from io import BytesIO
 from tld import get_tld
 from utils import rapidphish
@@ -303,7 +302,7 @@ class UnifierBridge:
                 # Fetch webhook
                 for hook in hooks:
                     if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
-                        webhook: discord.Webhook = hook
+                        webhook = hook
                         break
 
                 if not webhook:
@@ -430,7 +429,7 @@ class UnifierBridge:
                 # Fetch webhook
                 for hook in hooks:
                     if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
-                        webhook: discord.Webhook = hook
+                        webhook = hook
                         break
 
                 if not webhook:
@@ -483,7 +482,7 @@ class UnifierBridge:
                 # Fetch webhook
                 for hook in hooks:
                     if self.bot.db['rooms_guilded'][msg.room][key][0]==hook.id:
-                        webhook: guilded.Webhook = hook
+                        webhook = hook
                         break
 
                 if not webhook:
@@ -523,12 +522,6 @@ class UnifierBridge:
             if not 'cogs.bridge_guilded' in extlist:
                 raise RuntimeError('Guilded Support not initialized')
             source = 'guilded'
-
-        user_hash = encrypt_string(f'{message.author.id}')[:3]
-        if source == 'revolt':
-            guild_hash = encrypt_string(f'{message.server.id}')[:3]
-        else:
-            guild_hash = encrypt_string(f'{message.guild.id}')[:3]
 
         if platform=='revolt':
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
@@ -1408,342 +1401,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 optimize=False, loop=0)
         return f'{identifier}_think_output.gif'
 
-    async def image_forward(self,ctx,msg_resp,filename):
-        gbans = self.bot.db['banned']
-
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            ct = time.time()
-            cdt = datetime.utcnow()
-            if f'{ctx.author.id}' in list(gbans.keys()):
-                banuntil = gbans[f'{ctx.author.id}']
-                if ct >= banuntil and not banuntil == 0:
-                    self.bot.db['banned'].pop(f'{ctx.author.id}')
-                    self.bot.db.update()
-                else:
-                    return
-            if f'{ctx.guild.id}' in list(gbans.keys()):
-                banuntil = gbans[f'{ctx.guild.id}']
-                if ct >= banuntil and not banuntil == 0:
-                    self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                    self.bot.db.update()
-                else:
-                    return
-
-        if ctx.author.id == self.bot.user.id:
-            return
-
-        try:
-            hooks = await ctx.channel.webhooks()
-        except:
-            return
-        found = False
-        origin_room = 0
-
-        for webhook in hooks:
-            index = 0
-            for key in self.bot.db['rooms']:
-                data = self.bot.db['rooms'][key]
-                if f'{ctx.guild.id}' in list(data.keys()):
-                    hook_ids = data[f'{ctx.guild.id}']
-                else:
-                    hook_ids = []
-                if webhook.id in hook_ids:
-                    origin_room = index
-                    found = True
-                    if key in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
-                        return
-                    break
-                index += 1
-            if found:
-                break
-
-        if not found:
-            return
-
-        roomname = list(self.bot.db['rooms'].keys())[origin_room]
-        if is_room_locked(roomname, self.bot.db) and not ctx.author.id in self.bot.admins:
-            return
-
-        if not found:
-            return
-
-        hookmsg_ids = {}
-        msg_urls = {}
-
-        banned = False
-
-        # Forwarding
-        results = []
-        sameguild_id = []
-        threads = []
-        trimmed = None
-
-        try:
-            if f'{ctx.author.id}' in self.bot.db['avatars']:
-                url = self.bot.db['avatars'][f'{ctx.author.id}']
-            else:
-                url = ctx.author.avatar.url
-        except:
-            url = None
-
-        for key in data:
-            blocked = False
-            sameguild = False
-            if int(key) == ctx.guild.id:
-                sameguild = True
-            if key in list(gbans.keys()):
-                continue
-            banlist = []
-            if key in list(self.bot.db['blocked'].keys()):
-                banlist = self.bot.db['blocked'][key]
-            if (ctx.author.id in banlist or ctx.guild.id in banlist) and not ctx.author.id in self.bot.moderators:
-                continue
-            if key in list(data.keys()):
-                hook_ids = data[key]
-            else:
-                hook_ids = []
-
-            guild = self.bot.get_guild(int(key))
-            try:
-                hooks = []
-                try:
-                    for hook_id in hook_ids:
-                        if f'{hook_id}' in list(self.bot.webhook_cache[key].keys()):
-                            hooks = [self.bot.webhook_cache[key][f'{hook_id}']]
-                            break
-                except:
-                    pass
-                if len(hooks) == 0:
-                    hooks = await guild.webhooks()
-                    for hook in hooks:
-                        if not key in list(self.bot.webhook_cache.keys()):
-                            self.bot.webhook_cache.update({key: {}})
-                            self.bot.webhook_cache_sync.update({key: {}})
-                        try:
-                            hook_sync = await self.bot.loop.run_in_executor(None,
-                                                                            lambda: discord.SyncWebhook.partial(
-                                                                                hook.id, hook.token).fetch())
-                            self.bot.webhook_cache_sync[key].update({f'{hook.id}': hook_sync})
-                            self.bot.webhook_cache[key].update({f'{hook.id}': hook})
-                        except:
-                            continue
-            except:
-                continue
-
-            for webhook in hooks:
-                if webhook.id in hook_ids:
-                    if not msg_resp == None:
-                        ButtonStyle = discord.ButtonStyle
-                        try:
-                            if msg_resp.webhook_id == None:
-                                msg_url = self.bot.bridged_urls[f'{msg_resp.id}'][f'{webhook.guild_id}']
-                            else:
-                                try:
-                                    try:
-                                        reference_msg_id = self.bot.bridged[f'{msg_resp.id}'][f'{webhook.guild_id}']
-                                        msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][f'{webhook.guild_id}']
-                                    except:
-                                        msg_url = self.bot.bridged_urls[f'{msg_resp.id}'][f'{webhook.guild_id}']
-                                except:
-                                    try:
-                                        msg_url = self.bot.bridged_urls_external[f'{msg_resp.id}']
-                                    except:
-                                        for key in self.bot.bridged:
-                                            entry = self.bot.bridged[key]
-                                            if msg_resp.id in entry.values():
-                                                try:
-                                                    reference_msg_id = self.bot.bridged[f'{key}'][f'{webhook.guild_id}']
-                                                    msg_url = self.bot.bridged_urls[f'{reference_msg_id}'][
-                                                        f'{webhook.guild_id}']
-                                                except:
-                                                    msg_url = self.bot.bridged_urls[f'{key}'][f'{webhook.guild_id}']
-                                                break
-                            author = f'@{msg_resp.author.name}'
-                            if not trimmed:
-                                clean_content = discord.utils.remove_markdown(msg_resp.content)
-
-                                components = clean_content.split('<@')
-                                offset = 0
-                                if clean_content.startswith('<@'):
-                                    offset = 1
-
-                                while offset < len(components):
-                                    try:
-                                        userid = int(components[offset].split('>', 1)[0])
-                                    except:
-                                        offset += 1
-                                        continue
-                                    user = self.bot.get_user(userid)
-                                    if user:
-                                        clean_content = clean_content.replace(f'<@{userid}>',
-                                                                              f'@{user.global_name}').replace(
-                                            f'<@!{userid}>', f'@{user.global_name}')
-                                    offset += 1
-                                if len(clean_content) > 80:
-                                    trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
-                                else:
-                                    trimmed = clean_content
-                                trimmed = trimmed.replace('\n', ' ')
-                            btns = discord.ui.ActionRow(
-                                discord.ui.Button(style=ButtonStyle.link, label=f'Reacting to {author}',
-                                                  disabled=False,
-                                                  url=msg_url)
-                            )
-                            if len(trimmed) > 0:
-                                btns2 = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.green, label=trimmed, disabled=True)
-                                )
-                            else:
-                                btns2 = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.green,
-                                                      label=f'x{len(msg_resp.embeds) + len(msg_resp.attachments)}',
-                                                      emoji='\U0001F3DE', disabled=True)
-                                )
-                        except:
-                            try:
-                                if msg_resp.author.id == self.bot.user.id:
-                                    btns = discord.ui.ActionRow(
-                                        discord.ui.Button(style=ButtonStyle.gray,
-                                                          label=f'Reacting to [system message]', disabled=True)
-                                    )
-                                else:
-                                    btns = discord.ui.ActionRow(
-                                        discord.ui.Button(style=ButtonStyle.gray,
-                                                          label=f'Reacting to [unknown]', disabled=True)
-                                    )
-                            except:
-                                btns = discord.ui.ActionRow(
-                                    discord.ui.Button(style=ButtonStyle.gray,
-                                                      label=f'Reacting to [unknown]', disabled=True)
-                                )
-                    try:
-                        if blocked or banned:
-                            btns = discord.ui.ActionRow(
-                                discord.ui.Button(style=discord.ButtonStyle.red, label=f'Reacting to [hidden]',
-                                                  disabled=True)
-                            )
-                            raise ValueError()
-                        components = discord.ui.MessageComponents(btns, btns2)
-                    except:
-                        components = discord.ui.MessageComponents(btns)
-
-                    try:
-                        if f'{ctx.author.id}' in self.bot.db['avatars']:
-                            url = self.bot.db['avatars'][f'{ctx.author.id}']
-                        else:
-                            url = ctx.author.avatar.url
-                    except:
-                        url = None
-                    author = ctx.author.global_name
-                    if f'{ctx.author.id}' in list(self.bot.db['nicknames'].keys()):
-                        author = self.bot.db['nicknames'][f'{ctx.author.id}']
-                    if sameguild:
-                        author = ctx.author.nick
-                        if author == None:
-                            author = ctx.author.global_name
-                    if not f'{ctx.author.id}' in list(self.bot.owners.keys()):
-                        self.bot.owners.update({f'{ctx.author.id}': []})
-                    msg = await webhook.send(avatar_url=url, username=author,
-                                             file=discord.File(fp="cached/"+filename), allowed_mentions=mentions,
-                                             components=components, wait=True)
-                    if sameguild:
-                        sameguild_id = msg.id
-                        self.bot.origin.update({f'{msg.id}': [ctx.guild.id, ctx.channel.id]})
-                    else:
-                        hookmsg_ids.update({f'{msg.guild.id}': msg.id})
-                    self.bot.owners[f'{ctx.author.id}'].append(msg.id)
-                    msg_urls.update({f'{msg.guild.id}': f'https://discord.com/channels/{msg.guild.id}/{msg.channel.id}/{msg.id}'})
-
-        files = []
-        cogs = list(self.bot.extensions)
-        if 'revolt' in externals and 'cogs.bridge_revolt' in cogs:
-            ids = {}
-
-            try:
-                if f'{ctx.author.id}' in self.bot.db['avatars']:
-                    url = self.bot.db['avatars'][f'{ctx.author.id}']
-                else:
-                    url = ctx.author.avatar.url
-            except:
-                url = None
-
-            for guild in self.bot.db['rooms_revolt'][roomname]:
-                try:
-                    guild = self.bot.revolt_client.get_server(guild)
-                except:
-                    continue
-                try:
-                    if str(ctx.author.id) in str(self.bot.db["blocked"][f'{guild.id}']) or str(
-                            ctx.server.id) in str(
-                            self.bot.db["blocked"][f'{guild.id}']):
-                        continue
-                except:
-                    pass
-                ch = guild.get_channel(self.bot.db['rooms_revolt'][roomname][guild.id][0])
-                author = ctx.author.global_name
-                if f'{ctx.author.id}' in list(self.bot.db['nicknames'].keys()):
-                    author = self.bot.db['nicknames'][f'{ctx.author.id}']
-                author_rvt = author
-                rvtcolor = None
-                if len(author) > 32:
-                    author_rvt = author_rvt[:-(len(author) - 32)]
-                if f'{ctx.author.id}' in list(self.bot.db['colors'].keys()):
-                    color = self.bot.db['colors'][f'{ctx.author.id}']
-                    if color == 'inherit':
-                        rvtcolor = f'rgb({ctx.author.color.r},{ctx.author.color.g},{ctx.author.color.b})'
-                    else:
-                        rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
-                        rvtcolor = f'rgb{rgbtuple}'
-                try:
-                    if f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
-                        persona = revolt.Masquerade(name=author_rvt, avatar=self.bot.db['avatars'][f'{ctx.author.id}'], colour=rvtcolor)
-                    else:
-                        persona = revolt.Masquerade(name=author_rvt, avatar=url,
-                                                    colour=rvtcolor)
-                except:
-                    persona = revolt.Masquerade(name=author_rvt, avatar=None, colour=rvtcolor)
-                msg_data = None
-                origin_id = None
-                try:
-                    try:
-                        msg_data = self.bot.bridged_external[f'{msg_resp.id}']['revolt']
-                    except:
-                        for key in self.bot.bridged_obe:
-                            if f'{msg_resp.id}' in f'{self.bot.bridged_obe[key]}':
-                                msg_data = self.bot.bridged_obe[f'{key}']
-                                origin_id = key
-                                break
-                        if not msg_data:
-                            raise ValueError()
-                except:
-                    for key in self.bot.bridged_external:
-                        if f'{msg_resp.id}' in str(self.bot.bridged_external[key]['revolt']):
-                            msg_data = self.bot.bridged_external[f'{key}']['revolt']
-                            break
-                if not msg_data:
-                    replies = []
-                else:
-                    try:
-                        msg = await ch.fetch_message(msg_data[guild.id])
-                    except:
-                        msg = await ch.fetch_message(origin_id)
-                    replies = [revolt.MessageReply(message=msg)]
-                msg = await ch.send(attachments=[revolt.File("cached/"+filename)], replies=replies, masquerade=persona)
-                ids.update({guild.id: msg.id})
-
-            self.bot.bridged_external.update({f'{sameguild_id}': {'revolt': ids}})
-
-        for thread in threads:
-            await self.bot.loop.run_in_executor(None, lambda: thread.join())
-        self.bot.bridged.update({f'{sameguild_id}': hookmsg_ids})
-        self.bot.bridged_urls.update({f'{sameguild_id}': msg_urls})
-        try:
-            os.remove("cached/"+filename)
-        except:
-            traceback.print_exc()
-
     @commands.context_command(name='Reaction image')
     async def reaction(self, ctx, message: discord.Message):
+        return await ctx.send('Reaction Images are currently disabled.',ephemeral=True)
         hooks = await ctx.guild.webhooks()
         webhook = None
         origin_room = 0

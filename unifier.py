@@ -28,8 +28,11 @@ from time import gmtime, strftime
 import os
 
 if os.name != "nt":
-    import uvloop
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    try:
+        import uvloop
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    except:
+        pass
 
 with open('config.json', 'r') as file:
     data = json.load(file)
