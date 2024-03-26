@@ -1,6 +1,6 @@
 {
-  "version": "v0.4.0",
-  "release": 10,
-  "reboot": 9,
-  "description": "- Major improvements to replying performance\n - In v0.3.9 and earlier, the bot tries to figure out the message link for each server. By having these already generated and ready to go, this will shave off the time it needs to create the links.\n- Reaction images: Some reaction images from Nevira are now in Unifier!\n- Retain webhook cache on module reloads so a bugfix doesn't wipe it\n- More optimizations for even more performance gains (hopefully) :muscle:\n- Prefix is now softcoded in config.json\n\n**:warning: WARNING :warning:**: Please add your prefix in the `prefix` key in config.json for the bot to work post-reboot!\n**NOTE**: Please create a `cached` folder in Unifier's root folder for reaction images support!"
+  "version": "v1.1.1",
+  "release": 21,
+  "reboot": 19,
+  "description": "- Make Threaded Bridging a default feature"
 }

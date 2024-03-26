@@ -1,0 +1,8 @@
+novus>=0.2.4
+aiohttp
+py-cpuinfo
+Pillow>=10.2.0
+tld
+jellyfish
+uvloop
+compress-json
