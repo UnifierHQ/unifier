@@ -194,7 +194,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         content = ctx.message.content
         ctx.message.content = ''
-        embed = discord.Embed(description='A user was recently banned from Unifier!')
+        embed = discord.Embed(description='A user was recently banned from Unifier!',color=0xff0000)
         if disclose:
             if not user:
                 embed.set_author(name='@unknown')
@@ -208,9 +208,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         ctx.message.embeds = [embed]
 
-        await self.bot.bridge.send("test", ctx.message, 'discord', system=True)
+        await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
         for platform in externals:
-            await self.bot.bridge.send("test", ctx.message, platform, system=True)
+            await self.bot.bridge.send("main", ctx.message, platform, system=True)
 
         ctx.message.embeds = []
         ctx.message.content = content
