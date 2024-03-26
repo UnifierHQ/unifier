@@ -206,6 +206,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             embed.set_author(name='@hidden')
 
+        ctx.message.embeds = [embed]
+
         await self.bot.bridge.send("test", ctx.message, 'discord', system=True)
         for platform in externals:
             await self.bot.bridge.send("test", ctx.message, platform, system=True)
