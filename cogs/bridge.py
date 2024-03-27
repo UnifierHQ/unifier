@@ -784,6 +784,7 @@ class UnifierBridge:
                 else:
                     msgid = message.reference.message_id
                 reply_msg = await self.fetch_message(msgid)
+                replying = True
             except:
                 pass
             if platform=='discord':
@@ -950,8 +951,39 @@ class UnifierBridge:
                                     content_btn
                                 )
                             )
-
-                    replying = True
+                elif replying:
+                    try:
+                        if source == 'revolt':
+                            authid = message.replies[0].author.id
+                        elif source == 'guilded':
+                            authid = message.replied_to[0].author.id
+                        else:
+                            if message.reference.cached_message:
+                                authid = message.reference.cached_message.author.id
+                            else:
+                                authmsg = await message.channel.fetch_message(message.reference.message_id)
+                                authid = authmsg.author.id
+                    except:
+                        authid = None
+                    if (authid==self.bot.user.id or authid==self.bot.revolt_client.user.id or
+                            authid==self.bot.guilded_client.user.id):
+                        reply_row = discord.ui.ActionRow(
+                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [system]',
+                                              disabled=True)
+                        )
+                    else:
+                        reply_row = discord.ui.ActionRow(
+                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                                              disabled=True)
+                        )
+                    if pr_actionrow:
+                        components = discord.ui.MessageComponents(
+                            pr_actionrow,reply_row
+                        )
+                    else:
+                        components = discord.ui.MessageComponents(
+                            reply_row
+                        )
 
             # Attachment processing
             files = []
@@ -1260,7 +1292,6 @@ class UnifierBridge:
                         replytext = f'**[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
                     except:
                         replytext = f'**Replying to [unknown]**\n'
-                    replying = True
 
                 if len(replytext+message.content)==0:
                     replytext = '[empty message]'
