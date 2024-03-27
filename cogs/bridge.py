@@ -783,8 +783,8 @@ class UnifierBridge:
                     msgid = message.replied_to[0].id
                 else:
                     msgid = message.reference.message_id
-                reply_msg = await self.fetch_message(msgid)
                 replying = True
+                reply_msg = await self.fetch_message(msgid)
             except:
                 pass
             if platform=='discord':
@@ -1082,6 +1082,9 @@ class UnifierBridge:
             embeds = message.embeds
             if not message.author.bot:
                 embeds = []
+
+            if msg_author.lower()==f'{self.bot.user.name} (system)' and not system:
+                msg_author = '[hidden username]'
 
             if platform=='discord':
                 msg_author_dc = msg_author
