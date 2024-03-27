@@ -182,6 +182,27 @@ class UnifierRaidBan:
         log('BOT', 'info', f'Raidban incremented. t: {t} i: {i} D: {threshold} actual: {self.duration}')
         return self.duration > threshold
 
+class UnifierMessageRaidBan(UnifierRaidBan):
+    def __init__(self, content_hash, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.content_hash = content_hash
+
+class UnifierPossibleRaidEvent:
+    def __init__(self,userid,content, frequency=1):
+        self.userid = userid # User ID of possible raider
+        self.hash = encrypt_string(content) # Hash of raid message string
+        self.time = round(time.time())  # Time when ban occurred
+        self.frequency = frequency
+        self.impact_score = 100*frequency
+
+    def increment(self,count=1):
+        self.frequency += count
+        t = math.ceil((round(time.time()) - self.time) / 60)
+        i = self.frequency
+        self.impact_score = round(100*i/t)
+        return self.impact_score > 300
+
+
 
 class UnifierBridge:
 
@@ -192,6 +213,8 @@ class UnifierBridge:
         self.webhook_cache = webhook_cache or {}
         self.restored = False
         self.raidbans = {}
+        self.possible_raid = {}
+
 
     def is_raidban(self,userid):
         try:
@@ -2138,25 +2161,29 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await message.delete()
             except:
                 pass
-            if not self.bot.bridge.is_raidban(message.author.id):
-                if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
-                    self.bot.bridge.raidbans.pop(f'{message.author.id}')
-                self.bot.bridge.raidban(message.author.id)
-                embed = discord.Embed(title='Automatic restriction applied',
-                                      description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
-                                      color=0xffcc00)
+            if message.author.id == owner:
+                embed = None
             else:
-                shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
-                if shouldban:
-                    self.bot.db['banned'].update({f'{message.author.id}':0})
-                    embed = discord.Embed(title='Raid detected - permanent ban applied',
-                                          description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
-                                          color=0xff0000)
-                else:
-                    expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
+                if not self.bot.bridge.is_raidban(message.author.id):
+                    if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
+                        self.bot.bridge.raidbans.pop(f'{message.author.id}')
+                    self.bot.bridge.raidban(message.author.id)
                     embed = discord.Embed(title='Automatic restriction applied',
-                                          description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
+                                          description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
                                           color=0xffcc00)
+                else:
+                    shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                    if shouldban:
+                        self.bot.db['banned'].update({f'{message.author.id}': 0})
+                        self.bot.db.save_data()
+                        embed = discord.Embed(title='Raid detected - permanent ban applied',
+                                              description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
+                                              color=0xff0000)
+                    else:
+                        expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
+                        embed = discord.Embed(title='Automatic restriction applied',
+                                              description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
+                                              color=0xffcc00)
             return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!',embed=embed)
 
         # Low-latency RapidPhish implementation
@@ -2232,25 +2259,34 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if '](' in url:
                 urls[key] = url.replace('](', ' ', 1).split()[0]
             if 'discord.gg/' in url or 'discord.com/invite/' in url or 'discord.com/invite/' in url:
-                if not self.bot.bridge.is_raidban(message.author.id):
-                    if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
-                        self.bot.bridge.raidbans.pop(f'{message.author.id}')
-                    self.bot.bridge.raidban(message.author.id)
-                    embed = discord.Embed(title='Automatic restriction applied',
-                                          description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
-                                          color=0xffcc00)
+                try:
+                    await message.delete()
+                except:
+                    pass
+                if message.author.id==owner:
+                    embed = None
                 else:
-                    shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
-                    if shouldban:
-                        self.bot.db['banned'].update({f'{message.author.id}': 0})
-                        embed = discord.Embed(title='Raid detected - permanent ban applied',
-                                              description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
-                                              color=0xff0000)
-                    else:
-                        expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
+                    if not self.bot.bridge.is_raidban(message.author.id):
+                        if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
+                            self.bot.bridge.raidbans.pop(f'{message.author.id}')
+                        self.bot.bridge.raidban(message.author.id)
                         embed = discord.Embed(title='Automatic restriction applied',
-                                              description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
+                                              description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
                                               color=0xffcc00)
+                    else:
+                        shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                        if shouldban:
+                            if not message.author.id == 356456393491873795:
+                                self.bot.db['banned'].update({f'{message.author.id}': 0})
+                                self.bot.db.save_data()
+                            embed = discord.Embed(title='Raid detected - permanent ban applied',
+                                                  description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
+                                                  color=0xff0000)
+                        else:
+                            expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
+                            embed = discord.Embed(title='Automatic restriction applied',
+                                                  description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
+                                                  color=0xffcc00)
                 return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!', embed=embed)
             key = key + 1
 
