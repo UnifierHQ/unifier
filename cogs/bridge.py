@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import math
 
 import discord
 import hashlib
@@ -155,6 +156,33 @@ class UnifierMessage:
     async def fetch_external(self, platform: str, guild_id: str):
         return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0], self.external_copies[platform][str(guild_id)][1])
 
+class UnifierRaidBan:
+    def __init__(self, debug, frequency=1):
+        self.frequency = frequency # Frequency of content
+        self.time = round(time.time()) # Time when ban occurred
+        self.duration = 600 # Duration of ban in seconds. Base is 600
+        self.expire = round(time.time()) + self.duration # Expire time
+        self.debug = debug # Debug raidban
+        log('BOT','info','New raidban registered.')
+
+    def is_banned(self):
+        if self.expire < time.time():
+            return False
+        return True
+
+    def increment(self,count=1):
+        self.frequency += count
+        t = math.ceil((round(time.time())-self.time)/60)
+        i = self.frequency
+        threshold = round(9600*t/i) # Base is 160 minutes
+        prevd = self.duration
+        self.duration = self.duration * 2
+        diff = self.duration - prevd
+        self.expire += diff
+        log('BOT', 'info', f'Raidban incremented. t: {t} i: {i} D: {threshold} actual: {self.duration}')
+        return self.duration > threshold
+
+
 class UnifierBridge:
 
     def __init__(self, bot, webhook_cache=None):
@@ -163,6 +191,17 @@ class UnifierBridge:
         self.prs = {}
         self.webhook_cache = webhook_cache or {}
         self.restored = False
+        self.raidbans = {}
+
+    def is_raidban(self,userid):
+        try:
+            ban: UnifierRaidBan = self.raidbans[f'{userid}']
+        except:
+            return False
+        return ban.is_banned()
+
+    def raidban(self,userid):
+        self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
     async def backup(self,filename='bridge.json',limit=10000):
         data = {'messages':{},'posts':{}}
@@ -2099,7 +2138,26 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await message.delete()
             except:
                 pass
-            return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
+            if not self.bot.bridge.is_raidban(message.author.id):
+                if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
+                    self.bot.bridge.raidbans.pop(f'{message.author.id}')
+                self.bot.bridge.raidban(message.author.id)
+                embed = discord.Embed(title='Automatic restriction applied',
+                                      description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
+                                      color=0xffcc00)
+            else:
+                shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                if shouldban:
+                    self.bot.db['banned'].update({f'{message.author.id}':0})
+                    embed = discord.Embed(title='Raid detected - permanent ban applied',
+                                          description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
+                                          color=0xff0000)
+                else:
+                    expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
+                    embed = discord.Embed(title='Automatic restriction applied',
+                                          description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
+                                          color=0xffcc00)
+            return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!',embed=embed)
 
         # Low-latency RapidPhish implementation
         # Prevent message tampering
@@ -2174,12 +2232,30 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if '](' in url:
                 urls[key] = url.replace('](', ' ', 1).split()[0]
             if 'discord.gg/' in url or 'discord.com/invite/' in url or 'discord.com/invite/' in url:
-                try:
-                    await message.delete()
-                except:
-                    pass
-                return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
+                if not self.bot.bridge.is_raidban(message.author.id):
+                    if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
+                        self.bot.bridge.raidbans.pop(f'{message.author.id}')
+                    self.bot.bridge.raidban(message.author.id)
+                    embed = discord.Embed(title='Automatic restriction applied',
+                                          description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
+                                          color=0xffcc00)
+                else:
+                    shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                    if shouldban:
+                        self.bot.db['banned'].update({f'{message.author.id}': 0})
+                        embed = discord.Embed(title='Raid detected - permanent ban applied',
+                                              description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
+                                              color=0xff0000)
+                    else:
+                        expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
+                        embed = discord.Embed(title='Automatic restriction applied',
+                                              description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
+                                              color=0xffcc00)
+                return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!', embed=embed)
             key = key + 1
+
+        if self.bot.bridge.is_raidban(message.author.id):
+            return
 
         if len(urls) > 0:
             rpresults = rapidphish.compare_urls(urls, 0.85)
