@@ -1,4 +1,6 @@
 novus>=0.2.4
+guilded.py
+revolt.py
 aiohttp
 py-cpuinfo
 Pillow>=10.2.0

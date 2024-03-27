@@ -15,12 +15,28 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import traceback
 
 import discord
 import time
 import hashlib
 from datetime import datetime
 from discord.ext import commands
+
+def log(type='???',status='ok',content='None'):
+    from time import gmtime, strftime
+    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
+    if status=='ok':
+        status = ' OK  '
+    elif status=='error':
+        status = 'ERROR'
+    elif status=='warn':
+        status = 'WARN '
+    elif status=='info':
+        status = 'INFO '
+    else:
+        raise ValueError('Invalid status type provided')
+    print(f'[{type} | {time1} | {status}] {content}')
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -368,7 +384,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('target has their dms with bot off, sadge')
         await ctx.send('hehe')
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def anick(self, ctx, target, *, nickname=''):
         # Check if the user is allowed to run the command
         if not ctx.author.id in self.bot.moderators:
@@ -393,6 +409,94 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.db.save_data()
 
         await ctx.send('Nickname updated.')
+
+    @commands.command(hidden=True)
+    async def bridgelock(self,ctx):
+        # Check if the user is allowed to run the command
+        if not ctx.author.id in self.bot.moderators:
+            return
+        embed = discord.Embed(title='Lock bridge down?',
+                              description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
+                              color=0xffcc00)
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown')
+            ),
+            discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel')
+            )
+        )
+        components_inac = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True)
+            ),
+            discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel',disabled=True)
+            )
+        )
+        msg = await ctx.send(embed=embed,components=components)
+
+        def check(interaction):
+            return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+
+        try:
+            interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
+        except:
+            return await msg.edit(components=components_inac)
+
+        if not interaction.custom_id=='lockdown':
+            return await interaction.response.edit_message(components=components_inac)
+
+        embed.title = ':warning: FINAL WARNING :warning:'
+        embed.description = 'LOCKDOWNS CANNOT BE REVERSED BY NON-ADMINS!\nDo NOT lock down the chat if you don\'t know what you\'re doing!'
+        embed.colour = 0xff0000
+
+        try:
+            interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
+        except:
+            return await msg.edit(components=components_inac)
+
+        await interaction.response.edit_message(components=components_inac)
+
+        if not interaction.custom_id=='lockdown':
+            return
+
+        log('BOT', 'warn', f'Lockdown issued by {ctx.author.id}!')
+
+        try:
+            log("RVT", "info", "Shutting down Revolt client...")
+            await self.bot.revolt_session.close()
+            del self.bot.revolt_client
+            del self.bot.revolt_session
+            self.bot.unload_extension('cogs.bridge_revolt')
+            log("RVT", "ok", "Revolt client has been shut down.")
+        except Exception as e:
+            if not isinstance(e, AttributeError):
+                log("RVT", "error", "Shutdown failed.")
+                traceback.print_exc()
+        try:
+            log("GLD", "info", "Shutting down Guilded client...")
+            await self.bot.guilded_client.close()
+            self.bot.guilded_client_task.cancel()
+            del self.bot.guilded_client
+            self.bot.unload_extension('cogs.bridge_guilded')
+            log("GLD", "ok", "Guilded client has been shut down.")
+        except Exception as e:
+            if not isinstance(e, AttributeError):
+                log("GLD", "error", "Shutdown failed.")
+                traceback.print_exc()
+        log("SYS", "info", "Backing up message cache...")
+        await self.bot.bridge.backup()
+        log("SYS", "ok", "Backup complete")
+        log("SYS", "info", "Disabling bridge...")
+        del self.bot.bridge
+        self.bot.unload_extension('cogs.bridge')
+        log("SYS", "ok", "Bridge disabled")
+        log("SYS", "ok", "Lockdown complete")
+        embed.title = 'LOCKDOWN COMPLETED'
+        embed.description = 'Bridge has been locked down.'
+        embed.colour = 0xff0000
+        await interaction.response.edit_message(embed=embed)
 
 def setup(bot):
     bot.add_cog(Moderation(bot))
