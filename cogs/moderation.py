@@ -133,7 +133,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def globalban(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
-        reason = ''
         parts = target.split(' ')
         forever = False
         if len(parts) >= 2:
@@ -152,6 +151,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     duration = timetoint(duration)
                 except:
                     return await ctx.send('Invalid duration!')
+        else:
+            return await ctx.send('Invalid duration!')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
@@ -160,6 +161,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid) == 26:
                 return await ctx.send('Invalid user/server!')
+
+        disclose = False
+        if reason.startswith('-disclose'):
+            reason = reason.replace('-disclose','',1)
+            disclose = True
+            while reason.startswith(' '):
+                reason = reason.replace(' ','',1)
+
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         banlist = self.bot.db['banned']
@@ -193,12 +202,36 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('global banned <:nevheh:990994050607906816>')
             except:
                 return await ctx.send('global banned <:nevheh:990994050607906816>')
-        if not user==None:
+        if user:
             try:
                 await user.send(embed=embed)
             except:
                 pass
+
+        content = ctx.message.content
+        ctx.message.content = ''
+        embed = discord.Embed(description='A user was recently banned from Unifier!',color=0xff0000)
+        if disclose:
+            if not user:
+                embed.set_author(name='@unknown')
+            else:
+                try:
+                    embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url)
+                except:
+                    embed.set_author(name=f'@{user.name}')
+        else:
+            embed.set_author(name='@hidden')
+
+        ctx.message.embeds = [embed]
+
+        await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
+        for platform in externals:
+            await self.bot.bridge.send("main", ctx.message, platform, system=True)
+
+        ctx.message.embeds = []
+        ctx.message.content = content
         await ctx.send('global banned <:nevheh:990994050607906816>')
+        
 
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,*,target):

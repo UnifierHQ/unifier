@@ -1080,11 +1080,11 @@ class UnifierBridge:
             # Add system identifier
             msg_author = author
             if system:
-                msg_author = msg_author + ' (system)'
+                msg_author = self.bot.user.global_name + ' (system)'
 
             # Send message
             embeds = message.embeds
-            if not message.author.bot:
+            if not message.author.bot and not system:
                 embeds = []
 
             if msg_author.lower()==f'{self.bot.user.name} (system)'.lower() and not system:
@@ -1351,7 +1351,7 @@ class UnifierBridge:
             for result in tbv2_results:
                 if not result:
                     continue
-                if len(result)==0:
+                if len(result)==1:
                     urls.update(result[0])
                 else:
                     message_ids.update(result[0])
@@ -1363,6 +1363,12 @@ class UnifierBridge:
             parent_id = message.id
         if is_pr and not pr_id in list(self.prs.keys()) and platform==source:
             self.prs.update({pr_id:parent_id})
+
+        if system:
+            msg_author = self.bot.user.id
+        else:
+            msg_author = message.author.id
+
         try:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
@@ -1386,7 +1392,7 @@ class UnifierBridge:
             else:
                 server_id = message.guild.id
             self.bridged.append(UnifierMessage(
-                author_id=message.author.id,
+                author_id=msg_author,
                 guild_id=server_id,
                 channel_id=message.channel.id,
                 original=parent_id,
