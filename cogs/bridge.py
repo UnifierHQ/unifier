@@ -1557,8 +1557,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command()
     async def nickname(self, ctx, *, nickname=''):
-        if len(nickname) > 25:
-            return await ctx.send('Please keep your nickname within 25 characters.')
+        if len(nickname) > 35:
+            return await ctx.send('Please keep your nickname within 35 characters.')
         if len(nickname) == 0:
             self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
         else:
@@ -2076,6 +2076,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        log('BOT','info',f'Message type of {message.id}: {message.type}')
         author_rp = message.author
         content_rp = message.content
         if not message.webhook_id == None:
