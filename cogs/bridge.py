@@ -157,7 +157,7 @@ class UnifierMessage:
         return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0], self.external_copies[platform][str(guild_id)][1])
 
 class UnifierRaidBan:
-    def __init__(self, debug, frequency=1):
+    def __init__(self, debug=True, frequency=1):
         self.frequency = frequency # Frequency of content
         self.time = round(time.time()) # Time when ban occurred
         self.duration = 600 # Duration of ban in seconds. Base is 600
