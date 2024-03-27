@@ -19,10 +19,26 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import discord
 from discord.ext import commands
 import json
+import traceback
 
 with open('config.json', 'r') as file:
     data = json.load(file)
 owner = data['owner']
+
+def log(type='???',status='ok',content='None'):
+    from time import gmtime, strftime
+    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
+    if status=='ok':
+        status = ' OK  '
+    elif status=='error':
+        status = 'ERROR'
+    elif status=='warn':
+        status = 'WARN '
+    elif status=='info':
+        status = 'INFO '
+    else:
+        status = ' N/A '
+    print(f'[{type} | {time1} | {status}] {content}')
 
 class Lockdown(commands.Cog, name=':lock: Lockdown'):
     """An emergency extension that unloads literally everything.
@@ -70,10 +86,45 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             return await msg.edit(components=components_cancel)
         if interaction.custom_id=='reject':
             return await interaction.response.edit_message(components=components_cancel)
+
+        log('BOT', 'error', f'Bot lockdown issued by {ctx.author.id}!')
+
+        try:
+            log("RVT", "info", "Shutting down Revolt client...")
+            await self.bot.revolt_session.close()
+            del self.bot.revolt_client
+            del self.bot.revolt_session
+            self.bot.unload_extension('cogs.bridge_revolt')
+            log("RVT", "ok", "Revolt client has been shut down.")
+        except Exception as e:
+            if not isinstance(e, AttributeError):
+                log("RVT", "error", "Shutdown failed.")
+                traceback.print_exc()
+        try:
+            log("GLD", "info", "Shutting down Guilded client...")
+            await self.bot.guilded_client.close()
+            self.bot.guilded_client_task.cancel()
+            del self.bot.guilded_client
+            self.bot.unload_extension('cogs.bridge_guilded')
+            log("GLD", "ok", "Guilded client has been shut down.")
+        except Exception as e:
+            if not isinstance(e, AttributeError):
+                log("GLD", "error", "Shutdown failed.")
+                traceback.print_exc()
+        log("SYS", "info", "Backing up message cache...")
+        await self.bot.bridge.backup()
+        log("SYS", "ok", "Backup complete")
+        log("SYS", "info", "Disabling bridge...")
+        del self.bot.bridge
+        self.bot.unload_extension('cogs.bridge')
+        log("SYS", "ok", "Bridge disabled")
+
         self.bot.locked = True
         for cog in list(self.bot.extensions):
             if not cog=='cogs.lockdown':
                 self.bot.unload_extension(cog)
+        log("SYS", "ok", "Lockdown complete")
+
         embed.title = 'Lockdown activated'
         embed.description = 'The bot is now in a crippled state. It cannot recover without a reboot.'
         return await interaction.response.edit_message(embed=embed,components=components_cancel)

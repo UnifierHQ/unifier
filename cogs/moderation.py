@@ -15,13 +15,19 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import traceback
 
 import discord
 import time
 import hashlib
 from datetime import datetime
 from discord.ext import commands
+import traceback
+import json
+
+with open('config.json', 'r') as file:
+    data = json.load(file)
+
+externals = data["external"]
 
 def log(type='???',status='ok',content='None'):
     from time import gmtime, strftime
@@ -415,23 +421,21 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         # Check if the user is allowed to run the command
         if not ctx.author.id in self.bot.moderators:
             return
+        if not hasattr(self.bot, 'bridge'):
+            return await ctx.send('Bridge already locked down.')
         embed = discord.Embed(title='Lock bridge down?',
                               description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
                               color=0xffcc00)
         components = discord.ui.MessageComponents(
             discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown')
-            ),
-            discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown'),
                 discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel')
             )
         )
         components_inac = discord.ui.MessageComponents(
             discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True)
-            ),
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel',disabled=True)
+                discord.ui.Button(style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True),
+                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', disabled=True)
             )
         )
         msg = await ctx.send(embed=embed,components=components)
@@ -447,9 +451,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not interaction.custom_id=='lockdown':
             return await interaction.response.edit_message(components=components_inac)
 
-        embed.title = ':warning: FINAL WARNING :warning:'
+        embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = 'LOCKDOWNS CANNOT BE REVERSED BY NON-ADMINS!\nDo NOT lock down the chat if you don\'t know what you\'re doing!'
         embed.colour = 0xff0000
+
+        await interaction.response.edit_message(embed=embed)
 
         try:
             interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
@@ -461,7 +467,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not interaction.custom_id=='lockdown':
             return
 
-        log('BOT', 'warn', f'Lockdown issued by {ctx.author.id}!')
+        log('BOT', 'warn', f'Bridge lockdown issued by {ctx.author.id}!')
 
         try:
             log("RVT", "info", "Shutting down Revolt client...")
@@ -496,7 +502,34 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed.title = 'LOCKDOWN COMPLETED'
         embed.description = 'Bridge has been locked down.'
         embed.colour = 0xff0000
-        await interaction.response.edit_message(embed=embed)
+        await msg.edit(embed=embed)
+
+    @commands.command(hidden=True)
+    async def bridgeunlock(self,ctx):
+        if not ctx.author.id in self.bot.admins:
+            return
+        try:
+            self.bot.load_extension('cogs.bridge')
+        except:
+            return await ctx.send('Bridge already online.')
+        try:
+            await self.bot.bridge.restore()
+            log('SYS', 'ok', 'Restored ' + str(len(self.bot.bridge.bridged)) + ' messages')
+        except:
+            traceback.print_exc()
+        if 'revolt' in externals:
+            try:
+                self.bot.load_extension('cogs.bridge_revolt')
+            except Exception as e:
+                if not isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                    traceback.print_exc()
+        if 'guilded' in externals:
+            try:
+                self.bot.load_extension('cogs.bridge_guilded')
+            except Exception as e:
+                if not isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                    traceback.print_exc()
+        await ctx.send('Lockdown removed')
 
 def setup(bot):
     bot.add_cog(Moderation(bot))
