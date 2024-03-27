@@ -15,13 +15,19 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import traceback
 
 import discord
 import time
 import hashlib
 from datetime import datetime
 from discord.ext import commands
+import traceback
+import json
+
+with open('config.json', 'r') as file:
+    data = json.load(file)
+
+externals = data["external"]
 
 def log(type='???',status='ok',content='None'):
     from time import gmtime, strftime
@@ -127,7 +133,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def globalban(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
-        reason = ''
         parts = target.split(' ')
         forever = False
         if len(parts) >= 2:
@@ -146,6 +151,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     duration = timetoint(duration)
                 except:
                     return await ctx.send('Invalid duration!')
+        else:
+            return await ctx.send('Invalid duration!')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
@@ -154,6 +161,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid) == 26:
                 return await ctx.send('Invalid user/server!')
+
+        disclose = False
+        if reason.startswith('-disclose'):
+            reason = reason.replace('-disclose','',1)
+            disclose = True
+            while reason.startswith(' '):
+                reason = reason.replace(' ','',1)
+
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('ok guys no friendly fire pls thanks')
         banlist = self.bot.db['banned']
@@ -187,12 +202,36 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('global banned <:nevheh:990994050607906816>')
             except:
                 return await ctx.send('global banned <:nevheh:990994050607906816>')
-        if not user==None:
+        if user:
             try:
                 await user.send(embed=embed)
             except:
                 pass
+
+        content = ctx.message.content
+        ctx.message.content = ''
+        embed = discord.Embed(description='A user was recently banned from Unifier!',color=0xff0000)
+        if disclose:
+            if not user:
+                embed.set_author(name='@unknown')
+            else:
+                try:
+                    embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url)
+                except:
+                    embed.set_author(name=f'@{user.name}')
+        else:
+            embed.set_author(name='@hidden')
+
+        ctx.message.embeds = [embed]
+
+        await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
+        for platform in externals:
+            await self.bot.bridge.send("main", ctx.message, platform, system=True)
+
+        ctx.message.embeds = []
+        ctx.message.content = content
         await ctx.send('global banned <:nevheh:990994050607906816>')
+        
 
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,*,target):
@@ -415,23 +454,21 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         # Check if the user is allowed to run the command
         if not ctx.author.id in self.bot.moderators:
             return
+        if not hasattr(self.bot, 'bridge'):
+            return await ctx.send('Bridge already locked down.')
         embed = discord.Embed(title='Lock bridge down?',
                               description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
                               color=0xffcc00)
         components = discord.ui.MessageComponents(
             discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown')
-            ),
-            discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown'),
                 discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel')
             )
         )
         components_inac = discord.ui.MessageComponents(
             discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True)
-            ),
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel',disabled=True)
+                discord.ui.Button(style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True),
+                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', disabled=True)
             )
         )
         msg = await ctx.send(embed=embed,components=components)
@@ -447,9 +484,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not interaction.custom_id=='lockdown':
             return await interaction.response.edit_message(components=components_inac)
 
-        embed.title = ':warning: FINAL WARNING :warning:'
+        embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = 'LOCKDOWNS CANNOT BE REVERSED BY NON-ADMINS!\nDo NOT lock down the chat if you don\'t know what you\'re doing!'
         embed.colour = 0xff0000
+
+        await interaction.response.edit_message(embed=embed)
 
         try:
             interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
@@ -461,7 +500,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not interaction.custom_id=='lockdown':
             return
 
-        log('BOT', 'warn', f'Lockdown issued by {ctx.author.id}!')
+        log('BOT', 'warn', f'Bridge lockdown issued by {ctx.author.id}!')
 
         try:
             log("RVT", "info", "Shutting down Revolt client...")
@@ -496,7 +535,34 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed.title = 'LOCKDOWN COMPLETED'
         embed.description = 'Bridge has been locked down.'
         embed.colour = 0xff0000
-        await interaction.response.edit_message(embed=embed)
+        await msg.edit(embed=embed)
+
+    @commands.command(hidden=True)
+    async def bridgeunlock(self,ctx):
+        if not ctx.author.id in self.bot.admins:
+            return
+        try:
+            self.bot.load_extension('cogs.bridge')
+        except:
+            return await ctx.send('Bridge already online.')
+        try:
+            await self.bot.bridge.restore()
+            log('SYS', 'ok', 'Restored ' + str(len(self.bot.bridge.bridged)) + ' messages')
+        except:
+            traceback.print_exc()
+        if 'revolt' in externals:
+            try:
+                self.bot.load_extension('cogs.bridge_revolt')
+            except Exception as e:
+                if not isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                    traceback.print_exc()
+        if 'guilded' in externals:
+            try:
+                self.bot.load_extension('cogs.bridge_guilded')
+            except Exception as e:
+                if not isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                    traceback.print_exc()
+        await ctx.send('Lockdown removed')
 
 def setup(bot):
     bot.add_cog(Moderation(bot))

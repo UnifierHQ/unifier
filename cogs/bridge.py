@@ -163,14 +163,17 @@ class UnifierRaidBan:
         self.duration = 600 # Duration of ban in seconds. Base is 600
         self.expire = round(time.time()) + self.duration # Expire time
         self.debug = debug # Debug raidban
+        self.banned = False
         log('BOT','info','New raidban registered.')
 
     def is_banned(self):
         if self.expire < time.time():
-            return False
+            return False or self.banned
         return True
 
     def increment(self,count=1):
+        if self.banned:
+            raise RuntimeError()
         self.frequency += count
         t = math.ceil((round(time.time())-self.time)/60)
         i = self.frequency
@@ -180,6 +183,7 @@ class UnifierRaidBan:
         diff = self.duration - prevd
         self.expire += diff
         log('BOT', 'info', f'Raidban incremented. t: {t} i: {i} D: {threshold} actual: {self.duration}')
+        self.banned = self.duration > threshold
         return self.duration > threshold
 
 class UnifierMessageRaidBan(UnifierRaidBan):
@@ -1076,11 +1080,11 @@ class UnifierBridge:
             # Add system identifier
             msg_author = author
             if system:
-                msg_author = msg_author + ' (system)'
+                msg_author = self.bot.user.global_name + ' (system)'
 
             # Send message
             embeds = message.embeds
-            if not message.author.bot:
+            if not message.author.bot and not system:
                 embeds = []
 
             if msg_author.lower()==f'{self.bot.user.name} (system)'.lower() and not system:
@@ -1347,7 +1351,7 @@ class UnifierBridge:
             for result in tbv2_results:
                 if not result:
                     continue
-                if len(result)==0:
+                if len(result)==1:
                     urls.update(result[0])
                 else:
                     message_ids.update(result[0])
@@ -1359,6 +1363,12 @@ class UnifierBridge:
             parent_id = message.id
         if is_pr and not pr_id in list(self.prs.keys()) and platform==source:
             self.prs.update({pr_id:parent_id})
+
+        if system:
+            msg_author = self.bot.user.id
+        else:
+            msg_author = message.author.id
+
         try:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
@@ -1382,7 +1392,7 @@ class UnifierBridge:
             else:
                 server_id = message.guild.id
             self.bridged.append(UnifierMessage(
-                author_id=message.author.id,
+                author_id=msg_author,
                 guild_id=server_id,
                 channel_id=message.channel.id,
                 original=parent_id,
@@ -2190,36 +2200,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        if 'discord.gg/' in message.content or 'discord.com/invite/' in message.content or 'discord.com/invite/' in message.content:
-            try:
-                await message.delete()
-            except:
-                pass
-            if message.author.id == owner:
-                embed = None
-            else:
-                if not self.bot.bridge.is_raidban(message.author.id):
-                    if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
-                        self.bot.bridge.raidbans.pop(f'{message.author.id}')
-                    self.bot.bridge.raidban(message.author.id)
-                    embed = discord.Embed(title='Automatic restriction applied',
-                                          description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
-                                          color=0xffcc00)
-                else:
-                    shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
-                    if shouldban:
-                        self.bot.db['banned'].update({f'{message.author.id}': 0})
-                        self.bot.db.save_data()
-                        embed = discord.Embed(title='Raid detected - permanent ban applied',
-                                              description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
-                                              color=0xff0000)
-                    else:
-                        expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
-                        embed = discord.Embed(title='Automatic restriction applied',
-                                              description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
-                                              color=0xffcc00)
-            return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!',embed=embed)
-
         # Low-latency RapidPhish implementation
         # Prevent message tampering
         urls = findurl(message.content)
@@ -2292,7 +2272,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 urls[key] = f'http://{url}'
             if '](' in url:
                 urls[key] = url.replace('](', ' ', 1).split()[0]
-            if 'discord.gg/' in url or 'discord.com/invite/' in url or 'discord.com/invite/' in url:
+            if ('discord.gg/' in url or 'discord.com/invite/' in url or 'discordapp.com/invite/' in url or
+                    'discord.gg/' in message.content or 'discord.com/invite/' in message.content or
+                    'discordapp.com/invite/' in message.content):
                 try:
                     await message.delete()
                 except:
@@ -2308,7 +2290,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                               description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
                                               color=0xffcc00)
                     else:
-                        shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                        try:
+                            shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                        except:
+                            return
                         if shouldban:
                             if not message.author.id == 356456393491873795:
                                 self.bot.db['banned'].update({f'{message.author.id}': 0})
