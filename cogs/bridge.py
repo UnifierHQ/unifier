@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import math
 
 import discord
 import hashlib
@@ -155,6 +156,58 @@ class UnifierMessage:
     async def fetch_external(self, platform: str, guild_id: str):
         return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0], self.external_copies[platform][str(guild_id)][1])
 
+class UnifierRaidBan:
+    def __init__(self, debug=True, frequency=1):
+        self.frequency = frequency # Frequency of content
+        self.time = round(time.time()) # Time when ban occurred
+        self.duration = 600 # Duration of ban in seconds. Base is 600
+        self.expire = round(time.time()) + self.duration # Expire time
+        self.debug = debug # Debug raidban
+        self.banned = False
+        log('BOT','info','New raidban registered.')
+
+    def is_banned(self):
+        if self.expire < time.time():
+            return False or self.banned
+        return True
+
+    def increment(self,count=1):
+        if self.banned:
+            raise RuntimeError()
+        self.frequency += count
+        t = math.ceil((round(time.time())-self.time)/60)
+        i = self.frequency
+        threshold = round(9600*t/i) # Base is 160 minutes
+        prevd = self.duration
+        self.duration = self.duration * 2
+        diff = self.duration - prevd
+        self.expire += diff
+        log('BOT', 'info', f'Raidban incremented. t: {t} i: {i} D: {threshold} actual: {self.duration}')
+        self.banned = self.duration > threshold
+        return self.duration > threshold
+
+class UnifierMessageRaidBan(UnifierRaidBan):
+    def __init__(self, content_hash, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.content_hash = content_hash
+
+class UnifierPossibleRaidEvent:
+    def __init__(self,userid,content, frequency=1):
+        self.userid = userid # User ID of possible raider
+        self.hash = encrypt_string(content) # Hash of raid message string
+        self.time = round(time.time())  # Time when ban occurred
+        self.frequency = frequency
+        self.impact_score = 100*frequency
+
+    def increment(self,count=1):
+        self.frequency += count
+        t = math.ceil((round(time.time()) - self.time) / 60)
+        i = self.frequency
+        self.impact_score = round(100*i/t)
+        return self.impact_score > 300
+
+
+
 class UnifierBridge:
 
     def __init__(self, bot, webhook_cache=None):
@@ -163,6 +216,19 @@ class UnifierBridge:
         self.prs = {}
         self.webhook_cache = webhook_cache or {}
         self.restored = False
+        self.raidbans = {}
+        self.possible_raid = {}
+
+
+    def is_raidban(self,userid):
+        try:
+            ban: UnifierRaidBan = self.raidbans[f'{userid}']
+        except:
+            return False
+        return ban.is_banned()
+
+    def raidban(self,userid):
+        self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
     async def backup(self,filename='bridge.json',limit=10000):
         data = {'messages':{},'posts':{}}
@@ -511,6 +577,8 @@ class UnifierBridge:
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False, multisend_debug=False):
+        if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
+            return
         source = 'discord'
         pt = time.time()
         extlist = list(self.bot.extensions)
@@ -719,6 +787,7 @@ class UnifierBridge:
                     msgid = message.replied_to[0].id
                 else:
                     msgid = message.reference.message_id
+                replying = True
                 reply_msg = await self.fetch_message(msgid)
             except:
                 pass
@@ -886,8 +955,39 @@ class UnifierBridge:
                                     content_btn
                                 )
                             )
-
-                    replying = True
+                elif replying:
+                    try:
+                        if source == 'revolt':
+                            authid = message.replies[0].author.id
+                        elif source == 'guilded':
+                            authid = message.replied_to[0].author.id
+                        else:
+                            if message.reference.cached_message:
+                                authid = message.reference.cached_message.author.id
+                            else:
+                                authmsg = await message.channel.fetch_message(message.reference.message_id)
+                                authid = authmsg.author.id
+                    except:
+                        authid = None
+                    if (authid==self.bot.user.id or authid==self.bot.revolt_client.user.id or
+                            authid==self.bot.guilded_client.user.id):
+                        reply_row = discord.ui.ActionRow(
+                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [system]',
+                                              disabled=True)
+                        )
+                    else:
+                        reply_row = discord.ui.ActionRow(
+                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                                              disabled=True)
+                        )
+                    if pr_actionrow:
+                        components = discord.ui.MessageComponents(
+                            pr_actionrow,reply_row
+                        )
+                    else:
+                        components = discord.ui.MessageComponents(
+                            reply_row
+                        )
 
             # Attachment processing
             files = []
@@ -986,6 +1086,9 @@ class UnifierBridge:
             embeds = message.embeds
             if not message.author.bot and not system:
                 embeds = []
+
+            if msg_author.lower()==f'{self.bot.user.name} (system)'.lower() and not system:
+                msg_author = '[hidden username]'
 
             if platform=='discord':
                 msg_author_dc = msg_author
@@ -1409,88 +1512,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.context_command(name='Reaction image')
     async def reaction(self, ctx, message: discord.Message):
-        return await ctx.send('Reaction Images are currently disabled.',ephemeral=True)
-        hooks = await ctx.guild.webhooks()
-        webhook = None
-        origin_room = 0
-        found = False
-        for hook in hooks:
-            if hook.channel_id == ctx.channel.id and hook.user.id == self.bot.user.id:
-                webhook = hook
-                index = 0
-                for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
-                    if f'{ctx.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{ctx.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        origin_room = index
-                        found = True
-                        if key in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
-                            return
-                        break
-                    index += 1
-                break
-        #
-        if not found:
-            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
-        try:
-            roomname = list(self.bot.db['rooms'].keys())[origin_room]
-            if roomname in self.bot.db['locked'] and not ctx.author.id in self.bot.admins:
-                return await ctx.send('This room is locked!',ephemeral=True)
-        except:
-            return await ctx.send('I couldn\'t identify the UniChat room of this channel.',ephemeral=True)
-        if not ctx.channel.permissions_for(ctx.author).send_messages:
-            return await ctx.send('You can\'t type in here!',ephemeral=True)
-        if not webhook or not f'{webhook.id}' in f'{self.bot.db["rooms"]}':
-            return await ctx.send('This isn\'t a UniChat room!', ephemeral=True)
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.blurple,label='Clueless',custom_id='clueless'),
-                discord.ui.Button(style=discord.ButtonStyle.blurple, label='THINK, MARK, THINK!', custom_id='think'),
-            ),
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.green, label='THICC, MARK, THICC!', custom_id='thicc'),
-            )
-        )
-        msg = await ctx.send('Choose a reaction image to generate!\n\n**Blue**: Static images\n**Green**: GIFs', ephemeral=True, components=components)
-
-        def check(interaction):
-            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
-        #
-        try:
-            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
-        except:
-            try:
-                return await msg.edit(content='Timed out.', components=None)
-            except:
-                return
-        #
-        await interaction.response.edit_message(content='Generating...', components=None)
-        msgid = msg.id
-        filename = ''
-        try:
-            if interaction.custom_id=='clueless':
-                link1 = message.author.avatar.url
-                filename = await self.bot.loop.run_in_executor(None, lambda: self.clueless_gen(link1, msgid))
-            elif interaction.custom_id=='think':
-                link1 = ctx.author.avatar.url
-                link2 = message.author.avatar.url
-                filename = await self.bot.loop.run_in_executor(None, lambda: self.think(link1, link2, message.author.global_name, msgid))
-            elif interaction.custom_id=='thicc':
-                link1 = ctx.author.avatar.url
-                link2 = message.author.avatar.url
-                filename = await self.bot.loop.run_in_executor(None, lambda: self.omniman(link1, link2, msgid))
-        except:
-            await msg.edit('**oh no**\nAn unexpected error occurred generating the image. Please contact the developers.')
-            raise
-        try:
-            await self.image_forward(ctx,message,filename)
-        except:
-            await msg.edit('**oh no**\nAn unexpected error occurred sending the image. Please contact the developers.')
-            raise
-        await msg.edit('Sent reaction image!')
+        return await ctx.send('Reaction Images have been discontinued. More info: https://unichat-wiki.pixels.onl/blog/discontinuing-reaction-images',ephemeral=True)
 
     @commands.command(aliases=['colour'])
     async def color(self,ctx,*,color=''):
@@ -1579,8 +1601,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command()
     async def nickname(self, ctx, *, nickname=''):
-        if len(nickname) > 25:
-            return await ctx.send('Please keep your nickname within 25 characters.')
+        if len(nickname) > 35:
+            return await ctx.send('Please keep your nickname within 35 characters.')
         if len(nickname) == 0:
             self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
         else:
@@ -2178,13 +2200,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        if 'discord.gg/' in message.content or 'discord.com/invite/' in message.content:
-            try:
-                await message.delete()
-            except:
-                pass
-            return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!')
-
         # Low-latency RapidPhish implementation
         # Prevent message tampering
         urls = findurl(message.content)
@@ -2257,7 +2272,45 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 urls[key] = f'http://{url}'
             if '](' in url:
                 urls[key] = url.replace('](', ' ', 1).split()[0]
+            if ('discord.gg/' in url or 'discord.com/invite/' in url or 'discordapp.com/invite/' in url or
+                    'discord.gg/' in message.content or 'discord.com/invite/' in message.content or
+                    'discordapp.com/invite/' in message.content):
+                try:
+                    await message.delete()
+                except:
+                    pass
+                if message.author.id==owner:
+                    embed = None
+                else:
+                    if not self.bot.bridge.is_raidban(message.author.id):
+                        if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
+                            self.bot.bridge.raidbans.pop(f'{message.author.id}')
+                        self.bot.bridge.raidban(message.author.id)
+                        embed = discord.Embed(title='Automatic restriction applied',
+                                              description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
+                                              color=0xffcc00)
+                    else:
+                        try:
+                            shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                        except:
+                            return
+                        if shouldban:
+                            if not message.author.id == 356456393491873795:
+                                self.bot.db['banned'].update({f'{message.author.id}': 0})
+                                self.bot.db.save_data()
+                            embed = discord.Embed(title='Raid detected - permanent ban applied',
+                                                  description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
+                                                  color=0xff0000)
+                        else:
+                            expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
+                            embed = discord.Embed(title='Automatic restriction applied',
+                                                  description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
+                                                  color=0xffcc00)
+                return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!', embed=embed)
             key = key + 1
+
+        if self.bot.bridge.is_raidban(message.author.id):
+            return
 
         if len(urls) > 0:
             rpresults = rapidphish.compare_urls(urls, 0.85)
