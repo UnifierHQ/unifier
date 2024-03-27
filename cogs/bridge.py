@@ -2292,6 +2292,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             if not message.author.id == 356456393491873795:
                                 self.bot.db['banned'].update({f'{message.author.id}': 0})
                                 self.bot.db.save_data()
+                                log('BOT','warn',f'Banned user {message.author.id} - possible raid detected')
                             embed = discord.Embed(title='Raid detected - permanent ban applied',
                                                   description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
                                                   color=0xff0000)
