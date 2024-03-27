@@ -163,14 +163,17 @@ class UnifierRaidBan:
         self.duration = 600 # Duration of ban in seconds. Base is 600
         self.expire = round(time.time()) + self.duration # Expire time
         self.debug = debug # Debug raidban
+        self.banned = False
         log('BOT','info','New raidban registered.')
 
     def is_banned(self):
         if self.expire < time.time():
-            return False
+            return False or self.banned
         return True
 
     def increment(self,count=1):
+        if self.banned:
+            raise RuntimeError()
         self.frequency += count
         t = math.ceil((round(time.time())-self.time)/60)
         i = self.frequency
@@ -180,6 +183,7 @@ class UnifierRaidBan:
         diff = self.duration - prevd
         self.expire += diff
         log('BOT', 'info', f'Raidban incremented. t: {t} i: {i} D: {threshold} actual: {self.duration}')
+        self.banned = self.duration > threshold
         return self.duration > threshold
 
 class UnifierMessageRaidBan(UnifierRaidBan):
@@ -2280,7 +2284,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                               description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
                                               color=0xffcc00)
                     else:
-                        shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                        try:
+                            shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
+                        except:
+                            return
                         if shouldban:
                             if not message.author.id == 356456393491873795:
                                 self.bot.db['banned'].update({f'{message.author.id}': 0})
