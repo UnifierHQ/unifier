@@ -1198,6 +1198,7 @@ class UnifierBridge:
                         replytext = f'**[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
                     except:
                         replytext = f'**Replying to [unknown]**\n'
+                    replying = True
 
                 if len(replytext+message.content)==0:
                     replytext = '[empty message]'
