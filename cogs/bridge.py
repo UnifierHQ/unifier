@@ -1083,7 +1083,7 @@ class UnifierBridge:
             if not message.author.bot:
                 embeds = []
 
-            if msg_author.lower()==f'{self.bot.user.name} (system)' and not system:
+            if msg_author.lower()==f'{self.bot.user.name} (system)'.lower() and not system:
                 msg_author = '[hidden username]'
 
             if platform=='discord':
