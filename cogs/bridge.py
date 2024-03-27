@@ -2190,36 +2190,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        if 'discord.gg/' in message.content or 'discord.com/invite/' in message.content or 'discord.com/invite/' in message.content:
-            try:
-                await message.delete()
-            except:
-                pass
-            if message.author.id == owner:
-                embed = None
-            else:
-                if not self.bot.bridge.is_raidban(message.author.id):
-                    if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
-                        self.bot.bridge.raidbans.pop(f'{message.author.id}')
-                    self.bot.bridge.raidban(message.author.id)
-                    embed = discord.Embed(title='Automatic restriction applied',
-                                          description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
-                                          color=0xffcc00)
-                else:
-                    shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
-                    if shouldban:
-                        self.bot.db['banned'].update({f'{message.author.id}': 0})
-                        self.bot.db.save_data()
-                        embed = discord.Embed(title='Raid detected - permanent ban applied',
-                                              description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
-                                              color=0xff0000)
-                    else:
-                        expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
-                        embed = discord.Embed(title='Automatic restriction applied',
-                                              description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
-                                              color=0xffcc00)
-            return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!',embed=embed)
-
         # Low-latency RapidPhish implementation
         # Prevent message tampering
         urls = findurl(message.content)
@@ -2292,7 +2262,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 urls[key] = f'http://{url}'
             if '](' in url:
                 urls[key] = url.replace('](', ' ', 1).split()[0]
-            if 'discord.gg/' in url or 'discord.com/invite/' in url or 'discord.com/invite/' in url:
+            if ('discord.gg/' in url or 'discord.com/invite/' in url or 'discordapp.com/invite/' in url or
+                    'discord.gg/' in message.content or 'discord.com/invite/' in message.content or
+                    'discordapp.com/invite/' in message.content):
                 try:
                     await message.delete()
                 except:
