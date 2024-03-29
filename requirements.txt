@@ -1,4 +1,4 @@
-novus>=0.2.4
+discord.py
 guilded.py
 revolt.py
 aiohttp

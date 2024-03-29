@@ -56,36 +56,40 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
         if self.bot.locked:
             return await ctx.send('Bot is already locked down.')
         embed = discord.Embed(title='Activate lockdown?',description='This will unload ALL EXTENSIONS and lock down the bot until next restart. Continue?',color=0xff0000)
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=False),
+        components = discord.ui.View()
+        components_cancel = discord.ui.View()
+        components.add_item(
+            discord.ui.Button(style=discord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=False)
+        )
+        components.add_item(
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=False)
         )
-        components = discord.ui.MessageComponents(btns)
-        btns2 = discord.ui.ActionRow(
+        components_cancel.add_item(
             discord.ui.Button(style=discord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=True),
+        )
+        components_cancel.add_item(
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=True)
         )
-        components_cancel = discord.ui.MessageComponents(btns2)
-        msg = await ctx.send(embed=embed,components=components)
+        msg = await ctx.send(embed=embed,view=components)
 
         def check(interaction):
             return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            return await msg.edit(components=components_cancel)
+            return await msg.edit(view=components_cancel)
         if interaction.custom_id=='reject':
-            return await interaction.response.edit_message(components=components_cancel)
+            return await interaction.response.edit_message(view=components_cancel)
         embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = '- :warning: All functions of the bot will be disabled.\n- :no_entry_sign: Managing extensions will be unavailable.\n- :arrows_counterclockwise: To restore the bot, a reboot is required.'
         await interaction.response.edit_message(embed=embed)
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            return await msg.edit(components=components_cancel)
+            return await msg.edit(view=components_cancel)
         if interaction.custom_id=='reject':
-            return await interaction.response.edit_message(components=components_cancel)
+            return await interaction.response.edit_message(view=components_cancel)
 
         log('BOT', 'error', f'Bot lockdown issued by {ctx.author.id}!')
 
@@ -127,7 +131,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
 
         embed.title = 'Lockdown activated'
         embed.description = 'The bot is now in a crippled state. It cannot recover without a reboot.'
-        return await interaction.response.edit_message(embed=embed,components=components_cancel)
+        return await interaction.response.edit_message(embed=embed,view=components_cancel)
 
 def setup(bot):
     bot.add_cog(Lockdown(bot))

@@ -326,29 +326,32 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 discord.ui.Button(style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept',disabled=False),
                 discord.ui.Button(style=ButtonStyle.red, label='No thanks', custom_id=f'reject',disabled=False)
                 ]
-            btns = discord.ui.ActionRow(row[0],row[1])
-            components = discord.ui.MessageComponents(btns)
+            components = discord.ui.View()
+            components.add_item(row[0])
+            components.add_item(row[1])
             msg = await ctx.send(embed=embed,components=components)
 
             def check(interaction):
                 return interaction.user.id==ctx.author.id and (
                     interaction.custom_id=='accept' or
                     interaction.custom_id=='reject'
-                    ) and interaction.channel.id==ctx.channel.id
+                    ) and interaction.channel.id==ctx.channel.id and interaction.message.id==msg.id
 
             try:
-                resp = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                resp = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
                 row[0].disabled = True
                 row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0],row[1])
-                components = discord.ui.MessageComponents(btns)
+                components = discord.ui.View()
+                components.add_item(row[0])
+                components.add_item(row[1])
                 await msg.edit(components=components)
                 return await ctx.send('Timed out.')
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0],row[1])
-            components = discord.ui.MessageComponents(btns)
+            components = discord.ui.View()
+            components.add_item(row[0])
+            components.add_item(row[1])
             await resp.response.edit_message(components=components)
             if resp.custom_id=='reject':
                 return
@@ -558,8 +561,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             discord.ui.Button(style=discord.ButtonStyle.green, label='Apply', custom_id=f'apply', disabled=False),
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
         ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
+        components = discord.ui.View()
+        components.add_item(row[0])
+        components.add_item(row[1])
         if url=='':
             embed.set_footer(text=f'To change your avatar, run {self.bot.command_prefix}avatar <url>.')
             components = None
@@ -569,24 +573,27 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
 
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=30.0)
             except:
                 row[0].disabled = True
                 row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
+                components = discord.ui.View()
+                components.add_item(row[0])
+                components.add_item(row[1])
                 await msg.edit(components=components)
                 return await ctx.send('Timed out.',reference=msg)
             if interaction.custom_id=='cancel':
                 row[0].disabled = True
                 row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
+                components = discord.ui.View()
+                components.add_item(row[0])
+                components.add_item(row[1])
                 return await interaction.response.edit_message(components=components)
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
+            components = discord.ui.View()
+            components.add_item(row[0])
+            components.add_item(row[1])
             await msg.edit(components=components)
             self.bot.db['avatars'].update({f'{ctx.author.id}':url})
             self.bot.db.save_data()
