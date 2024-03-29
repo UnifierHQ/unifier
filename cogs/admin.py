@@ -956,5 +956,5 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await msg.edit(embed=embed)
             raise
 
-async def setup(bot):
-    await bot.add_cog(Admin(bot))
+def setup(bot):
+    bot.add_cog(Admin(bot))

@@ -133,5 +133,5 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
         embed.description = 'The bot is now in a crippled state. It cannot recover without a reboot.'
         return await interaction.response.edit_message(embed=embed,view=components_cancel)
 
-async def setup(bot):
-    await bot.add_cog(Lockdown(bot))
+def setup(bot):
+    bot.add_cog(Lockdown(bot))

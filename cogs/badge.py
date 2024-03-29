@@ -73,5 +73,5 @@ class Badge(commands.Cog):
             )
         await ctx.send(embed=embed)
 
-async def setup(bot):
-    await bot.add_cog(Badge(bot))
+def setup(bot):
+    bot.add_cog(Badge(bot))

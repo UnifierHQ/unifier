@@ -2577,5 +2577,5 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await self.bot.bridge.delete_copies(msg.id)
 
-async def setup(bot):
-    await bot.add_cog(Bridge(bot))
+def setup(bot):
+    bot.add_cog(Bridge(bot))
