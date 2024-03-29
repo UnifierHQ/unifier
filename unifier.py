@@ -137,15 +137,15 @@ async def changestatus():
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     log("BOT","info","Loading Unifier extensions...")
-    await bot.load_extension("cogs.lockdown")
+    bot.load_extension("cogs.lockdown")
     if hasattr(bot, 'locked'):
         locked = bot.locked
     else:
         locked = False
     if not locked:
-        await bot.load_extension("cogs.admin")
+        bot.load_extension("cogs.admin")
         bot.pid = os.getpid()
-        await bot.load_extension("cogs.bridge")
+        bot.load_extension("cogs.bridge")
         if hasattr(bot, 'bridge'):
             try:
                 if len(bot.bridge.bridged)==0:
@@ -156,7 +156,7 @@ async def on_ready():
                 log('SYS','warn','Message restore failed')
         try:
             if 'revolt' in data['external']:
-                await bot.load_extension("cogs.bridge_revolt")
+                bot.load_extension("cogs.bridge_revolt")
         except:
             try:
                 x = open('cogs/bridge_revolt.py','r')
@@ -166,7 +166,7 @@ async def on_ready():
                 log("BOT","warn",f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
         try:
             if 'guilded' in data['external']:
-                await bot.load_extension("cogs.bridge_guilded")
+                bot.load_extension("cogs.bridge_guilded")
         except:
             try:
                 x = open('cogs/bridge_guilded.py','r')
@@ -174,18 +174,25 @@ async def on_ready():
                 traceback.print_exc()
             except:
                 log("BOT","warn",f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
-        await bot.load_extension("cogs.moderation")
-        await bot.load_extension("cogs.config")
-        await bot.load_extension("cogs.badge")
+        bot.load_extension("cogs.moderation")
+        bot.load_extension("cogs.config")
+        bot.load_extension("cogs.badge")
         try:
-            await bot.load_extension("cogs.upgrader")
+            bot.load_extension("cogs.upgrader")
         except:
             log("BOT","warn",f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
         if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
         if data['enable_ctx_commands']:
             log("BOT","info","Registering context commands...")
-            await bot.tree.sync()
+            toreg = []
+            for command in bot.commands:
+                if isinstance(command, commands.core.ContextMenuCommand):
+                    if command.name=='Reaction image':
+                        toreg.insert(0,command)
+                    else:
+                        toreg.append(command)
+            await bot.register_application_commands(commands=toreg)
     log("BOT","ok","Unifier is ready!")
 
 @bot.event
