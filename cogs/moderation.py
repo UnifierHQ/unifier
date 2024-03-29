@@ -568,5 +568,5 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     traceback.print_exc()
         await ctx.send('Lockdown removed')
 
-def setup(bot):
-    bot.add_cog(Moderation(bot))
+async def setup(bot):
+    await bot.add_cog(Moderation(bot))

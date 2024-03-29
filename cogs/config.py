@@ -599,5 +599,5 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.db.save_data()
             return await interaction.response.send_message('Avatar successfully added!')
 
-def setup(bot):
-    bot.add_cog(Config(bot))
+async def setup(bot):
+    await bot.add_cog(Config(bot))
