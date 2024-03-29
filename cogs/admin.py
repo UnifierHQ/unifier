@@ -300,7 +300,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 try:
                     if extension=='lockdown':
                         raise ValueError('Cannot unload lockdown extension for security purposes.')
-                    self.bot.reload_extension(f'cogs.{extension}')
+                    await self.bot.reload_extension(f'cogs.{extension}')
                     if len(text)==0:
                         text = f'```diff\n+ [DONE] {extension}'
                     else:
@@ -336,7 +336,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             text = ''
             for extension in extensions:
                 try:
-                    self.bot.load_extension(f'cogs.{extension}')
+                    await self.bot.load_extension(f'cogs.{extension}')
                     if len(text)==0:
                         text = f'```diff\n+ [DONE] {extension}'
                     else:
@@ -378,7 +378,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                         raise ValueError('Cannot unload lockdown extension for security purposes.')
                     if extension=='bridge_revolt':
                         raise ValueError('Revolt Bridge cannot be unloaded. Use u!stop-revolt instead.')
-                    self.bot.unload_extension(f'cogs.{extension}')
+                    await self.bot.unload_extension(f'cogs.{extension}')
                     if len(text)==0:
                         text = f'```diff\n+ [DONE] {extension}'
                     else:
@@ -410,7 +410,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         if not ctx.author.id == owner:
             return
         try:
-            self.bot.load_extension('cogs.bridge_revolt')
+            await self.bot.load_extension('cogs.bridge_revolt')
             await ctx.send('Revolt client started.')
         except Exception as e:
             if isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
@@ -427,7 +427,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await self.bot.revolt_session.close()
             del self.bot.revolt_client
             del self.bot.revolt_session
-            self.bot.unload_extension('cogs.bridge_revolt')
+            await self.bot.unload_extension('cogs.bridge_revolt')
             await ctx.send('Revolt client stopped.')
         except Exception as e:
             if isinstance(e, AttributeError):
@@ -444,7 +444,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await self.bot.revolt_session.close()
             del self.bot.revolt_client
             del self.bot.revolt_session
-            self.bot.reload_extension('cogs.bridge_revolt')
+            await self.bot.reload_extension('cogs.bridge_revolt')
             await ctx.send('Revolt client restarted.')
         except Exception as e:
             if isinstance(e, AttributeError):
@@ -458,7 +458,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         if not ctx.author.id == owner:
             return
         try:
-            self.bot.load_extension('cogs.bridge_guilded')
+            await self.bot.load_extension('cogs.bridge_guilded')
             await ctx.send('Guilded client started.')
         except Exception as e:
             if isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
@@ -475,7 +475,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await self.bot.guilded_client.close()
             self.bot.guilded_client_task.cancel()
             del self.bot.guilded_client
-            self.bot.unload_extension('cogs.bridge_guilded')
+            await self.bot.unload_extension('cogs.bridge_guilded')
             await ctx.send('Guilded client stopped.')
         except Exception as e:
             if isinstance(e, AttributeError):
@@ -492,7 +492,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await self.bot.guilded_client.close()
             self.bot.guilded_client_task.cancel()
             del self.bot.guilded_client
-            self.bot.reload_extension('cogs.bridge_guilded')
+            await self.bot.reload_extension('cogs.bridge_guilded')
             await ctx.send('Guilded client restarted.')
         except Exception as e:
             if isinstance(e, AttributeError):
@@ -514,7 +514,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                     self.bot.revolt_client_task.cancel()
                     del self.bot.revolt_client
                     del self.bot.revolt_session
-                    self.bot.unload_extension('cogs.bridge_revolt')
+                    await self.bot.unload_extension('cogs.bridge_revolt')
                     log("RVT", "ok", "Revolt client has been shut down.")
                 except:
                     log("RVT", "error", "Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
@@ -525,7 +525,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                     await self.bot.guilded_client.close()
                     self.bot.guilded_client_task.cancel()
                     del self.bot.guilded_client
-                    self.bot.unload_extension('cogs.bridge_guilded')
+                    await self.bot.unload_extension('cogs.bridge_guilded')
                     log("GLD", "ok", "Guilded client has been shut down.")
                 except:
                     log("GLD", "error", "Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
@@ -585,45 +585,50 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
         ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await msg.edit(embed=embed, components=components)
+        btns = discord.ui.View()
+        btns.add_item(discord.ui.DynamicItem(row[0],row=0))
+        btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+        await msg.edit(embed=embed, view=btns)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0],row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await msg.edit(view=btns)
         if interaction.custom_id == 'reject':
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await interaction.response.edit_message(view=btns)
         print('Installation confirmed, preparing...')
         embed.title = 'Start the installation?'
         embed.description = '- :x: Your files have **not** been backed up, as this is not a Unifier upgrade.\n- :tools: A new file called `upgrader.py` will be made in `[Unifier root directory]/cogs`.\n- :warning: Once started, you cannot abort the installation.'
-        await interaction.response.edit_message(embed=embed, components=components)
+        await interaction.response.edit_message(embed=embed, view=btns)
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await msg.edit(view=btns)
         if interaction.custom_id == 'reject':
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await interaction.response.edit_message(view=btns)
         print('Installation confirmed, installing Unifier Upgrader...')
         print()
         embed.title = 'Installing Unifier Upgrader'
@@ -660,7 +665,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             embed.description = ':white_check_mark: Downloading Upgrader\n:white_check_mark: Installing Upgrader\n:hourglass_flowing_sand: Activating Upgrader'
             await msg.edit(embed=embed)
             log(type='UPG', status='ok', content='Activating extension: cogs.upgrader')
-            self.bot.load_extension('cogs.upgrader')
+            await self.bot.load_extension('cogs.upgrader')
             log(type='UPG', status='ok', content='Installation complete')
             embed.title = 'Installation successful'
             embed.description = 'The installation was successful! :partying_face:\nUpgrader has been loaded and will be loaded on boot.'
@@ -714,45 +719,50 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
         ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await msg.edit(embed=embed, components=components)
+        btns = discord.ui.View()
+        btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+        btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+        await msg.edit(embed=embed, view=btns)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await msg.edit(view=btns)
         if interaction.custom_id == 'reject':
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await interaction.response.edit_message(view=btns)
         print('Installation confirmed, preparing...')
         embed.title = 'Start the installation?'
         embed.description = '- :x: Your files have **not** been backed up, as this is not a Unifier upgrade.\n- :tools: A new file called `bridge_revolt.py` will be made in `[Unifier root directory]/cogs`.\n- :warning: Once started, you cannot abort the installation.'
-        await interaction.response.edit_message(embed=embed, components=components)
+        await interaction.response.edit_message(embed=embed, view=btns)
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await msg.edit(view=btns)
         if interaction.custom_id == 'reject':
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await interaction.response.edit_message(view=btns)
         print('Installation confirmed, installing Revolt Support...')
         print()
         embed.title = 'Installing Revolt Support'
@@ -793,7 +803,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             embed.description = ':white_check_mark: Downloading Revolt Support\n:white_check_mark: Installing Revolt Support dependencies\n:white_check_mark: Installing Revolt Support\n:hourglass_flowing_sand: Activating Revolt Support'
             await msg.edit(embed=embed)
             log(type='UPG', status='ok', content='Activating extension: cogs.bridge_revolt')
-            self.bot.load_extension('cogs.bridge_revolt')
+            await self.bot.load_extension('cogs.bridge_revolt')
             log(type='UPG', status='ok', content='Installation complete')
             embed.title = 'Installation successful'
             embed.description = 'The installation was successful! :partying_face:\nRevolt Support has been loaded and will be loaded on boot.'
@@ -848,45 +858,50 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
         ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await msg.edit(embed=embed, components=components)
+        btns = discord.ui.View()
+        btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+        btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+        await msg.edit(embed=embed, view=btns)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await msg.edit(view=btns)
         if interaction.custom_id == 'reject':
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await interaction.response.edit_message(view=btns)
         print('Installation confirmed, preparing...')
         embed.title = 'Start the installation?'
         embed.description = '- :x: Your files have **not** been backed up, as this is not a Unifier upgrade.\n- :tools: A new file called `bridge_guilded.py` will be made in `[Unifier root directory]/cogs`.\n- :warning: Once started, you cannot abort the installation.'
-        await interaction.response.edit_message(embed=embed, components=components)
+        await interaction.response.edit_message(embed=embed, view=btns)
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await msg.edit(view=btns)
         if interaction.custom_id == 'reject':
             row[0].disabled = True
             row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns = discord.ui.View()
+            btns.add_item(discord.ui.DynamicItem(row[0], row=0))
+            btns.add_item(discord.ui.DynamicItem(row[1], row=0))
+            return await interaction.response.edit_message(view=btns)
         print('Installation confirmed, installing Guilded Support...')
         print()
         embed.title = 'Installing Guilded Support'
@@ -927,7 +942,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             embed.description = ':white_check_mark: Downloading Guilded Support\n:white_check_mark: Installing Guilded Support dependencies\n:white_check_mark: Installing Guilded Support\n:hourglass_flowing_sand: Activating Guilded Support'
             await msg.edit(embed=embed)
             log(type='UPG', status='ok', content='Activating extension: cogs.bridge_guilded')
-            self.bot.load_extension('cogs.bridge_guilded')
+            await self.bot.load_extension('cogs.bridge_guilded')
             log(type='UPG', status='ok', content='Installation complete')
             embed.title = 'Installation successful'
             embed.description = 'The installation was successful! :partying_face:\nGuilded Support has been loaded and will be loaded on boot.'
@@ -941,5 +956,5 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             await msg.edit(embed=embed)
             raise
 
-def setup(bot):
-    bot.add_cog(Admin(bot))
+async def setup(bot):
+    await bot.add_cog(Admin(bot))

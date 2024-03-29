@@ -22,6 +22,7 @@ import hashlib
 import asyncio
 import guilded
 import revolt
+from discord import app_commands
 from discord.ext import commands
 import traceback
 import time
@@ -726,7 +727,7 @@ class UnifierBridge:
         message_ids = {}
         urls = {}
         limit_notified = False
-        trimmed = ''
+        trimmed = None
         replying = False
 
         # Threading
@@ -778,7 +779,7 @@ class UnifierBridge:
             # Reply processing
             reply_msg = None
             components = None
-            pr_actionrow = None
+            pr_button = None
 
             try:
                 if source=='revolt':
@@ -800,10 +801,8 @@ class UnifierBridge:
                     else:
                         button_style = discord.ButtonStyle.gray
                     if is_pr:
-                        pr_actionrow = discord.ui.ActionRow(
-                            discord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
+                        pr_button = discord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
                                               emoji='\U0001F4AC', disabled=True)
-                        )
                     else:
                         try:
                             msg = await self.fetch_message(self.prs[pr_id])
@@ -813,19 +812,14 @@ class UnifierBridge:
                             is_pr_ref = False
                         else:
                             try:
-                                pr_actionrow = discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post #{pr_id}',
+                                pr_button = discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post #{pr_id}',
                                                       emoji='\U0001F517',url=await msg.fetch_url(guild))
-                                )
                             except:
-                                pr_actionrow = discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
+                                pr_button = discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
                                                       emoji='\U0001F517', disabled=True)
-                                )
-                    if pr_actionrow:
-                        components = discord.ui.MessageComponents(
-                            pr_actionrow
-                        )
+                    if pr_button:
+                        components = discord.ui.View()
+                        components.add_item(discord.ui.DynamicItem(pr_button, row=0))
                 if reply_msg:
                     if not trimmed:
                         is_copy = False
@@ -914,47 +908,30 @@ class UnifierBridge:
                         content_btn = discord.ui.Button(style=button_style, label=trimmed, disabled=True)
 
                     # Add PR buttons too.
-                    if is_pr or is_pr_ref:
-                        try:
-                            components = discord.ui.MessageComponents(
-                                pr_actionrow,
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
-                                                      url=await reply_msg.fetch_url(guild))
-                                ),
-                                discord.ui.ActionRow(
-                                    content_btn
-                                )
-                            )
-                        except:
-                            components = discord.ui.MessageComponents(
-                                pr_actionrow,
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                                      disabled=True)
-                                )
-                            )
-                    else:
-                        try:
-                            components = discord.ui.MessageComponents(
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
-                                                      url=await reply_msg.fetch_url(guild))
-                                ),
-                                discord.ui.ActionRow(
-                                    content_btn
-                                )
-                            )
-                        except:
-                            components = discord.ui.MessageComponents(
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                                      disabled=True)
-                                ),
-                                discord.ui.ActionRow(
-                                    content_btn
-                                )
-                            )
+                    rowindex = 0
+                    components = discord.ui.View()
+                    if pr_button:
+                        components.add_item(discord.ui.DynamicItem(pr_button,row=rowindex))
+                        rowindex += 1
+                    try:
+                        components.add_item(discord.ui.DynamicItem(
+                            discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
+                                              url=await reply_msg.fetch_url(guild)), row=rowindex
+                        ))
+                        rowindex += 1
+                    except:
+                        components.add_item(discord.ui.DynamicItem(
+                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                                              disabled=True), row=rowindex
+                        ))
+                        rowindex += 1
+                    try:
+                        components.add_item(discord.ui.DynamicItem(
+                            content_btn,row=rowindex
+                        ))
+                        rowindex += 1
+                    except:
+                        pass
                 elif replying:
                     try:
                         if source == 'revolt':
@@ -971,23 +948,19 @@ class UnifierBridge:
                         authid = None
                     if (authid==self.bot.user.id or authid==self.bot.revolt_client.user.id or
                             authid==self.bot.guilded_client.user.id):
-                        reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [system]',
-                                              disabled=True)
+                        reply_button = discord.ui.Button(
+                            style=discord.ButtonStyle.gray, label='Replying to [system]', disabled=True
                         )
                     else:
-                        reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                              disabled=True)
+                        reply_button = discord.ui.Button(
+                            style=discord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
                         )
-                    if pr_actionrow:
-                        components = discord.ui.MessageComponents(
-                            pr_actionrow,reply_row
-                        )
+                    components = discord.ui.View()
+                    if pr_button:
+                        components.add_item(discord.ui.DynamicItem(pr_button, row=0))
+                        components.add_item(discord.ui.DynamicItem(reply_button, row=1))
                     else:
-                        components = discord.ui.MessageComponents(
-                            reply_row
-                        )
+                        components.add_item(discord.ui.DynamicItem(reply_button, row=0))
 
             # Attachment processing
             files = []
@@ -1121,7 +1094,7 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                                                 view=components, wait=True)
                     except:
                         return None
                     tbresult = []
@@ -1143,7 +1116,7 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                                                 view=components, wait=True)
                     except:
                         continue
                     if sameguild:
@@ -1510,10 +1483,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 optimize=False, loop=0)
         return f'{identifier}_think_output.gif'
 
-    @commands.context_command(name='Reaction image')
-    async def reaction(self, ctx, message: discord.Message):
-        return await ctx.send('Reaction Images have been discontinued. More info: https://unichat-wiki.pixels.onl/blog/discontinuing-reaction-images',ephemeral=True)
-
     @commands.command(aliases=['colour'])
     async def color(self,ctx,*,color=''):
         if color=='':
@@ -1747,7 +1716,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 traceback.print_exc()
                 await ctx.send('Something went wrong.')
 
-    @commands.context_command(name='Delete message')
+    @app_commands.command(name='Delete message')
     async def delete_ctx(self, ctx, msg: discord.Message):
         gbans = self.bot.db['banned']
         ct = time.time()
@@ -1792,7 +1761,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 traceback.print_exc()
                 await msgconf.edit('Something went wrong.')
 
-    @commands.context_command(name='Report message')
+    @app_commands.command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
         gbans = self.bot.db['banned']
         ct = time.time()
@@ -1823,228 +1792,262 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
 
         ButtonStyle = discord.ButtonStyle
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False)
+        btns = discord.ui.View()
+        btns.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False)
         )
-        btns_abuse = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False)
+        btns.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse', disabled=False)
         )
-        btns_explicit = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False)
+        btns.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit',disabled=False)
         )
-        btns2 = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
+        btns.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other',disabled=False)
         )
-        components = discord.ui.MessageComponents(btns, btns2)
-        msg = await ctx.send('How does this message violate our rules?', components=components, ephemeral=True)
+        btns.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False)
+        )
+        btns_abuse = discord.ui.View()
+        btns_abuse.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False)
+        )
+        btns_abuse.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2', disabled=False)
+        )
+        btns_abuse.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3', disabled=False)
+        )
+        btns_abuse.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4', disabled=False)
+        )
+        btns_abuse.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False)
+        )
+        btns_explicit = discord.ui.View()
+        btns_explicit.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1',disabled=False)
+        )
+        btns_explicit.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2', disabled=False)
+        )
+        btns_explicit.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3', disabled=False)
+        )
+        btns_explicit.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4', disabled=False)
+        )
+        btns_explicit.add_item(discord.ui.Button(
+            style=ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False)
+        )
+        btns2 = discord.ui.DynamicItem(
+            discord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False),row=1
+        )
+        components = btns
+        components.add_item(btns2)
+        msg = await ctx.send('How does this message violate our rules?', view=components, ephemeral=True)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
         except:
             try:
-                return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+                return await ctx.interaction.edit_original_message(content='Timed out.', view=None)
             except:
                 return
 
         cat = interaction.component.label
         asked = True
         if interaction.custom_id == 'abuse':
-            components = discord.ui.MessageComponents(btns_abuse, btns2)
-            await interaction.response.edit_message(content='In what way?', components=components)
+            components = btns_abuse
+            components.add_item(btns2)
+            await interaction.response.edit_message(content='In what way?', view=components)
         elif interaction.custom_id == 'explicit':
-            components = discord.ui.MessageComponents(btns_explicit, btns2)
-            await interaction.response.edit_message(content='In what way?', components=components)
+            omponents = btns_explicit
+            await interaction.response.edit_message(content='In what way?', view=components)
         elif interaction.custom_id == 'cancel':
-            return await interaction.response.edit_message(content='Cancelled.', components=None)
+            return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             asked = False
         if asked:
             try:
-                interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
             except:
                 try:
-                    return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+                    return await ctx.interaction.edit_original_message(content='Timed out.', view=None)
                 except:
                     return
             cat2 = interaction.component.label
             if interaction.custom_id == 'cancel':
-                return await interaction.response.edit_message(content='Cancelled.', components=None)
+                return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             cat2 = 'none'
         self.bot.reports.update({f'{ctx.author.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
-        reason = discord.ui.ActionRow(
-            discord.ui.InputText(style=discord.TextStyle.long, label='Additional details',
+        reason = discord.ui.TextInput(style=discord.TextStyle.long, label='Additional details',
                                  placeholder='Add additional context or information that we should know here.',
                                  required=False)
-        )
-        signature = discord.ui.ActionRow(
-            discord.ui.InputText(style=discord.TextStyle.short, label='Sign with your username',
+        signature = discord.ui.TextInput(style=discord.TextStyle.short, label='Sign with your username',
                                  placeholder='Sign this only if your report is truthful and in good faith.',
                                  required=True, min_length=len(ctx.author.name), max_length=len(ctx.author.name))
-        )
-        modal = discord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}',
-                                 components=[reason, signature])
+        modal = discord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}')
+        modal.add_item(reason)
+        modal.add_item(signature)
         await interaction.response.send_modal(modal)
 
     @commands.Cog.listener()
-    async def on_modal_submit(self, interaction):
-        context = interaction.components[0].components[0].value
-        if not interaction.components[1].components[0].value.lower() == interaction.user.name.lower():
-            return
-        if context is None or context == '':
-            context = 'no context given'
-        author = f'@{interaction.user.name}'
-        if not interaction.user.discriminator == '0':
-            author = f'{interaction.user.name}#{interaction.user.discriminator}'
-        try:
-            report = self.bot.reports[f'{interaction.user.id}_{interaction.custom_id}']
-        except:
-            return await interaction.response.send_message('Something went wrong while submitting the report.', ephemeral=True)
-        cat = report[0]
-        cat2 = report[1]
-        content = report[2]
-        roomname = report[3]
-        msgid = report[4]
-        msgdata = await self.bot.bridge.fetch_message(msgid)
-        userid = int(interaction.custom_id.split('_')[0])
-        if len(content) > 2048:
-            content = content[:-(len(content) - 2048)]
-        embed = discord.Embed(title='Message report - content is as follows', description=content, color=0xffbb00)
-        embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
-        embed.add_field(name='Context', value=context, inline=False)
-        embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
-        embed.add_field(name="Message room", value=roomname, inline=False)
-        embed.add_field(name="Message ID", value=str(msgid), inline=False)
-        embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
-        try:
-            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.', icon_url=interaction.user.avatar.url)
-        except:
-            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
-        try:
-            user = self.bot.get_user(userid)
-            if not user:
-                user = self.bot.revolt_client.get_user(userid)
-            sender = f'@{user.name}'
-            if not user.discriminator == '0':
-                sender = f'{user.name}#{user.discriminator}'
-            try:
-                embed.set_author(name=sender, icon_url=user.avatar.url)
-            except:
-                embed.set_author(name=sender)
-        except:
-            embed.set_author(name='[unknown, check sender ID]')
-        guild = self.bot.get_guild(home_guild)
-        ch = guild.get_channel(reports_channel)
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
-                              disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                              custom_id=f'rpreview_{msgid}',
-                              disabled=False)
-        )
-        components = discord.ui.MessageComponents(btns)
-        await ch.send(embed=embed, components=components)
-        self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
-        return await interaction.response.send_message(
-            "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
-            ephemeral=True)
+    async def on_interaction(self, interaction):
+        if interaction.type==discord.InteractionType.component:
+            if interaction.custom_id.startswith('rp') and not interaction.user.id in self.bot.moderators:
+                return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
+            if interaction.custom_id.startswith('rpdelete'):
+                msg_id = int(interaction.custom_id.replace('rpdelete_','',1))
+                delete_btn = discord.ui.Button(
+                    style=discord.ButtonStyle.red, label='Delete message',
+                    custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}', disabled=True
+                )
+                review_btn = discord.ui.Button(
+                    style=discord.ButtonStyle.green, label='Mark as reviewed',
+                    custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}', disabled=False
+                )
+                components = discord.ui.View()
+                components.add_item(delete_btn)
+                components.add_item(review_btn)
 
-    @commands.Cog.listener()
-    async def on_component_interaction(self, interaction):
-        if interaction.custom_id.startswith('rp') and not interaction.user.id in self.bot.moderators:
-            return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
-        if interaction.custom_id.startswith('rpdelete'):
-            msg_id = int(interaction.custom_id.replace('rpdelete_','',1))
-            btns = discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
-                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
-                                  disabled=False)
-            )
-            components = discord.ui.MessageComponents(btns)
-
-            try:
-                msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
-            except:
-                return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
-
-            if not interaction.user.id in self.bot.moderators:
-                return await interaction.response.send_message('go away',ephemeral=True)
-
-            msg_orig = await interaction.response.send_message("Deleting...",ephemeral=True)
-
-            try:
-                await self.bot.bridge.delete_parent(msg_id)
-                if msg.webhook:
-                    raise ValueError()
-                await interaction.message.edit(components=components)
-                return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
-            except:
                 try:
-                    deleted = await self.bot.bridge.delete_copies(msg_id)
-                    await interaction.message.edit(components=components)
-                    return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
+                    msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
                 except:
-                    traceback.print_exc()
-                    await msg_orig.edit(content=f'Something went wrong.')
-        elif interaction.custom_id.startswith('rpreview_'):
-            btns = discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
-                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True)
-            )
-            components = discord.ui.MessageComponents(btns)
-            embed = interaction.message.embeds[0]
-            embed.color = 0x00ff00
+                    return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
+
+                if not interaction.user.id in self.bot.moderators:
+                    return await interaction.response.send_message('go away',ephemeral=True)
+
+                msg_orig = await interaction.response.send_message("Deleting...",ephemeral=True)
+
+                try:
+                    await self.bot.bridge.delete_parent(msg_id)
+                    if msg.webhook:
+                        raise ValueError()
+                    await interaction.message.edit(view=components)
+                    return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
+                except:
+                    try:
+                        deleted = await self.bot.bridge.delete_copies(msg_id)
+                        await interaction.message.edit(view=components)
+                        return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
+                    except:
+                        traceback.print_exc()
+                        await msg_orig.edit(content=f'Something went wrong.')
+            elif interaction.custom_id.startswith('rpreview_'):
+                delete_btn = discord.ui.Button(
+                    style=discord.ButtonStyle.red, label='Delete message',
+                    custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}', disabled=True
+                )
+                review_btn = discord.ui.Button(
+                    style=discord.ButtonStyle.green, label='Mark as reviewed',
+                    custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}', disabled=True
+                )
+                components = discord.ui.View()
+                components.add_item(delete_btn)
+                components.add_item(review_btn)
+                embed = interaction.message.embeds[0]
+                embed.color = 0x00ff00
+                author = f'@{interaction.user.name}'
+                if not interaction.user.discriminator == '0':
+                    author = f'{interaction.user.name}#{interaction.user.discriminator}'
+                embed.title = f'This report has been reviewed by {author}!'
+                await interaction.response.edit_message(embed=embed,view=components)
+        elif interaction.type==discord.InteractionType.modal_submit:
+            context = interaction.components[0].components[0].value
+            if not interaction.components[1].components[0].value.lower() == interaction.user.name.lower():
+                return
+            if context is None or context == '':
+                context = 'no context given'
             author = f'@{interaction.user.name}'
             if not interaction.user.discriminator == '0':
                 author = f'{interaction.user.name}#{interaction.user.discriminator}'
-            embed.title = f'This report has been reviewed by {author}!'
-            await interaction.response.edit_message(embed=embed,components=components)
+            try:
+                report = self.bot.reports[f'{interaction.user.id}_{interaction.custom_id}']
+            except:
+                return await interaction.response.send_message('Something went wrong while submitting the report.',
+                                                               ephemeral=True)
+            cat = report[0]
+            cat2 = report[1]
+            content = report[2]
+            roomname = report[3]
+            msgid = report[4]
+            msgdata = await self.bot.bridge.fetch_message(msgid)
+            userid = int(interaction.custom_id.split('_')[0])
+            if len(content) > 2048:
+                content = content[:-(len(content) - 2048)]
+            embed = discord.Embed(title='Message report - content is as follows', description=content, color=0xffbb00)
+            embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
+            embed.add_field(name='Context', value=context, inline=False)
+            embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
+            embed.add_field(name="Message room", value=roomname, inline=False)
+            embed.add_field(name="Message ID", value=str(msgid), inline=False)
+            embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
+            try:
+                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.',
+                                 icon_url=interaction.user.avatar.url)
+            except:
+                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
+            try:
+                user = self.bot.get_user(userid)
+                if not user:
+                    user = self.bot.revolt_client.get_user(userid)
+                sender = f'@{user.name}'
+                if not user.discriminator == '0':
+                    sender = f'{user.name}#{user.discriminator}'
+                try:
+                    embed.set_author(name=sender, icon_url=user.avatar.url)
+                except:
+                    embed.set_author(name=sender)
+            except:
+                embed.set_author(name='[unknown, check sender ID]')
+            guild = self.bot.get_guild(home_guild)
+            ch = guild.get_channel(reports_channel)
+            delete_btn = discord.ui.Button(
+                style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}', disabled=False
+            )
+            review_btn = discord.ui.Button(
+                style=discord.ButtonStyle.green, label='Mark as reviewed', custom_id=f'rpreview_{msgid}', disabled=False
+            )
+            components = discord.ui.View()
+            components.add_item(delete_btn)
+            components.add_item(review_btn)
+            await ch.send(embed=embed, view=components)
+            self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
+            return await interaction.response.send_message(
+                "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
+                ephemeral=True)
 
     @commands.command(hidden=True)
     async def testreg(self, ctx, *, args=''):
         if not ctx.author.id == 356456393491873795:
             return
+        cmds = self.bot.commands.tree.get_commands(
+            type=discord.AppCommandType.message
+        ) + self.bot.commands.tree.get_commands(
+            type=discord.AppCommandType.user
+        )
         if 'dereg' in args:
-            await self.bot.register_application_commands(commands=[])
+            # Clear commands for sync
+            self.bot.commands.tree.clear_commands(
+                type=discord.AppCommandType.message
+            )
+            self.bot.commands.tree.clear_commands(
+                type=discord.AppCommandType.user
+            )
+            await self.bot.tree.sync()
+
+            # Re-add commands to tree for future possible reg
+            for command in cmds:
+                self.bot.commands.tree.add_command(command)
             return await ctx.send('gone, reduced to atoms (hopefully)')
-        toreg = []
-        for command in self.bot.commands:
-            if isinstance(command, commands.core.ContextMenuCommand):
-                toreg.append(command)
-        await self.bot.register_application_commands(commands=toreg)
-        return await ctx.send(f'Registered {len(toreg)} commands to bot')
+        await self.bot.tree.sync()
+        return await ctx.send(f'Registered {len(cmds)} commands to bot')
 
     @commands.command(hidden=True)
     async def viewmsg(self,ctx,*,msgid=None):
@@ -2574,5 +2577,5 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await self.bot.bridge.delete_copies(msg.id)
 
-def setup(bot):
-    bot.add_cog(Bridge(bot))
+async def setup(bot):
+    await bot.add_cog(Bridge(bot))

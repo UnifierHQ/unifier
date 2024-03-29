@@ -364,6 +364,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     duration = timetoint(duration)
                 except:
                     return await ctx.send('Invalid duration!')
+        else:
+            return await ctx.send('Invalid duration!')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
@@ -392,7 +394,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00)
         if obvious:
             embed.title = 'This is a global restriction TEST!'
-            embed.color = 0x00ff00
+            embed.colour = 0x00ff00
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if obvious:
             if forever:
@@ -401,7 +403,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 embed.add_field(name='Actions taken',value=f'- :white_check_mark: NOTHING - this is only a test! ("Expiry" should be <t:{nt}:R>, otherwise something is wrong.)',inline=False)
         else:
             if forever:
-                embed.color = 0xff0000
+                embed.colour = 0xff0000
                 embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
             else:
                 embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
@@ -459,30 +461,32 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed = discord.Embed(title='Lock bridge down?',
                               description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
                               color=0xffcc00)
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown'),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel')
-            )
+        components = discord.ui.View()
+        components_inac = discord.ui.View()
+        components.add_item(discord.ui.Button(
+            style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown')
         )
-        components_inac = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', disabled=True)
-            )
+        components.add_item(discord.ui.Button(
+            style=discord.ButtonStyle.gray, label='Cancel')
         )
-        msg = await ctx.send(embed=embed,components=components)
+        components_inac.add_item(discord.ui.Button(
+            style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True)
+        )
+        components_inac.add_item(discord.ui.Button(
+            style=discord.ButtonStyle.gray, label='Cancel',disabled=True)
+        )
+        msg = await ctx.send(embed=embed,view=components)
 
         def check(interaction):
             return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
 
         try:
-            interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=30)
         except:
-            return await msg.edit(components=components_inac)
+            return await msg.edit(view=components_inac)
 
         if not interaction.custom_id=='lockdown':
-            return await interaction.response.edit_message(components=components_inac)
+            return await interaction.response.edit_message(view=components_inac)
 
         embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = 'LOCKDOWNS CANNOT BE REVERSED BY NON-ADMINS!\nDo NOT lock down the chat if you don\'t know what you\'re doing!'
@@ -491,11 +495,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await interaction.response.edit_message(embed=embed)
 
         try:
-            interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=30)
         except:
-            return await msg.edit(components=components_inac)
+            return await msg.edit(view=components_inac)
 
-        await interaction.response.edit_message(components=components_inac)
+        await interaction.response.edit_message(view=components_inac)
 
         if not interaction.custom_id=='lockdown':
             return
@@ -564,5 +568,5 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     traceback.print_exc()
         await ctx.send('Lockdown removed')
 
-def setup(bot):
-    bot.add_cog(Moderation(bot))
+async def setup(bot):
+    await bot.add_cog(Moderation(bot))
