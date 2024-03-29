@@ -1,7 +1,8 @@
 novus>=0.2.4
 guilded.py
 revolt.py
-aiohttp
+aiohttp>=3.9.2
+aiofiles
 py-cpuinfo
 Pillow>=10.2.0
 tld
