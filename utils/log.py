@@ -13,7 +13,7 @@ class CustomFormatter(logging.Formatter):
 
         self.log_formats = {
             logging.DEBUG: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6E0 {log_colors["debug"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6E0  {log_colors["debug"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             ),
             logging.INFO: logging.Formatter(
