@@ -13,27 +13,27 @@ class CustomFormatter(logging.Formatter):
 
         self.log_formats = {
             logging.DEBUG: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6E0 {log_colors["debug"]}%(levelname)-8s\x1b[0m \x1b[3;35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6E0 {log_colors["debug"]}%(levelname)-8s\x1b[0m \x1b[35;4m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             ),
             logging.INFO: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F4DC {log_colors["info"]}%(levelname)-8s\x1b[0m \x1b[3;35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F4DC {log_colors["info"]}%(levelname)-8s\x1b[0m \x1b[35;4m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             ),
             logging.WARNING: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U000026A0 {log_colors["warning"]}%(levelname)-8s\x1b[0m \x1b[3;35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U000026A0 {log_colors["warning"]}%(levelname)-8s\x1b[0m \x1b[35;4m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             ),
             logging.ERROR: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0000274C {log_colors["error"]}%(levelname)-8s\x1b[0m \x1b[3;35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0000274C {log_colors["error"]}%(levelname)-8s\x1b[0m \x1b[35;4m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             ),
             logging.CRITICAL: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6D1 {log_colors["critical"]}%(levelname)-8s\x1b[0m \x1b[3;35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U0001F6D1 {log_colors["critical"]}%(levelname)-8s\x1b[0m \x1b[35;4m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             ),
             'unknown': logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U00002754 %(levelname)-8s\x1b[0m \x1b[3;35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U00002754 %(levelname)-8s\x1b[0m \x1b[35;4m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             )
         }
