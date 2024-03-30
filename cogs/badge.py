@@ -29,6 +29,7 @@ owner = data['owner']
 class Badge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
         self.logger = log.buildlogger(self.bot.package,'badge',self.bot.loglevel)
 
     @commands.command(hidden=True)

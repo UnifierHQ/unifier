@@ -53,13 +53,15 @@ class CustomFormatter(logging.Formatter):
 
         return output
 
-def buildlogger(package, name, level):
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
+def buildlogger(package, name, level, handler=None):
+    if not handler:
+        handler = logging.StreamHandler()
+
+    handler.setLevel(level)
+    handler.setFormatter(CustomFormatter(len(package) + 15))
     library, _, _ = __name__.partition('.')
     logger = logging.getLogger(package + '.' + name)
 
-    ch.setFormatter(CustomFormatter(len(package) + 15))
     logger.setLevel(logging.INFO)
-    logger.addHandler(ch)
+    logger.addHandler(handler)
     return logger
