@@ -21,7 +21,7 @@ class CustomFormatter(logging.Formatter):
                 '%Y-%m-%d %H:%M:%S',
             ),
             logging.WARNING: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m | \U000026A0 {log_colors["warning"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
+                f'\x1b[30;1m%(asctime)s\x1b[0m | \U00002755 {log_colors["warning"]}%(levelname)-8s\x1b[0m \x1b[35m%(name)-{count}s\x1b[0m %(message)s',
                 '%Y-%m-%d %H:%M:%S',
             ),
             logging.ERROR: logging.Formatter(
@@ -66,6 +66,6 @@ def buildlogger(package, name, level, handler=None):
     while logger.hasHandlers():
         logger.removeHandler(logger.handlers[0])
 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     logger.addHandler(handler)
     return logger
