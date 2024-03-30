@@ -62,6 +62,10 @@ def buildlogger(package, name, level, handler=None):
     library, _, _ = __name__.partition('.')
     logger = logging.getLogger(package + '.' + name)
 
+    # Prevent duplicate output
+    while logger.hasHandlers():
+        logger.removeHandler(logger.handlers[0])
+
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
     return logger
