@@ -24,8 +24,10 @@ import asyncio
 import hashlib
 import json
 import traceback
-from time import gmtime, strftime
 import os
+import sys
+import logging
+from utils import log
 
 if os.name != "nt":
     try:
@@ -36,6 +38,11 @@ if os.name != "nt":
 
 with open('config.json', 'r') as file:
     data = json.load(file)
+
+level = logging.DEBUG if data['debug'] else logging.INFO
+package = data['package']
+
+logger = log.buildlogger(package,'core',level)
 
 with open('update.json', 'r') as file:
     vinfo = json.load(file)
@@ -86,20 +93,6 @@ try:
 except:
     pass
 
-def log(type='???',status='ok',content='None'):
-    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
-    if status=='ok':
-        status = ' OK  '
-    elif status=='error':
-        status = 'ERROR'
-    elif status=='warn':
-        status = 'WARN '
-    elif status=='info':
-        status = 'INFO '
-    else:
-        raise ValueError('Invalid status type provided')
-    print(f'[{type} | {time1} | {status}] {content}')
-
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -136,24 +129,29 @@ async def changestatus():
 @bot.event
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
-    log("BOT","info","Loading Unifier extensions...")
-    bot.load_extension("cogs.lockdown")
+    logger.info('Loading Unifier extensions...')
     if hasattr(bot, 'locked'):
         locked = bot.locked
     else:
         locked = False
     if not locked:
-        bot.load_extension("cogs.admin")
-        bot.pid = os.getpid()
+        try:
+            bot.load_extension("cogs.admin")
+            bot.pid = os.getpid()
+            bot.load_extension("cogs.lockdown")
+        except:
+            logger.critical('System extensions failed to load, aborting boot...')
+            sys.exit(1)
+        logger.debug('System extensions loaded')
         bot.load_extension("cogs.bridge")
         if hasattr(bot, 'bridge'):
             try:
                 if len(bot.bridge.bridged)==0:
                     await bot.bridge.restore()
-                    log('SYS','ok','Restored '+str(len(bot.bridge.bridged))+' messages')
+                    logger.info(f'Restored {len(bot.bridge.bridged)} messages')
             except:
-                traceback.print_exc()
-                log('SYS','warn','Message restore failed')
+                logger.exception('An error occurred!')
+                logger.warn('Message restore failed')
         try:
             if 'revolt' in data['external']:
                 bot.load_extension("cogs.bridge_revolt")
@@ -163,7 +161,7 @@ async def on_ready():
                 x.close()
                 traceback.print_exc()
             except:
-                log("BOT","warn",f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
+                logger.warn(f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
         try:
             if 'guilded' in data['external']:
                 bot.load_extension("cogs.bridge_guilded")
@@ -173,18 +171,18 @@ async def on_ready():
                 x.close()
                 traceback.print_exc()
             except:
-                log("BOT","warn",f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
+                logger.warn(f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
         bot.load_extension("cogs.moderation")
         bot.load_extension("cogs.config")
         bot.load_extension("cogs.badge")
         try:
             bot.load_extension("cogs.upgrader")
         except:
-            log("BOT","warn",f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
+            logger.warn(f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
         if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
         if data['enable_ctx_commands']:
-            log("BOT","info","Registering context commands...")
+            logger.debug("Registering context commands...")
             toreg = []
             for command in bot.commands:
                 if isinstance(command, commands.core.ContextMenuCommand):
@@ -193,7 +191,8 @@ async def on_ready():
                     else:
                         toreg.append(command)
             await bot.register_application_commands(commands=toreg)
-    log("BOT","ok","Unifier is ready!")
+            logger.debug(f'Registered {len(toreg)} commands')
+    logger.info('Unifier is ready!')
 
 @bot.event
 async def on_message(message):

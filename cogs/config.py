@@ -20,6 +20,7 @@ import discord
 from discord.ext import commands
 import json
 import traceback
+from utils import log
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -102,6 +103,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 continue
             moderators.append(admin)
         self.bot.moderators = moderators
+        self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
     @commands.command(hidde=True)
     async def addmod(self,ctx,*,userid):

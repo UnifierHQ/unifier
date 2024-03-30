@@ -35,7 +35,7 @@ import re
 import ast
 from io import BytesIO
 from tld import get_tld
-from utils import rapidphish
+from utils import rapidphish, log
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -87,21 +87,6 @@ def bypass_killer(string):
         return string[:-1]
     else:
         raise RuntimeError()
-
-def log(type='???',status='ok',content='None'):
-    from time import gmtime, strftime
-    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
-    if status=='ok':
-        status = ' OK  '
-    elif status=='error':
-        status = 'ERROR'
-    elif status=='warn':
-        status = 'WARN '
-    elif status=='info':
-        status = 'INFO '
-    else:
-        raise ValueError('Invalid status type provided')
-    print(f'[{type} | {time1} | {status}] {content}')
 
 class ExternalReference:
     def __init__(self, guild_id, channel_id, message_id):
@@ -164,7 +149,6 @@ class UnifierRaidBan:
         self.expire = round(time.time()) + self.duration # Expire time
         self.debug = debug # Debug raidban
         self.banned = False
-        log('BOT','info','New raidban registered.')
 
     def is_banned(self):
         if self.expire < time.time():
@@ -182,7 +166,6 @@ class UnifierRaidBan:
         self.duration = self.duration * 2
         diff = self.duration - prevd
         self.expire += diff
-        log('BOT', 'info', f'Raidban incremented. t: {t} i: {i} D: {threshold} actual: {self.duration}')
         self.banned = self.duration > threshold
         return self.duration > threshold
 
@@ -1452,67 +1435,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
-
-    def clueless_gen(self, user, identifier):
-        from PIL import Image
-        import requests
-        import io
-        response = requests.get(user)
-        user_resp = response
-        bg = Image.open('clueless.png').convert('RGBA')
-        user = Image.open(io.BytesIO(user_resp.content)).convert('RGBA').resize((80, 80))
-        bg.paste(user, (40, 8), user)
-        bg.save(f'cached/{identifier}_clueless_output.png')
-        return f'{identifier}_clueless_output.png'
-
-    def think(self, user1, user2, username, identifier):
-        from PIL import Image, ImageDraw, ImageFont
-        import requests
-        import io
-        response = requests.get(user1)
-        user1_resp = response
-        response = requests.get(user2)
-        user2_resp = response
-        bg = Image.open('think.png').convert('RGBA')
-        user1 = Image.open(io.BytesIO(user1_resp.content)).convert('RGBA').resize((150, 150))
-        user2 = Image.open(io.BytesIO(user2_resp.content)).convert('RGBA').resize((200, 200))
-        bg.paste(user1, (280, 170), user1)
-        bg.paste(user2, (753, 180), user2)
-        im_draw = ImageDraw.Draw(bg)
-        font = ImageFont.truetype('Kollektif.ttf', 50)
-        text = f'THINK, {username.upper()}, THINK!'
-        text_width = im_draw.textlength(text, font)
-        width = 1116 - text_width
-        width = width / 2
-        width = int(width)
-        im_draw.text((width, 620), text, font=font, fill=(255, 255, 255, 255))
-        bg.save(f'cached/{identifier}_think_output.png')
-        return f'{identifier}_think_output.png'
-
-    def omniman(self, user1, user2, identifier):
-        from PIL import Image
-        import requests
-        import io
-        response = requests.get(user1)
-        user1_resp = response
-        response = requests.get(user2)
-        user2_resp = response
-        bg = Image.open('omni.png').convert('RGBA')
-        user1 = Image.open(io.BytesIO(user1_resp.content)).convert('RGBA').resize((150, 150))
-        user2 = Image.open(io.BytesIO(user2_resp.content)).convert('RGBA').resize((200, 200))
-        bg.paste(user1, (400, 150), user1)
-        bg.paste(user2, (863, 180), user2)
-        bg2 = Image.open('omni1.png').convert('RGBA').resize((1318, 711))
-        bg2.paste(user1, (330, -10), user1)
-        bg2.paste(user2, (863, 180), user2)
-        lst = [bg2, bg]
-        bg.save(f'cached/{identifier}_think_output.gif', 'GIF', append_images=lst, save_all=True, duration=[1600, 800, 800],
-                optimize=False, loop=0)
-        return f'{identifier}_think_output.gif'
-
-    @commands.context_command(name='Reaction image')
-    async def reaction(self, ctx, message: discord.Message):
-        return await ctx.send('Reaction Images have been discontinued. More info: https://unichat-wiki.pixels.onl/blog/discontinuing-reaction-images',ephemeral=True)
+        self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
 
     @commands.command(aliases=['colour'])
     async def color(self,ctx,*,color=''):
@@ -2298,7 +2221,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             if not message.author.id == 356456393491873795:
                                 self.bot.db['banned'].update({f'{message.author.id}': 0})
                                 self.bot.db.save_data()
-                                log('BOT','warn',f'Banned user {message.author.id} - possible raid detected')
+                                self.logger.warn(f'Banned user {message.author.id} - possible raid detected')
                             embed = discord.Embed(title='Raid detected - permanent ban applied',
                                                   description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
                                                   color=0xff0000)

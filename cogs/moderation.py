@@ -23,26 +23,12 @@ from datetime import datetime
 from discord.ext import commands
 import traceback
 import json
+from utils import log
 
 with open('config.json', 'r') as file:
     data = json.load(file)
 
 externals = data["external"]
-
-def log(type='???',status='ok',content='None'):
-    from time import gmtime, strftime
-    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
-    if status=='ok':
-        status = ' OK  '
-    elif status=='error':
-        status = 'ERROR'
-    elif status=='warn':
-        status = 'WARN '
-    elif status=='info':
-        status = 'INFO '
-    else:
-        raise ValueError('Invalid status type provided')
-    print(f'[{type} | {time1} | {status}] {content}')
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -100,6 +86,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     Developed by Green and ItsAsheer"""
     def __init__(self,bot):
         self.bot = bot
+        self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
     @commands.command(aliases=['ban'])
     async def restrict(self,ctx,*,target):
@@ -364,6 +351,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     duration = timetoint(duration)
                 except:
                     return await ctx.send('Invalid duration!')
+        else:
+            return await ctx.send('Invalid duration!')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
@@ -392,7 +381,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00)
         if obvious:
             embed.title = 'This is a global restriction TEST!'
-            embed.color = 0x00ff00
+            embed.colour = 0x00ff00
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if obvious:
             if forever:
@@ -401,7 +390,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 embed.add_field(name='Actions taken',value=f'- :white_check_mark: NOTHING - this is only a test! ("Expiry" should be <t:{nt}:R>, otherwise something is wrong.)',inline=False)
         else:
             if forever:
-                embed.color = 0xff0000
+                embed.colour = 0xff0000
                 embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
             else:
                 embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
@@ -500,38 +489,36 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not interaction.custom_id=='lockdown':
             return
 
-        log('BOT', 'warn', f'Bridge lockdown issued by {ctx.author.id}!')
+        self.logger.warn(f'Bridge lockdown issued by {ctx.author.id}!')
 
         try:
-            log("RVT", "info", "Shutting down Revolt client...")
+            self.logger.info("Shutting down Revolt client...")
             await self.bot.revolt_session.close()
             del self.bot.revolt_client
             del self.bot.revolt_session
             self.bot.unload_extension('cogs.bridge_revolt')
-            log("RVT", "ok", "Revolt client has been shut down.")
+            self.logger.info("Revolt client has been shut down.")
         except Exception as e:
             if not isinstance(e, AttributeError):
-                log("RVT", "error", "Shutdown failed.")
-                traceback.print_exc()
+                self.logger.exception("Shutdown failed.")
         try:
-            log("GLD", "info", "Shutting down Guilded client...")
+            self.logger.info("Shutting down Guilded client...")
             await self.bot.guilded_client.close()
             self.bot.guilded_client_task.cancel()
             del self.bot.guilded_client
             self.bot.unload_extension('cogs.bridge_guilded')
-            log("GLD", "ok", "Guilded client has been shut down.")
+            self.logger.info("Guilded client has been shut down.")
         except Exception as e:
             if not isinstance(e, AttributeError):
-                log("GLD", "error", "Shutdown failed.")
-                traceback.print_exc()
-        log("SYS", "info", "Backing up message cache...")
+                self.logger.exception("Shutdown failed.")
+        self.logger.info("Backing up message cache...")
         await self.bot.bridge.backup()
-        log("SYS", "ok", "Backup complete")
-        log("SYS", "info", "Disabling bridge...")
+        self.logger.info("Backup complete")
+        self.logger.info("Disabling bridge...")
         del self.bot.bridge
         self.bot.unload_extension('cogs.bridge')
-        log("SYS", "ok", "Bridge disabled")
-        log("SYS", "ok", "Lockdown complete")
+        self.logger.info("Bridge disabled")
+        self.logger.info("Lockdown complete")
         embed.title = 'LOCKDOWN COMPLETED'
         embed.description = 'Bridge has been locked down.'
         embed.colour = 0xff0000
@@ -547,7 +534,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('Bridge already online.')
         try:
             await self.bot.bridge.restore()
-            log('SYS', 'ok', 'Restored ' + str(len(self.bot.bridge.bridged)) + ' messages')
+            self.logger.info('Restored ' + str(len(self.bot.bridge.bridged)) + ' messages')
         except:
             traceback.print_exc()
         if 'revolt' in externals:
