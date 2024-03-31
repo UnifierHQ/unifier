@@ -125,7 +125,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
 
             try:
-                if 'token' in body:
+                if 'bot.token' in body:
                     raise ValueError('Blocked phrase')
                 exec(to_compile, env)
             except Exception as e:

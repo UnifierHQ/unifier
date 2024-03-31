@@ -516,13 +516,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command()
     async def about(self,ctx):
         if self.bot.user.id==1187093090415149056:
-            embed = discord.Embed(title="linker pro!!!11",description="bridges are shit, LADDER SUPREMACY :speaking_head::speaking_head::speaking_head:",color=0xed4545)
+            embed = discord.Embed(title="Unifier",description="Unify servers, make worthwhile conversations.",color=0xed4545)
         else:
             embed = discord.Embed(title=self.bot.user.name, description="Powered by Unifier")
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         if self.bot.user.id == 1187093090415149056:
             embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.set_footer(text="Version v0.6.9 (April Fools!)")
+        embed.set_footer(text="Version v1.1.0 (Release)")
         await ctx.send(embed=embed)
 
     @commands.command()
