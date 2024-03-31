@@ -2411,7 +2411,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             await message.channel.send(
                 f'*THE CRINGE-O-METER HAS SPOKEN...THIS IS A **{cringe}/5 CRINGE**!!!11*\n{random.choice(cringe_msgs[str(cringe)])}',
-                file=file
+                file=file, reference=message
             )
 
     @commands.Cog.listener()
