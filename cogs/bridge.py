@@ -53,7 +53,6 @@ compress_cache = data["compress_cache"]
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
-afbl = []
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -1078,9 +1077,6 @@ class UnifierBridge:
             if msg_author.lower()==f'{self.bot.user.name} (system)'.lower() and not system:
                 msg_author = '[hidden username]'
 
-            if not message.author.id in afbl:
-                msg_author = msg_author[::-1]
-
             if platform=='discord':
                 msg_author_dc = msg_author
                 if len(msg_author) > 35:
@@ -1110,7 +1106,7 @@ class UnifierBridge:
                 async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
                                  thread_sameguild,destguild):
                     try:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc[::-1], embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  components=components, wait=True)
                     except:
@@ -1132,7 +1128,7 @@ class UnifierBridge:
                                                               destguild)))
                 else:
                     try:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc[::-1], embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  components=components, wait=True)
                     except:
@@ -1190,9 +1186,9 @@ class UnifierBridge:
                     msg_author_rv = msg_author[:-(len(msg_author)-32)]
 
                 try:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
+                    persona = revolt.Masquerade(name=msg_author_rv[::-1], avatar=url, colour=rvtcolor)
                 except:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
+                    persona = revolt.Masquerade(name=msg_author_rv[::-1], avatar=None, colour=rvtcolor)
                 try:
                     msg = await ch.send(
                         content=message.content, embeds=message.embeds, attachments=files, replies=replies,
@@ -1302,7 +1298,7 @@ class UnifierBridge:
                                  thread_sameguild):
                     try:
                         msg = await webhook.send(avatar_url=url,
-                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode()[::-1],
                                                  embeds=embeds, content=replytext + message.content, files=files)
                     except:
                         return None
@@ -1322,7 +1318,7 @@ class UnifierBridge:
                                                               files, sameguild, destguild, thread_sameguild)))
                 else:
                     try:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                        msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode()[::-1],
                                                  embeds=embeds,content=replytext+message.content,files=files)
                     except:
                         continue
@@ -2309,7 +2305,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         tasks = []
 
-        flip = random.randint(1,10)==10 and not message.author.id in afbl
+        flip = random.randint(1,10)==10
 
         if flip:
             lines = message.content.split('\n')
@@ -2366,9 +2362,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 mslog.update({result[0]:{'duration':result[1],'copies':result[2],'tb2':result[3]}})
             multisend_logs.append(mslog)
 
-        if flip and not message.author.id in afbl:
+        if flip:
             await message.channel.send('uhh i took the wrong meds...i think i flipped ur message idk')
-        elif len(message.attachments) > 0 and not message.author.id in afbl:
+        elif len(message.attachments) > 0:
             cringe = 1
             for attachment in message.attachments:
                 if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
@@ -2560,15 +2556,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         await self.bot.bridge.delete_copies(msg.id)
-
-    @commands.command()
-    async def toggleaf(self,ctx):
-        if ctx.author.id in afbl:
-            afbl.remove(ctx.author.id)
-            await ctx.send('welcome back')
-        else:
-            afbl.append(ctx.author.id)
-            await ctx.send('April fools mods have been disabled.\n- Your messages and username will not be flipped.\n- Cringe rating has been disabled.')
 
 def setup(bot):
     bot.add_cog(Bridge(bot))
