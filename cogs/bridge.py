@@ -902,7 +902,7 @@ class UnifierBridge:
                             components = discord.ui.MessageComponents(
                                 pr_actionrow,
                                 discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
+                                    discord.ui.Button(style=discord.ButtonStyle.url,label='Scolding '+author_text,
                                                       url=await reply_msg.fetch_url(guild))
                                 ),
                                 discord.ui.ActionRow(
@@ -913,7 +913,7 @@ class UnifierBridge:
                             components = discord.ui.MessageComponents(
                                 pr_actionrow,
                                 discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Scolding [unknown]',
                                                       disabled=True)
                                 )
                             )
@@ -921,7 +921,7 @@ class UnifierBridge:
                         try:
                             components = discord.ui.MessageComponents(
                                 discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
+                                    discord.ui.Button(style=discord.ButtonStyle.url, label='Scolding '+author_text,
                                                       url=await reply_msg.fetch_url(guild))
                                 ),
                                 discord.ui.ActionRow(
@@ -931,7 +931,7 @@ class UnifierBridge:
                         except:
                             components = discord.ui.MessageComponents(
                                 discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Scolding [unknown]',
                                                       disabled=True)
                                 ),
                                 discord.ui.ActionRow(
@@ -955,12 +955,12 @@ class UnifierBridge:
                     if (authid==self.bot.user.id or authid==self.bot.revolt_client.user.id or
                             authid==self.bot.guilded_client.user.id):
                         reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [system]',
+                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Scolding [system]',
                                               disabled=True)
                         )
                     else:
                         reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Scolding [unknown]',
                                               disabled=True)
                         )
                     if pr_actionrow:
@@ -1106,7 +1106,7 @@ class UnifierBridge:
                 async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
                                  thread_sameguild,destguild):
                     try:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc[::-1], embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  components=components, wait=True)
                     except:
@@ -1128,7 +1128,7 @@ class UnifierBridge:
                                                               destguild)))
                 else:
                     try:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                        msg = await webhook.send(avatar_url=url, username=msg_author_dc[::-1], embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  components=components, wait=True)
                     except:
@@ -1186,9 +1186,9 @@ class UnifierBridge:
                     msg_author_rv = msg_author[:-(len(msg_author)-32)]
 
                 try:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
+                    persona = revolt.Masquerade(name=msg_author_rv[::-1], avatar=url, colour=rvtcolor)
                 except:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
+                    persona = revolt.Masquerade(name=msg_author_rv[::-1], avatar=None, colour=rvtcolor)
                 try:
                     msg = await ch.send(
                         content=message.content, embeds=message.embeds, attachments=files, replies=replies,
@@ -1298,7 +1298,7 @@ class UnifierBridge:
                                  thread_sameguild):
                     try:
                         msg = await webhook.send(avatar_url=url,
-                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode()[::-1],
                                                  embeds=embeds, content=replytext + message.content, files=files)
                     except:
                         return None
@@ -1318,7 +1318,7 @@ class UnifierBridge:
                                                               files, sameguild, destguild, thread_sameguild)))
                 else:
                     try:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                        msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode()[::-1],
                                                  embeds=embeds,content=replytext+message.content,files=files)
                     except:
                         continue
@@ -2305,6 +2305,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         tasks = []
 
+        flip = random.randint(1,10)==10
+
+        if flip:
+            lines = message.content.split('\n')
+            for x in range(len(lines)):
+                lines[x] = lines[x][::-1]
+            message.content = '\n'.join(lines)
+
         if multisend_exp:
             # Multisend experiment
             # Sends Discord message along with other platforms to minimize
@@ -2353,6 +2361,54 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for result in results:
                 mslog.update({result[0]:{'duration':result[1],'copies':result[2],'tb2':result[3]}})
             multisend_logs.append(mslog)
+
+        if flip:
+            await message.channel.send('uhh i took the wrong meds...i think i flipped ur message idk')
+        else:
+            cringe = 0
+            for attachment in message.attachments:
+                if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
+                    not 'image' in attachment.content_type) or attachment.size > 25000000:
+                    cringe = 10
+
+            if len(message.attachments) > 0 and cringe < 10:
+                cringe = random.randint(1, 5)
+
+            cringe_msgs = {
+                '1': [
+                    'this is based, good job posting it :thumbsup:',
+                    'cringe-o-meter says this is based af',
+                    'nice post, not cringe at all'
+                ],
+                '2': [
+                    '2/5 cringe, not cringe enough thankfully',
+                    'starting to move up the cringe scale but it\'s still based',
+                    "*\"I'M CRINGE, AND THAT'S BASED.\nI WILL NEVER BE BASED AND THAT IS NOT CRINGE.\nTHERE'S NO ONE I'D RATHER BE THAN ME\"*\n\- wreck it ralph (probably)"
+                ],
+                '3': [
+                    'ok starting to get into mid territory here with a 3/5',
+                    'buddy this is starting to get a lil not-so-good with the cringe so you better watch out',
+                    'eh, it\'s cringe but kinda based too'
+                ],
+                '4': [
+                    'it cant get worse from here...right???',
+                    'this is cringe. stop it',
+                    'ok what the fu-'
+                ],
+                '5': [
+                    'ok buddy i\'m reporting this message to mods for how cringe it is',
+                    'don\'t post that again or else',
+                    'i hate you'
+                ]
+            }
+            file = None
+            if cringe >= 4:
+                file = discord.File(fp='cringe.gif')
+
+            await message.channel.send(
+                f'*THE CRINGE-O-METER HAS SPOKEN...THIS IS A **{cringe}/5 CRINGE**!!!11*\n{random.choice(cringe_msgs[str(cringe)])}',
+                file=file
+            )
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
