@@ -2366,8 +2366,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 mslog.update({result[0]:{'duration':result[1],'copies':result[2],'tb2':result[3]}})
             multisend_logs.append(mslog)
 
-        if flip and not message.author.id in afbl:
-            await message.channel.send('uhh i took the wrong meds...i think i flipped ur message idk')
+        if flip and not message.author.id in afbl and len(message.content) > 0:
+            await message.channel.send('uhh i took the wrong meds...i think i flipped ur message idk',reference=message)
         elif len(message.attachments) > 0 and not message.author.id in afbl:
             cringe = 1
             for attachment in message.attachments:
