@@ -2364,7 +2364,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if flip:
             await message.channel.send('uhh i took the wrong meds...i think i flipped ur message idk')
-        elif len(message.attachments) > 0:
+        else:
             cringe = 1
             for attachment in message.attachments:
                 if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
