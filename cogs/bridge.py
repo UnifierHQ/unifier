@@ -1013,9 +1013,13 @@ class UnifierBridge:
                         return guilded.File(fp=tempfile.fp, filename=source_file.filename)
 
             for attachment in message.attachments:
-                if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
-                        not 'image' in attachment.content_type) or attachment.size > 25000000:
-                    continue
+                if source=='guilded':
+                    if not attachment.file_type.image and not attachment.file_type.video:
+                        continue
+                else:
+                    if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
+                            not 'image' in attachment.content_type) or attachment.size > 25000000:
+                        continue
                 size_total += attachment.size
                 if size_total > 25000000:
                     if not limit_notified:
