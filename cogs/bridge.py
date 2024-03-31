@@ -2365,13 +2365,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if flip:
             await message.channel.send('uhh i took the wrong meds...i think i flipped ur message idk')
         else:
-            cringe = 0
+            cringe = 1
             for attachment in message.attachments:
                 if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                     not 'image' in attachment.content_type) or attachment.size > 25000000:
-                    cringe = 10
+                    cringe = 5
 
-            if len(message.attachments) > 0 and cringe < 10:
+            if cringe < 5:
                 cringe = random.randint(1, 5)
 
             cringe_msgs = {
