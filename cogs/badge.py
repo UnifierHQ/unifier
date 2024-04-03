@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import discord
 from discord.ext import commands
 import json
+from utils import log
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -28,6 +29,8 @@ owner = data['owner']
 class Badge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+        self.logger = log.buildlogger(self.bot.package,'badge',self.bot.loglevel)
 
     @commands.command(hidden=True)
     async def badge(self, ctx):

@@ -18,12 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 from discord.ext import commands
-import aiofiles
 import inspect
 import textwrap
 from contextlib import redirect_stdout
-import cpuinfo
-import time
+from utils import log
+import logging
 import json
 import os
 import sys
@@ -37,25 +36,12 @@ class colors:
     purple = 0x9b59b6
     red = 0xe74c3c
     blurple = 0x7289da
-    
-def log(type='???',status='ok',content='None'):
-    from time import gmtime, strftime
-    time1 = strftime("%Y.%m.%d %H:%M:%S", gmtime())
-    if status=='ok':
-        status = ' OK  '
-    elif status=='error':
-        status = 'ERROR'
-    elif status=='warn':
-        status = 'WARN '
-    elif status=='info':
-        status = 'INFO '
-    else:
-        status = ' N/A '
-    print(f'[{type} | {time1} | {status}] {content}')
 
 with open('config.json', 'r') as file:
     data = json.load(file)
 
+level = logging.DEBUG if data['debug'] else logging.INFO
+package = data['package']
 owner = data['owner']
 branch = data['branch']
 check_endpoint = data['check_endpoint']
@@ -108,53 +94,11 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             self.bot.colors = colors
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
-
-    @commands.command(hidden=True)
-    async def dashboard(self,ctx):
-        if ctx.author.id==owner:
-            async with aiofiles.open('uptime.txt','r',encoding='utf-8') as x:
-                startup = await x.read()
-                startup = int(startup)
-                await x.close()
-            embed = discord.Embed(title='Unifier dashboard',description='Just a moment...',color=0xb5eeff)
-            before = time.monotonic()
-            msg = await ctx.send(embed=embed)
-            ping = (time.monotonic() - before) * 1000
-            pingspeed = round(ping, 1)
-            current = round(time.time())
-            uptime = current - startup
-            hours = uptime // 3600
-            minutes = (uptime % 3600) // 60
-            seconds = (uptime % 3600) % 60
-            import platform
-            import psutil
-            arch = platform.machine()
-            osinfo = platform.platform()
-            cpu = await self.bot.loop.run_in_executor(None, lambda: cpuinfo.get_cpu_info()['brand_raw'])
-            ghz = await self.bot.loop.run_in_executor(None, lambda: round(cpuinfo.get_cpu_info()['hz_actual'][0]/1000000000,2))
-            ram = round(psutil.virtual_memory().total / (1024.0 **3))
-            cpuusage = psutil.cpu_percent()
-            ramusage = psutil.virtual_memory()[2]
-            membercount = 0
-            for guild in self.bot.guilds:
-                try:
-                    membercount = membercount + guild.member_count
-                except:
-                    pass
-            embed = discord.Embed(title='Unifier Dashboard',color=0xb5eeff)
-            embed.add_field(name='Latency',value='%s ms' % round(ping, 1),inline=True)
-            embed.add_field(name='CPU',value='{0} ({1} GHz, currently using {2}%)'.format(cpu,ghz,cpuusage),inline=True)
-            embed.add_field(name='RAM',value='{0} GB (currently using {1}%)'.format(ram,ramusage),inline=True)
-            embed.add_field(name='Architecture',value=arch,inline=True)
-            embed.add_field(name='OS',value=osinfo,inline=True)
-            guildcount = len(self.bot.guilds)
-            if guildcount == 69:
-                guildcount = '69 :smirk:'
-            embed.add_field(name='Server count',value='%s' % guildcount,inline=True)
-            embed.add_field(name='User count',value='{0} ({1} cached)'.format(membercount,len(set(self.bot.get_all_members())),inline=True))
-            embed.add_field(name='Up since',value=f'<t:{startup}:f>',inline=False)
-            embed.add_field(name='Uptime',value=f'`{hours}` hours, `{minutes}` minutes, `{seconds}` seconds',inline=False)
-            await msg.edit(embed=embed)
+        if not hasattr(self.bot, 'loglevel'):
+            self.bot.loglevel = level
+        if not hasattr(self.bot, 'package'):
+            self.bot.package = package
+        self.logger = log.buildlogger(self.bot.package,'admin',self.bot.loglevel)
 
     @commands.command(hidden=True)
     async def eval(self,ctx,*,body):
@@ -505,43 +449,40 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         """Gracefully shuts the bot down."""
         if not ctx.author.id == owner:
             return
-        log("SYS","info","Attempting graceful shutdown...")
+        self.logger.info("Attempting graceful shutdown...")
         try:
             if 'revolt' in externals:
-                log("RVT", "info", "Shutting down Revolt client...")
+                self.logger.info("Shutting down Revolt client...")
                 try:
                     await self.bot.revolt_session.close()
                     self.bot.revolt_client_task.cancel()
                     del self.bot.revolt_client
                     del self.bot.revolt_session
                     self.bot.unload_extension('cogs.bridge_revolt')
-                    log("RVT", "ok", "Revolt client has been shut down.")
+                    self.logger.info("Revolt client has been shut down.")
                 except:
-                    log("RVT", "error", "Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
-                    pass
+                    self.logger.error("Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
             if 'guilded' in externals:
-                log("GLD", "info", "Shutting down Guilded client...")
+                self.logger.info("Shutting down Guilded client...")
                 try:
                     await self.bot.guilded_client.close()
                     self.bot.guilded_client_task.cancel()
                     del self.bot.guilded_client
                     self.bot.unload_extension('cogs.bridge_guilded')
-                    log("GLD", "ok", "Guilded client has been shut down.")
+                    self.logger.info("Guilded client has been shut down.")
                 except:
-                    log("GLD", "error", "Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
-                    pass
-            log("SYS", "info", "Backing up message cache...")
+                    self.logger.error("Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
+            self.logger.info("Backing up message cache...")
             await self.bot.bridge.backup(limit=10000)
-            log("SYS", "info", "Backup complete")
+            self.logger.info("Backup complete")
             await ctx.send('Shutting down...')
         except:
-            log("SYS", "error", "Graceful shutdown failed")
+            self.logger.exception("Graceful shutdown failed")
             await ctx.send('Shutdown failed')
-            traceback.print_exc()
             return
-        log("BOT", "info", "Closing bot session")
+        self.logger.info("Closing bot session")
         await self.bot.session.close()
-        log("SYS", "info", "Shutdown complete")
+        self.logger.info("Shutdown complete")
         await self.bot.close()
         sys.exit(0)
 
@@ -629,50 +570,51 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         embed.title = 'Installing Unifier Upgrader'
         embed.description = ':hourglass_flowing_sand: Downloading Upgrader\n:x: Installing Upgrader\n:x: Activating Upgrader'
         await interaction.response.edit_message(embed=embed, components=None)
-        log(type='UPG', status='info', content='Starting install')
+        self.logger.info('Starting install')
         try:
-            log(type='GIT', status='info', content='Purging old update files')
+            self.logger.debug('Purging old update files')
             os.system('rm -rf ' + os.getcwd() + '/update_upgrader')
-            log(type='GIT', status='info', content='Downloading from remote repository...')
+            self.logger.info('Downloading from remote repository...')
             status(os.system(
                 'git clone --branch main ' + files_endpoint + '/unifier-upgrader.git ' + os.getcwd() + '/update_upgrader'))
-            log(type='GIT', status='info', content='Confirming download...')
+            self.logger.debug('Confirming download...')
             x = open(os.getcwd() + '/update_upgrader/upgrader.py', 'r')
             x.close()
-            log(type='GIT', status='ok', content='Download confirmed, proceeding with install')
+            self.logger.debug('Download confirmed, proceeding with install')
         except:
-            log(type='UPG', status='error', content='Download failed, no rollback required')
+            self.logger.exception('Download failed, no rollback required')
             embed.title = 'Upgrade failed'
             embed.description = 'Could not download updates. Nothing new was installed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
-            raise
+            return
         try:
-            log(type='INS', status='info', content='Installing Upgrader')
+            self.logger.info('Installing Upgrader')
             embed.description = ':white_check_mark: Downloading Upgrader\n:hourglass_flowing_sand: Installing Upgrader\n:x: Activating Upgrader'
             await msg.edit(embed=embed)
-            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_upgrader/upgrader.py')
+            self.logger.debug('Installing: ' + os.getcwd() + '/update_upgrader/upgrader.py')
             status(os.system(
                 'cp ' + os.getcwd() + '/update_upgrader/upgrader.py' + ' ' + os.getcwd() + '/cogs/upgrader.py'))
-            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_check/upgrader.json')
+            self.logger.debug('Installing: ' + os.getcwd() + '/update_check/upgrader.json')
             status(
                 os.system('cp ' + os.getcwd() + '/update_check/upgrader.json' + ' ' + os.getcwd() + '/upgrader.json'))
             embed.description = ':white_check_mark: Downloading Upgrader\n:white_check_mark: Installing Upgrader\n:hourglass_flowing_sand: Activating Upgrader'
             await msg.edit(embed=embed)
-            log(type='UPG', status='ok', content='Activating extension: cogs.upgrader')
+            self.logger.info('Activating extensions')
+            self.logger.debug('Activating extension: cogs.upgrader')
             self.bot.load_extension('cogs.upgrader')
-            log(type='UPG', status='ok', content='Installation complete')
+            self.logger.debug('Installation complete')
             embed.title = 'Installation successful'
             embed.description = 'The installation was successful! :partying_face:\nUpgrader has been loaded and will be loaded on boot.'
             embed.colour = 0x00ff00
             await msg.edit(embed=embed)
         except:
-            log(type='UPG', status='error', content='Install failed')
+            self.logger.exception('Install failed')
             embed.title = 'Installation failed'
             embed.description = 'The installation failed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
-            raise
+            return
 
     @commands.command(name='install-revolt', hidden=True, aliases=['install-revolt-support'])
     async def install_revolt(self, ctx):
@@ -758,54 +700,55 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         embed.title = 'Installing Revolt Support'
         embed.description = ':hourglass_flowing_sand: Downloading Revolt Support\n:x: Installing Revolt Support dependencies\n:x: Installing Revolt Support\n:x: Activating Revolt Support'
         await interaction.response.edit_message(embed=embed, components=None)
-        log(type='UPG', status='info', content='Starting install')
+        self.logger.info('Starting install')
         try:
-            log(type='GIT', status='info', content='Purging old update files')
+            self.logger.debug('Purging old update files')
             os.system('rm -rf ' + os.getcwd() + '/update_revolt')
-            log(type='GIT', status='info', content='Downloading from remote repository...')
+            self.logger.info('Downloading from remote repository...')
             status(os.system(
                 'git clone --branch main ' + files_endpoint + '/unifier-revolt.git ' + os.getcwd() + '/update_revolt'))
-            log(type='GIT', status='info', content='Confirming download...')
+            self.logger.debug('Confirming download...')
             x = open(os.getcwd() + '/update_revolt/bridge_revolt.py', 'r')
             x.close()
-            log(type='GIT', status='ok', content='Download confirmed, proceeding with install')
+            self.logger.debug('Download confirmed, proceeding with install')
         except:
-            log(type='UPG', status='error', content='Download failed, no rollback required')
+            self.logger.exception('Download failed, no rollback required')
             embed.title = 'Upgrade failed'
             embed.description = 'Could not download updates. Nothing new was installed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
             raise
         try:
-            log(type='INS', status='info', content='Installing Upgrader')
+            self.logger.info('Installing Revolt Support')
             embed.description = ':white_check_mark: Downloading Revolt Support\n:hourglass_flowing_sand: Installing Revolt Support dependencies\n:x: Installing Revolt Support\n:x: Activating Revolt Support'
             await msg.edit(embed=embed)
-            log(type='PIP', status='info', content='Installing: revolt.py')
+            self.logger.debug('Installing: revolt.py')
             status(os.system('python3 -m pip install -U revolt.py'))
             embed.description = ':white_check_mark: Downloading Revolt Support\n:white_check_mark: Installing Revolt Support dependencies\n:hourglass_flowing_sand: Installing Revolt Support\n:x: Activating Revolt Support'
             await msg.edit(embed=embed)
-            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_revolt/bridge_revolt.py')
+            self.logger.debug('Installing: ' + os.getcwd() + '/update_revolt/bridge_revolt.py')
             status(os.system(
                 'cp ' + os.getcwd() + '/update_revolt/bridge_revolt.py' + ' ' + os.getcwd() + '/cogs/bridge_revolt.py'))
-            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_check/revolt.json')
+            self.logger.debug('Installing: ' + os.getcwd() + '/update_check/revolt.json')
             status(
                 os.system('cp ' + os.getcwd() + '/update_check/revolt.json' + ' ' + os.getcwd() + '/revolt.json'))
             embed.description = ':white_check_mark: Downloading Revolt Support\n:white_check_mark: Installing Revolt Support dependencies\n:white_check_mark: Installing Revolt Support\n:hourglass_flowing_sand: Activating Revolt Support'
             await msg.edit(embed=embed)
-            log(type='UPG', status='ok', content='Activating extension: cogs.bridge_revolt')
+            self.logger.info('Activating extensions')
+            self.logger.debug('Activating extension: cogs.bridge_revolt')
             self.bot.load_extension('cogs.bridge_revolt')
-            log(type='UPG', status='ok', content='Installation complete')
+            self.logger.info('Installation complete')
             embed.title = 'Installation successful'
             embed.description = 'The installation was successful! :partying_face:\nRevolt Support has been loaded and will be loaded on boot.'
             embed.colour = 0x00ff00
             await msg.edit(embed=embed)
         except:
-            log(type='UPG', status='error', content='Install failed')
+            self.logger.exception('Install failed')
             embed.title = 'Installation failed'
             embed.description = 'The installation failed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
-            raise
+            return
 
     @commands.command(name='install-guilded', hidden=True, aliases=['install-guilded-support'])
     async def install_guilded(self, ctx):
@@ -892,54 +835,55 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         embed.title = 'Installing Guilded Support'
         embed.description = ':hourglass_flowing_sand: Downloading Guilded Support\n:x: Installing Guilded Support dependencies\n:x: Installing Guilded Support\n:x: Activating Guilded Support'
         await interaction.response.edit_message(embed=embed, components=None)
-        log(type='UPG', status='info', content='Starting install')
+        self.logger.info('Starting install')
         try:
-            log(type='GIT', status='info', content='Purging old update files')
+            self.logger.debug('Purging old update files')
             os.system('rm -rf ' + os.getcwd() + '/update_guilded')
-            log(type='GIT', status='info', content='Downloading from remote repository...')
+            self.logger.info('Downloading from remote repository...')
             status(os.system(
                 'git clone --branch main ' + files_endpoint + '/unifier-guilded.git ' + os.getcwd() + '/update_guilded'))
-            log(type='GIT', status='info', content='Confirming download...')
+            self.logger.debug('Confirming download...')
             x = open(os.getcwd() + '/update_guilded/bridge_guilded.py', 'r')
             x.close()
-            log(type='GIT', status='ok', content='Download confirmed, proceeding with install')
+            self.logger.debug('Download confirmed, proceeding with install')
         except:
-            log(type='UPG', status='error', content='Download failed, no rollback required')
+            self.logger.exception('Download failed, no rollback required')
             embed.title = 'Upgrade failed'
             embed.description = 'Could not download updates. Nothing new was installed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
-            raise
+            return
         try:
-            log(type='INS', status='info', content='Installing Upgrader')
+            self.logger.info('Installing Guilded Support')
             embed.description = ':white_check_mark: Downloading Guilded Support\n:hourglass_flowing_sand: Installing Guilded Support dependencies\n:x: Installing Guilded Support\n:x: Activating Guilded Support'
             await msg.edit(embed=embed)
-            log(type='PIP', status='info', content='Installing: guilded.py')
+            self.logger.debug('Installing: guilded.py')
             status(os.system('python3 -m pip install -U guilded.py'))
             embed.description = ':white_check_mark: Downloading Guilded Support\n:white_check_mark: Installing Guilded Support dependencies\n:hourglass_flowing_sand: Installing Guilded Support\n:x: Activating Guilded Support'
             await msg.edit(embed=embed)
-            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_guilded/bridge_guilded.py')
+            self.logger.debug('Installing: ' + os.getcwd() + '/update_guilded/bridge_guilded.py')
             status(os.system(
                 'cp ' + os.getcwd() + '/update_guilded/bridge_guilded.py' + ' ' + os.getcwd() + '/cogs/bridge_guilded.py'))
-            log(type='INS', status='info', content='Installing: ' + os.getcwd() + '/update_check/guilded.json')
+            self.logger.debug('Installing: ' + os.getcwd() + '/update_check/guilded.json')
             status(
                 os.system('cp ' + os.getcwd() + '/update_check/guilded.json' + ' ' + os.getcwd() + '/guilded.json'))
             embed.description = ':white_check_mark: Downloading Guilded Support\n:white_check_mark: Installing Guilded Support dependencies\n:white_check_mark: Installing Guilded Support\n:hourglass_flowing_sand: Activating Guilded Support'
             await msg.edit(embed=embed)
-            log(type='UPG', status='ok', content='Activating extension: cogs.bridge_guilded')
+            self.logger.info('Activating extensions')
+            self.logger.debug('Activating extension: cogs.bridge_guilded')
             self.bot.load_extension('cogs.bridge_guilded')
-            log(type='UPG', status='ok', content='Installation complete')
+            self.logger.info('Installation complete')
             embed.title = 'Installation successful'
             embed.description = 'The installation was successful! :partying_face:\nGuilded Support has been loaded and will be loaded on boot.'
             embed.colour = 0x00ff00
             await msg.edit(embed=embed)
         except:
-            log(type='UPG', status='error', content='Install failed')
+            self.logger.exception('Install failed')
             embed.title = 'Installation failed'
             embed.description = 'The installation failed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
-            raise
+            return
 
 def setup(bot):
     bot.add_cog(Admin(bot))
