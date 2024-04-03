@@ -11,7 +11,7 @@ assignees: greeeen-dev
 <!--
 Please make sure all of the following applies to your issue.
 -->
-- [ ] My issue was not reported yet.
+- [ ] The same issue was not reported yet.
 - [ ] This is not a report against a user of the official instance.
 - [ ] All info applicable to the issue has been attached.
 
