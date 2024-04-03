@@ -99,7 +99,7 @@ class SelfDeleteException(Exception):
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
-                 external_urls=None, webhook=False, prehook=None, reply=False):
+                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -113,6 +113,7 @@ class UnifierMessage:
         self.webhook = webhook
         self.prehook = prehook
         self.reply = reply
+        self.external_bridged = external_bridged
 
     def to_dict(self):
         return self.__dict__
@@ -189,8 +190,6 @@ class UnifierPossibleRaidEvent:
         self.impact_score = round(100*i/t)
         return self.impact_score > 300
 
-
-
 class UnifierBridge:
 
     def __init__(self, bot, webhook_cache=None):
@@ -201,7 +200,6 @@ class UnifierBridge:
         self.restored = False
         self.raidbans = {}
         self.possible_raid = {}
-
 
     def is_raidban(self,userid):
         try:
@@ -559,7 +557,8 @@ class UnifierBridge:
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
-                   platform: str = 'discord', system: bool = False, multisend_debug=False):
+                   platform: str = 'discord', system: bool = False, multisend_debug=False,
+                   extbridge=False):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
             return
         source = 'discord'
@@ -1378,6 +1377,12 @@ class UnifierBridge:
                 server_id = message.server.id
             else:
                 server_id = message.guild.id
+            if extbridge:
+                try:
+                    hook = await self.bot.fetch_webhook(message.webhook_id)
+                    msg_author = hook.user.id
+                except:
+                    pass
             self.bridged.append(UnifierMessage(
                 author_id=msg_author,
                 guild_id=server_id,
@@ -1387,10 +1392,11 @@ class UnifierBridge:
                 external_copies=external_copies,
                 urls=urls,
                 source=source,
-                webhook=should_resend or system,
+                webhook=should_resend or system or extbridge,
                 prehook=message.id,
                 room=room,
-                reply=replying
+                reply=replying,
+                external_bridged=extbridge
             ))
         if multisend_debug:
             ct = time.time()
@@ -2049,9 +2055,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def on_message(self, message):
         author_rp = message.author
         content_rp = message.content
+
+        extbridge = False
+        hook = None
+
         if not message.webhook_id == None:
             # webhook msg
-            return
+            try:
+                hook = await self.bot.fetch_webhook(message.webhook_id)
+                extbridge = True
+                if not hook.user.id in self.bot.db['external_bridge']:
+                    raise ValueError()
+            except:
+                return
 
         if message.guild == None:
             return
@@ -2310,7 +2326,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             # Sends Discord message along with other platforms to minimize
             # latency on external platforms.
             self.bot.bridge.bridged.append(UnifierMessage(
-                    author_id=message.author.id,
+                    author_id=message.author.id if not extbridge else hook.user.id,
                     guild_id=message.guild.id,
                     channel_id=message.channel.id,
                     original=message.id,
@@ -2319,15 +2335,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     urls={},
                     source='discord',
                     room=roomname,
-                    external_urls={}
+                    external_urls={},
+                    external_bridged=extbridge
                 )
             )
-            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True))
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True, extbridge=extbridge))
         else:
-            await self.bot.bridge.send(room=roomname, message=message, platform='discord')
+            await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
 
         for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform, multisend_debug=multisend_exp, extbridge=extbridge)))
 
         pt = time.time()
         results = None

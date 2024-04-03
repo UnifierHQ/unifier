@@ -361,7 +361,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data.update({f'{ctx.guild.id}':guild})
             self.bot.db['rooms'][room] = data
             self.bot.db.save_data()
-            await ctx.send('Linked channel with network!')
+            await ctx.send('# :white_check_mark: Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
             try:
                 await msg.pin()
             except:
@@ -396,7 +396,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data.pop(f'{ctx.guild.id}')
             self.bot.db['rooms'][room] = data
             self.bot.db.save_data()
-            await ctx.send('Unlinked channel from network!')
+            await ctx.send('# :white_check_mark: Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
         except:
             await ctx.send('Something went wrong - check my permissions.')
             raise
@@ -430,7 +430,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def addrule(self,ctx,*,args):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
@@ -444,7 +444,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send('Added rule!')
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def delrule(self,ctx,*,args):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
@@ -463,6 +463,87 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['rules'][room].pop(rule-1)
         self.bot.db.save_data()
         await ctx.send('Removed rule!')
+
+    @commands.command(hidden=True)
+    async def addbridge(self,ctx,*,userid):
+        if not is_user_admin(ctx.author.id):
+            return
+        try:
+            userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
+            user = self.bot.get_user(userid)
+            if not user:
+                raise ValueError()
+            if userid in self.bot.db['external_bridge']:
+                return await ctx.send('This user is already in the whitelist!')
+        except:
+            return await ctx.send('Invalid user!')
+        embed = discord.Embed(
+            title=f'Allow @{user.name} to bridge?',
+            description='This will allow messages sent via webhooks created by this user to be bridged through Unifier.',
+            color=0xffcc00
+        )
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(label='Allow bridge',style=discord.ButtonStyle.green,custom_id='allow'),
+                discord.ui.Button(label='Cancel',style=discord.ButtonStyle.gray)
+            )
+        )
+        msg = await ctx.send(embed=embed,components=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+        except:
+            return await msg.edit(components=None)
+        await interaction.response.edit_message(components=None)
+        if not interaction.custom_id=='allow':
+            return
+        self.bot.db['external_bridge'].append(userid)
+        self.bot.db.save_data()
+        return await ctx.send('# :white_check_mark: Linked bridge to Unifier network!\nThis user\'s webhooks can now bridge messages through Unifier!')
+
+    @commands.command(hidden=True)
+    async def delbridge(self, ctx, *, userid):
+        if not is_user_admin(ctx.author.id):
+            return
+        try:
+            userid = int(userid.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1))
+            user = self.bot.get_user(userid)
+            if not user:
+                raise ValueError()
+            if not userid in self.bot.db['external_bridge']:
+                return await ctx.send('This user isn\'t in the whitelist!')
+        except:
+            return await ctx.send('Invalid user!')
+        embed = discord.Embed(
+            title=f'Remove @{user.name} from bridge?',
+            description='This will stop this user\'s webhooks from bridging messages.',
+            color=0xffcc00
+        )
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(label='Revoke bridge', style=discord.ButtonStyle.red, custom_id='allow'),
+                discord.ui.Button(label='Cancel', style=discord.ButtonStyle.gray)
+            )
+        )
+        msg = await ctx.send(embed=embed, components=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+        except:
+            return await msg.edit(components=None)
+        await interaction.response.edit_message(components=None)
+        if not interaction.custom_id == 'allow':
+            return
+        self.bot.db['external_bridge'].remove(userid)
+        self.bot.db.save_data()
+        return await ctx.send(
+            '# :white_check_mark: Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
 
     @commands.command()
     async def rooms(self,ctx):
