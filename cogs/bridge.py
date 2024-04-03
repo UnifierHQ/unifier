@@ -97,6 +97,52 @@ class ExternalReference:
 class SelfDeleteException(Exception):
     pass
 
+class UnifierTranslator:
+    def __init__(self,bot):
+        self.bot = bot
+
+    def identify(self,message: discord.Message or revolt.Message or guilded.Message):
+        source = 'discord'
+        extlist = list(self.bot.extensions)
+        if type(message) is revolt.Message:
+            if not 'cogs.bridge_revolt' in extlist:
+                raise RuntimeError('Revolt Support not initialized')
+            source = 'revolt'
+        if type(message) is guilded.ChatMessage:
+            if not 'cogs.bridge_guilded' in extlist:
+                raise RuntimeError('Guilded Support not initialized')
+            source = 'guilded'
+
+        if message.webhook_id:
+            return 'webhook'
+
+        if len(message.embeds) > 0 and source=='discord':
+            for embed in message.embeds:
+                if not embed.type=='rich':
+                    continue
+                if (embed.footer.text.startswith('Message ID: ') and
+                        embed.fields[0].value.startswith('\U0001F4CCSent From: ') and
+                        embed.fields[0].value.endswith('[Bot-Invite](https://discord.com/api/oauth2/authorize?client_id=1051199485168066610&permissions=8&scope=bot%20applications.commands)')):
+                    return 'embed_silly'
+
+    def translate(self,message: discord.Message or revolt.Message or guilded.Message):
+        source = 'discord'
+        extlist = list(self.bot.extensions)
+        if type(message) is revolt.Message:
+            if not 'cogs.bridge_revolt' in extlist:
+                raise RuntimeError('Revolt Support not initialized')
+            source = 'revolt'
+        if type(message) is guilded.ChatMessage:
+            if not 'cogs.bridge_guilded' in extlist:
+                raise RuntimeError('Guilded Support not initialized')
+            source = 'guilded'
+
+        msgtype = self.identify(message)
+        if msgtype=='embed_silly':
+            translated = {
+                'author': message.embed
+            }
+
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                  external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False):
@@ -1195,7 +1241,6 @@ class UnifierBridge:
                         masquerade=persona
                     )
                 except:
-                    self.logger.exception('An error occurred while bridging to Revolt!')
                     continue
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
