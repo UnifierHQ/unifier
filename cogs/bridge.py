@@ -192,7 +192,7 @@ class UnifierPossibleRaidEvent:
 
 class UnifierBridge:
 
-    def __init__(self, bot, webhook_cache=None):
+    def __init__(self, bot, logger, webhook_cache=None):
         self.bot = bot
         self.bridged = []
         self.prs = {}
@@ -200,6 +200,7 @@ class UnifierBridge:
         self.restored = False
         self.raidbans = {}
         self.possible_raid = {}
+        self.logger = logger
 
     def is_raidban(self,userid):
         try:
@@ -1194,6 +1195,7 @@ class UnifierBridge:
                         masquerade=persona
                     )
                 except:
+                    self.logger.exception('An error occurred while bridging to Revolt!')
                     continue
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
@@ -1433,6 +1435,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.reports = {}
         if not hasattr(self.bot, 'webhook_cache'):
             self.bot.webhook_cache = {}
+        self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
         msgs = []
         prs = {}
         restored = False
@@ -1441,11 +1444,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             prs = self.bot.bridge.prs
             restored = self.bot.bridge.restored
             del self.bot.bridge
-        self.bot.bridge = UnifierBridge(self.bot)
+        self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
-        self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
 
     @commands.command(aliases=['colour'])
     async def color(self,ctx,*,color=''):
@@ -2035,7 +2037,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             msgs = self.bot.bridge.bridged
             prs = self.bot.bridge.prs
         del self.bot.bridge
-        self.bot.bridge = UnifierBridge(self.bot)
+        self.bot.bridge = UnifierBridge(self.bot, self.logger)
         if 'preserve' in args:
             self.bot.bridge.bridged = msgs
             self.bot.bridge.prs = prs
