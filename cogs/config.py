@@ -471,7 +471,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         try:
             userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
             user = self.bot.get_user(userid)
-            if not user:
+            if not user or userid==self.bot.user.id:
                 raise ValueError()
             if userid in self.bot.db['external_bridge']:
                 return await ctx.send('This user is already in the whitelist!')

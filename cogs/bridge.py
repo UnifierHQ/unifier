@@ -2066,7 +2066,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             try:
                 hook = await self.bot.fetch_webhook(message.webhook_id)
                 extbridge = True
-                if not hook.user.id in self.bot.db['external_bridge']:
+                if not hook.user.id in self.bot.db['external_bridge'] or hook.user.id==self.bot.user.id:
                     raise ValueError()
             except:
                 return
