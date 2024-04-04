@@ -1,4 +1,6 @@
 {
+  "debug": false,
+  "package": "unifier",
   "owner": 356456393491873795,
   "prefix": "u!",
   "branch": "main",

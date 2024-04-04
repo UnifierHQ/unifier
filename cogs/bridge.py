@@ -1687,14 +1687,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -1735,14 +1735,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -1780,14 +1780,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -2136,14 +2136,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
 
@@ -2436,14 +2436,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
 
