@@ -105,7 +105,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.moderators = moderators
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
-    @commands.command(hidde=True)
+    @commands.command(hidden=True)
     async def addmod(self,ctx,*,userid):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
