@@ -177,6 +177,7 @@ async def on_ready():
             bot.load_extension("cogs.moderation")
             bot.load_extension("cogs.config")
             bot.load_extension("cogs.badge")
+            bot.load_extension("cogs.uptime")
         except:
             logger.error('An error occurred!')
             logger.critical('System extensions failed to load, but admin extension has been loaded.')
