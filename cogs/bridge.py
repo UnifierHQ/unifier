@@ -2398,6 +2398,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         try:
             results = await asyncio.gather(*tasks)
         except:
+            self.logger.exception('Something went wrong!')
+            experiments = []
+            for experiment in self.bot.db['experiments']:
+                if message.guild.id in self.bot.db['experiments'][experiment]:
+                    experiments.append(experiment)
+            self.logger.info(f'Experiments: {experiments}')
             pass
 
         if multisend_exp:
