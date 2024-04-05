@@ -140,41 +140,47 @@ async def on_ready():
             bot.pid = os.getpid()
             bot.load_extension("cogs.lockdown")
         except:
-            logger.critical('System extensions failed to load, aborting boot...')
+            logger.error('An error occurred!')
+            logger.critical('Admin extension failed to load, aborting boot...')
             sys.exit(1)
         logger.debug('System extensions loaded')
         bot.load_extension("cogs.bridge")
-        if hasattr(bot, 'bridge'):
-            try:
-                if len(bot.bridge.bridged)==0:
-                    await bot.bridge.restore()
-                    logger.info(f'Restored {len(bot.bridge.bridged)} messages')
-            except:
-                logger.exception('An error occurred!')
-                logger.warn('Message restore failed')
         try:
-            if 'revolt' in data['external']:
-                bot.load_extension("cogs.bridge_revolt")
-        except:
+            if hasattr(bot, 'bridge'):
+                try:
+                    if len(bot.bridge.bridged)==0:
+                        await bot.bridge.restore()
+                        logger.info(f'Restored {len(bot.bridge.bridged)} messages')
+                except:
+                    logger.exception('An error occurred!')
+                    logger.warn('Message restore failed')
             try:
-                x = open('cogs/bridge_revolt.py','r')
-                x.close()
-                traceback.print_exc()
+                if 'revolt' in data['external']:
+                    bot.load_extension("cogs.bridge_revolt")
             except:
-                logger.warn(f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
-        try:
-            if 'guilded' in data['external']:
-                bot.load_extension("cogs.bridge_guilded")
-        except:
+                try:
+                    x = open('cogs/bridge_revolt.py','r')
+                    x.close()
+                    traceback.print_exc()
+                except:
+                    logger.warn(f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
             try:
-                x = open('cogs/bridge_guilded.py','r')
-                x.close()
-                traceback.print_exc()
+                if 'guilded' in data['external']:
+                    bot.load_extension("cogs.bridge_guilded")
             except:
-                logger.warn(f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
-        bot.load_extension("cogs.moderation")
-        bot.load_extension("cogs.config")
-        bot.load_extension("cogs.badge")
+                try:
+                    x = open('cogs/bridge_guilded.py','r')
+                    x.close()
+                    traceback.print_exc()
+                except:
+                    logger.warn(f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
+            bot.load_extension("cogs.moderation")
+            bot.load_extension("cogs.config")
+            bot.load_extension("cogs.badge")
+        except:
+            logger.error('An error occurred!')
+            logger.critical('System extensions failed to load, but admin extension has been loaded.')
+            logger.critical('Please repair the problematic extension, then load the extensions manually.')
         try:
             bot.load_extension("cogs.upgrader")
         except:
