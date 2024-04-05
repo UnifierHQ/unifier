@@ -85,5 +85,7 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
             value=f'{round((t/tup)*100,2)}%',
             inline=False
         )
+        await ctx.send(embed=embed)
+
 def setup(bot):
     bot.add_cog(Uptime(bot))
