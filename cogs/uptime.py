@@ -53,7 +53,7 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
             self.bot.ut_measuring = False
 
     @commands.command()
-    async def uptime(self):
+    async def uptime(self, ctx):
         embed = discord.Embed(
             title=f'{self.bot.user.global_name} uptime',
             description=f'The bot has been up since <t:{self.bot.ut_total}:f>.',
