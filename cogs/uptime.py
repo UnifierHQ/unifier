@@ -18,8 +18,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 from discord.ext import commands
-import json
-import traceback
 from utils import log
 import time
 
