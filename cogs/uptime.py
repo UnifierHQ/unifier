@@ -71,6 +71,7 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
             inline=False
         )
         t = self.bot.ut_connected + round(time.time()) - self.bot.ut_conntime
+        td = datetime.timedelta(seconds=t)
         d = td.days
         h, m, s = str(td).split(':')
         embed.add_field(
