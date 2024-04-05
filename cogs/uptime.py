@@ -20,6 +20,7 @@ import discord
 from discord.ext import commands
 from utils import log
 import time
+import datetime
 
 class Uptime(commands.Cog, name=':stopwatch: Uptime'):
     """Uptime tracks the uptime of the bot.
@@ -60,24 +61,21 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
             color=self.bot.colors.unifier
         )
         t = self.bot.ut_connected + round(time.time()) - self.bot.ut_conntime
-        d = t // 86400
-        h = t - (86400 * d) // 3600
-        m = t - (86400 * d) - (3600 * h) // 60
-        s = t - (86400 * d) - (3600 * h) - (60 * m)
+        td = datetime.timedelta(seconds=t)
+        d = td.days
+        h, m, s = str(td).split(':')
         tup = t
         embed.add_field(
             name='Total uptime',
-            value=f'`{d}` days, `{h}` hours, `{m}` minutes, `{s}` seconds',
+            value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
             inline=False
         )
         t = self.bot.ut_connected + round(time.time()) - self.bot.ut_conntime
-        d = t // 86400
-        h = t - (86400 * d) // 3600
-        m = t - (86400 * d) - (3600 * h) // 60
-        s = t - (86400 * d) - (3600 * h) - (60 * m)
+        d = td.days
+        h, m, s = str(td).split(':')
         embed.add_field(
             name='Connected uptime',
-            value=f'`{d}` days, `{h}` hours, `{m}` minutes, `{s}` seconds',
+            value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
             inline=False
         )
         embed.add_field(
