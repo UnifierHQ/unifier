@@ -302,6 +302,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data = self.bot.db['rooms'][room]
         except:
             return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of rooms.')
+        embed = discord.Embed(title='Ensuring channel is not connected...',description='This may take a while.')
+        msg = await ctx.send(embed=embed)
         for room in list(self.bot.db['rooms'].keys()):
             # Prevent duplicate binding
             try:
@@ -339,7 +341,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 ]
             btns = discord.ui.ActionRow(row[0],row[1])
             components = discord.ui.MessageComponents(btns)
-            msg = await ctx.send(embed=embed,components=components)
+            await msg.edit(embed=embed,components=components)
 
             def check(interaction):
                 return interaction.user.id==ctx.author.id and (
