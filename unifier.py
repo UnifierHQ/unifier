@@ -28,6 +28,7 @@ import os
 import sys
 import logging
 from utils import log
+from dotenv import load_dotenv
 
 if os.name != "nt":
     try:
@@ -39,10 +40,19 @@ if os.name != "nt":
 with open('config.json', 'r') as file:
     data = json.load(file)
 
+env_loaded = load_dotenv()
+
 level = logging.DEBUG if data['debug'] else logging.INFO
 package = data['package']
 
 logger = log.buildlogger(package,'core',level)
+
+if not env_loaded:
+    logger.critical('Could not load .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
+    sys.exit(1)
+
+if 'token' in list(data.keys()):
+    logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
 
 with open('update.json', 'r') as file:
     vinfo = json.load(file)
