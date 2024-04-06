@@ -617,7 +617,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         if self.bot.user.id == 1187093090415149056:
             embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.set_footer(text="Version v1.1.0 (Release)")
+        embed.set_footer(text="Version v1.1.8 (Release)")
         await ctx.send(embed=embed)
 
     @commands.command()
