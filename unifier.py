@@ -136,7 +136,7 @@ async def changestatus():
     else:
         await bot.change_presence(activity=discord.Game(name=new_stat))
 
-@tasks.loop(seconds=data['ping'])
+@tasks.loop(seconds=round(data['ping']))
 async def periodicping():
     guild = bot.guilds[0]
     try:
@@ -207,11 +207,8 @@ async def on_ready():
         if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
         if not periodicping.is_running() and data['ping'] > 0:
-            if data['ping'].is_integer():
-                periodicping.start()
-                logger.debug(f'Pinging servers every {data["ping"]} seconds')
-            else:
-                logger.warning('Ping time must be an integer, periodic pinger will not be used')
+            periodicping.start()
+            logger.debug(f'Pinging servers every {round(data["ping"])} seconds')
         elif data['ping'] <= 0:
             logger.debug(f'Periodic pinging disabled')
         if data['enable_ctx_commands']:
