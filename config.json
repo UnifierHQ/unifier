@@ -18,8 +18,5 @@
   "pr_room_index": 1,
   "pr_ref_room_index": 2,
   "compress_cache": true,
-  "external": ["revolt","guilded"],
-  "token": "token",
-  "revolt_token": "token",
-  "guilded_token": "token"
+  "external": ["revolt","guilded"]
 }
