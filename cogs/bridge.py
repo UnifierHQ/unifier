@@ -2122,7 +2122,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0:
             return
 
-        if message.content.startswith(self.bot.command_prefix):
+        if message.content.startswith(self.bot.command_prefix) and not message.author.bot:
             cmd = message.content.replace(self.bot.command_prefix, '', 1).split()[0]
             if not self.bot.get_command(cmd) == None:
                 return
