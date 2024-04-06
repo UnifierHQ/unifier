@@ -310,7 +310,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 hook_id = self.bot.db['rooms'][room][f'{ctx.guild.id}'][0]
                 hook = await self.bot.fetch_webhook(hook_id)
                 if hook.channel_id == ctx.channel.id:
-                    return await ctx.send(f'This channel is already linked to `{room}`!\nRun `{self.bot.command_prefix}unbind {room}` to unbind from it.')
+                    embed.title = 'Channel already linked!'
+                    embed.colour = 0xff0000
+                    embed.description = f'This channel is already linked to `{room}`!\nRun `{self.bot.command_prefix}unbind {room}` to unbind from it.'
+                    return await msg.edit(embed=embed)
             except:
                 continue
         try:
