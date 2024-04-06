@@ -136,6 +136,14 @@ async def changestatus():
     else:
         await bot.change_presence(activity=discord.Game(name=new_stat))
 
+@tasks.loop(seconds=data['ping'])
+async def periodicping():
+    guild = bot.guilds[0]
+    try:
+        await bot.fetch_channel(guild.text_channels[0].id)
+    except:
+        pass
+
 @bot.event
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
@@ -195,9 +203,17 @@ async def on_ready():
         try:
             bot.load_extension("cogs.upgrader")
         except:
-            logger.warn(f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
+            logger.warning(f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
         if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
+        if not periodicping.is_running() and data['ping'] > 0:
+            if data['ping'].is_integer():
+                periodicping.start()
+                logger.debug(f'Pinging servers every {data["ping"]} seconds')
+            else:
+                logger.warning('Ping time must be an integer, periodic pinger will not be used')
+        elif data['ping'] <= 0:
+            logger.debug(f'Periodic pinging disabled')
         if data['enable_ctx_commands']:
             logger.debug("Registering context commands...")
             toreg = []

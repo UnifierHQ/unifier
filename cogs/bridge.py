@@ -762,7 +762,7 @@ class UnifierBridge:
         thread_sameguild = []
         thread_urls = {}
         threads = []
-        tb_v2 = False
+        tb_v2 = source=='discord'
 
         # Broadcast message
         for guild in list(guilds.keys()):
@@ -1127,11 +1127,6 @@ class UnifierBridge:
                 msg_author_dc = msg_author
                 if len(msg_author) > 35:
                     msg_author_dc = msg_author[:-(len(msg_author) - 35)]
-                try:
-                    tb_v2 = str(message.guild.id) in str(
-                        self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
-                except:
-                    pass
 
                 webhook = None
                 try:
@@ -1245,11 +1240,6 @@ class UnifierBridge:
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
-                try:
-                    tb_v2 = str(message.guild.id) in str(
-                        self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
-                except:
-                    pass
                 try:
                     webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild][0]}']
                 except:
@@ -2348,28 +2338,22 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 '**Hold up a sec!**\nThis channel is marked as NSFW, meaning Discord won\'t go mad when you try sending adult content over UniChat. We don\'t want that!'
                 + '\n\nPlease ask your server admins to unmark this channel as NSFW.', reference=message)
 
-        multisend_exp = False
-        try:
-            multisend_exp = str(message.guild.id) in str(self.bot.db['experiments']['multisend'])
-        except:
-            pass
-
-        if multisend_exp:
-            if message.content.startswith('['):
-                parts = message.content.replace('[','',1).replace('\n',' ').split('] ',1)
-                if len(parts) > 1 and len(parts[0])==6:
-                    if (parts[0].lower()=='newest' or parts[0].lower()=='recent' or
-                            parts[0].lower() == 'latest'):
-                        multisend_exp = False
-                    elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
-                        multisend_exp = False
-            if '[emoji:' in message.content:
-                multisend_exp = False
+        multisend = True
+        if message.content.startswith('['):
+            parts = message.content.replace('[','',1).replace('\n',' ').split('] ',1)
+            if len(parts) > 1 and len(parts[0])==6:
+                if (parts[0].lower()=='newest' or parts[0].lower()=='recent' or
+                        parts[0].lower() == 'latest'):
+                    multisend = False
+                elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
+                    multisend = False
+        if '[emoji:' in message.content:
+            multisend = False
 
         tasks = []
 
-        if multisend_exp:
-            # Multisend experiment
+        if multisend:
+            # Multisend
             # Sends Discord message along with other platforms to minimize
             # latency on external platforms.
             self.bot.bridge.bridged.append(UnifierMessage(
@@ -2391,12 +2375,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
 
         for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform, multisend_debug=multisend_exp, extbridge=extbridge)))
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform, multisend_debug=False, extbridge=extbridge)))
 
         pt = time.time()
-        results = None
         try:
-            results = await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks)
         except:
             self.logger.exception('Something went wrong!')
             experiments = []
@@ -2406,23 +2389,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.logger.info(f'Experiments: {experiments}')
             pass
 
-        if multisend_exp:
+        if multisend:
             try:
                 await self.bot.bridge.merge_prehook(message.id)
             except:
                 pass
-
-        if multisend_exp and results:
-            ct = time.time()
-            msg = await self.bot.bridge.fetch_message(message.id)
-            count = len(msg.copies)
-            for platform in externals:
-                count += len(msg.external_copies[platform])
-            diff = round(ct - pt, 3)
-            mslog = {'duration':diff}
-            for result in results:
-                mslog.update({result[0]:{'duration':result[1],'copies':result[2],'tb2':result[3]}})
-            multisend_logs.append(mslog)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
