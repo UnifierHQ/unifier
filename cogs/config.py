@@ -301,7 +301,16 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         try:
             data = self.bot.db['rooms'][room]
         except:
-            return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+            return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of rooms.')
+        for room in list(self.bot.db['rooms'].keys()):
+            # Prevent duplicate binding
+            try:
+                hook_id = self.bot.db['rooms'][room][f'{ctx.guild.id}'][0]
+                hook = await self.bot.fetch_webhook(hook_id)
+                if hook.channel_id == ctx.channel.id:
+                    return await ctx.send(f'This channel is already linked to `{room}`!\nRun `{self.bot.command_prefix}unbind {room} to unbind from it.')
+            except:
+                continue
         try:
             try:
                 guild = data[f'{ctx.guild.id}']
