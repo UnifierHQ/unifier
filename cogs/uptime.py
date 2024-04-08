@@ -32,12 +32,14 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
         self.logger = log.buildlogger(
             self.bot.package, "uptime", self.bot.loglevel
         )
+        dt = datetime.datetime.now(datetime.timezone.utc)
+        utc_time = dt.replace(tzinfo=datetime.timezone.utc)
         if not hasattr(self.bot, "ut_total"):
-            self.bot.ut_total = round(time.time())
+            self.bot.ut_total = round(utc_time.timestamp())
         if not hasattr(self.bot, "ut_connected"):
             self.bot.ut_connected = 0
         if not hasattr(self.bot, "ut_conntime"):
-            self.bot.ut_conntime = round(time.time())
+            self.bot.ut_conntime = round(utc_time.timestamp())
         if not hasattr(self.bot, "ut_measuring"):
             self.bot.ut_measuring = True
 
@@ -45,12 +47,16 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
     async def on_connect(self):
         if not self.bot.ut_measuring:
             self.bot.ut_measuring = True
-            self.bot.ut_conntime = round(time.time())
+            dt = datetime.datetime.now(datetime.timezone.utc)
+            utc_time = dt.replace(tzinfo=datetime.timezone.utc)
+            self.bot.ut_conntime = round(utc_time.timestamp())
 
     @commands.Cog.listener()
     async def on_disconnect(self):
         if self.bot.ut_measuring:
-            self.bot.ut_connected += round(time.time()) - self.bot.ut_conntime
+            dt = datetime.datetime.now(datetime.timezone.utc)
+            utc_time = dt.replace(tzinfo=datetime.timezone.utc)
+            self.bot.ut_connected += round(utc_time.timestamp()) - self.bot.ut_conntime
             self.bot.ut_measuring = False
 
     @commands.command()
@@ -60,7 +66,9 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
             description=f'The bot has been up since <t:{self.bot.ut_total}:f>.',
             color=self.bot.colors.unifier
         )
-        t = self.bot.ut_connected + round(time.time()) - self.bot.ut_conntime
+        dt = datetime.datetime.now(datetime.timezone.utc)
+        utc_time = dt.replace(tzinfo=datetime.timezone.utc)
+        t = self.bot.ut_connected + round(utc_time.timestamp()) - self.bot.ut_conntime
         td = datetime.timedelta(seconds=t)
         d = td.days
         h, m, s = str(td).split(',')[len(str(td).split(','))-1].replace(' ','').split(':')
@@ -70,7 +78,7 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
             value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
             inline=False
         )
-        t = self.bot.ut_connected + round(time.time()) - self.bot.ut_conntime
+        t = self.bot.ut_connected + round(utc_time.timestamp()) - self.bot.ut_conntime
         td = datetime.timedelta(seconds=t)
         d = td.days
         h, m, s = str(td).split(',')[len(str(td).split(','))-1].replace(' ','').split(':')
