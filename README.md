@@ -48,6 +48,29 @@ Please follow our guides on GitBook to set up Unifier.
 ## License
 Unifier is licensed under the GPLv3. If you wish to use its source code, please read the license carefully before doing so.
 
+## Acknowledgments
+We want to thank:
+- [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued (it
+  is now re-continued, but for now we'd like to use Novus)
+- [**Rapptz**](https://github.com/Rapptz) and [**discord.py**](https://github.com/Rapptz/discord.py) developers, for creating the
+  discord.py library Novus is based on
+- [**Revolt**](https://github.com/revoltchat), for creating revolt.py and an awesome open-source Discord alternative
+- [**shayypy**](https://github.com/shayypy), for creating guilded.py
+
+## Special thanks
+As the project founder and leader, I want to give my special thanks to:
+- [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for joining the team and helping me fix my shitty Python and
+  adding a lot of amazing features to Unifier
+- **My best friend**, for turning my life around for the better and always supporting me even at my worst
+
+And lastly but *most importantly*, **the late role model of mine I used to know very well**: He's the one that brought me and my 
+best friend together, as well as lots of other people together as well. Without him, I don't know if Unifier would have even existed, 
+so I want to pick up where he left off and continue uniting people in his honor. I dedicate this project to him by open sourcing the 
+code, so people can use it to bring people together just like how he did.
+
+In return, we expect that all users honor those who made this project possible use the code **responsibly**. Please do not organize 
+any hate groups or whatever with Unifier.
+
 ## Note
 Unifier's icon was co-created by @green. and @thegodlypenguin on Discord.
 
