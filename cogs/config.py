@@ -304,15 +304,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of rooms.')
         embed = discord.Embed(title='Ensuring channel is not connected...',description='This may take a while.')
         msg = await ctx.send(embed=embed)
-        for room in list(self.bot.db['rooms'].keys()):
+        for roomname in list(self.bot.db['rooms'].keys()):
             # Prevent duplicate binding
             try:
-                hook_id = self.bot.db['rooms'][room][f'{ctx.guild.id}'][0]
+                hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
                 hook = await self.bot.fetch_webhook(hook_id)
                 if hook.channel_id == ctx.channel.id:
                     embed.title = 'Channel already linked!'
                     embed.colour = 0xff0000
-                    embed.description = f'This channel is already linked to `{room}`!\nRun `{self.bot.command_prefix}unbind {room}` to unbind from it.'
+                    embed.description = f'This channel is already linked to `{roomname}`!\nRun `{self.bot.command_prefix}unbind {roomname}` to unbind from it.'
                     return await msg.edit(embed=embed)
             except:
                 continue
