@@ -234,4 +234,4 @@ async def on_message(message):
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
 
-bot.run(data['token'])
+bot.run(os.environ.get('TOKEN'))
