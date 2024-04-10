@@ -28,7 +28,7 @@ import os
 import sys
 import traceback
 
-class colors:
+class Colors:
     greens_hair = 0xa19e78
     unifier = 0xed4545
     green = 0x2ecc71
@@ -36,6 +36,7 @@ class colors:
     purple = 0x9b59b6
     red = 0xe74c3c
     blurple = 0x7289da
+
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -91,7 +92,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     def __init__(self,bot):
         self.bot = bot
         if not hasattr(self.bot, 'colors'):
-            self.bot.colors = colors
+            self.bot.colors = Colors
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
         if not hasattr(self.bot, 'loglevel'):
@@ -120,7 +121,6 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
             body = cleanup_code(body)
             stdout = io.StringIO()
-            err = out = None
 
             to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
 
@@ -128,7 +128,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
                     raise ValueError('Blocked phrase')
                 exec(to_compile, env)
-            except Exception as e:
+            except:
                 pass
 
             try:
@@ -142,8 +142,9 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 return
             try:
                 with redirect_stdout(stdout):
-                    ret = await func()
-            except Exception as e:
+                    # ret = await func() to return output
+                    await func()
+            except:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
                 try:
                     await ctx.send(file=discord.File(fp='nosuccess.png'))
