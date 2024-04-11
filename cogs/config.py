@@ -35,7 +35,7 @@ class AutoSaveDict(dict):
         # Ensure necessary keys exist
         self.update({'rules':{},'rooms':{},'rooms_revolt':{},'rooms_guilded':{},'emojis':[],'nicknames':{},'descriptions':{},
                      'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
-                     'avatars':{},'experiments':{},'experiments_info':{},'colors':{}})
+                     'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[]})
 
         # Load data
         self.load_data()
@@ -105,7 +105,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.moderators = moderators
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
-    @commands.command(hidde=True)
+    @commands.command(hidden=True)
     async def addmod(self,ctx,*,userid):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
@@ -155,7 +155,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{user.name}'
         await ctx.send(f'**{mod}** is no longer a moderator!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True, aliases=['newroom'])
     async def make(self,ctx,*,room):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can create rooms!')
@@ -295,13 +295,27 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('You don\'t have the necessary permissions.')
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can bind channels to restricted rooms.')
-        if room=='' or not room: #Added "not room" as a failback
+        if room=='' or not room: # Added "not room" as a failback
             room = 'main'
             await ctx.send('**No room was given, defaulting to main**')
         try:
             data = self.bot.db['rooms'][room]
         except:
-            return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+            return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of rooms.')
+        embed = discord.Embed(title='Ensuring channel is not connected...',description='This may take a while.')
+        msg = await ctx.send(embed=embed)
+        for roomname in list(self.bot.db['rooms'].keys()):
+            # Prevent duplicate binding
+            try:
+                hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
+                hook = await self.bot.fetch_webhook(hook_id)
+                if hook.channel_id == ctx.channel.id:
+                    embed.title = 'Channel already linked!'
+                    embed.colour = 0xff0000
+                    embed.description = f'This channel is already linked to `{roomname}`!\nRun `{self.bot.command_prefix}unbind {roomname}` to unbind from it.'
+                    return await msg.edit(embed=embed)
+            except:
+                continue
         try:
             try:
                 guild = data[f'{ctx.guild.id}']
@@ -330,7 +344,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 ]
             btns = discord.ui.ActionRow(row[0],row[1])
             components = discord.ui.MessageComponents(btns)
-            msg = await ctx.send(embed=embed,components=components)
+            await msg.edit(embed=embed,components=components)
 
             def check(interaction):
                 return interaction.user.id==ctx.author.id and (
@@ -356,12 +370,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 return
             webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
             data = self.bot.db['rooms'][room]
-            guild = []
-            guild.append(webhook.id)
+            guild = [webhook.id]
             data.update({f'{ctx.guild.id}':guild})
             self.bot.db['rooms'][room] = data
             self.bot.db.save_data()
-            await ctx.send('Linked channel with network!')
+            await ctx.send('# :white_check_mark: Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
             try:
                 await msg.pin()
             except:
@@ -396,7 +409,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data.pop(f'{ctx.guild.id}')
             self.bot.db['rooms'][room] = data
             self.bot.db.save_data()
-            await ctx.send('Unlinked channel from network!')
+            await ctx.send('# :white_check_mark: Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
         except:
             await ctx.send('Something went wrong - check my permissions.')
             raise
@@ -430,7 +443,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def addrule(self,ctx,*,args):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
@@ -444,7 +457,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send('Added rule!')
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def delrule(self,ctx,*,args):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
@@ -463,6 +476,87 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['rules'][room].pop(rule-1)
         self.bot.db.save_data()
         await ctx.send('Removed rule!')
+
+    @commands.command(hidden=True)
+    async def addbridge(self,ctx,*,userid):
+        if not is_user_admin(ctx.author.id):
+            return
+        try:
+            userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
+            user = self.bot.get_user(userid)
+            if not user or userid==self.bot.user.id:
+                raise ValueError()
+            if userid in self.bot.db['external_bridge']:
+                return await ctx.send('This user is already in the whitelist!')
+        except:
+            return await ctx.send('Invalid user!')
+        embed = discord.Embed(
+            title=f'Allow @{user.name} to bridge?',
+            description='This will allow messages sent via webhooks created by this user to be bridged through Unifier.',
+            color=0xffcc00
+        )
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(label='Allow bridge',style=discord.ButtonStyle.green,custom_id='allow'),
+                discord.ui.Button(label='Cancel',style=discord.ButtonStyle.gray)
+            )
+        )
+        msg = await ctx.send(embed=embed,components=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+        except:
+            return await msg.edit(components=None)
+        await interaction.response.edit_message(components=None)
+        if not interaction.custom_id=='allow':
+            return
+        self.bot.db['external_bridge'].append(userid)
+        self.bot.db.save_data()
+        return await ctx.send('# :white_check_mark: Linked bridge to Unifier network!\nThis user\'s webhooks can now bridge messages through Unifier!')
+
+    @commands.command(hidden=True)
+    async def delbridge(self, ctx, *, userid):
+        if not is_user_admin(ctx.author.id):
+            return
+        try:
+            userid = int(userid.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1))
+            user = self.bot.get_user(userid)
+            if not user:
+                raise ValueError()
+            if not userid in self.bot.db['external_bridge']:
+                return await ctx.send('This user isn\'t in the whitelist!')
+        except:
+            return await ctx.send('Invalid user!')
+        embed = discord.Embed(
+            title=f'Remove @{user.name} from bridge?',
+            description='This will stop this user\'s webhooks from bridging messages.',
+            color=0xffcc00
+        )
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(label='Revoke bridge', style=discord.ButtonStyle.red, custom_id='allow'),
+                discord.ui.Button(label='Cancel', style=discord.ButtonStyle.gray)
+            )
+        )
+        msg = await ctx.send(embed=embed, components=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+        except:
+            return await msg.edit(components=None)
+        await interaction.response.edit_message(components=None)
+        if not interaction.custom_id == 'allow':
+            return
+        self.bot.db['external_bridge'].remove(userid)
+        self.bot.db.save_data()
+        return await ctx.send(
+            '# :white_check_mark: Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
 
     @commands.command()
     async def rooms(self,ctx):
@@ -522,7 +616,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         if self.bot.user.id == 1187093090415149056:
             embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.set_footer(text="Version v1.1.0 (Release)")
+        embed.set_footer(text="Version v1.1.8")
         await ctx.send(embed=embed)
 
     @commands.command()

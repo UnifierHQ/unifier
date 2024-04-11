@@ -97,9 +97,55 @@ class ExternalReference:
 class SelfDeleteException(Exception):
     pass
 
+class UnifierTranslator:
+    def __init__(self,bot):
+        self.bot = bot
+
+    def identify(self,message: discord.Message or revolt.Message or guilded.Message):
+        source = 'discord'
+        extlist = list(self.bot.extensions)
+        if type(message) is revolt.Message:
+            if not 'cogs.bridge_revolt' in extlist:
+                raise RuntimeError('Revolt Support not initialized')
+            source = 'revolt'
+        if type(message) is guilded.ChatMessage:
+            if not 'cogs.bridge_guilded' in extlist:
+                raise RuntimeError('Guilded Support not initialized')
+            source = 'guilded'
+
+        if message.webhook_id:
+            return 'webhook'
+
+        if len(message.embeds) > 0 and source=='discord':
+            for embed in message.embeds:
+                if not embed.type=='rich':
+                    continue
+                if (embed.footer.text.startswith('Message ID: ') and
+                        embed.fields[0].value.startswith('\U0001F4CCSent From: ') and
+                        embed.fields[0].value.endswith('[Bot-Invite](https://discord.com/api/oauth2/authorize?client_id=1051199485168066610&permissions=8&scope=bot%20applications.commands)')):
+                    return 'embed_silly'
+
+    def translate(self,message: discord.Message or revolt.Message or guilded.Message):
+        source = 'discord'
+        extlist = list(self.bot.extensions)
+        if type(message) is revolt.Message:
+            if not 'cogs.bridge_revolt' in extlist:
+                raise RuntimeError('Revolt Support not initialized')
+            source = 'revolt'
+        if type(message) is guilded.ChatMessage:
+            if not 'cogs.bridge_guilded' in extlist:
+                raise RuntimeError('Guilded Support not initialized')
+            source = 'guilded'
+
+        msgtype = self.identify(message)
+        if msgtype=='embed_silly':
+            translated = {
+                'author': message.embed
+            }
+
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
-                 external_urls=None, webhook=False, prehook=None, reply=False):
+                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -113,6 +159,7 @@ class UnifierMessage:
         self.webhook = webhook
         self.prehook = prehook
         self.reply = reply
+        self.external_bridged = external_bridged
 
     def to_dict(self):
         return self.__dict__
@@ -189,11 +236,9 @@ class UnifierPossibleRaidEvent:
         self.impact_score = round(100*i/t)
         return self.impact_score > 300
 
-
-
 class UnifierBridge:
 
-    def __init__(self, bot, webhook_cache=None):
+    def __init__(self, bot, logger, webhook_cache=None):
         self.bot = bot
         self.bridged = []
         self.prs = {}
@@ -201,7 +246,7 @@ class UnifierBridge:
         self.restored = False
         self.raidbans = {}
         self.possible_raid = {}
-
+        self.logger = logger
 
     def is_raidban(self,userid):
         try:
@@ -559,7 +604,8 @@ class UnifierBridge:
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
-                   platform: str = 'discord', system: bool = False, multisend_debug=False):
+                   platform: str = 'discord', system: bool = False, multisend_debug=False,
+                   extbridge=False):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
             return
         source = 'discord'
@@ -716,7 +762,7 @@ class UnifierBridge:
         thread_sameguild = []
         thread_urls = {}
         threads = []
-        tb_v2 = False
+        tb_v2 = source=='discord'
 
         # Broadcast message
         for guild in list(guilds.keys()):
@@ -1081,11 +1127,6 @@ class UnifierBridge:
                 msg_author_dc = msg_author
                 if len(msg_author) > 35:
                     msg_author_dc = msg_author[:-(len(msg_author) - 35)]
-                try:
-                    tb_v2 = str(message.guild.id) in str(
-                        self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
-                except:
-                    pass
 
                 webhook = None
                 try:
@@ -1199,11 +1240,6 @@ class UnifierBridge:
 
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
-                try:
-                    tb_v2 = str(message.guild.id) in str(
-                        self.bot.db['experiments']['threaded_bridge_v2']) and source == 'discord'
-                except:
-                    pass
                 try:
                     webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild][0]}']
                 except:
@@ -1378,6 +1414,12 @@ class UnifierBridge:
                 server_id = message.server.id
             else:
                 server_id = message.guild.id
+            if extbridge:
+                try:
+                    hook = await self.bot.fetch_webhook(message.webhook_id)
+                    msg_author = hook.user.id
+                except:
+                    pass
             self.bridged.append(UnifierMessage(
                 author_id=msg_author,
                 guild_id=server_id,
@@ -1387,10 +1429,11 @@ class UnifierBridge:
                 external_copies=external_copies,
                 urls=urls,
                 source=source,
-                webhook=should_resend or system,
+                webhook=should_resend or system or extbridge,
                 prehook=message.id,
                 room=room,
-                reply=replying
+                reply=replying,
+                external_bridged=extbridge
             ))
         if multisend_debug:
             ct = time.time()
@@ -1427,6 +1470,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.reports = {}
         if not hasattr(self.bot, 'webhook_cache'):
             self.bot.webhook_cache = {}
+        self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
         msgs = []
         prs = {}
         restored = False
@@ -1435,11 +1479,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             prs = self.bot.bridge.prs
             restored = self.bot.bridge.restored
             del self.bot.bridge
-        self.bot.bridge = UnifierBridge(self.bot)
+        self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
-        self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
 
     @commands.command(aliases=['colour'])
     async def color(self,ctx,*,color=''):
@@ -1634,14 +1677,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -1682,14 +1725,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -1727,14 +1770,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.update()
+                self.bot.db.save_data()
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -2029,7 +2072,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             msgs = self.bot.bridge.bridged
             prs = self.bot.bridge.prs
         del self.bot.bridge
-        self.bot.bridge = UnifierBridge(self.bot)
+        self.bot.bridge = UnifierBridge(self.bot, self.logger)
         if 'preserve' in args:
             self.bot.bridge.bridged = msgs
             self.bot.bridge.prs = prs
@@ -2049,9 +2092,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def on_message(self, message):
         author_rp = message.author
         content_rp = message.content
+
+        extbridge = False
+        hook = None
+
         if not message.webhook_id == None:
             # webhook msg
-            return
+            try:
+                hook = await self.bot.fetch_webhook(message.webhook_id)
+                extbridge = True
+                if not hook.user.id in self.bot.db['external_bridge'] or hook.user.id==self.bot.user.id:
+                    raise ValueError()
+            except:
+                return
 
         if message.guild == None:
             return
@@ -2059,7 +2112,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0:
             return
 
-        if message.content.startswith(self.bot.command_prefix):
+        if message.content.startswith(self.bot.command_prefix) and not message.author.bot:
             cmd = message.content.replace(self.bot.command_prefix, '', 1).split()[0]
             if not self.bot.get_command(cmd) == None:
                 return
@@ -2073,14 +2126,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
 
@@ -2285,32 +2338,26 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 '**Hold up a sec!**\nThis channel is marked as NSFW, meaning Discord won\'t go mad when you try sending adult content over UniChat. We don\'t want that!'
                 + '\n\nPlease ask your server admins to unmark this channel as NSFW.', reference=message)
 
-        multisend_exp = False
-        try:
-            multisend_exp = str(message.guild.id) in str(self.bot.db['experiments']['multisend'])
-        except:
-            pass
-
-        if multisend_exp:
-            if message.content.startswith('['):
-                parts = message.content.replace('[','',1).replace('\n',' ').split('] ',1)
-                if len(parts) > 1 and len(parts[0])==6:
-                    if (parts[0].lower()=='newest' or parts[0].lower()=='recent' or
-                            parts[0].lower() == 'latest'):
-                        multisend_exp = False
-                    elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
-                        multisend_exp = False
-            if '[emoji:' in message.content:
-                multisend_exp = False
+        multisend = True
+        if message.content.startswith('['):
+            parts = message.content.replace('[','',1).replace('\n',' ').split('] ',1)
+            if len(parts) > 1 and len(parts[0])==6:
+                if (parts[0].lower()=='newest' or parts[0].lower()=='recent' or
+                        parts[0].lower() == 'latest'):
+                    multisend = False
+                elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
+                    multisend = False
+        if '[emoji:' in message.content:
+            multisend = False
 
         tasks = []
 
-        if multisend_exp:
-            # Multisend experiment
+        if multisend:
+            # Multisend
             # Sends Discord message along with other platforms to minimize
             # latency on external platforms.
             self.bot.bridge.bridged.append(UnifierMessage(
-                    author_id=message.author.id,
+                    author_id=message.author.id if not extbridge else hook.user.id,
                     guild_id=message.guild.id,
                     channel_id=message.channel.id,
                     original=message.id,
@@ -2319,40 +2366,34 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     urls={},
                     source='discord',
                     room=roomname,
-                    external_urls={}
+                    external_urls={},
+                    external_bridged=extbridge
                 )
             )
-            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True))
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True, extbridge=extbridge))
         else:
-            await self.bot.bridge.send(room=roomname, message=message, platform='discord')
+            await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
 
         for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform,multisend_debug=multisend_exp)))
+            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform, multisend_debug=False, extbridge=extbridge)))
 
         pt = time.time()
-        results = None
         try:
-            results = await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks)
         except:
+            self.logger.exception('Something went wrong!')
+            experiments = []
+            for experiment in self.bot.db['experiments']:
+                if message.guild.id in self.bot.db['experiments'][experiment]:
+                    experiments.append(experiment)
+            self.logger.info(f'Experiments: {experiments}')
             pass
 
-        if multisend_exp:
+        if multisend:
             try:
                 await self.bot.bridge.merge_prehook(message.id)
             except:
                 pass
-
-        if multisend_exp and results:
-            ct = time.time()
-            msg = await self.bot.bridge.fetch_message(message.id)
-            count = len(msg.copies)
-            for platform in externals:
-                count += len(msg.external_copies[platform])
-            diff = round(ct - pt, 3)
-            mslog = {'duration':diff}
-            for result in results:
-                mslog.update({result[0]:{'duration':result[1],'copies':result[2],'tb2':result[3]}})
-            multisend_logs.append(mslog)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
@@ -2372,14 +2413,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.update()
+                    self.bot.db.save_data()
                 else:
                     return
 
