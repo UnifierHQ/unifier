@@ -49,21 +49,6 @@ check_endpoint = data['check_endpoint']
 files_endpoint = data['files_endpoint']
 externals = data["external"]
 
-noeval = '''```-------------No eval?-------------
-⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝
-⠸⡸⠜⠕⠕⠁⢁⢇⢏⢽⢺⣪⡳⡝⣎⣏⢯⢞⡿⣟⣷⣳⢯⡷⣽⢽⢯⣳⣫⠇
-⠀⠀⢀⢀⢄⢬⢪⡪⡎⣆⡈⠚⠜⠕⠇⠗⠝⢕⢯⢫⣞⣯⣿⣻⡽⣏⢗⣗⠏⠀
-⠀⠪⡪⡪⣪⢪⢺⢸⢢⢓⢆⢤⢀⠀⠀⠀⠀⠈⢊⢞⡾⣿⡯⣏⢮⠷⠁⠀⠀
-⠀⠀⠀⠈⠊⠆⡃⠕⢕⢇⢇⢇⢇⢇⢏⢎⢎⢆⢄⠀⢑⣽⣿⢝⠲⠉⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⡿⠂⠠⠀⡇⢇⠕⢈⣀⠀⠁⠡⠣⡣⡫⣂⣿⠯⢪⠰⠂⠀⠀⠀⠀
-⠀⠀⠀⠀⡦⡙⡂⢀⢤⢣⠣⡈⣾⡃⠠⠄⠀⡄⢱⣌⣶⢏⢊⠂⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⢝⡲⣜⡮⡏⢎⢌⢂⠙⠢⠐⢀⢘⢵⣽⣿⡿⠁⠁⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠨⣺⡺⡕⡕⡱⡑⡆⡕⡅⡕⡜⡼⢽⡻⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⣼⣳⣫⣾⣵⣗⡵⡱⡡⢣⢑⢕⢜⢕⡝⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⣴⣿⣾⣿⣿⣿⡿⡽⡑⢌⠪⡢⡣⣣⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⡟⡾⣿⢿⢿⢵⣽⣾⣼⣘⢸⢸⣞⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠁⠇⠡⠩⡫⢿⣝⡻⡮⣒⢽⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀```'''
-
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
         return '\n'.join(content.split('\n')[1:-1])
@@ -134,11 +119,8 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             try:
                 func = env['func']
             except Exception as e:
-                try:
-                    await ctx.send(file=discord.File(fp='nosuccess.png'))
-                except:
-                    await ctx.send('Two (or more) errors occured:\n`1.` the code didn\'t work\n`2.` no meme?')
-                await ctx.author.send(f'```py\n{e.__class__.__name__}: {e}\n```')
+                await ctx.send('An error occurred while executing the code.',reference=ctx.message)
+                await ctx.author.send(f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
                 return
             try:
                 with redirect_stdout(stdout):
@@ -146,10 +128,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                     await func()
             except:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                try:
-                    await ctx.send(file=discord.File(fp='nosuccess.png'))
-                except:
-                    await ctx.send('Two (or more) errors occured:\n`1.` the code didn\'t work\n`2.` no meme?')
+                await ctx.send('An error occurred while executing the code.',reference=ctx.message)
                 await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
             else:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
@@ -158,32 +137,17 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 else:
                     await ctx.send('```%s```' % value)
         else:
-            try:
-                await ctx.send(file=discord.File(fp='noeval.png'))
-            except:
-                await ctx.send(noeval)
+            await ctx.send('Only the bot can execute code.')
 
     @eval.error
     async def eval_error(self,ctx,error):
         if ctx.author.id==owner:
             if isinstance(error, commands.MissingRequiredArgument):
-                try:
-                    await ctx.send('where code :thinking:',file=discord.File(fp='nocode.png'))
-                except:
-                    try:
-                        await ctx.send('where code :thinking:')
-                    except:
-                        await ctx.author.send('where code and permission to send messages :thinking:')
+                await ctx.send('where code :thinking:')
             else:
-                try:
-                    await ctx.send('Something went horribly wrong, sadge')
-                except:
-                    await ctx.author.send('i cant send stuff in that channel :/')
+                await ctx.send('Something went horribly wrong.')
         else:
-            try:
-                await ctx.send(file=discord.File(fp='noeval.png'))
-            except:
-                await ctx.send(noeval)
+            await ctx.send('Only the bot can execute code.')
 
     @commands.command(hidden=True,aliases=['cogs'])
     async def extensions(self,ctx,*,extension=None):
