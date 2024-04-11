@@ -27,6 +27,7 @@ import json
 import os
 import sys
 import traceback
+import io
 
 class Colors:
     greens_hair = 0xa19e78
@@ -89,8 +90,6 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(hidden=True)
     async def eval(self,ctx,*,body):
         if ctx.author.id==owner:
-            import io
-            import traceback
             env = {
                 'ctx': ctx,
                 'channel': ctx.channel,
