@@ -27,8 +27,9 @@ import json
 import os
 import sys
 import traceback
+import io
 
-class colors:
+class Colors:
     greens_hair = 0xa19e78
     unifier = 0xed4545
     green = 0x2ecc71
@@ -36,6 +37,7 @@ class colors:
     purple = 0x9b59b6
     red = 0xe74c3c
     blurple = 0x7289da
+
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -47,21 +49,6 @@ branch = data['branch']
 check_endpoint = data['check_endpoint']
 files_endpoint = data['files_endpoint']
 externals = data["external"]
-
-noeval = '''```-------------No eval?-------------
-⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝
-⠸⡸⠜⠕⠕⠁⢁⢇⢏⢽⢺⣪⡳⡝⣎⣏⢯⢞⡿⣟⣷⣳⢯⡷⣽⢽⢯⣳⣫⠇
-⠀⠀⢀⢀⢄⢬⢪⡪⡎⣆⡈⠚⠜⠕⠇⠗⠝⢕⢯⢫⣞⣯⣿⣻⡽⣏⢗⣗⠏⠀
-⠀⠪⡪⡪⣪⢪⢺⢸⢢⢓⢆⢤⢀⠀⠀⠀⠀⠈⢊⢞⡾⣿⡯⣏⢮⠷⠁⠀⠀
-⠀⠀⠀⠈⠊⠆⡃⠕⢕⢇⢇⢇⢇⢇⢏⢎⢎⢆⢄⠀⢑⣽⣿⢝⠲⠉⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⡿⠂⠠⠀⡇⢇⠕⢈⣀⠀⠁⠡⠣⡣⡫⣂⣿⠯⢪⠰⠂⠀⠀⠀⠀
-⠀⠀⠀⠀⡦⡙⡂⢀⢤⢣⠣⡈⣾⡃⠠⠄⠀⡄⢱⣌⣶⢏⢊⠂⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⢝⡲⣜⡮⡏⢎⢌⢂⠙⠢⠐⢀⢘⢵⣽⣿⡿⠁⠁⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠨⣺⡺⡕⡕⡱⡑⡆⡕⡅⡕⡜⡼⢽⡻⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⣼⣳⣫⣾⣵⣗⡵⡱⡡⢣⢑⢕⢜⢕⡝⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⣴⣿⣾⣿⣿⣿⡿⡽⡑⢌⠪⡢⡣⣣⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⡟⡾⣿⢿⢿⢵⣽⣾⣼⣘⢸⢸⣞⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠁⠇⠡⠩⡫⢿⣝⡻⡮⣒⢽⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀```'''
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -91,7 +78,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     def __init__(self,bot):
         self.bot = bot
         if not hasattr(self.bot, 'colors'):
-            self.bot.colors = colors
+            self.bot.colors = Colors
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
         if not hasattr(self.bot, 'loglevel'):
@@ -103,8 +90,6 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(hidden=True)
     async def eval(self,ctx,*,body):
         if ctx.author.id==owner:
-            import io
-            import traceback
             env = {
                 'ctx': ctx,
                 'channel': ctx.channel,
@@ -120,35 +105,29 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
             body = cleanup_code(body)
             stdout = io.StringIO()
-            err = out = None
 
             to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
 
             try:
-                if 'bot.token' in body:
+                if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
                     raise ValueError('Blocked phrase')
                 exec(to_compile, env)
-            except Exception as e:
+            except:
                 pass
 
             try:
                 func = env['func']
             except Exception as e:
-                try:
-                    await ctx.send(file=discord.File(fp='nosuccess.png'))
-                except:
-                    await ctx.send('Two (or more) errors occured:\n`1.` the code didn\'t work\n`2.` no meme?')
-                await ctx.author.send(f'```py\n{e.__class__.__name__}: {e}\n```')
+                await ctx.send('An error occurred while executing the code.',reference=ctx.message)
+                await ctx.author.send(f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
                 return
             try:
                 with redirect_stdout(stdout):
-                    ret = await func()
-            except Exception as e:
+                    # ret = await func() to return output
+                    await func()
+            except:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                try:
-                    await ctx.send(file=discord.File(fp='nosuccess.png'))
-                except:
-                    await ctx.send('Two (or more) errors occured:\n`1.` the code didn\'t work\n`2.` no meme?')
+                await ctx.send('An error occurred while executing the code.',reference=ctx.message)
                 await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
             else:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
@@ -157,32 +136,17 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 else:
                     await ctx.send('```%s```' % value)
         else:
-            try:
-                await ctx.send(file=discord.File(fp='noeval.png'))
-            except:
-                await ctx.send(noeval)
+            await ctx.send('Only the bot can execute code.')
 
     @eval.error
     async def eval_error(self,ctx,error):
         if ctx.author.id==owner:
             if isinstance(error, commands.MissingRequiredArgument):
-                try:
-                    await ctx.send('where code :thinking:',file=discord.File(fp='nocode.png'))
-                except:
-                    try:
-                        await ctx.send('where code :thinking:')
-                    except:
-                        await ctx.author.send('where code and permission to send messages :thinking:')
+                await ctx.send('where code :thinking:')
             else:
-                try:
-                    await ctx.send('Something went horribly wrong, sadge')
-                except:
-                    await ctx.author.send('i cant send stuff in that channel :/')
+                await ctx.send('Something went horribly wrong.')
         else:
-            try:
-                await ctx.send(file=discord.File(fp='noeval.png'))
-            except:
-                await ctx.send(noeval)
+            await ctx.send('Only the bot can execute code.')
 
     @commands.command(hidden=True,aliases=['cogs'])
     async def extensions(self,ctx,*,extension=None):

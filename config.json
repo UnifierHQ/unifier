@@ -1,6 +1,9 @@
 {
+  "debug": false,
+  "package": "unifier",
   "owner": 356456393491873795,
   "prefix": "u!",
+  "ping": 0,
   "branch": "main",
   "check_endpoint": "https://github.com/greeeen-dev/unifier-version.git",
   "files_endpoint": "https://github.com/greeeen-dev",
@@ -15,8 +18,5 @@
   "pr_room_index": 1,
   "pr_ref_room_index": 2,
   "compress_cache": true,
-  "external": ["revolt","guilded"],
-  "token": "token",
-  "revolt_token": "token",
-  "guilded_token": "token"
+  "external": ["revolt","guilded"]
 }

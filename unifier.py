@@ -28,6 +28,7 @@ import os
 import sys
 import logging
 from utils import log
+from dotenv import load_dotenv
 
 if os.name != "nt":
     try:
@@ -39,10 +40,19 @@ if os.name != "nt":
 with open('config.json', 'r') as file:
     data = json.load(file)
 
+env_loaded = load_dotenv()
+
 level = logging.DEBUG if data['debug'] else logging.INFO
 package = data['package']
 
 logger = log.buildlogger(package,'core',level)
+
+if not env_loaded:
+    logger.critical('Could not load .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
+    sys.exit(1)
+
+if 'token' in list(data.keys()):
+    logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
 
 with open('update.json', 'r') as file:
     vinfo = json.load(file)
@@ -126,6 +136,14 @@ async def changestatus():
     else:
         await bot.change_presence(activity=discord.Game(name=new_stat))
 
+@tasks.loop(seconds=round(data['ping']))
+async def periodicping():
+    guild = bot.guilds[0]
+    try:
+        await bot.fetch_channel(guild.text_channels[0].id)
+    except:
+        pass
+
 @bot.event
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
@@ -140,47 +158,59 @@ async def on_ready():
             bot.pid = os.getpid()
             bot.load_extension("cogs.lockdown")
         except:
-            logger.critical('System extensions failed to load, aborting boot...')
+            logger.error('An error occurred!')
+            logger.critical('Admin extension failed to load, aborting boot...')
             sys.exit(1)
         logger.debug('System extensions loaded')
         bot.load_extension("cogs.bridge")
-        if hasattr(bot, 'bridge'):
-            try:
-                if len(bot.bridge.bridged)==0:
-                    await bot.bridge.restore()
-                    logger.info(f'Restored {len(bot.bridge.bridged)} messages')
-            except:
-                logger.exception('An error occurred!')
-                logger.warn('Message restore failed')
         try:
-            if 'revolt' in data['external']:
-                bot.load_extension("cogs.bridge_revolt")
-        except:
+            if hasattr(bot, 'bridge'):
+                try:
+                    if len(bot.bridge.bridged)==0:
+                        await bot.bridge.restore()
+                        logger.info(f'Restored {len(bot.bridge.bridged)} messages')
+                except:
+                    logger.exception('An error occurred!')
+                    logger.warn('Message restore failed')
             try:
-                x = open('cogs/bridge_revolt.py','r')
-                x.close()
-                traceback.print_exc()
+                if 'revolt' in data['external']:
+                    bot.load_extension("cogs.bridge_revolt")
             except:
-                logger.warn(f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
-        try:
-            if 'guilded' in data['external']:
-                bot.load_extension("cogs.bridge_guilded")
-        except:
+                try:
+                    x = open('cogs/bridge_revolt.py','r')
+                    x.close()
+                    traceback.print_exc()
+                except:
+                    logger.warn(f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
             try:
-                x = open('cogs/bridge_guilded.py','r')
-                x.close()
-                traceback.print_exc()
+                if 'guilded' in data['external']:
+                    bot.load_extension("cogs.bridge_guilded")
             except:
-                logger.warn(f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
-        bot.load_extension("cogs.moderation")
-        bot.load_extension("cogs.config")
-        bot.load_extension("cogs.badge")
+                try:
+                    x = open('cogs/bridge_guilded.py','r')
+                    x.close()
+                    traceback.print_exc()
+                except:
+                    logger.warn(f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
+            bot.load_extension("cogs.moderation")
+            bot.load_extension("cogs.config")
+            bot.load_extension("cogs.badge")
+            bot.load_extension("cogs.uptime")
+        except:
+            logger.error('An error occurred!')
+            logger.critical('System extensions failed to load, but admin extension has been loaded.')
+            logger.critical('Please repair the problematic extension, then load the extensions manually.')
         try:
             bot.load_extension("cogs.upgrader")
         except:
-            logger.warn(f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
+            logger.warning(f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
         if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
+        if not periodicping.is_running() and data['ping'] > 0:
+            periodicping.start()
+            logger.debug(f'Pinging servers every {round(data["ping"])} seconds')
+        elif data['ping'] <= 0:
+            logger.debug(f'Periodic pinging disabled')
         if data['enable_ctx_commands']:
             logger.debug("Registering context commands...")
             toreg = []
@@ -204,4 +234,4 @@ async def on_message(message):
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
 
-bot.run(data['token'])
+bot.run(os.environ.get('TOKEN'))
