@@ -56,6 +56,9 @@ We want to thank:
 - [**Revolt**](https://github.com/revoltchat), for creating revolt.py and an awesome open-source Discord alternative
 - [**shayypy**](https://github.com/shayypy), for creating guilded.py
 
+We also use the logging logger formatting code from discord.py, which is licensed under the MIT license. You can find more info in 
+the `EXTERNAL_LICENSES.txt` file.
+
 ## Special thanks
 As the project founder and leader, I want to give my special thanks to:
 - [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for joining the team and helping me fix my shitty Python and
