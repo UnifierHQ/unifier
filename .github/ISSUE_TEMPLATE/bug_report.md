@@ -54,6 +54,18 @@ The version of Unifier, e.g. v1.1.4
 List any extensions such as Upgrader and Revolt Support you're using here, as well as their versions. Base extensions such as Admin and Bridge are excluded.
 -->
 
+**Modified instance**
+<!--
+Please tick this checkbox if Unifier was modified when the bug was found.
+This does NOT include config.json file changes.
+-->
+- [ ] Unifier was modified when the bug was found.
+
+**Modified instance repository**
+<!--
+If you have modified Unifier, provide the repository URL here.
+-->
+
 **Additional context**
 <!--
 Add any other context about the problem here.
