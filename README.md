@@ -5,9 +5,12 @@ Unifier</h1>
 Inspired by matrix-t2bot</p>
 
 ## What is Unifier?
-Unifier is a bot written in Python which allows users to connect their Discord servers together to form one big chat room. 
-It is also compatible with Revolt and Guilded with support extensions, meaning that it can also be used as a bridge bot to 
-connect servers from different platforms together.
+Unifier is a bot written in Python which allows users to connect their Discord servers together to form one big global chat 
+room. It is also compatible with Revolt and Guilded with support extensions, meaning that it can also be used as a bridge bot 
+to connect servers from different platforms together.
+
+We built Unifier to create a free, safe, and open conversing space, where the things we could talk about are limitless, as 
+long as they are safe topics.
 
 ## Features
 ### Basic features
@@ -15,8 +18,8 @@ Like most bridge bots, Unifier has basic commands such as link, unlink, etc., so
 all on your messaging app of choice.
 
 ### Fast and responsive bridge
-Using threading and optimizations, Unifier is able to bridge messages at speeds up to 20.3 messages a second, so nobody needs 
-to wait to see your message.
+Using threading and optimizations, Unifier is able to send up to 20.3 messages a second through webhooks, so nobody needs to 
+wait to see your messages.
 
 ### Revolt and Guilded support
 With [Revolt](https://github.com/greeeen-dev/unifier-revolt) and [Guilded](https://github.com/greeeen-dev/unifier-guilded) 
