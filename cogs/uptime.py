@@ -60,7 +60,7 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
             description=f'The bot has been up since <t:{self.bot.ut_total}:f>.',
             color=self.bot.colors.unifier
         )
-        t = self.bot.ut_connected + round(time.time()) - self.bot.ut_conntime
+        t = round(time.time()) - self.bot.ut_total
         td = datetime.timedelta(seconds=t)
         d = td.days
         h, m, s = str(td).split(',')[len(str(td).split(','))-1].replace(' ','').split(':')
