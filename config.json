@@ -5,6 +5,7 @@
   "prefix": "u!",
   "ping": 0,
   "branch": "main",
+  "repo": "https://github.com/greeeen-dev/unifier",
   "check_endpoint": "https://github.com/greeeen-dev/unifier-version.git",
   "files_endpoint": "https://github.com/greeeen-dev",
   "admin_ids": [356456393491873795, 549647456837828650, "01G9EDYVA9PRTPF129VCDS81TS"],
