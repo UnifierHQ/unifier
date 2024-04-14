@@ -50,7 +50,8 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
     @commands.Cog.listener()
     async def on_disconnect(self):
         if self.bot.ut_measuring:
-            self.bot.ut_connected += round(time.time()) - self.bot.ut_conntime
+            self.bot.ut_connected += (round(time.time()) - self.bot.ut_conntime)
+            self.bot.ut_conntime = round(time.time())
             self.bot.ut_measuring = False
 
     @commands.command()
