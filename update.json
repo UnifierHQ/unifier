@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.1",
-  "release": 21,
-  "reboot": 19,
-  "description": "- Make Threaded Bridging a default feature"
+  "version": "v1.1.9",
+  "release": 31,
+  "reboot": 30,
+  "description": "AGPLv3 compliance"
 }
