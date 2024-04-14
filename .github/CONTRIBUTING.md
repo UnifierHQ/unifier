@@ -1,4 +1,8 @@
 # Contributing to Unifier
+> [!NOTE]
+> This is the repository for **Unifier**. To contribute to Unifier Micro, please go to the [Unifier Micro
+> repository](https://github.com/greeeen-dev/unifier-micro).
+
 Thank you for showing your interest in helping us make Unifier better!
 
 ## Reporting bugs
