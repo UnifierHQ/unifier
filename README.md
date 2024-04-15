@@ -1,7 +1,9 @@
 <h1 align=center>
-  <img width=64 height=32 src=https://github.com/greeeen-dev/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae>
+  <img width=64 src=https://github.com/greeeen-dev/unifier/assets/41323182/c131c4bd-31ad-44ed-bf25-f593fec2d6f7>
   
   Linker Pro</h1>
+
+
 <p align=center>Basically Unifier, but with 2024 April Fools mods<br>
 You're probably looking for the main or dev branch</p>
 
