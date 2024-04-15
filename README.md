@@ -1,9 +1,9 @@
 <h1 align=center>
-  <img width=64 src=https://github.com/greeeen-dev/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae>
+  <img width=64 height=32 src=https://github.com/greeeen-dev/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae>
   
-  Unifier</h1>
-<p align=center>A sophisticated Discord bot uniting servers and platforms, brought to you by Green and ItsAsheer<br>
-Inspired by matrix-t2bot</p>
+  Linker Pro</h1>
+<p align=center>Basically Unifier, but with 2024 April Fools mods<br>
+You're probably looking for the main or dev branch</p>
 
 ## What is Unifier?
 Unifier is a bot written in Python which allows users to connect their Discord servers together to form one big chat room. 
