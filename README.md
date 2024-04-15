@@ -37,8 +37,9 @@ reboots for replying, editing, and deleting.
 actors.
 - **Database-free**: No need to get a database up and running. Everything is stored locally on the same system you use to run 
 Unifier, so the performance is not impacted by slow 10k+ ping database servers.
-- **External bridge support**: Unifier supports external bridge services like [matrix-t2bot](https://github.com/t2bot/matrix-appservice-discord), 
-so you can connect platforms beyond what we can cover and avoid reconfiguring too much.
+- **External bridge support**: Unifier supports external bridge services like
+  [matrix-t2bot](https://github.com/t2bot/matrix-appservice-discord), so you can connect platforms beyond what we can cover and
+  avoid reconfiguring too much.
 
 ## Setup
 Please follow our guides on GitBook to set up Unifier.
@@ -46,6 +47,16 @@ Please follow our guides on GitBook to set up Unifier.
 - [If you're using the official Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
 
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
+
+### Upgrader
+To manage updates for Unifier and plugins, please refer to [this 
+guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-upgrader) for Upgrader installation, 
+and [this guide](https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier) for managing updates.
+
+### Revolt and Guilded support
+To install support plugins for Revolt and Guilded, please refer to [this 
+guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-revolt-support) for Revolt, and
+[this guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-guilded-support) for Guilded.
 
 ## License
 Unifier is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before doing so.
