@@ -252,6 +252,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(aliases=['experiment'])
     async def experiments(self,ctx,action='',experiment=''):
         """Shows a list of Unifier experiments, and lets you join or leave them."""
+        if not ctx.author.guild_permissions.manage_guild and not is_user_admin(ctx.author.id):
+            return await ctx.send('You don\'t have the necessary permissions.')
         if action.lower()=='enroll' or action.lower()=='add':
             if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
                 return await ctx.send('You don\'t have the necessary permissions.')
