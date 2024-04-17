@@ -34,25 +34,12 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
         )
         if not hasattr(self.bot, "ut_total"):
             self.bot.ut_total = round(time.time())
-        if not hasattr(self.bot, "ut_connected"):
-            self.bot.ut_connected = 0
-        if not hasattr(self.bot, "ut_conntime"):
-            self.bot.ut_conntime = round(time.time())
-        if not hasattr(self.bot, "ut_measuring"):
-            self.bot.ut_measuring = True
-
-    @commands.Cog.listener()
-    async def on_connect(self):
-        if not self.bot.ut_measuring:
-            self.bot.ut_measuring = True
-            self.bot.ut_conntime = round(time.time())
+        if not hasattr(self.bot, "disconnects"):
+            self.bot.disconnects = 0
 
     @commands.Cog.listener()
     async def on_disconnect(self):
-        if self.bot.ut_measuring:
-            self.bot.ut_connected += (round(time.time()) - self.bot.ut_conntime)
-            self.bot.ut_conntime = round(time.time())
-            self.bot.ut_measuring = False
+        self.bot.disconnects += 1
 
     @commands.command()
     async def uptime(self, ctx):
@@ -65,24 +52,14 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
         td = datetime.timedelta(seconds=t)
         d = td.days
         h, m, s = str(td).split(',')[len(str(td).split(','))-1].replace(' ','').split(':')
-        tup = t
         embed.add_field(
             name='Total uptime',
             value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
             inline=False
         )
-        t = self.bot.ut_connected + round(time.time()) - self.bot.ut_conntime
-        td = datetime.timedelta(seconds=t)
-        d = td.days
-        h, m, s = str(td).split(',')[len(str(td).split(','))-1].replace(' ','').split(':')
         embed.add_field(
-            name='Connected uptime',
-            value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
-            inline=False
-        )
-        embed.add_field(
-            name='Connected uptime %',
-            value=f'{round((t/tup)*100,2)}%',
+            name='Disconnects/hr',
+            value=f'{round(self.bot.disconnects/(t/3600),2)}',
             inline=False
         )
         await ctx.send(embed=embed)
