@@ -617,7 +617,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if self.bot.user.id == 1187093090415149056:
             embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
         embed.add_field(name="View source code", value=repo, inline=False)
-        embed.set_footer(text="Version v1.1.8")
+        try:
+            with open('update.json') as file:
+                vinfo = json.load(file)
+            embed.set_footer(text="Version "+vinfo['version'])
+        except:
+            embed.set_footer(text="Unknown version")
         await ctx.send(embed=embed)
 
     @commands.command()
