@@ -21,6 +21,7 @@ from discord.ext import commands
 import json
 import traceback
 from utils import log
+import re
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -160,6 +161,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def make(self,ctx,*,room):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can create rooms!')
+        room = room.lower()
+        if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
+            return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
         if room in list(self.bot.db['rooms'].keys()):
             return await ctx.send('This room already exists!')
         self.bot.db['rooms'].update({room:{}})
@@ -200,14 +204,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(f'Added description to experiment `{experiment}`!')
 
     @commands.command(hidden=True)
-    async def roomdesc(self,ctx,*,args):
+    async def roomdesc(self,ctx,room,*,desc=''):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
-        try:
-            room, desc = args.split(' ',1)
-        except:
-            room = args
-            desc = ''
+        room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send('This room does not exist!')
         if len(desc)==0:
@@ -222,9 +222,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send('Updated description!')
 
     @commands.command(hidden=True)
-    async def roomrestrict(self,ctx,*,room):
+    async def roomrestrict(self,ctx,room):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
+        room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send('This room does not exist!')
         if room in self.bot.db['restricted']:
@@ -236,9 +237,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
 
     @commands.command(hidden=True)
-    async def roomlock(self,ctx,*,room):
+    async def roomlock(self,ctx,room):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
+        room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send('This room does not exist!')
         if room in self.bot.db['locked']:
@@ -294,6 +296,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def bind(self,ctx,*,room=''):
         if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
+        room = room.lower()
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can bind channels to restricted rooms.')
         if room=='' or not room: # Added "not room" as a failback
@@ -388,6 +391,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def unbind(self,ctx,*,room=''):
         if room=='':
             return await ctx.send('You must specify the room to unbind from.')
+        room = room.lower()
         if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
         try:
@@ -418,6 +422,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command()
     async def rules(self,ctx,*,room=''):
         """Displays room rules for the specified room."""
+        room = room.lower()
         if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
         if room=='' or not room:
@@ -445,13 +450,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True)
-    async def addrule(self,ctx,*,args):
+    async def addrule(self,ctx,room,*,rule):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
-        try:
-            room, rule = args.split(' ',1)
-        except:
-            return await ctx.send('Rule is missing.')
+        room = room.lower()
         if not room in list(self.bot.db['rules'].keys()):
             return await ctx.send('This room does not exist!')
         self.bot.db['rules'][room].append(rule)
@@ -459,13 +461,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send('Added rule!')
 
     @commands.command(hidden=True)
-    async def delrule(self,ctx,*,args):
+    async def delrule(self,ctx,room,*,rule):
         if not is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
-        try:
-            room, rule = args.split(' ',1)
-        except:
-            return await ctx.send('Rule is missing.')
+        room = room.lower()
         try:
             rule = int(rule)
             if rule <= 0:
