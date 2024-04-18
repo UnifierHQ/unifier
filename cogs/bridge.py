@@ -603,8 +603,8 @@ class UnifierBridge:
                 await edit_revolt(msg.external_copies['revolt'],friendly=True)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
-                   platform: str = 'discord', system: bool = False, multisend_debug=False,
-                   extbridge=False):
+                   platform: str = 'discord', system: bool = False,
+                   extbridge=False, id_override=None):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
             return
         source = 'discord'
@@ -997,8 +997,15 @@ class UnifierBridge:
                                 authid = authmsg.author.id
                     except:
                         authid = None
-                    if (authid==self.bot.user.id or authid==self.bot.revolt_client.user.id or
-                            authid==self.bot.guilded_client.user.id):
+                    try:
+                        botrvt = authid==self.bot.revolt_client.user.id
+                    except:
+                        botrvt = False
+                    try:
+                        botgld = authid==self.bot.guilded_client.user.id
+                    except:
+                        botgld = False
+                    if authid==self.bot.user.id or botrvt or botgld:
                         reply_row = discord.ui.ActionRow(
                             discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [system]',
                                               disabled=True)
@@ -1151,15 +1158,11 @@ class UnifierBridge:
                                                  components=components, wait=True)
                     except:
                         return None
-                    tbresult = []
-                    if sameguild:
-                        if len(thread_sameguild) > 0:
-                            thread_sameguild.clear()
-                            thread_sameguild.append(msg.id)
-                    else:
-                        tbresult.append({f'{destguild.id}': [webhook.channel.id, msg.id]})
-                    tbresult.append({
-                                    f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                    tbresult = [
+                        {f'{destguild.id}': [webhook.channel.id, msg.id]},
+                        {f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'},
+                        [sameguild, msg.id]
+                    ]
                     return tbresult
 
                 if tb_v2:
@@ -1329,8 +1332,7 @@ class UnifierBridge:
                 if len(msg_author) > 25:
                     msg_author_gd = msg_author[:-(len(msg_author) - 25)]
 
-                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, files, sameguild, destguild,
-                                 thread_sameguild):
+                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, files, sameguild, destguild):
                     try:
                         msg = await webhook.send(avatar_url=url,
                                                  username=msg_author_gd.encode("ascii", errors="ignore").decode(),
@@ -1338,14 +1340,11 @@ class UnifierBridge:
                     except:
                         return None
 
-                    gdresult = []
-                    if sameguild:
-                        if len(thread_sameguild) > 0:
-                            thread_sameguild.clear()
-                            thread_sameguild.append(msg.id)
-                    else:
-                        gdresult.append({f'{destguild.id}': [msg.channel.id, msg.id]})
-                    gdresult.append({f'{destguild.id}': msg.share_url})
+                    gdresult = [
+                        {f'{destguild.id}': [msg.channel.id, msg.id]},
+                        {f'{destguild.id}': msg.share_url},
+                        [sameguild, msg.id]
+                    ]
                     return gdresult
 
                 if tb_v2:
@@ -1369,20 +1368,20 @@ class UnifierBridge:
             tbv2_results = await asyncio.gather(*threads)
         urls = urls | thread_urls
 
+        parent_id = None
+
         if tb_v2:
             for result in tbv2_results:
                 if not result:
                     continue
-                if len(result)==1:
-                    urls.update(result[0])
-                else:
-                    message_ids.update(result[0])
-                    urls.update(result[1])
+                message_ids.update(result[0])
+                urls.update(result[1])
+                if result[2][0]:
+                    parent_id = result[2][1]
 
-        if len(thread_sameguild) > 0 and platform=='discord' and source=='discord':
-            parent_id = thread_sameguild[0]
-        else:
+        if not parent_id:
             parent_id = message.id
+
         if is_pr and not pr_id in list(self.prs.keys()) and platform==source:
             self.prs.update({pr_id:parent_id})
 
@@ -1390,6 +1389,9 @@ class UnifierBridge:
             msg_author = self.bot.user.id
         else:
             msg_author = message.author.id
+
+        if id_override:
+            parent_id = id_override
 
         try:
             index = await self.indexof(parent_id)
@@ -1434,10 +1436,7 @@ class UnifierBridge:
                 reply=replying,
                 external_bridged=extbridge
             ))
-        if multisend_debug:
-            ct = time.time()
-            diff = round(ct-pt,3)
-            return [platform,diff,len(message_ids),tb_v2]
+        return parent_id
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
@@ -2094,6 +2093,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         extbridge = False
         hook = None
+        idmatch = False
+
+        if message.author.id==owner and message.content.startswith('--match '):
+            message.content = message.content.replace('--match ','',1)
+            idmatch = True
 
         if not message.webhook_id == None:
             # webhook msg
@@ -2346,10 +2350,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     multisend = False
                 elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
                     multisend = False
-        if '[emoji:' in message.content:
+
+        pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[pr_room_index]]
+        pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[pr_ref_room_index]]
+        is_pr = roomname == pr_roomname and allow_prs
+        is_pr_ref = roomname == pr_ref_roomname and allow_prs
+
+        should_resend = False
+
+        if '[emoji:' in message.content or is_pr or is_pr_ref:
             multisend = False
+            should_resend = True
 
         tasks = []
+        parent_id = None
 
         if multisend:
             # Multisend
@@ -2369,16 +2383,23 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_bridged=extbridge
                 )
             )
-            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord',multisend_debug=True, extbridge=extbridge))
+            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord', extbridge=extbridge))
         else:
-            await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
+            parent_id = await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
 
         for platform in externals:
-            tasks.append(self.bot.loop.create_task(self.bot.bridge.send(room=roomname, message=message, platform=platform, multisend_debug=False, extbridge=extbridge)))
+            if should_resend and parent_id==message.id:
+                tasks.append(self.bot.loop.create_task(self.bot.bridge.send(
+                    room=roomname, message=message, platform=platform, extbridge=extbridge, id_override=parent_id
+                )))
+            else:
+                tasks.append(self.bot.loop.create_task(
+                    self.bot.bridge.send(room=roomname, message=message, platform=platform, extbridge=extbridge)))
 
         pt = time.time()
+        ids = []
         try:
-            await asyncio.gather(*tasks)
+            ids = await asyncio.gather(*tasks)
         except:
             self.logger.exception('Something went wrong!')
             experiments = []
@@ -2388,11 +2409,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.logger.info(f'Experiments: {experiments}')
             pass
 
-        if multisend:
-            try:
-                await self.bot.bridge.merge_prehook(message.id)
-            except:
-                pass
+        if idmatch:
+            if not ids:
+                return await message.channel.send('Could not get message IDs.')
+            if parent_id:
+                ids.append(parent_id)
+            if len(list(set(ids)))==1:
+                await message.channel.send('All IDs match. ID: '+str(ids[0]))
+            else:
+                text = ''
+                for msgid in ids:
+                    text = text + f'\n{msgid}'
+                await message.channel.send('Mismatch detected.'+text)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
