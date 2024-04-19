@@ -1349,7 +1349,7 @@ class UnifierBridge:
 
                 if tb_v2:
                     threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
-                                                              files, sameguild, destguild, thread_sameguild)))
+                                                              files, sameguild, destguild)))
                 else:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
