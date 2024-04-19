@@ -52,7 +52,7 @@ if not '.welcome.txt' in os.listdir():
     x.close()
     logger.info('Thank you for installing Unifier!')
     logger.info('Unifier is licensed under the AGPLv3, so if you would like to add your own twist to Unifier, you must follow AGPLv3 conditions.')
-    logger.info('You can learn more about modifying Unifier at https://unichat-wiki.pixels.onl//setup-selfhosted/modding-unifier')
+    logger.info('You can learn more about modifying Unifier at https://unichat-wiki.pixels.onl/setup-selfhosted/modding-unifier')
 
 if not 'repo' in list(data.keys()):
     logger.critical('WARNING: THIS INSTANCE IS NOT AGPLv3 COMPLAINT!')
