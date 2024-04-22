@@ -1659,11 +1659,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.command()
     async def delete(self, ctx, *, msg_id=None):
         """Deletes all bridged messages. Does not delete the original."""
-        debug_fail = False
-        if msg_id.startswith('--debugfail '):
-            await ctx.send('Debugging')
-            debug_fail = True
-            msg_id = msg_id.replace('--debugfail ','',1)
 
         gbans = self.bot.db['banned']
         ct = time.time()
@@ -1697,10 +1692,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if not ctx.author.id == msg.author_id and not ctx.author.id in self.bot.moderators:
             return await ctx.send('You didn\'t send this message!')
-
-        if debug_fail:
-            if not ctx.author.id==msg.author_id:
-                return await ctx.send(f'You didn\'t send this message! ({msg.author_id})')
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
