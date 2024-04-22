@@ -2483,6 +2483,79 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.bridge.edit(msg.id,message.content)
 
     @commands.Cog.listener()
+    async def on_raw_message_edit(self,payload):
+        if payload.cached_message:
+            # on_message_edit should handle this
+            return
+        else:
+            ch = self.bot.get_guild(payload.guild_id).get_channel(payload.channel_id)
+            message = await ch.fetch_message(payload.message_id)
+
+            if message.guild == None:
+                return
+
+            gbans = self.bot.db['banned']
+
+            if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
+                ct = time.time()
+                if f'{message.author.id}' in list(gbans.keys()):
+                    banuntil = gbans[f'{message.author.id}']
+                    if ct >= banuntil and not banuntil == 0:
+                        self.bot.db['banned'].pop(f'{message.author.id}')
+                        self.bot.db.save_data()
+                    else:
+                        return
+                if f'{message.guild.id}' in list(gbans.keys()):
+                    banuntil = gbans[f'{message.guild.id}']
+                    if ct >= banuntil and not banuntil == 0:
+                        self.bot.db['banned'].pop(f'{message.guild.id}')
+                        self.bot.db.save_data()
+                    else:
+                        return
+
+            if not message.webhook_id == None:
+                # webhook msg, dont bother
+                return
+
+            if message.author.id == self.bot.user.id:
+                return
+
+            hooks = await message.channel.webhooks()
+            found = False
+            origin_room = 0  # keeping this in case i decide to log this
+
+            for webhook in hooks:
+                index = 0
+                for key in self.bot.db['rooms']:
+                    data = self.bot.db['rooms'][key]
+                    if f'{message.guild.id}' in list(data.keys()):
+                        hook_ids = data[f'{message.guild.id}']
+                    else:
+                        hook_ids = []
+                    if webhook.id in hook_ids:
+                        origin_room = index
+                        found = True
+                        if key in self.bot.db['locked'] and not message.author.id in self.bot.admins:
+                            return
+                        break
+                    index += 1
+                if found:
+                    break
+
+            if not found:
+                return
+
+            try:
+                msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+                if not str(msg.id) == str(message.id):
+                    raise ValueError()
+            except:
+                return
+
+            await self.bot.bridge.edit(msg.id, message.content)
+
+
+    @commands.Cog.listener()
     async def on_message_delete(self, message):
         gbans = self.bot.db['banned']
 
