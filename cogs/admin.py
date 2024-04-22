@@ -38,18 +38,6 @@ class Colors:
     red = 0xe74c3c
     blurple = 0x7289da
 
-
-with open('config.json', 'r') as file:
-    data = json.load(file)
-
-level = logging.DEBUG if data['debug'] else logging.INFO
-package = data['package']
-owner = data['owner']
-branch = data['branch']
-check_endpoint = data['check_endpoint']
-files_endpoint = data['files_endpoint']
-externals = data["external"]
-
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
         return '\n'.join(content.split('\n')[1:-1])
@@ -82,14 +70,14 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
         if not hasattr(self.bot, 'loglevel'):
-            self.bot.loglevel = level
+            self.bot.loglevel = logging.DEBUG if self.bot.config['debug'] else logging.INFO
         if not hasattr(self.bot, 'package'):
-            self.bot.package = package
+            self.bot.package = self.bot.config['package']
         self.logger = log.buildlogger(self.bot.package,'admin',self.bot.loglevel)
 
     @commands.command(hidden=True)
     async def eval(self,ctx,*,body):
-        if ctx.author.id==owner:
+        if ctx.author.id==self.bot.config['owner']:
             env = {
                 'ctx': ctx,
                 'channel': ctx.channel,
@@ -140,7 +128,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
     @eval.error
     async def eval_error(self,ctx,error):
-        if ctx.author.id==owner:
+        if ctx.author.id==self.bot.config['owner']:
             if isinstance(error, commands.MissingRequiredArgument):
                 await ctx.send('where code :thinking:')
             else:
@@ -198,7 +186,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
     @commands.command(hidden=True)
     async def reload(self,ctx,*,extensions):
-        if ctx.author.id==owner:
+        if ctx.author.id==self.bot.config['owner']:
             extensions = extensions.split(' ')
             msg = await ctx.send('Reloading extensions...')
             failed = []
@@ -236,7 +224,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
     @commands.command(hidden=True)
     async def load(self,ctx,*,extensions):
-        if ctx.author.id==owner:
+        if ctx.author.id==self.bot.config['owner']:
             extensions = extensions.split(' ')
             msg = await ctx.send('Loading extensions...')
             failed = []
@@ -272,7 +260,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
     @commands.command(hidden=True)
     async def unload(self,ctx,*,extensions):
-        if ctx.author.id==owner:
+        if ctx.author.id==self.bot.config['owner']:
             extensions = extensions.split(' ')
             msg = await ctx.send('Unloading extensions...')
             failed = []
@@ -315,7 +303,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(name='start-revolt', hidden=True)
     async def start_revolt(self, ctx):
         """Starts the Revolt client. This is automatically done on boot"""
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         try:
             self.bot.load_extension('cogs.bridge_revolt')
@@ -329,7 +317,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(name='stop-revolt',hidden=True)
     async def stop_revolt(self,ctx):
         """Kills the Revolt client. This is automatically done when upgrading Unifier."""
-        if not ctx.author.id==owner:
+        if not ctx.author.id==self.bot.config['owner']:
             return
         try:
             await self.bot.revolt_session.close()
@@ -346,7 +334,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(name='restart-revolt', hidden=True)
     async def restart_revolt(self, ctx):
         """Restarts the Revolt client."""
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         try:
             await self.bot.revolt_session.close()
@@ -363,7 +351,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(name='start-guilded', hidden=True)
     async def start_guilded(self, ctx):
         """Starts the Guilded client. This is automatically done on boot"""
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         try:
             self.bot.load_extension('cogs.bridge_guilded')
@@ -377,7 +365,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(name='stop-guilded', hidden=True)
     async def stop_guilded(self, ctx):
         """Kills the Guilded client. This is automatically done when upgrading Unifier."""
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         try:
             await self.bot.guilded_client.close()
@@ -394,7 +382,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(name='restart-guilded', hidden=True)
     async def restart_guilded(self, ctx):
         """Restarts the Guilded client."""
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         try:
             await self.bot.guilded_client.close()
@@ -411,11 +399,11 @@ class Admin(commands.Cog, name=':wrench: Admin'):
     @commands.command(aliases=['stop','poweroff','kill'],hidden=True)
     async def shutdown(self, ctx):
         """Gracefully shuts the bot down."""
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         self.logger.info("Attempting graceful shutdown...")
         try:
-            if 'revolt' in externals:
+            if 'revolt' in self.bot.config['external']:
                 self.logger.info("Shutting down Revolt client...")
                 try:
                     await self.bot.revolt_session.close()
@@ -426,7 +414,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                     self.logger.info("Revolt client has been shut down.")
                 except:
                     self.logger.error("Shutdown failed. This may cause the bot to \"hang\" during shutdown.")
-            if 'guilded' in externals:
+            if 'guilded' in self.bot.config['external']:
                 self.logger.info("Shutting down Guilded client...")
                 try:
                     await self.bot.guilded_client.close()
@@ -452,7 +440,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
     @commands.command(name='install-upgrader', hidden=True)
     async def install_upgrader(self, ctx):
-        if not ctx.author.id==owner:
+        if not ctx.author.id==self.bot.config['owner']:
             return
         embed = discord.Embed(title='Finding Upgrader version...', description='Getting latest version from remote')
         try:
@@ -470,7 +458,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         try:
             os.system('rm -rf ' + os.getcwd() + '/update_check')
             status(os.system(
-                'git clone --branch ' + branch + ' ' + files_endpoint + '/unifier-version.git ' + os.getcwd() + '/update_check'))
+                'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config['files_endpoint'] + '/unifier-version.git ' + os.getcwd() + '/update_check'))
             with open('update_check/upgrader.json', 'r') as file:
                 new = json.load(file)
             release = new['release']
@@ -540,7 +528,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             os.system('rm -rf ' + os.getcwd() + '/update_upgrader')
             self.logger.info('Downloading from remote repository...')
             status(os.system(
-                'git clone --branch main ' + files_endpoint + '/unifier-upgrader.git ' + os.getcwd() + '/update_upgrader'))
+                'git clone --branch main ' + self.bot.config['files_endpoint'] + '/unifier-upgrader.git ' + os.getcwd() + '/update_upgrader'))
             self.logger.debug('Confirming download...')
             x = open(os.getcwd() + '/update_upgrader/upgrader.py', 'r')
             x.close()
@@ -582,7 +570,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
     @commands.command(name='install-revolt', hidden=True, aliases=['install-revolt-support'])
     async def install_revolt(self, ctx):
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         embed = discord.Embed(title='Finding Revolt Support version...', description='Getting latest version from remote')
         try:
@@ -600,7 +588,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         try:
             os.system('rm -rf ' + os.getcwd() + '/update_check')
             status(os.system(
-                'git clone --branch ' + branch + ' ' + files_endpoint + '/unifier-version.git ' + os.getcwd() + '/update_check'))
+                'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config['files_endpoint'] + '/unifier-version.git ' + os.getcwd() + '/update_check'))
             with open('update_check/revolt.json', 'r') as file:
                 new = json.load(file)
             release = new['release']
@@ -670,7 +658,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             os.system('rm -rf ' + os.getcwd() + '/update_revolt')
             self.logger.info('Downloading from remote repository...')
             status(os.system(
-                'git clone --branch main ' + files_endpoint + '/unifier-revolt.git ' + os.getcwd() + '/update_revolt'))
+                'git clone --branch main ' + self.bot.config['files_endpoint'] + '/unifier-revolt.git ' + os.getcwd() + '/update_revolt'))
             self.logger.debug('Confirming download...')
             x = open(os.getcwd() + '/update_revolt/bridge_revolt.py', 'r')
             x.close()
@@ -716,7 +704,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
 
     @commands.command(name='install-guilded', hidden=True, aliases=['install-guilded-support'])
     async def install_guilded(self, ctx):
-        if not ctx.author.id == owner:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         embed = discord.Embed(title='Finding Guilded Support version...',
                               description='Getting latest version from remote')
@@ -735,7 +723,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
         try:
             os.system('rm -rf ' + os.getcwd() + '/update_check')
             status(os.system(
-                'git clone --branch ' + branch + ' ' + files_endpoint + '/unifier-version.git ' + os.getcwd() + '/update_check'))
+                'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config['files_endpoint'] + '/unifier-version.git ' + os.getcwd() + '/update_check'))
             with open('update_check/guilded.json', 'r') as file:
                 new = json.load(file)
             release = new['release']
@@ -805,7 +793,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             os.system('rm -rf ' + os.getcwd() + '/update_guilded')
             self.logger.info('Downloading from remote repository...')
             status(os.system(
-                'git clone --branch main ' + files_endpoint + '/unifier-guilded.git ' + os.getcwd() + '/update_guilded'))
+                'git clone --branch main ' + self.bot.config['files_endpoint'] + '/unifier-guilded.git ' + os.getcwd() + '/update_guilded'))
             self.logger.debug('Confirming download...')
             x = open(os.getcwd() + '/update_guilded/bridge_guilded.py', 'r')
             x.close()

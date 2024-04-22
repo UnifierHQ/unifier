@@ -18,13 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 from discord.ext import commands
-import json
 from utils import log
-
-with open('config.json', 'r') as file:
-    data = json.load(file)
-
-owner = data['owner']
 
 class Lockdown(commands.Cog, name=':lock: Lockdown'):
     """An emergency extension that unloads literally everything."""
@@ -35,7 +29,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
 
     @commands.command(hidden=True, aliases=['globalkill'])
     async def lockdown(self, ctx):
-        if ctx.author.id != owner:
+        if ctx.author.id != self.bot.config['owner']:
             return
 
         embed = discord.Embed(title='Activate lockdown?', description='This will unload ALL EXTENSIONS and lock down the bot until next restart. Continue?', color=0xff0000)

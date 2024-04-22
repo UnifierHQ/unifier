@@ -117,29 +117,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send('User/server can no longer forward messages to this channel!')
 
     @commands.command(hidden=True)
-    async def globalban(self,ctx,*,target):
+    async def globalban(self, ctx, target, duration, *, reason='no reason given'):
         if not ctx.author.id in self.bot.moderators:
             return
-        parts = target.split(' ')
-        forever = False
-        if len(parts) >= 2:
-            if len(parts)==2:
-                reason = ''
-            else:
-                reason = target.replace(f'{parts[0]} {parts[1]} ','',1)
-            target = parts[0]
-            duration = parts[1]
-            if (duration.lower()=='inf' or duration.lower()=='infinite' or
-                duration.lower()=='forever' or duration.lower()=='indefinite'):
-                forever = True
-                duration = 0
-            else:
-                try:
-                    duration = timetoint(duration)
-                except:
-                    return await ctx.send('Invalid duration!')
+        forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
+                   duration.lower() == 'forever' or duration.lower() == 'indefinite')
+        if forever:
+            duration = 0
         else:
-            return await ctx.send('Invalid duration!')
+            try:
+                duration = timetoint(duration)
+            except:
+                return await ctx.send('Invalid duration!')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
@@ -157,7 +146,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 reason = reason.replace(' ','',1)
 
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('ok guys no friendly fire pls thanks')
+            return await ctx.send('Moderators can\'t moderate other moderators!')
         banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send('User/server already banned!')
@@ -171,10 +160,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             mod = f'@{ctx.author.name}'
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        if reason=='':
-            embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=f'no reason given',color=0xffcc00,timestamp=datetime.utcnow())
-        else:
-            embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
+        embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if forever:
             embed.colour = 0xff0000
@@ -221,7 +207,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         
 
     @commands.command(aliases=['unban'])
-    async def unrestrict(self,ctx,*,target):
+    async def unrestrict(self,ctx,target):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members):
             return await ctx.send('You cannot unrestrict members/servers.')
@@ -258,15 +244,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send('unbanned, nice')
 
     @commands.command(aliases=['guilds'])
-    async def servers(self,ctx,*,room=''):
-        roomid = '_'+room
-        if room=='':
-            roomid = '_main'
-            room = 'main'
+    async def servers(self,ctx,*,room='main'):
         try:
             data = self.bot.db['rooms'][room]
         except:
-            return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+            return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of all rooms.')
         text = ''
         for guild_id in data:
             try:

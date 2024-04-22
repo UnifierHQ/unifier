@@ -52,7 +52,7 @@ if not '.welcome.txt' in os.listdir():
     x.close()
     logger.info('Thank you for installing Unifier!')
     logger.info('Unifier is licensed under the AGPLv3, so if you would like to add your own twist to Unifier, you must follow AGPLv3 conditions.')
-    logger.info('You can learn more about modifying Unifier at https://unichat-wiki.pixels.onl//setup-selfhosted/modding-unifier')
+    logger.info('You can learn more about modifying Unifier at https://unichat-wiki.pixels.onl/setup-selfhosted/modding-unifier')
 
 if not 'repo' in list(data.keys()):
     logger.critical('WARNING: THIS INSTANCE IS NOT AGPLv3 COMPLAINT!')
@@ -69,7 +69,27 @@ if 'token' in list(data.keys()):
 with open('update.json', 'r') as file:
     vinfo = json.load(file)
 
-bot = commands.Bot(command_prefix=data['prefix'],intents=discord.Intents.all())
+class DiscordBot(commands.Bot):
+    """Extension of discord.ext.commands.Bot for bot configuration"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__config = None
+        self.config = None
+
+    @property
+    def config(self):
+        return self.__config
+
+    @config.setter
+    def config(self, config):
+        if self.__config:
+            raise RuntimeError('Config already set')
+        self.__config = config
+
+
+bot = DiscordBot(command_prefix=data['prefix'],intents=discord.Intents.all())
+bot.config = data
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
