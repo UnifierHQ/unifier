@@ -244,15 +244,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send('unbanned, nice')
 
     @commands.command(aliases=['guilds'])
-    async def servers(self,ctx,*,room=''):
-        roomid = '_'+room
-        if room=='':
-            roomid = '_main'
-            room = 'main'
+    async def servers(self,ctx,*,room='main'):
         try:
             data = self.bot.db['rooms'][room]
         except:
-            return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+            return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of all rooms.')
         text = ''
         for guild_id in data:
             try:

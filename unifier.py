@@ -69,7 +69,27 @@ if 'token' in list(data.keys()):
 with open('update.json', 'r') as file:
     vinfo = json.load(file)
 
-bot = commands.Bot(command_prefix=data['prefix'],intents=discord.Intents.all())
+class DiscordBot(commands.Bot):
+    """Extension of discord.ext.commands.Bot for bot configuration"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__config = None
+        self.config = None
+
+    @property
+    def config(self):
+        return self.__config
+
+    @config.setter
+    def config(self, config):
+        if self.__config:
+            raise RuntimeError('Config already set')
+        self.__config = config
+
+
+bot = DiscordBot(command_prefix=data['prefix'],intents=discord.Intents.all())
+bot.config = data
 
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 

@@ -40,16 +40,6 @@ from utils import rapidphish, log
 with open('config.json', 'r') as file:
     data = json.load(file)
 
-home_guild = data["home_guild"]
-logs_channel = data["logs_channel"]
-reports_channel = data["reports_channel"]
-externals = data["external"]
-owner = data["owner"]
-allow_prs = data["allow_prs"]
-pr_room_index = data["pr_room_index"] # If this is 0, then the oldest room will be used as the PR room.
-pr_ref_room_index = data["pr_ref_room_index"]
-compress_cache = data["compress_cache"]
-
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
@@ -280,7 +270,7 @@ class UnifierBridge:
             code = self.prs[pr_ids[limit - index - 1]]
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
-        if compress_cache:
+        if self.bot.config['compress_cache']:
             compress_json.dump(data,filename+'.lzma')
         else:
             with open(filename, "w+") as file:
@@ -291,7 +281,7 @@ class UnifierBridge:
     async def restore(self,filename='bridge.json'):
         if self.restored:
             raise RuntimeError('Already restored from backup')
-        if compress_cache:
+        if self.bot.config['compress_cache']:
             data = compress_json.load(filename+'.lzma')
         else:
             with open(filename, "r") as file:
@@ -639,7 +629,7 @@ class UnifierBridge:
         except:
             raise ValueError('Invalid room')
 
-        is_pr = roomindex == pr_room_index and allow_prs
+        is_pr = roomindex == self.bot.config['pr_room_index'] and self.bot.config['allow_prs']
         is_pr_ref = False
         pr_id = ""
 
@@ -657,7 +647,7 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        if roomindex == pr_ref_room_index and message.content.startswith('[') and source==platform=='discord' and allow_prs:
+        if roomindex == self.bot.config['pr_ref_room_index'] and message.content.startswith('[') and source==platform=='discord' and self.bot.config['allow_prs']:
             pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
@@ -1638,8 +1628,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return await ctx.send('This isn\'t a UniChat room!')
 
-        hook_id = self.bot.db['rooms'][room][f'{home_guild}'][0]
-        guild = self.bot.get_guild(home_guild)
+        hook_id = self.bot.db['rooms'][room][f'{self.bot.config["home_guild"]}'][0]
+        guild = self.bot.get_guild(self.bot.config['home_guild'])
         hooks = await guild.webhooks()
 
         author = f'{ctx.author.name}#{ctx.author.discriminator}'
@@ -1926,8 +1916,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.set_author(name=sender)
         except:
             embed.set_author(name='[unknown, check sender ID]')
-        guild = self.bot.get_guild(home_guild)
-        ch = guild.get_channel(reports_channel)
+        guild = self.bot.get_guild(self.bot.config['home_guild'])
+        ch = guild.get_channel(self.bot.config['reports_channel'])
         btns = discord.ui.ActionRow(
             discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
                               disabled=False),
@@ -2082,7 +2072,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
         ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True)
-        for platform in externals:
+        for platform in self.bot.config['external']:
             await self.bot.bridge.send(room, ctx.message, platform, system=True)
         await ctx.send('Sent as system')
 
@@ -2095,7 +2085,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         hook = None
         idmatch = False
 
-        if message.author.id==owner and message.content.startswith('--match '):
+        if message.author.id==self.bot.config['owner'] and message.content.startswith('--match '):
             message.content = message.content.replace('--match ','',1)
             idmatch = True
 
@@ -2262,7 +2252,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     await message.delete()
                 except:
                     pass
-                if message.author.id==owner:
+                if message.author.id==self.bot.config['owner']:
                     embed = None
                 else:
                     if not self.bot.bridge.is_raidban(message.author.id):
@@ -2322,8 +2312,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.add_field(name='User ID', value=f'{author_rp.id}', inline=False)
                 embed.add_field(name='Detected by', value='RapidPhish', inline=False)
                 embed.add_field(name='Action taken', value='forwarding blocked', inline=True)
-                guild = self.bot.get_guild(home_guild)
-                ch = guild.get_channel(reports_channel)
+                guild = self.bot.get_guild(self.bot.config['home_guild'])
+                ch = guild.get_channel(self.bot.config['reports_channel'])
                 await ch.send(embed=embed)
                 try:
                     await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=message)
@@ -2351,10 +2341,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
                     multisend = False
 
-        pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[pr_room_index]]
-        pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[pr_ref_room_index]]
-        is_pr = roomname == pr_roomname and allow_prs
-        is_pr_ref = roomname == pr_ref_roomname and allow_prs
+        pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_room_index']]]
+        pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
+        is_pr = roomname == pr_roomname and self.bot.config['allow_prs']
+        is_pr_ref = roomname == pr_ref_roomname and self.bot.config['allow_prs']
 
         should_resend = False
 
@@ -2387,7 +2377,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         else:
             parent_id = await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
 
-        for platform in externals:
+        for platform in self.bot.config['external']:
             if should_resend and parent_id==message.id:
                 tasks.append(self.bot.loop.create_task(self.bot.bridge.send(
                     room=roomname, message=message, platform=platform, extbridge=extbridge, id_override=parent_id
@@ -2536,8 +2526,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
         try:
-            guild = self.bot.get_guild(home_guild)
-            ch = guild.get_channel(logs_channel)
+            guild = self.bot.get_guild(self.bot.config['home_guild'])
+            ch = guild.get_channel(self.bot.config['logs_channel'])
 
             content = message.content
 

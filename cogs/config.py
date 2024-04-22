@@ -23,12 +23,6 @@ import traceback
 from utils import log
 import re
 
-with open('config.json', 'r') as file:
-    data = json.load(file)
-
-admin_ids = data["admin_ids"]
-repo = data["repo"]
-
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,37 +48,6 @@ class AutoSaveDict(dict):
         with open(self.file_path, 'w') as file:
             json.dump(self, file, indent=4)
 
-def is_user_admin(id):
-    try:
-        global admin_ids
-        if id in admin_ids:
-            return True
-        else:
-            return False
-    except:
-        print("There was an error in 'is_user_admin(id)', for security reasons permission was resulted into denying!")
-        return False
-
-def is_room_restricted(room,db):
-    try:
-        if room in db['restricted']:
-            return True
-        else:
-            return False
-    except:
-        traceback.print_exc()
-        return False
-
-def is_room_locked(room,db):
-    try:
-        if room in db['locked']:
-            return True
-        else:
-            return False
-    except:
-        traceback.print_exc()
-        return False
-
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
 
@@ -98,18 +61,49 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 self.bot.db.update({'emojis':[]})
                 self.bot.db.save_data()
             self.bot.bridged_emojis = self.bot.db['emojis']
-        self.bot.admins = admin_ids
+        self.bot.admins = self.bot.config['admin_ids']
         moderators = self.bot.db['moderators']
-        for admin in admin_ids:
+        for admin in self.bot.admins:
             if admin in moderators:
                 continue
             moderators.append(admin)
         self.bot.moderators = moderators
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
+    def is_user_admin(self,id):
+        try:
+            if id in self.bot.config['admin_ids']:
+                return True
+            else:
+                return False
+        except:
+            print(
+                "There was an error in 'is_user_admin(id)', for security reasons permission was resulted into denying!")
+            return False
+
+    def is_room_restricted(self, room, db):
+        try:
+            if room in db['restricted']:
+                return True
+            else:
+                return False
+        except:
+            traceback.print_exc()
+            return False
+
+    def is_room_locked(self, room, db):
+        try:
+            if room in db['locked']:
+                return True
+            else:
+                return False
+        except:
+            traceback.print_exc()
+            return False
+
     @commands.command(hidden=True)
     async def addmod(self,ctx,*,userid):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
         try:
             userid = int(userid)
@@ -123,7 +117,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('Not a valid user!')
         if userid in self.bot.db['moderators']:
             return await ctx.send('This user is already a moderator!')
-        if is_user_admin(userid):
+        if self.is_user_admin(userid):
             return await ctx.send('are you fr')
         self.bot.db['moderators'].append(userid)
         self.bot.db.save_data()
@@ -134,7 +128,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True,aliases=['remmod','delmod'])
     async def removemod(self,ctx,*,userid):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
         try:
             userid = int(userid)
@@ -148,7 +142,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('Not a valid user!')
         if not userid in self.bot.db['moderators']:
             return await ctx.send('This user is not a moderator!')
-        if is_user_admin(userid):
+        if self.is_user_admin(userid):
             return await ctx.send('are you fr')
         self.bot.db['moderators'].remove(userid)
         self.bot.db.save_data()
@@ -159,7 +153,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True, aliases=['newroom'])
     async def make(self,ctx,*,room):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can create rooms!')
         room = room.lower()
         if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
@@ -173,7 +167,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def addexperiment(self, ctx, experiment, *, experiment_name):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can add experiments!')
         if experiment in list(self.bot.db['experiments'].keys()):
             return await ctx.send('This experiment already exists!')
@@ -184,7 +178,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def removeexperiment(self, ctx, *, experiment):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can add experiments!')
         if not experiment in list(self.bot.db['experiments'].keys()):
             return await ctx.send('This experiment doesn\'t exist!')
@@ -195,7 +189,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def experimentdesc(self, ctx, experiment, *, experiment_desc):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify experiments!')
         if not experiment in list(self.bot.db['experiments'].keys()):
             return await ctx.send('This experiment doesn\'t exist!')
@@ -205,7 +199,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def roomdesc(self,ctx,room,*,desc=''):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
@@ -223,7 +217,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def roomrestrict(self,ctx,room):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
@@ -238,7 +232,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def roomlock(self,ctx,room):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
@@ -255,7 +249,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def experiments(self,ctx,action='',experiment=''):
         """Shows a list of Unifier experiments, and lets you join or leave them."""
         if action.lower()=='enroll' or action.lower()=='add':
-            if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
+            if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
                 return await ctx.send('You don\'t have the necessary permissions.')
             if not experiment in list(self.bot.db['experiments'].keys()):
                 return await ctx.send('This experiment doesn\'t exist!')
@@ -265,7 +259,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.db.save_data()
             return await ctx.send('Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         elif action.lower()=='unenroll' or action.lower()=='remove':
-            if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
+            if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
                 return await ctx.send('You don\'t have the necessary permissions.')
             if not experiment in list(self.bot.db['experiments'].keys()):
                 return await ctx.send('This experiment doesn\'t exist!')
@@ -294,10 +288,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     
     @commands.command(aliases=['link','connect','federate','bridge'])
     async def bind(self,ctx,*,room=''):
-        if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
+        if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
         room = room.lower()
-        if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
+        if self.is_room_restricted(room,self.bot.db) and not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can bind channels to restricted rooms.')
         if room=='' or not room: # Added "not room" as a failback
             room = 'main'
@@ -392,7 +386,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if room=='':
             return await ctx.send('You must specify the room to unbind from.')
         room = room.lower()
-        if not ctx.author.guild_permissions.manage_channels and not is_user_admin(ctx.author.id):
+        if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
         try:
             data = self.bot.db['rooms'][room]
@@ -423,7 +417,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def rules(self,ctx,*,room=''):
         """Displays room rules for the specified room."""
         room = room.lower()
-        if is_room_restricted(room,self.bot.db) and not is_user_admin(ctx.author.id):
+        if self.is_room_restricted(room,self.bot.db) and not self.is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
         if room=='' or not room:
             room = 'main'
@@ -451,7 +445,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def addrule(self,ctx,room,*,rule):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
         room = room.lower()
         if not room in list(self.bot.db['rules'].keys()):
@@ -462,7 +456,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def delrule(self,ctx,room,*,rule):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
         room = room.lower()
         try:
@@ -479,7 +473,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def addbridge(self,ctx,*,userid):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return
         try:
             userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
@@ -519,7 +513,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True)
     async def delbridge(self, ctx, *, userid):
-        if not is_user_admin(ctx.author.id):
+        if not self.is_user_admin(ctx.author.id):
             return
         try:
             userid = int(userid.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1))
@@ -566,11 +560,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(embed=embed)
         count = 0
         for room in self.bot.db['rooms']:
-            if is_room_restricted(room,self.bot.db):
-                if not is_user_admin(ctx.author.id):
+            if self.is_room_restricted(room,self.bot.db):
+                if not self.is_user_admin(ctx.author.id):
                     continue
                 emoji = ':wrench:'
-            elif is_room_locked(room,self.bot.db):
+            elif self.is_room_locked(room,self.bot.db):
                 emoji = ':lock:'
             else:
                 emoji = ':globe_with_meridians:'
@@ -616,7 +610,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         if self.bot.user.id == 1187093090415149056:
             embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.add_field(name="View source code", value=repo, inline=False)
+        embed.add_field(name="View source code", value=self.bot.config['repo'], inline=False)
         try:
             with open('update.json') as file:
                 vinfo = json.load(file)

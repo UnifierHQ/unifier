@@ -18,13 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import discord
 from discord.ext import commands
-import json
 from utils import log
-
-with open('config.json', 'r') as file:
-    data = json.load(file)
-
-owner = data['owner']
 
 class Badge(commands.Cog):
     def __init__(self, bot):
@@ -41,7 +35,7 @@ class Badge(commands.Cog):
             user = "moderator"
         if ctx.author.id in self.bot.admins:
             user = "admin"
-        if ctx.author.id == owner:
+        if ctx.author.id == self.bot.config['owner']:
             user = "owner"
         if user == "owner":
             embed = discord.Embed(
