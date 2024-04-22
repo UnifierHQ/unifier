@@ -396,7 +396,7 @@ class UnifierBridge:
                     await webhook.delete_message(int(msgs[key][1]))
                     count += 1
                 except:
-                    traceback.print_exc()
+                    # traceback.print_exc()
                     pass
             return count
 
@@ -420,7 +420,7 @@ class UnifierBridge:
                     await webhook.delete_message(msgs[key][1])
                     count += 1
                 except:
-                    traceback.print_exc()
+                    # traceback.print_exc()
                     pass
             return count
 
@@ -438,7 +438,7 @@ class UnifierBridge:
                     await todelete.delete()
                     count += 1
                 except:
-                    traceback.print_exc()
+                    # traceback.print_exc()
                     continue
             return count
 
@@ -1661,6 +1661,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         """Deletes all bridged messages. Does not delete the original."""
         debug_fail = False
         if msg_id.startswith('--debugfail '):
+            await ctx.send('Debugging')
             debug_fail = True
             msg_id = msg_id.replace('--debugfail ','',1)
 
