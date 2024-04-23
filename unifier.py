@@ -59,6 +59,9 @@ if not 'repo' in list(data.keys()):
     logger.critical('Unifier is licensed under the AGPLv3, meaning you need to make your source code available to users. Please add a repository to the config file under the repo key.')
     sys.exit(1)
 
+if 'pr_room_index' in list(data.keys()) or 'pr_ref_room_index' in list(data.keys()):
+    logger.warning('From v1.1.13, pr_room_index and pr_ref_room_index are deprecated. Use posts_room and posts_ref_room instead.')
+
 if not env_loaded:
     logger.critical('Could not load .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
     sys.exit(1)

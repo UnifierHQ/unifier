@@ -625,11 +625,9 @@ class UnifierBridge:
             guilds = self.bot.db['rooms_guilded'][room]
 
         try:
-            roomindex = list(self.bot.db['rooms'].keys()).index(room)
+            is_pr = room == self.bot.config['posts_room'] and self.bot.config['allow_prs']
         except:
-            raise ValueError('Invalid room')
-
-        is_pr = roomindex == self.bot.config['pr_room_index'] and self.bot.config['allow_prs']
+            is_pr = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_room_index']
         is_pr_ref = False
         pr_id = ""
 
@@ -647,7 +645,11 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        if roomindex == self.bot.config['pr_ref_room_index'] and message.content.startswith('[') and source==platform=='discord' and self.bot.config['allow_prs']:
+        try:
+            temp_pr_ref = room == self.bot.config['posts_ref_room'] and self.bot.config['allow_prs']
+        except:
+            temp_pr_ref = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_ref_room_index']
+        if temp_pr_ref and message.content.startswith('[') and source==platform=='discord' and self.bot.config['allow_prs']:
             pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
@@ -2342,10 +2344,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
                     multisend = False
 
-        pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_room_index']]]
-        pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
-        is_pr = roomname == pr_roomname and self.bot.config['allow_prs']
-        is_pr_ref = roomname == pr_ref_roomname and self.bot.config['allow_prs']
+        try:
+            pr_roomname = self.bot.db['posts_room']
+        except:
+            pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_room_index']]]
+        try:
+            pr_ref_roomname = self.bot.db['posts_ref_room']
+        except:
+            pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
+        is_pr = roomname == pr_roomname and (self.bot.config['allow_prs'] or self.bot.config['allow_posts'])
+        is_pr_ref = roomname == pr_ref_roomname and (self.bot.config['allow_prs'] or self.bot.config['allow_posts'])
 
         should_resend = False
 
