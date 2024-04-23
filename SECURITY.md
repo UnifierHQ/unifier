@@ -5,6 +5,24 @@ actors can have on our community. However, we understand we are not
 perfect, and there may be vulnerabilities in our code that may impact 
 the safety of hosters and users every now and then.
 
+## What counts as a vulnerability?
+Here are examples of what you **should** report to us as security
+vulnerabilities:
+- A bug in the code that allows third parties to get access to moderator
+  permissions
+- A bug in the code that allows third parties to execute malicious code
+  on your system
+- etc.
+
+And examples of what you **shouldn't** report to us:
+- Lack of protection against certain server raid types (this is better
+  off as a **feature suggestion**)
+- Lack of certain moderation tools (this is better off as a **feature
+  suggestion**)
+- Unprofessional moderation on Unifier instances (sort this out with your
+  instance's admins)
+- etc.
+
 ## Supported Versions
 Currently, only the v1.1.x series receives security updates. Preceding
 versions have been discontinued and will not be updated any further.
