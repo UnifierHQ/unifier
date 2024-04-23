@@ -124,7 +124,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
                 else:
                     await ctx.send('```%s```' % value)
         else:
-            await ctx.send('Only the bot can execute code.')
+            await ctx.send('Only the owner can execute code.')
 
     @eval.error
     async def eval_error(self,ctx,error):
@@ -134,7 +134,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             else:
                 await ctx.send('Something went horribly wrong.')
         else:
-            await ctx.send('Only the bot can execute code.')
+            await ctx.send('Only the owner can execute code.')
 
     @commands.command(hidden=True,aliases=['cogs'])
     async def extensions(self,ctx,*,extension=None):
@@ -220,7 +220,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             if not len(failed)==0:
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
-            await ctx.send('**OOPS**: Only the owner can run reload! :x:')
+            await ctx.send('Only the owner can reload extensions.')
 
     @commands.command(hidden=True)
     async def load(self,ctx,*,extensions):
@@ -256,7 +256,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             if not len(failed)==0:
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
-            await ctx.send('**OOPS**: Only the owner can run load! :x:')
+            await ctx.send('Only the owner can load extensions.')
 
     @commands.command(hidden=True)
     async def unload(self,ctx,*,extensions):
@@ -298,7 +298,7 @@ class Admin(commands.Cog, name=':wrench: Admin'):
             if not len(failed)==0:
                 await ctx.author.send(f'**Fail logs**\n{text}')
         else:
-            await ctx.send('**OOPS**: Only the owner can run unload! :x:')
+            await ctx.send('Only the owner can unload extensions.')
 
     @commands.command(name='start-revolt', hidden=True)
     async def start_revolt(self, ctx):
