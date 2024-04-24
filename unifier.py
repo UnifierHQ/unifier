@@ -69,16 +69,26 @@ if not env_loaded:
 if 'token' in list(data.keys()):
     logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
 
-with open('update.json', 'r') as file:
-    vinfo = json.load(file)
+try:
+    with open('plugins/system.json', 'r') as file:
+        vinfo = json.load(file)
+except:
+    with open('update.json', 'r') as file:
+        vinfo = json.load(file)
 
 class DiscordBot(commands.Bot):
     """Extension of discord.ext.commands.Bot for bot configuration"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.__ready = False
+        self.ready = None
+        self.__update = False
+        self.update = None
         self.__config = None
         self.config = None
+        self.__safemode = None
+        self.safemode = None
 
     @property
     def config(self):
@@ -90,11 +100,44 @@ class DiscordBot(commands.Bot):
             raise RuntimeError('Config already set')
         self.__config = config
 
+    @property
+    def ready(self):
+        return self.__ready
+
+    @ready.setter
+    def ready(self, ready):
+        if self.__ready:
+            raise RuntimeError('Bot is already ready')
+        self.__ready = ready
+
+    @property
+    def update(self):
+        return self.__update
+
+    @update.setter
+    def update(self, update):
+        if self.__update:
+            raise RuntimeError('Update lock is set')
+        self.__update = update
+
+    @property
+    def safemode(self):
+        return self.__safemode
+
+    @safemode.setter
+    def safemode(self, status):
+        if not self.__safemode is None:
+            raise RuntimeError('Safemode is set')
+        self.__safemode = status
+
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=discord.Intents.all())
 bot.config = data
-
+bot.safemode = 'safemode' in sys.argv
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
+
+if bot.safemode:
+    logger.warn('Safemode is enabled. Only system extensions will be loaded.')
 
 asciiart = """  _    _       _  __ _           
  | |  | |     (_)/ _(_)          
@@ -107,36 +150,6 @@ print(asciiart)
 print('Version: '+vinfo['version'])
 print('Release '+str(vinfo['release']))
 print()
-
-try:
-    with open('upgrader.json', 'r') as file:
-        uvinfo = json.load(file)
-    print('Upgrader is installed')
-    print('Version: ' + uvinfo['version'])
-    print('Release ' + str(uvinfo['release']))
-    print()
-except:
-    pass
-
-try:
-    with open('revolt.json', 'r') as file:
-        rvinfo = json.load(file)
-    print('Revolt Support is installed')
-    print('Version: ' + rvinfo['version'])
-    print('Release ' + str(rvinfo['release']))
-    print()
-except:
-    pass
-
-try:
-    with open('guilded.json', 'r') as file:
-        gvinfo = json.load(file)
-    print('Guilded Support is installed')
-    print('Version: ' + gvinfo['version'])
-    print('Release ' + str(gvinfo['release']))
-    print()
-except:
-    pass
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -189,56 +202,22 @@ async def on_ready():
         locked = False
     if not locked:
         try:
-            bot.load_extension("cogs.admin")
+            bot.load_extension("cogs.sysmgr")
             bot.pid = os.getpid()
             bot.load_extension("cogs.lockdown")
         except:
             logger.error('An error occurred!')
-            logger.critical('Admin extension failed to load, aborting boot...')
+            logger.critical('System modules failed to load, aborting boot...')
             sys.exit(1)
         logger.debug('System extensions loaded')
-        bot.load_extension("cogs.bridge")
-        try:
-            if hasattr(bot, 'bridge'):
-                try:
-                    if len(bot.bridge.bridged)==0:
-                        await bot.bridge.restore()
-                        logger.info(f'Restored {len(bot.bridge.bridged)} messages')
-                except:
-                    logger.exception('An error occurred!')
-                    logger.warn('Message restore failed')
+        if hasattr(bot, 'bridge'):
             try:
-                if 'revolt' in data['external']:
-                    bot.load_extension("cogs.bridge_revolt")
+                if len(bot.bridge.bridged)==0:
+                    await bot.bridge.restore()
+                    logger.info(f'Restored {len(bot.bridge.bridged)} messages')
             except:
-                try:
-                    x = open('cogs/bridge_revolt.py','r')
-                    x.close()
-                    traceback.print_exc()
-                except:
-                    logger.warn(f'Revolt Support is enabled, but not installed. Run {bot.command_prefix}install-revolt to install Revolt Support.')
-            try:
-                if 'guilded' in data['external']:
-                    bot.load_extension("cogs.bridge_guilded")
-            except:
-                try:
-                    x = open('cogs/bridge_guilded.py','r')
-                    x.close()
-                    traceback.print_exc()
-                except:
-                    logger.warn(f'Guilded Support is enabled, but not installed. Run {bot.command_prefix}install-guilded to install Guilded Support.')
-            bot.load_extension("cogs.moderation")
-            bot.load_extension("cogs.config")
-            bot.load_extension("cogs.badge")
-            bot.load_extension("cogs.uptime")
-        except:
-            logger.error('An error occurred!')
-            logger.critical('System extensions failed to load, but admin extension has been loaded.')
-            logger.critical('Please repair the problematic extension, then load the extensions manually.')
-        try:
-            bot.load_extension("cogs.upgrader")
-        except:
-            logger.warning(f'Upgrader is  not installed. Run {bot.command_prefix}install-upgrader to easily manage bot upgrades.')
+                logger.exception('An error occurred!')
+                logger.warn('Message restore failed')
         if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
         if not periodicping.is_running() and data['ping'] > 0:
