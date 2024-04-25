@@ -433,10 +433,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             text = ''
             for extension in extensions:
                 try:
-                    if extension == 'admin':
-                        raise ValueError('Cannot unload the admin extension, let\'s not break the bot here!')
-                    if extension == 'extmgr':
-                        raise ValueError('Cannot unload the extmgr extension, let\'s not break the bot here!')
+                    if extension == 'sysmgr':
+                        raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
                     if extension == 'lockdown':
                         raise ValueError('Cannot unload lockdown extension for security purposes.')
                     await self.preunload(extension)
