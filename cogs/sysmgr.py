@@ -135,6 +135,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if extension + '.py' in info['modules']:
                     plugin_name = plugin[:-5]
                     break
+        if not plugin_name:
+            return
         if plugin_name=='system':
             return
         if not info:
@@ -276,6 +278,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed = discord.Embed(title=pluginfo["name"], description="Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' + pluginfo["description"], color=0xed4545)
         if plugin == 'system':
             embed.description = embed.description + '\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.'
+        try:
+            embed.url = str(pluginfo['repository'])[:-4]
+        except:
+            pass
         modtext = 'None'
         for module in pluginfo['modules']:
             if modtext=='None':
