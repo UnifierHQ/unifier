@@ -3,7 +3,7 @@
   "name": "System extensions",
   "description": "Unifier system extensions",
   "version": "v1.2.0",
-  "release": 36,
+  "release": 37,
   "minimum": 0,
   "shutdown": false,
   "modules": [
