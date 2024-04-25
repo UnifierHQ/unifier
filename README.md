@@ -35,6 +35,7 @@ Server moderators can also block members and servers from bridging messages to t
 reboots for replying, editing, and deleting.
 - **Message reporting**: Users can report messages to Unifier moderators, so they can more easily take action against bad
 actors.
+- **Plugins support**: Anyone can always code and install plugins for Unifier to extend its functionality.
 - **Database-free**: No need to get a database up and running. Everything is stored locally on the same system you use to run 
 Unifier, so the performance is not impacted by slow 10k+ ping database servers.
 - **External bridge support**: Unifier supports external bridge services like
@@ -48,10 +49,9 @@ Please follow our guides on GitBook to set up Unifier.
 
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
 
-### Upgrader
-To manage updates for Unifier and plugins, please refer to [this 
-guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-upgrader) for Upgrader installation, 
-and [this guide](https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier) for managing updates.
+### Managing updates
+From v1.2.0, System Manager now manages updates. Please refer to [this 
+guide](https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier) for managing updates.
 
 ### Revolt and Guilded support
 To install support plugins for Revolt and Guilded, please refer to [this 
