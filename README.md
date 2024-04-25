@@ -35,6 +35,7 @@ Server moderators can also block members and servers from bridging messages to t
 reboots for replying, editing, and deleting.
 - **Message reporting**: Users can report messages to Unifier moderators, so they can more easily take action against bad
 actors.
+- **Plugins support**: Anyone can always code and install plugins for Unifier to extend its functionality.
 - **Database-free**: No need to get a database up and running. Everything is stored locally on the same system you use to run 
 Unifier, so the performance is not impacted by slow 10k+ ping database servers.
 - **External bridge support**: Unifier supports external bridge services like
