@@ -6,13 +6,19 @@ perfect, and there may be vulnerabilities in our code that may impact
 the safety of hosters and users every now and then.
 
 ## Supported Versions
-Currently, v1.1.x series and newer receives security updates. Preceding
-versions have been discontinued and will not be updated any further.
+Currently, v1.1.x and newer receive security updates. Preceding versions
+have been discontinued and will not be updated any further.
 | Version | Type    | Supported          |
 | ------- | ------- | ------------------ |
 | 1.2.x   | release | :white_check_mark: |
-| 1.1.x   | release | :white_check_mark: |
-| < 1.1   | legacy  | :x:                |
+| 1.1.x   | legacy  | :white_check_mark: |
+| < 1.1   | eol     | :x:                |
+
+### What do the types mean?
+- `release`: This is the newest series and is in active development.
+- `legacy`: This is an older series that will continue to receive bug
+  patches and security updates.
+- `eol`: This series is no longer maintained.
 
 ## Reporting a Vulnerability
 When you have found a vulnerability, DO NOT open a bug report. These 
