@@ -127,8 +127,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 plugin_name = plugin[:-5]
                 break
             else:
-                with open('plugins/' + plugin) as file:
-                    info = json.load(file)
+                try:
+                    with open('plugins/' + plugin) as file:
+                        info = json.load(file)
+                except:
+                    continue
                 if extension + '.py' in info['modules']:
                     plugin_name = plugin[:-5]
                     break
@@ -225,6 +228,69 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         self.logger.info("Shutdown complete")
         await self.bot.close()
         sys.exit(0)
+
+    @commands.command(hidden=True)
+    async def plugins(self, ctx, *, plugin=None):
+        if plugin:
+            plugin = plugin.lower()
+        page = 0
+        try:
+            page = int(plugin) - 1
+            if page < 0:
+                page = 0
+            plugin = None
+        except:
+            pass
+        pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
+        if not plugin:
+            offset = page * 20
+            embed = discord.Embed(title='Unifier Plugins', color=0xed4545)
+            text = ''
+            if offset > len(pluglist):
+                page = len(pluglist) // 20 - 1
+                offset = page * 20
+            for x in range(offset, 20 + offset):
+                if x == len(pluglist):
+                    break
+                with open('plugins/'+pluglist[x]) as file:
+                    pluginfo = json.load(file)
+                if text == '':
+                    text = f'- {pluginfo["name"]} (`{pluginfo["id"]}`)'
+                else:
+                    text = f'{text}\n- {pluginfo["name"]} (`{pluginfo["id"]}`)'
+            embed.description = text
+            embed.set_footer(text="Page " + str(page + 1))
+            return await ctx.send(embed=embed)
+        found = False
+        index = 0
+        for plugname in pluglist:
+            if plugname[:-5] == plugin:
+                found = True
+                break
+            index += 1
+        if found:
+            with open('plugins/' + plugin + '.json') as file:
+                pluginfo = json.load(file)
+        else:
+            return await ctx.send('Could not find extension!')
+        embed = discord.Embed(title=pluginfo["name"], description="Version " + pluginfo['version'] + '(`' + str(pluginfo['release']) + '`)\n\n' + pluginfo["description"], color=0xed4545)
+        if plugin == 'system':
+            embed.description = embed.description + '\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.'
+        modtext = 'None'
+        for module in pluginfo['modules']:
+            if modtext=='None':
+                modtext = '- ' + module
+            else:
+                modtext = modtext + '\n- ' + module
+        embed.add_field(name='Modules',value=modtext,inline=False)
+        modtext = 'None'
+        for module in pluginfo['utils']:
+            if modtext == 'None':
+                modtext = '- ' + module
+            else:
+                modtext = modtext + '\n- ' + module
+        embed.add_field(name='Utilities', value=modtext, inline=False)
+        await ctx.send(embed=embed)
 
     @commands.command(hidden=True, aliases=['cogs'])
     async def extensions(self, ctx, *, extension=None):
@@ -526,6 +592,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def uninstall(self, ctx, plugin):
         if not ctx.author.id == self.bot.config['owner']:
             return
+        plugin = plugin.lower()
+        if plugin=='system':
+            return await ctx.send('System plugin cannot be uninstalled!')
         embed = discord.Embed(title='placeholder', description='This will uninstall all of the plugin\'s files. This cannot be undone!')
         embed.colour = 0xffcc00
         try:
@@ -613,6 +682,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ignore_backup = True
         if 'no-backup' in args:
             no_backup = True
+
+        plugin = plugin.lower()
 
         if plugin=='system':
             embed = discord.Embed(title=':inbox_tray: Checking for upgrades...',
