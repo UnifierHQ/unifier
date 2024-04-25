@@ -674,7 +674,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return
 
     @commands.command(hidden=True)
-    async def upgrade(self, ctx, plugin='system', *, args):
+    async def upgrade(self, ctx, plugin='system', *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
 
