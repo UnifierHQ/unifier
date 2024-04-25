@@ -1,0 +1,20 @@
+{
+  "id": "system",
+  "name": "System extensions",
+  "description": "Unifier system extensions",
+  "version": "v1.2.0",
+  "release": 36,
+  "minimum": 0,
+  "shutdown": false,
+  "modules": [
+    "config.py",
+    "bridge.py",
+    "moderation.py",
+    "uptime.py",
+    "badge.py"
+  ],
+  "utils": [
+    "log.py",
+    "rapidphish.py"
+  ]
+}
