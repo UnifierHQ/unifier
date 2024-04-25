@@ -10,3 +10,7 @@ jellyfish
 uvloop
 compress-json
 python-dotenv
+multidict
+ulid
+typing-extensions
+aenum
