@@ -23,7 +23,6 @@ import aiohttp
 import asyncio
 import hashlib
 import json
-import traceback
 import os
 import sys
 import logging
