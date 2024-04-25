@@ -614,9 +614,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         try:
             with open('plugins/system.json') as file:
                 vinfo = json.load(file)
-            embed.set_footer(text="Version "+vinfo['version'])
+            embed.set_footer(text="Version "+vinfo['version']+" | Made with \u2764\ufe0f by UnifierHQ")
         except:
-            embed.set_footer(text="Unknown version")
+            embed.set_footer(text="Unknown version | Made with \u2764\ufe0f by UnifierHQ")
         await ctx.send(embed=embed)
 
     @commands.command()
