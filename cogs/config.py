@@ -612,7 +612,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
         embed.add_field(name="View source code", value=self.bot.config['repo'], inline=False)
         try:
-            with open('update.json') as file:
+            with open('plugins/system.json') as file:
                 vinfo = json.load(file)
             embed.set_footer(text="Version "+vinfo['version'])
         except:
