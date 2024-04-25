@@ -6,12 +6,13 @@ perfect, and there may be vulnerabilities in our code that may impact
 the safety of hosters and users every now and then.
 
 ## Supported Versions
-Currently, only the v1.1.x series receives security updates. Preceding
+Currently, v1.1.x series and newer receives security updates. Preceding
 versions have been discontinued and will not be updated any further.
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.1.x   | :white_check_mark: |
-| < 1.1   | :x:                |
+| Version | Type    | Supported          |
+| ------- | ------- | ------------------ |
+| 1.2.x   | release | :white_check_mark: |
+| 1.1.x   | release | :white_check_mark: |
+| < 1.1   | legacy  | :x:                |
 
 ## Reporting a Vulnerability
 When you have found a vulnerability, DO NOT open a bug report. These 
