@@ -273,7 +273,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 pluginfo = json.load(file)
         else:
             return await ctx.send('Could not find extension!')
-        embed = discord.Embed(title=pluginfo["name"], description="Version " + pluginfo['version'] + '(`' + str(pluginfo['release']) + '`)\n\n' + pluginfo["description"], color=0xed4545)
+        embed = discord.Embed(title=pluginfo["name"], description="Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' + pluginfo["description"], color=0xed4545)
         if plugin == 'system':
             embed.description = embed.description + '\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.'
         modtext = 'None'
