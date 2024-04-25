@@ -15,6 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import re
 
 import discord
 from discord.ext import commands
@@ -481,6 +482,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 'git clone ' + url + ' ' + os.getcwd() + '/plugin_install'))
             with open('plugin_install/plugin.json', 'r') as file:
                 new = json.load(file)
+            if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
+                embed.title = 'Invalid plugin.json file'
+                embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
+                embed.colour = 0xff0000
+                await msg.edit(embed=embed)
+                return
             if new['id']+'.json' in os.listdir('plugins'):
                 with open('plugins/'+new['id']+'.json', 'r') as file:
                     current = json.load(file)
@@ -845,7 +852,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Purging old update files')
                 os.system('rm -rf ' + os.getcwd() + '/update')
                 self.logger.info('Downloading from remote repository...')
-                os.system('git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config[
+                os.system('git clone --branch ' + new['version'] + ' --single-branch --depth 1 ' + self.bot.config[
                     'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update')
                 self.logger.debug('Confirming download...')
                 x = open(os.getcwd() + '/update/update.json', 'r')
@@ -985,6 +992,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     'git clone ' + url + ' ' + os.getcwd() + '/plugin_install'))
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
+                if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
+                    embed.title = 'Invalid plugin.json file'
+                    embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
+                    embed.colour = 0xff0000
+                    await msg.edit(embed=embed)
+                    return
                 if new['release'] <= plugin_info['release'] and not force:
                     embed.title = 'Plugin up to date'
                     embed.description = f'This plugin is already up to date!'
