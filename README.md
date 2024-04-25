@@ -49,10 +49,9 @@ Please follow our guides on GitBook to set up Unifier.
 
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
 
-### Upgrader
-To manage updates for Unifier and plugins, please refer to [this 
-guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-upgrader) for Upgrader installation, 
-and [this guide](https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier) for managing updates.
+### Managing updates
+From v1.2.0, System Manager now manages updates. Please refer to [this 
+guide](https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier) for managing updates.
 
 ### Revolt and Guilded support
 To install support plugins for Revolt and Guilded, please refer to [this 
