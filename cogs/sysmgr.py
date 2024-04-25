@@ -559,6 +559,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         await interaction.response.edit_message(embed=embed, components=None)
         try:
+            try:
+                if 'requirements' in list(new.keys()):
+                    self.logger.debug('Installing dependencies')
+                    newdeps = new['requirements']
+                    if len(newdeps) > 0:
+                        self.logger.debug('Installing: ' + ' '.join(newdeps))
+                        status(os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps)))
+            except:
+                self.logger.exception('Dependency installation failed')
+                raise RuntimeError()
             self.logger.info('Installing Plugin')
             for module in modules:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+module)
@@ -1025,6 +1035,23 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
             await interaction.response.edit_message(embed=embed, components=None)
             try:
+                try:
+                    if 'requirements' in list(new.keys()):
+                        self.logger.debug('Installing dependencies')
+                        newdeps = new['requirements']
+                        try:
+                            olddeps = plugin_info['requirements']
+                        except:
+                            olddeps = []
+                        for dep in olddeps:
+                            if dep in newdeps:
+                                newdeps.remove(dep)
+                        if len(newdeps) > 0:
+                            self.logger.debug('Installing: ' + ' '.join(newdeps))
+                            status(os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps)))
+                except:
+                    self.logger.exception('Dependency installation failed')
+                    raise RuntimeError()
                 self.logger.info('Upgrading Plugin')
                 for module in modules:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + module)
