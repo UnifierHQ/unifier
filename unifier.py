@@ -137,7 +137,7 @@ bot.safemode = 'safemode' in sys.argv
 mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
 
 if bot.safemode:
-    logger.warn('Safemode is enabled. Only system extensions will be loaded.')
+    logger.warning('Safemode is enabled. Only system extensions will be loaded.')
 
 asciiart = """  _    _       _  __ _           
  | |  | |     (_)/ _(_)          
@@ -217,7 +217,7 @@ async def on_ready():
                     logger.info(f'Restored {len(bot.bridge.bridged)} messages')
             except:
                 logger.exception('An error occurred!')
-                logger.warn('Message restore failed')
+                logger.warning('Message restore failed')
         if not changestatus.is_running() and data['enable_rotating_status']:
             changestatus.start()
         if not periodicping.is_running() and data['ping'] > 0:

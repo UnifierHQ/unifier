@@ -87,7 +87,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('plugins/system.json') as file:
                     sysext = json.load(file)
             except:
-                self.logger.warn('plugins/system.json is missing. Copying update.json...')
+                self.logger.warning('plugins/system.json is missing. Copying update.json...')
                 if not os.path.exists('plugins'):
                     os.mkdir('plugins')
                 status(os.system('cp ' + os.getcwd() + '/update.json ' + os.getcwd() + '/plugins/system.json'))
@@ -113,7 +113,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             self.bot.load_extension('cogs.' + extension[:-3])
                             self.logger.debug('Loaded plugin ' + extension)
                         except:
-                            self.logger.warn('Plugin load failed! (' + extension + ')')
+                            self.logger.warning('Plugin load failed! (' + extension + ')')
             self.bot.ready = True
 
     async def preunload(self, extension):
@@ -716,10 +716,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 os.system('cp ' + os.getcwd() + '/update.json ' + os.getcwd() + '/old/update.json')
             except:
                 if no_backup:
-                    self.logger.warn('Backup skipped, requesting final confirmation.')
+                    self.logger.warning('Backup skipped, requesting final confirmation.')
                     embed.description = '- :x: Your files have **NOT BEEN BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
                 elif ignore_backup:
-                    self.logger.warn('Backup failed, continuing anyways')
+                    self.logger.warning('Backup failed, continuing anyways')
                     embed.description = '- :x: Your files **COULD NOT BE BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
                 else:
                     self.logger.error('Backup failed, abort upgrade.')
@@ -782,7 +782,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     olddeps = x.read().split('\n')
                     x.close()
                 except:
-                    self.logger.warn('Could not find requirements.txt, installing all dependencies')
+                    self.logger.warning('Could not find requirements.txt, installing all dependencies')
                     olddeps = []
                 for dep in olddeps:
                     try:
