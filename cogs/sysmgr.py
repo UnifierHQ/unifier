@@ -980,6 +980,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 embed.title = 'Plugin not found'
                 embed.description = 'The plugin could not be found.'
+                if plugin=='force':
+                    embed.description = embed.description + f'\n\n**Hint**: If you\'re trying to force upgrade, run `{self.bot.command_prefix}upgrade system force`'
                 embed.colour = 0xff0000
                 await ctx.send(embed=embed)
                 return
