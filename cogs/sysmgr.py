@@ -342,7 +342,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             return await ctx.send('Could not find extension!')
         embed = discord.Embed(title=ext_info.qualified_name, description=ext_info.description, color=0xed4545)
-        if extension == 'cogs.sysmgr' or extension == 'cogs.lockdown':
+        if (extension == 'cogs.sysmgr' or extension == 'cogs.lockdown' or
+                extension == 'sysmgr' or extension == 'lockdown'):
             embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
         await ctx.send(embed=embed)
 
