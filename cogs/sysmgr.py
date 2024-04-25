@@ -852,7 +852,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Purging old update files')
                 os.system('rm -rf ' + os.getcwd() + '/update')
                 self.logger.info('Downloading from remote repository...')
-                os.system('git clone --branch ' + new['version'] + ' --single-branch --depth 1 ' + self.bot.config[
+                os.system('git clone --branch=' + new['version'] + ' --depth 1 ' + self.bot.config[
                     'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update')
                 self.logger.debug('Confirming download...')
                 x = open(os.getcwd() + '/update/update.json', 'r')
