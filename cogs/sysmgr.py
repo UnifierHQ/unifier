@@ -286,6 +286,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 try:
                     if extension == 'lockdown':
                         raise ValueError('Cannot unload lockdown extension for security purposes.')
+                    await self.preunload(extension)
                     self.bot.reload_extension(f'cogs.{extension}')
                     if len(text) == 0:
                         text = f'```diff\n+ [DONE] {extension}'
@@ -580,9 +581,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.logger.info('Unloading extensions')
             for module in modules:
                 modname = 'cogs.' + module[:-3]
-                self.logger.debug('Unloading extension: ' + modname)
-                await self.preunload(modname)
-                self.bot.unload_extension(modname)
+                if modname in list(self.bot.extensions):
+                    self.logger.debug('Unloading extension: ' + modname)
+                    await self.preunload(modname)
+                    self.bot.unload_extension(modname)
             self.logger.debug('Uninstallation complete')
             embed.title = 'Uninstallation successful'
             embed.description = 'The plugin was successfully uninstalled.'
@@ -915,11 +917,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
                 raise
-            embed.title = f'Install `{plugin_id}`?'
+            embed.title = f'Update `{plugin_id}`?'
             embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
             embed.colour = 0xffcc00
             row = [
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
+                discord.ui.Button(style=discord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
                 discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
             ]
             btns = discord.ui.ActionRow(row[0], row[1])
@@ -967,9 +969,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.info('Reloading extensions')
                 for module in modules:
                     modname = 'cogs.' + module[:-3]
-                    self.logger.debug('Reloading extension: ' + modname)
-                    await self.preunload(modname)
-                    self.bot.reload_extension(modname)
+                    if modname in list(self.bot.extensions):
+                        self.logger.debug('Reloading extension: ' + modname)
+                        await self.preunload(modname)
+                        self.bot.reload_extension(modname)
                 self.logger.debug('Upgrade complete')
                 embed.title = 'Upgrade successful'
                 embed.description = 'The upgrade was successful! :partying_face:'

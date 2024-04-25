@@ -52,7 +52,7 @@ if not '.welcome.txt' in os.listdir():
     x.close()
     logger.info('Thank you for installing Unifier!')
     logger.info('Unifier is licensed under the AGPLv3, so if you would like to add your own twist to Unifier, you must follow AGPLv3 conditions.')
-    logger.info('You can learn more about modifying Unifier at https://unichat-wiki.pixels.onl/setup-selfhosted/modding-unifier')
+    logger.info('You can learn more about modifying Unifier at https://unifier-wiki.pixels.onl/setup-selfhosted/modding-unifier')
 
 if not 'repo' in list(data.keys()):
     logger.critical('WARNING: THIS INSTANCE IS NOT AGPLv3 COMPLAINT!')
@@ -63,7 +63,7 @@ if 'pr_room_index' in list(data.keys()) or 'pr_ref_room_index' in list(data.keys
     logger.warning('From v1.1.13, pr_room_index and pr_ref_room_index are deprecated. Use posts_room and posts_ref_room instead.')
 
 if not env_loaded:
-    logger.critical('Could not load .env file! More info: https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
+    logger.critical('Could not load .env file! More info: https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
     sys.exit(1)
 
 if 'token' in list(data.keys()):
