@@ -969,7 +969,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return
             embed.set_footer(text='Only install plugins from trusted sources!')
             msg = await ctx.send(embed=embed)
-            url = plugin_info['repo']
+            url = plugin_info['repository']
             try:
                 os.system('rm -rf ' + os.getcwd() + '/plugin_install')
                 status(os.system(
