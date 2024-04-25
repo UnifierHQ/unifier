@@ -986,7 +986,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     'git clone ' + url + ' ' + os.getcwd() + '/plugin_install'))
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
-                if new['release'] == plugin_info['release']:
+                if new['release'] <= plugin_info['release'] and not force:
                     embed.title = 'Plugin up to date'
                     embed.description = f'This plugin is already up to date!'
                     embed.colour = 0x00ff00
