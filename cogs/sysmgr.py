@@ -700,7 +700,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
                     'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config[
                         'check_endpoint'] + ' ' + os.getcwd() + '/update_check'))
-                with open('update.json', 'r') as file:
+                with open('plugins/system.json', 'r') as file:
                     current = json.load(file)
                 with open('update_check/update.json', 'r') as file:
                     new = json.load(file)
