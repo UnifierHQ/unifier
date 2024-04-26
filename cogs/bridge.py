@@ -135,7 +135,7 @@ class UnifierTranslator:
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
-                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False):
+                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False, reactions=None):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -150,6 +150,10 @@ class UnifierMessage:
         self.prehook = prehook
         self.reply = reply
         self.external_bridged = external_bridged
+        if not reactions or not type(reactions) is dict:
+            self.reactions = {}
+        else:
+            self.reactions = reactions
 
     def to_dict(self):
         return self.__dict__
@@ -171,6 +175,16 @@ class UnifierMessage:
             return f'https://discord.com/channels/{self.guild_id}/{self.channel_id}/{self.id}'
 
         return self.urls[guild_id]
+
+    async def add_reaction(self,emoji):
+        if not emoji in list(self.reactions.keys()):
+            self.reactions.update({emoji:0})
+        self.reactions[emoji] += 1
+
+    async def remove_reaction(self, emoji):
+        self.reactions[emoji] -= 1
+        if self.reactions[emoji] < 0:
+            self.reactions[emoji] = 0
 
     async def fetch_external_url(self, source, guild_id):
         return self.external_urls[source][guild_id]
