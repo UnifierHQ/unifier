@@ -120,6 +120,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def globalban(self, ctx, target, duration, *, reason='no reason given'):
         if not ctx.author.id in self.bot.moderators:
             return
+        discreet = False
         if "--discreet" in reason:
             reason = reason.replace("--discreet", "", 1)
             discreet = True
