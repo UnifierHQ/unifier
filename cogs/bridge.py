@@ -1760,7 +1760,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             count = 0
             for user in list(msg.reactions[reaction].keys()):
                 count += msg.reactions[reaction][user]
+            if count==0:
+                continue
             text = f'{text}{reaction} x{count} '
+
+        if len(text)==0:
+            return await ctx.send('No reactions yet!',ephemeral=True)
 
         await ctx.send(text,ephemeral=True)
 
