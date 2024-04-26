@@ -320,7 +320,8 @@ class UnifierBridge:
                 room=data['messages'][f'{x}']['room'],
                 external_urls=data['messages'][f'{x}']['external_urls'],
                 webhook=data['messages'][f'{x}']['webhook'],
-                prehook=data['messages'][f'{x}']['prehook']
+                prehook=data['messages'][f'{x}']['prehook'],
+                reactions=data['messages'][f'{x}']['reactions']
             )
             self.bridged.append(msg)
         
