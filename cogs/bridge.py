@@ -2583,7 +2583,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             await self.bot.bridge.edit(msg.id, message.content)
 
-
     @commands.Cog.listener()
     async def on_message_delete(self, message):
         gbans = self.bot.db['banned']
@@ -2660,6 +2659,32 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         await self.bot.bridge.delete_copies(msg.id)
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        try:
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(reaction.message.id)
+        except:
+            return
+
+        emoji = reaction.emoji
+        if type(emoji) is discord.Emoji or type(emoji) is discord.PartialEmoji:
+            emoji = f'<:{emoji.name}:{emoji.id}>'
+
+        await msg.add_reaction(emoji, user.id)
+
+    @commands.Cog.listener()
+    async def on_reaction_remove(self, reaction, user):
+        try:
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(reaction.message.id)
+        except:
+            return
+
+        emoji = reaction.emoji
+        if type(emoji) is discord.Emoji or type(emoji) is discord.PartialEmoji:
+            emoji = f'<:{emoji.name}:{emoji.id}>'
+
+        await msg.remove_reaction(emoji, user.id)
 
 def setup(bot):
     bot.add_cog(Bridge(bot))
