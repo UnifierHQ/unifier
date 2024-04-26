@@ -120,10 +120,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def globalban(self, ctx, target, duration, *, reason='no reason given'):
         if not ctx.author.id in self.bot.moderators:
             return
-        discreet = False
-        if "--discreet" in reason:
-            reason = reason.replace("--discreet", "", 1)
-            discreet = True
         forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
                    duration.lower() == 'forever' or duration.lower() == 'indefinite')
         if forever:
@@ -141,14 +137,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid) == 26:
                 return await ctx.send('Invalid user/server!')
-
         disclose = False
         if reason.startswith('-disclose'):
             reason = reason.replace('-disclose','',1)
             disclose = True
             while reason.startswith(' '):
                 reason = reason.replace(' ','',1)
-
+        discreet = False
+        if reason.startswith('-discreet'):
+            reason = reason.replace("-discreet", "", 1)
+            discreet = True
+            while reason.startswith(' '):
+                reason = reason.replace(' ','',1)
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('Moderators can\'t moderate other moderators!')
         banlist = self.bot.db['banned']
