@@ -120,6 +120,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def globalban(self, ctx, target, duration, *, reason='no reason given'):
         if not ctx.author.id in self.bot.moderators:
             return
+        if "--discreet" in reason:
+            reason = reason.replace("--discreet", "", 1)
+            discreet = True
         forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
                    duration.lower() == 'forever' or duration.lower() == 'indefinite')
         if forever:
@@ -196,8 +199,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.set_author(name='@hidden')
 
         ctx.message.embeds = [embed]
-
-        await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
+        
+        if not discreet:
+            await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
         for platform in externals:
             await self.bot.bridge.send("main", ctx.message, platform, system=True)
 
