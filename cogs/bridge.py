@@ -1728,6 +1728,38 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 traceback.print_exc()
                 await ctx.send('Something went wrong.')
 
+    @commands.context_command(name='View reactions')
+    async def reactions_ctx(self, ctx, msg: discord.Message):
+        gbans = self.bot.db['banned']
+        ct = time.time()
+        if f'{ctx.author.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.author.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db.save_data()
+            else:
+                return
+        if f'{ctx.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.guild.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.guild.id}')
+                self.bot.db.save_data()
+            else:
+                return
+        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
+            return await ctx.send('Your account or your guild is currently **global restricted**.', ephemeral=True)
+        msg_id = msg.id
+
+        try:
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
+        except:
+            return await ctx.send('Could not find message in cache!', ephemeral=True)
+        text = ''
+        for reaction in msg.reactions:
+            text = f'{reaction} x{len(list(msg.reactions[reaction].keys()))} '
+
+        await ctx.send(text,ephemeral=True)
+
     @commands.context_command(name='Delete message')
     async def delete_ctx(self, ctx, msg: discord.Message):
         gbans = self.bot.db['banned']
