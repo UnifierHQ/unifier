@@ -117,7 +117,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('Not a valid user!')
         if userid in self.bot.db['moderators']:
             return await ctx.send('This user is already a moderator!')
-        if self.is_user_admin(userid):
+        if self.is_user_admin(userid) or user.bot:
             return await ctx.send('are you fr')
         self.bot.db['moderators'].append(userid)
         self.bot.db.save_data()
