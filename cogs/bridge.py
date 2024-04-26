@@ -1757,7 +1757,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await ctx.send('Could not find message in cache!', ephemeral=True)
         text = ''
         for reaction in msg.reactions:
-            text = f'{text}{reaction} x{len(list(msg.reactions[reaction].keys()))} '
+            count = 0
+            for user in list(msg.reactions[reaction].keys()):
+                count += msg.reactions[reaction][user]
+            text = f'{text}{reaction} x{count} '
 
         await ctx.send(text,ephemeral=True)
 
