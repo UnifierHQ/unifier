@@ -176,15 +176,21 @@ class UnifierMessage:
 
         return self.urls[guild_id]
 
-    async def add_reaction(self,emoji):
+    async def add_reaction(self, emoji, userid):
+        userid = str(userid)
         if not emoji in list(self.reactions.keys()):
-            self.reactions.update({emoji:0})
-        self.reactions[emoji] += 1
+            self.reactions.update({emoji:{}})
+        if not userid in list(self.reactions[emoji].keys()):
+            self.reactions[emoji].update({userid:0})
+        self.reactions[emoji][userid] += 1
+        return self.reactions[emoji][userid]
 
-    async def remove_reaction(self, emoji):
-        self.reactions[emoji] -= 1
-        if self.reactions[emoji] < 0:
-            self.reactions[emoji] = 0
+    async def remove_reaction(self, emoji, userid):
+        userid = str(userid)
+        self.reactions[emoji][userid] -= 1
+        if self.reactions[emoji][userid] < 0:
+            self.reactions[emoji][userid] = 0
+        return self.reactions[emoji][userid]
 
     async def fetch_external_url(self, source, guild_id):
         return self.external_urls[source][guild_id]
