@@ -137,14 +137,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid) == 26:
                 return await ctx.send('Invalid user/server!')
-
         disclose = False
         if reason.startswith('-disclose'):
             reason = reason.replace('-disclose','',1)
             disclose = True
             while reason.startswith(' '):
                 reason = reason.replace(' ','',1)
-
+        discreet = False
+        if reason.startswith('-discreet'):
+            reason = reason.replace("-discreet", "", 1)
+            discreet = True
+            while reason.startswith(' '):
+                reason = reason.replace(' ','',1)
         if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
             return await ctx.send('Moderators can\'t moderate other moderators!')
         banlist = self.bot.db['banned']
@@ -196,8 +200,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.set_author(name='@hidden')
 
         ctx.message.embeds = [embed]
-
-        await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
+        
+        if not discreet:
+            await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
         for platform in externals:
             await self.bot.bridge.send("main", ctx.message, platform, system=True)
 
