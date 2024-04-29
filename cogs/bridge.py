@@ -2408,11 +2408,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     multisend = False
 
         try:
-            pr_roomname = self.bot.db['posts_room']
+            pr_roomname = self.bot.config['posts_room']
         except:
             pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_room_index']]]
         try:
-            pr_ref_roomname = self.bot.db['posts_ref_room']
+            pr_ref_roomname = self.bot.config['posts_ref_room']
         except:
             pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
         is_pr = roomname == pr_roomname and (self.bot.config['allow_prs'] or self.bot.config['allow_posts'])
