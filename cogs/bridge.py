@@ -1047,7 +1047,10 @@ class UnifierBridge:
                         try:
                             return await source_file.to_file(use_cached=True, spoiler=source_file.is_spoiler())
                         except:
-                            return await source_file.to_file(use_cached=True, spoiler=False)
+                            try:
+                                return await source_file.to_file(use_cached=True, spoiler=False)
+                            except:
+                                return await source_file.to_file(use_cached=False, spoiler=False)
                     elif source=='revolt':
                         filebytes = await source_file.read()
                         return discord.File(fp=BytesIO(filebytes), filename=source_file.filename)
