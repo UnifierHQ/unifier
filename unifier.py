@@ -88,6 +88,7 @@ class DiscordBot(commands.Bot):
         self.config = None
         self.__safemode = None
         self.safemode = None
+        self.bridge = None
 
     @property
     def config(self):
@@ -183,6 +184,14 @@ async def changestatus():
     else:
         await bot.change_presence(activity=discord.Game(name=new_stat))
 
+@tasks.loop(seconds=round(data['periodic_backup']))
+async def periodic_backup():
+    try:
+        tasks = [bot.loop.create_task(bot.bridge.backup(limit=10000))]
+        await asyncio.wait(tasks)
+    except:
+        logger.exception('Backup failed')
+
 @tasks.loop(seconds=round(data['ping']))
 async def periodicping():
     guild = bot.guilds[0]
@@ -224,6 +233,11 @@ async def on_ready():
             logger.debug(f'Pinging servers every {round(data["ping"])} seconds')
         elif data['ping'] <= 0:
             logger.debug(f'Periodic pinging disabled')
+        if not periodic_backup.is_running() and data['periodic_backup'] > 0:
+            periodic_backup.start()
+            logger.debug(f'Backing up messages every {round(data["periodic_backup"])} seconds')
+        elif data['periodic_backup'] <= 0:
+            logger.debug(f'Periodic backups disabled')
         if data['enable_ctx_commands']:
             logger.debug("Registering context commands...")
             toreg = []

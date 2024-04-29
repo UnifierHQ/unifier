@@ -1487,10 +1487,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         prs = {}
         restored = False
         if hasattr(self.bot, 'bridge'):
-            msgs = self.bot.bridge.bridged
-            prs = self.bot.bridge.prs
-            restored = self.bot.bridge.restored
-            del self.bot.bridge
+            if self.bot.bridge: # Avoid restoring if bridge is None
+                msgs = self.bot.bridge.bridged
+                prs = self.bot.bridge.prs
+                restored = self.bot.bridge.restored
+                del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
