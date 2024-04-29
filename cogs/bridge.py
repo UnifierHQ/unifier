@@ -1083,7 +1083,8 @@ class UnifierBridge:
                         continue
                 else:
                     if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
-                            not 'image' in attachment.content_type) or attachment.size > 25000000:
+                            not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
+                            self.bot.config['safe_filetypes']) or attachment.size > 25000000:
                         continue
                 size_total += attachment.size
                 if size_total > 25000000:
