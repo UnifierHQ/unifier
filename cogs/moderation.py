@@ -320,7 +320,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed = discord.Embed(
             title='Your account standing',
             description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
-            ':white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
+            '\n:white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
             color=0x00ff00)
         if not is_self:
             embed.title = f'{target.global_name}\'s account standing'
@@ -330,11 +330,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         gbans = self.bot.db['banned']
         ct = time.time()
+        noexpiry = False
         if f'{ctx.author.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
                 self.bot.db.save_data()
+            if banuntil == 0:
+                noexpiry = True
 
         judgement = (
             actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
@@ -343,8 +346,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.title = embed.title + ": __SUSPENDED__"
             embed.colour = 0xff0000
             embed.description = (
-                    'You\'ve been temporarily or permanently suspended from this Unifier instance.\n'+
-                    '\n:white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
+                    'You\'ve been' + 'permanently' if noexpiry else 'temporarily' + 'suspended from this Unifier '+
+                    'instance.\n\n:white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
             )
         elif judgement <= 2:
             embed.title = embed.title + ": __All good!__"
@@ -353,21 +356,21 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.colour = 0xffff00
             embed.description = (
                     'You\'ve broken one or more rules recently. Please follow the rules next time!' +
-                    '\n:white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
+                    '\n\n:white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
             )
         elif 5 < judgement <= 10:
             embed.title = embed.title + ": __Caution__"
-            embed.colour = 0xffff00
+            embed.colour = 0xffcc00
             embed.description = (
                     'You\'ve broken many rules recently. Moderators may issue stronger punishments.' +
-                    '\n:white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
+                    '\n\n:white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
             )
         else:
             embed.title = embed.title + ": __WARNING__"
             embed.colour = 0xff00dd
             embed.description = (
                     'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
-                    '\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
+                    '\n\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
             )
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         msg = None
@@ -403,11 +406,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 while page * 5 >= len(actions['warns']) and page > 0:
                     page -= 1
                 for i in range(page * 5, (page + 1) * 5):
-                    if len(actions['warns']) == 0 or len(actions)-i-1 < 0:
+                    if len(actions['warns']) == 0 or len(actions['warns'])-i-1 < 0:
                         break
                     embed.add_field(
-                        name=f'\U000026A0 Warning #{len(actions["warns"])-i}',
-                        value=actions['warns'][len(actions)-i-1]['reason'],
+                        name=f':warning: Warning #{len(actions["warns"])-i}',
+                        value=actions['warns'][len(actions['warns'])-i-1]['reason'],
                         inline=False
                     )
                     if i >= len(actions['warns']) - 1:
@@ -453,11 +456,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 while page * 5 >= len(actions['bans']) and page > 0:
                     page -= 1
                 for i in range(page * 5, (page + 1) * 5):
-                    if len(actions['bans']) == 0 or len(actions)-i-1 < 0:
+                    if len(actions['bans']) == 0 or len(actions['bans'])-i-1 < 0:
                         break
                     embed.add_field(
-                        name=f'\U0001F6AB Ban #{len(actions["bans"]) - i}',
-                        value=actions['bans'][len(actions) - i - 1]['reason'],
+                        name=f':no_entry_sign: Ban #{len(actions["bans"]) - i}',
+                        value=actions['bans'][len(actions['bans']) - i - 1]['reason'],
                         inline=False
                     )
                     if i >= len(actions['bans']) - 1:
