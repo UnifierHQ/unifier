@@ -1047,7 +1047,10 @@ class UnifierBridge:
                         try:
                             return await source_file.to_file(use_cached=True, spoiler=source_file.is_spoiler())
                         except:
-                            return await source_file.to_file(use_cached=True, spoiler=False)
+                            try:
+                                return await source_file.to_file(use_cached=True, spoiler=False)
+                            except:
+                                return await source_file.to_file(use_cached=False, spoiler=False)
                     elif source=='revolt':
                         filebytes = await source_file.read()
                         return discord.File(fp=BytesIO(filebytes), filename=source_file.filename)
@@ -1083,7 +1086,8 @@ class UnifierBridge:
                         continue
                 else:
                     if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
-                            not 'image' in attachment.content_type) or attachment.size > 25000000:
+                            not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
+                            self.bot.config['safe_filetypes']) or attachment.size > 25000000:
                         continue
                 size_total += attachment.size
                 if size_total > 25000000:
@@ -1486,10 +1490,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         prs = {}
         restored = False
         if hasattr(self.bot, 'bridge'):
-            msgs = self.bot.bridge.bridged
-            prs = self.bot.bridge.prs
-            restored = self.bot.bridge.restored
-            del self.bot.bridge
+            if self.bot.bridge: # Avoid restoring if bridge is None
+                msgs = self.bot.bridge.bridged
+                prs = self.bot.bridge.prs
+                restored = self.bot.bridge.restored
+                del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
@@ -2406,11 +2411,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     multisend = False
 
         try:
-            pr_roomname = self.bot.db['posts_room']
+            pr_roomname = self.bot.config['posts_room']
         except:
             pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_room_index']]]
         try:
-            pr_ref_roomname = self.bot.db['posts_ref_room']
+            pr_ref_roomname = self.bot.config['posts_ref_room']
         except:
             pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
         is_pr = roomname == pr_roomname and (self.bot.config['allow_prs'] or self.bot.config['allow_posts'])
