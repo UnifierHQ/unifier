@@ -4,6 +4,8 @@
   "owner": 356456393491873795,
   "prefix": "u!",
   "ping": 0,
+  "periodic_backup": 0,
+  "safe_filetypes": true,
   "branch": "main",
   "repo": "https://github.com/UnifierHQ/unifier",
   "check_endpoint": "https://github.com/UnifierHQ/unifier-version.git",

@@ -23,8 +23,10 @@ so nobody needs to wait to see your messages.
 
 ### Revolt and Guilded support
 With [Revolt](https://github.com/UnifierHQ/unifier-revolt) and [Guilded](https://github.com/UnifierHQ/unifier-guilded) 
-support extensions, you can bring your communities outside of Discord together, or get a break from Discord without losing 
-your community.
+support plugins, you can bring your communities outside of Discord together, or get a break from Discord without losing your 
+community.
+
+Support plugins need to be installed to enable support for these platforms.
 
 ### Moderation commands
 After you assign bot admins, they can assign moderators, who can help moderate the chat and take action against bad actors. 
