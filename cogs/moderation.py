@@ -302,6 +302,229 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.db.save_data()
         await ctx.send('unbanned, nice')
 
+    @commands.command(aliases=['account_standing'])
+    async def standing(self,ctx,*,target=None):
+        if target and not ctx.author.id in self.bot.moderators:
+            target = None
+        menu = 0
+        page = 0
+        is_self = False
+        if target:
+            try:
+                target = self.bot.get_user(int(target.replace('<@','',1).replace('>','',1).replace('!','',1)))
+            except:
+                return await ctx.send('Invalid target!')
+        else:
+            target = ctx.author.id
+            is_self = True
+        embed = discord.Embed(
+            title='Your account standing',
+            description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
+            ':white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
+            color=0x00ff00)
+        if not is_self:
+            embed.title = f'{target.global_name}\'s account standing'
+
+        actions_count, actions_count_recent = self.bot.get_actions_count(target.id)
+        actions, _ = self.bot.get_actions(target.id)
+
+        gbans = self.bot.db['banned']
+        ct = time.time()
+        if f'{ctx.author.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.author.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db.save_data()
+            else:
+                return
+
+        judgement = (
+            actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
+        )
+        if f'{ctx.author.id}' in list(gbans.keys()):
+            embed.title = embed.title = ": __SUSPENDED__"
+            embed.colour = 0xff0000
+            embed.description = (
+                    'You\'ve been temporarily or permanently suspended from this Unifier instance.\n'+
+                    ':white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
+            )
+        elif judgement <= 2:
+            embed.title = embed.title = ": __All good!__"
+        elif 2 < judgement <= 5:
+            embed.title = embed.title = ": __Fair__"
+            embed.colour = 0xffff00
+            embed.description = (
+                    'You\'ve broken one or more rules recently. Please follow the rules next time!' +
+                    ':white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
+            )
+        elif 5 < judgement <= 10:
+            embed.title = embed.title = ": __Caution__"
+            embed.colour = 0xffff00
+            embed.description = (
+                    'You\'ve broken many rules recently. Moderators may issue stronger punishments.' +
+                    ':white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
+            )
+        else:
+            embed.title = embed.title = ": __WARNING__"
+            embed.colour = 0xff00dd
+            embed.description = (
+                    'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
+                    ':white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
+            )
+        embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
+        msg = None
+        interaction = None
+        while True:
+            components = None
+            if menu == 0:
+                embed.add_field(name='Recent punishments',
+                                value=f'{actions_count_recent["warns"]} warnings, {actions_count_recent["bans"]} bans',
+                                inline=False)
+                embed.add_field(name='All-time punishments',
+                                value=f'{actions_count_recent["warns"]} warnings, {actions_count_recent["bans"]} bans',
+                                inline=False)
+                embed.set_footer(text='Standing is calculated based on recent and all-time punishments. Recent '+
+                                 'punishments will have a heavier effect on your standing.')
+                components = discord.ui.MessageComponents(
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='warns',
+                            label='Warnings',
+                            emoji='\U000026A0',
+                            style=discord.ButtonStyle.gray
+                        ),
+                        discord.ui.Button(
+                            custom_id='bans',
+                            label='Bans',
+                            emoji='\U0001F6D1',
+                            style=discord.ButtonStyle.red
+                        )
+                    )
+                )
+            elif menu == 1:
+                while page * 5 >= len(actions['warns']):
+                    page -= 1
+                for i in range(page * 5,
+                               len(actions['warns']) - (
+                                       len(actions['warns']) - (page * 5)
+                               ) if len(actions['warns']) - page*5 >= 0 else len(actions['warns'])):
+                    embed.add_field(
+                        name=f'Warning #{len(actions["warns"])-i}',
+                        value=actions['warns'][len(actions)-i-1]['reason'],
+                        inline=False
+                    )
+                components = discord.ui.MessageComponents(
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='back',
+                            label='Back',
+                            style=discord.ButtonStyle.gray
+                        )
+                    ),
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple
+                        )
+                    ) if len(embed.fields) == 0 else discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        )
+                    )
+                )
+                if len(embed.fields) == 0:
+                    embed.add_field(name='No warnings',value='There\'s no warnings on record. Amazing!')
+            elif menu == 2:
+                while page * 5 >= len(actions['bans']):
+                    page -= 1
+                for i in range(page * 5,
+                               len(actions['bans']) - (
+                                       len(actions['bans']) - (page * 5)
+                               ) if len(actions['bans']) - page*5 >= 0 else len(actions['bans'])):
+                    embed.add_field(
+                        name=f'Ban #{len(actions["bans"])-i}',
+                        value=actions['bans'][len(actions)-i-1]['reason'],
+                        inline=False
+                    )
+                components = discord.ui.MessageComponents(
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='back',
+                            label='Back',
+                            style=discord.ButtonStyle.gray
+                        )
+                    ),
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple
+                        )
+                    ) if len(embed.fields) == 0 else discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        )
+                    )
+                )
+                if len(embed.fields) == 0:
+                    embed.add_field(name='No bans',value='There\'s no bans on record. Amazing!')
+            if not msg:
+                msg = await msg.send(embed=embed,components=components)
+            else:
+                if interaction:
+                    await interaction.response.edit_message(embed=embed,components=components)
+                else:
+                    await msg.edit(embed=embed,components=components)
+            embed.clear_fields()
+
+            def check(interaction):
+                return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+
+            try:
+                interaction = await self.bot.wait_for('component_interaction',timeout=60,check=check)
+            except:
+                return await msg.edit(components=None)
+            page = 0
+            if interaction.custom_id == 'back':
+                menu = 0
+            elif interaction.custom_id == 'warns':
+                menu = 1
+            elif interaction.custom_id == 'bans':
+                menu = 2
+            elif interaction.custom_id == 'prev':
+                page -= 1 if page >= 1 else 0
+            elif interaction.custom_id == 'next':
+                page += 1
+
     @commands.command(aliases=['guilds'])
     async def servers(self,ctx,*,room='main'):
         try:
