@@ -200,8 +200,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             discreet = True
             while reason.startswith(' '):
                 reason = reason.replace(' ','',1)
-        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('Moderators can\'t moderate other moderators!')
+        if userid in self.bot.moderators and not ctx.author.id == self.bot.config['owner']:
+            return await ctx.send('You cannot punish other moderators!')
         banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send('User/server already banned!')
@@ -588,8 +588,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid)==26:
                 return await ctx.send('Invalid user/server!')
-        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('ok guys no friendly fire pls thanks')
+        if userid in self.bot.moderators and not ctx.author.id==self.bot.config['owner']:
+            return await ctx.send('You cannot punish other moderators!')
         banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send('User/server already banned!')
@@ -723,8 +723,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid) == 26:
                 return await ctx.send('Invalid user/server!')
-        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('ok guys no friendly fire pls thanks')
+        if userid in self.bot.moderators and not ctx.author.id == self.bot.config['owner']:
+            return await ctx.send('You cannot punish other moderators!')
         obvious = False
         if '-obvious' in reason:
             obvious = True
