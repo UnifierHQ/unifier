@@ -403,7 +403,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
             elif menu == 1:
-                while page * 5 >= len(actions['warns']) and page > 0:
+                while (page * 5) + 1 >= len(actions['warns']) and page > 0:
                     page -= 1
                 for i in range(page * 5, (page + 1) * 5):
                     if len(actions['warns']) == 0 or len(actions['warns'])-i-1 < 0:
@@ -427,12 +427,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                         discord.ui.Button(
                             custom_id='prev',
                             label='Previous',
-                            style=discord.ButtonStyle.blurple
+                            style=discord.ButtonStyle.blurple,
+                            disabled=page==0
                         ),
                         discord.ui.Button(
                             custom_id='next',
                             label='Next',
-                            style=discord.ButtonStyle.blurple
+                            style=discord.ButtonStyle.blurple,
+                            disabled=((page+1)*5)+1 >= len(actions['warns'])
                         )
                     ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
                         discord.ui.Button(
@@ -453,7 +455,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     embed.add_field(name='No warnings',value='There\'s no warnings on record. Amazing!')
                 embed.set_footer(text=f'Page {page+1}')
             elif menu == 2:
-                while page * 5 >= len(actions['bans']) and page > 0:
+                while (page * 5) + 1 >= len(actions['bans']) and page > 0:
                     page -= 1
                 for i in range(page * 5, (page + 1) * 5):
                     if len(actions['bans']) == 0 or len(actions['bans'])-i-1 < 0:
@@ -477,12 +479,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                         discord.ui.Button(
                             custom_id='prev',
                             label='Previous',
-                            style=discord.ButtonStyle.blurple
+                            style=discord.ButtonStyle.blurple,
+                            disabled=page==0
                         ),
                         discord.ui.Button(
                             custom_id='next',
                             label='Next',
-                            style=discord.ButtonStyle.blurple
+                            style=discord.ButtonStyle.blurple,
+                            disabled=((page+1)*5)+1 >= len(actions['bans'])
                         )
                     ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
                         discord.ui.Button(
@@ -503,7 +507,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     embed.add_field(name='No warnings', value='There\'s no bans on record. Amazing!')
                 embed.set_footer(text=f'Page {page + 1}')
             if not msg:
-                msg = await ctx.send(embed=embed,components=components)
+                if ctx.message.guild and is_self:
+                    msg = await ctx.author.send(embed=embed, components=components)
+                    await ctx.send('Your account standing has been DMed to you.')
+                else:
+                    msg = await ctx.send(embed=embed, components=components)
             else:
                 if interaction:
                     await interaction.response.edit_message(embed=embed,components=components)
@@ -606,6 +614,65 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             await ctx.send('User has been warned and notified.',embed=log_embed)
         except:
             await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed)
+
+    @commands.command(hidden=True)
+    async def delwarn(self,ctx,target,index):
+        index -= 1
+        if not ctx.author.id in self.bot.moderators:
+            return
+        if index < 0:
+            return await ctx.send('what.')
+        target = self.bot.get_user(int(target.replace('<@','',1).replace('!','',1).replace('>','',1)))
+        try:
+            actions, _ = self.bot.get_user_actions(target.id)
+            warn = actions['warn'][index]
+        except:
+            return await ctx.send('Could not find action!')
+        embed = discord.Embed(title='Warning deleted',description=warn['reason'],color=0xffcc00)
+        embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
+        searched = 0
+        deleted = False
+        for i in range(len(self.bot.db['modlogs'][f'{target.id}'])):
+            if self.bot.db['modlogs'][f'{target.id}'][i]['type']==0:
+                searched += 1
+                if searched==index:
+                    self.bot.db['modlogs'][f'{target.id}'].pop(i)
+                    deleted = True
+                    break
+        if deleted:
+            await ctx.send('Warning was deleted!', embed=embed)
+        else:
+            await ctx.send('Could not find warning - maybe the index was too high?')
+
+    @commands.command(hidden=True)
+    async def delban(self, ctx, target, index):
+        index -= 1
+        if not ctx.author.id in self.bot.moderators:
+            return
+        if index < 0:
+            return await ctx.send('what.')
+        target = self.bot.get_user(int(target.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1)))
+        try:
+            actions, _ = self.bot.get_user_actions(target.id)
+            warn = actions['warn'][index]
+        except:
+            return await ctx.send('Could not find action!')
+        embed = discord.Embed(title='Ban deleted', description=warn['reason'], color=0xff0000)
+        embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
+        embed.set_footer(text='WARNING: This does NOT unban the user.')
+        searched = 0
+        deleted = False
+        for i in range(len(self.bot.db['modlogs'][f'{target.id}'])):
+            if self.bot.db['modlogs'][f'{target.id}'][i]['type'] == 1:
+                searched += 1
+                if searched == index:
+                    self.bot.db['modlogs'][f'{target.id}'].pop(i)
+                    deleted = True
+                    break
+        if deleted:
+            await ctx.send('Ban was deleted!', embed=embed)
+        else:
+            await ctx.send('Could not find ban - maybe the index was too high?')
 
     @commands.command(hidden=True,name='globaIban')
     async def globaiban(self,ctx,*,target):
