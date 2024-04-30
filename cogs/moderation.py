@@ -335,8 +335,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
                 self.bot.db.save_data()
-            else:
-                return
 
         judgement = (
             actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
@@ -405,7 +403,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 while page * 5 >= len(actions['warns']) and page > 0:
                     page -= 1
                 for i in range(page * 5, (page + 1) * 5):
-                    if len(actions['warns']) == 0:
+                    if len(actions['warns']) == 0 or len(actions)-i-1 < 0:
                         break
                     embed.add_field(
                         name=f'\U000026A0 Warning #{len(actions["warns"])-i}',
@@ -455,7 +453,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 while page * 5 >= len(actions['bans']) and page > 0:
                     page -= 1
                 for i in range(page * 5, (page + 1) * 5):
-                    if len(actions['bans']) == 0:
+                    if len(actions['bans']) == 0 or len(actions)-i-1 < 0:
                         break
                     embed.add_field(
                         name=f'\U0001F6AB Ban #{len(actions["bans"]) - i}',
