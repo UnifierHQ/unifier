@@ -88,6 +88,48 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
+    def add_modlog(self, user, reason, moderator):
+        t = time.time()
+        try:
+            self.bot.db['modlogs'][f'{user.id}'].append({
+                'type': 0,
+                'reason': reason,
+                'time': t,
+                'mod': moderator
+            })
+        except:
+            self.bot.db['modlogs'].update({
+                f'{user.id}': [{
+                    'type': 0,
+                    'reason': reason,
+                    'time': t,
+                    'mod': moderator
+                }]
+            })
+        self.bot.db.save_data()
+
+    def get_modlogs(self, user):
+        t = time.time()
+
+        actions = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
+        }
+        actions_recent = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and log['time'] - t <= 2592000],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and log['time'] - t <= 2592000]
+        }
+
+        return actions, actions_recent
+
+    def get_modlogs_count(self, user):
+        actions, actions_recent = self.get_modlogs(user)
+        return {
+            'warns': len(actions['warns']), 'bans': len(actions['bans'])
+        }, {
+            'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
+        }
+
     @commands.command(aliases=['ban'])
     async def restrict(self,ctx,*,target):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
@@ -208,8 +250,17 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         ctx.message.embeds = []
         ctx.message.content = content
-        await ctx.send('global banned <:nevheh:990994050607906816>')
-        
+
+        actions_count, actions_count_recent = self.bot.get_actions_count(user.id)
+        log_embed = discord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.utcnow())
+        log_embed.add_field(
+            name='User modlogs info',
+            value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in ' +
+                  f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in ' +
+                  'total) on record.',
+            inline=False)
+        await ctx.send('User was global banned. They may not use Unifier for the given time period.',
+                       embed=log_embed)
 
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,target):
@@ -309,11 +360,19 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
         if user.bot:
             return await ctx.send('...why would you want to warn a bot?')
+        actions_count, actions_count_recent = self.bot.get_actions_count(user.id)
+        log_embed = discord.Embed(title='User warned',description=reason,color=0xffff00,timestamp=datetime.utcnow())
+        log_embed.add_field(
+            name='User modlogs info',
+            value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in '+
+                  f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in '+
+                  'total) on record.',
+            inline=False)
         try:
             await user.send(embed=embed)
+            await ctx.send('User has been warned and notified.',embed=log_embed)
         except:
-            return await ctx.send('bro has their dms off :skull:')
-        await ctx.send('user warned')
+            await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed)
 
     @commands.command(hidden=True,name='globaIban')
     async def globaiban(self,ctx,*,target):
