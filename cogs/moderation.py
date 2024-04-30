@@ -617,9 +617,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
     @commands.command(hidden=True)
     async def delwarn(self,ctx,target,index):
-        index -= 1
         if not ctx.author.id in self.bot.moderators:
             return
+        try:
+            index = int(index) - 1
+        except:
+            return await ctx.send('Invalid index!')
         if index < 0:
             return await ctx.send('what.')
         target = self.bot.get_user(int(target.replace('<@','',1).replace('!','',1).replace('>','',1)))
@@ -646,9 +649,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
     @commands.command(hidden=True)
     async def delban(self, ctx, target, index):
-        index -= 1
         if not ctx.author.id in self.bot.moderators:
             return
+        try:
+            index = int(index) - 1
+        except:
+            return await ctx.send('Invalid index!')
         if index < 0:
             return await ctx.send('what.')
         target = self.bot.get_user(int(target.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1)))
