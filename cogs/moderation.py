@@ -326,6 +326,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             target = ctx.author
             is_self = True
+        if target.id == ctx.author.id:
+            is_self = True
         embed = discord.Embed(
             title='All good!',
             description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
