@@ -342,34 +342,34 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
         )
         if f'{ctx.author.id}' in list(gbans.keys()):
-            embed.title = embed.title = ": __SUSPENDED__"
+            embed.title = embed.title + ": __SUSPENDED__"
             embed.colour = 0xff0000
             embed.description = (
                     'You\'ve been temporarily or permanently suspended from this Unifier instance.\n'+
-                    ':white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
+                    '\n:white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
             )
         elif judgement <= 2:
-            embed.title = embed.title = ": __All good!__"
+            embed.title = embed.title + ": __All good!__"
         elif 2 < judgement <= 5:
-            embed.title = embed.title = ": __Fair__"
+            embed.title = embed.title + ": __Fair__"
             embed.colour = 0xffff00
             embed.description = (
                     'You\'ve broken one or more rules recently. Please follow the rules next time!' +
-                    ':white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
+                    '\n:white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
             )
         elif 5 < judgement <= 10:
-            embed.title = embed.title = ": __Caution__"
+            embed.title = embed.title + ": __Caution__"
             embed.colour = 0xffff00
             embed.description = (
                     'You\'ve broken many rules recently. Moderators may issue stronger punishments.' +
-                    ':white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
+                    '\n:white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
             )
         else:
-            embed.title = embed.title = ": __WARNING__"
+            embed.title = embed.title + ": __WARNING__"
             embed.colour = 0xff00dd
             embed.description = (
                     'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
-                    ':white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
+                    '\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
             )
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         msg = None
@@ -498,7 +498,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 if len(embed.fields) == 0:
                     embed.add_field(name='No bans',value='There\'s no bans on record. Amazing!')
             if not msg:
-                msg = await msg.send(embed=embed,components=components)
+                msg = await ctx.send(embed=embed,components=components)
             else:
                 if interaction:
                     await interaction.response.edit_message(embed=embed,components=components)
