@@ -402,17 +402,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
             elif menu == 1:
-                while page * 5 >= len(actions['warns']):
+                while page * 5 >= len(actions['warns']) and page > 0:
                     page -= 1
-                for i in range(page * 5,
-                               len(actions['warns']) - (
-                                       len(actions['warns']) - (page * 5)
-                               ) if len(actions['warns']) - page*5 >= 0 else len(actions['warns'])):
+                for i in range(page * 5, (page + 1) * 5):
+                    if len(actions['warns']) == 0:
+                        break
                     embed.add_field(
-                        name=f'Warning #{len(actions["warns"])-i}',
+                        name=f'\U000026A0 Warning #{len(actions["warns"])-i}',
                         value=actions['warns'][len(actions)-i-1]['reason'],
                         inline=False
                     )
+                    if i >= len(actions['warns']) - 1:
+                        break
                 components = discord.ui.MessageComponents(
                     discord.ui.ActionRow(
                         discord.ui.Button(
@@ -432,7 +433,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                             label='Next',
                             style=discord.ButtonStyle.blurple
                         )
-                    ) if len(embed.fields) == 0 else discord.ui.ActionRow(
+                    ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
                         discord.ui.Button(
                             custom_id='prev',
                             label='Previous',
@@ -449,18 +450,20 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 )
                 if len(embed.fields) == 0:
                     embed.add_field(name='No warnings',value='There\'s no warnings on record. Amazing!')
+                embed.set_footer(text=f'Page {page+1}')
             elif menu == 2:
-                while page * 5 >= len(actions['bans']):
+                while page * 5 >= len(actions['bans']) and page > 0:
                     page -= 1
-                for i in range(page * 5,
-                               len(actions['bans']) - (
-                                       len(actions['bans']) - (page * 5)
-                               ) if len(actions['bans']) - page*5 >= 0 else len(actions['bans'])):
+                for i in range(page * 5, (page + 1) * 5):
+                    if len(actions['bans']) == 0:
+                        break
                     embed.add_field(
-                        name=f'Ban #{len(actions["bans"])-i}',
-                        value=actions['bans'][len(actions)-i-1]['reason'],
+                        name=f'\U0001F6AB Ban #{len(actions["bans"]) - i}',
+                        value=actions['bans'][len(actions) - i - 1]['reason'],
                         inline=False
                     )
+                    if i >= len(actions['bans']) - 1:
+                        break
                 components = discord.ui.MessageComponents(
                     discord.ui.ActionRow(
                         discord.ui.Button(
@@ -480,7 +483,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                             label='Next',
                             style=discord.ButtonStyle.blurple
                         )
-                    ) if len(embed.fields) == 0 else discord.ui.ActionRow(
+                    ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
                         discord.ui.Button(
                             custom_id='prev',
                             label='Previous',
@@ -496,7 +499,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
                 if len(embed.fields) == 0:
-                    embed.add_field(name='No bans',value='There\'s no bans on record. Amazing!')
+                    embed.add_field(name='No warnings', value='There\'s no bans on record. Amazing!')
+                embed.set_footer(text=f'Page {page + 1}')
             if not msg:
                 msg = await ctx.send(embed=embed,components=components)
             else:
