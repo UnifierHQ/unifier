@@ -252,7 +252,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ctx.message.content = content
 
         self.add_modlog(1, user.id, reason, ctx.author.id)
-        actions_count, actions_count_recent = self.bot.get_actions_count(user.id)
+        actions_count, actions_count_recent = self.get_modlogs_count(user.id)
         log_embed = discord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.utcnow())
         log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
         log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
@@ -325,8 +325,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not is_self:
             embed.title = f'{target.global_name}\'s account standing'
 
-        actions_count, actions_count_recent = self.bot.get_actions_count(target.id)
-        actions, _ = self.bot.get_actions(target.id)
+        actions_count, actions_count_recent = self.get_modlogs_count(target.id)
+        actions, _ = self.get_modlogs(target.id)
 
         gbans = self.bot.db['banned']
         ct = time.time()
