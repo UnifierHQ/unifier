@@ -378,6 +378,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     '\n\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
             )
         embed.set_author(name=f'@{target.name}\'s account standing', icon_url=target.avatar.url if target.avatar else None)
+        if target.bot:
+            embed.title = 'Bot account'
+            embed.description = 'This is a bot. Bots cannot have an account standing.'
+            embed.colour = 0xcccccc
+            return await ctx.send(embed=embed)
         msg = None
         interaction = None
         while True:
