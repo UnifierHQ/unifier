@@ -315,7 +315,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 return await ctx.send('Invalid target!')
         else:
-            target = ctx.author.id
+            target = ctx.author
             is_self = True
         embed = discord.Embed(
             title='Your account standing',
@@ -587,7 +587,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if user.bot:
             return await ctx.send('...why would you want to warn a bot?')
         self.add_modlog(0,user.id,reason,ctx.author.id)
-        actions_count, actions_count_recent = self.bot.get_actions_count(user.id)
+        actions_count, actions_count_recent = self.get_modlogs_count(user.id)
         log_embed = discord.Embed(title='User warned',description=reason,color=0xffff00,timestamp=datetime.utcnow())
         log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
