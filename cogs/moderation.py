@@ -88,11 +88,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
-    def add_modlog(self, user, reason, moderator):
+    def add_modlog(self, type, user, reason, moderator):
         t = time.time()
         try:
             self.bot.db['modlogs'][f'{user.id}'].append({
-                'type': 0,
+                'type': type,
                 'reason': reason,
                 'time': t,
                 'mod': moderator
@@ -100,7 +100,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             self.bot.db['modlogs'].update({
                 f'{user.id}': [{
-                    'type': 0,
+                    'type': type,
                     'reason': reason,
                     'time': t,
                     'mod': moderator
@@ -251,8 +251,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ctx.message.embeds = []
         ctx.message.content = content
 
+        self.add_modlog(1, user.id, reason, ctx.author.id)
         actions_count, actions_count_recent = self.bot.get_actions_count(user.id)
         log_embed = discord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.utcnow())
+        log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
+        log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
             name='User modlogs info',
             value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in ' +
@@ -360,8 +363,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
         if user.bot:
             return await ctx.send('...why would you want to warn a bot?')
+        self.add_modlog(0,user.id,reason,ctx.author.id)
         actions_count, actions_count_recent = self.bot.get_actions_count(user.id)
         log_embed = discord.Embed(title='User warned',description=reason,color=0xffff00,timestamp=datetime.utcnow())
+        log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
             name='User modlogs info',
             value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in '+
