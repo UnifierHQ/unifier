@@ -343,28 +343,28 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
         )
         if f'{ctx.author.id}' in list(gbans.keys()):
-            embed.title = embed.title + "SUSPENDED"
+            embed.title = "SUSPENDED"
             embed.colour = 0xff0000
             embed.description = (
                     'You\'ve been' + 'permanently' if noexpiry else 'temporarily' + 'suspended from this Unifier '+
                     'instance.\n\n:white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
             )
         elif 2 < judgement <= 5:
-            embed.title = embed.title + "Fair"
+            embed.title = "Fair"
             embed.colour = 0xffff00
             embed.description = (
                     'You\'ve broken one or more rules recently. Please follow the rules next time!' +
                     '\n\n:white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
             )
         elif 5 < judgement <= 10:
-            embed.title = embed.title + "Caution"
+            embed.title = "Caution"
             embed.colour = 0xffcc00
             embed.description = (
                     'You\'ve broken many rules recently. Moderators may issue stronger punishments.' +
                     '\n\n:white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
             )
-        else:
-            embed.title = embed.title + "WARNING"
+        elif judgement > 10:
+            embed.title = "WARNING"
             embed.colour = 0xff00dd
             embed.description = (
                     'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
