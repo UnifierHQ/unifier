@@ -321,7 +321,7 @@ class UnifierBridge:
                 external_urls=data['messages'][f'{x}']['external_urls'],
                 webhook=data['messages'][f'{x}']['webhook'],
                 prehook=data['messages'][f'{x}']['prehook'],
-                reactions=data['messages'][f'{x}']['reactions']
+                reactions=data['messages'][f'{x}']['reactions'] if 'reactions' in list(data['messages'][f'{x}'].keys()) else {}
             )
             self.bridged.append(msg)
         
