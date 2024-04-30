@@ -111,6 +111,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     def get_modlogs(self, user):
         t = time.time()
 
+        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
+            return {
+                'warns': [],
+                'bans': []
+            }, {
+                'warns': [],
+                'bans': []
+            }
+
         actions = {
             'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
             'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
