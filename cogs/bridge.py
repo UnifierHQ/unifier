@@ -2425,6 +2425,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         tasks = []
         parent_id = None
 
+        if (message.content.lower().startswith('is unifier down') or
+                message.content.lower().startswith('unifier not working')):
+            await message.channel.send('no',reference=message)
+
         if multisend:
             # Multisend
             # Sends Discord message along with other platforms to minimize
