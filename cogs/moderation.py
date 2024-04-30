@@ -331,8 +331,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
             '\n:white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
             color=0x00ff00)
-        if not is_self:
-            embed.title = f'{target.global_name}\'s account standing'
 
         actions_count, actions_count_recent = self.get_modlogs_count(target.id)
         actions, _ = self.get_modlogs(target.id)
