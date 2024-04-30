@@ -318,7 +318,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             target = ctx.author
             is_self = True
         embed = discord.Embed(
-            title='Your account standing',
+            title='All good!',
             description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
             '\n:white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
             color=0x00ff00)
@@ -343,36 +343,34 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
         )
         if f'{ctx.author.id}' in list(gbans.keys()):
-            embed.title = embed.title + ": __SUSPENDED__"
+            embed.title = embed.title + "SUSPENDED"
             embed.colour = 0xff0000
             embed.description = (
                     'You\'ve been' + 'permanently' if noexpiry else 'temporarily' + 'suspended from this Unifier '+
                     'instance.\n\n:white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
             )
-        elif judgement <= 2:
-            embed.title = embed.title + ": __All good!__"
         elif 2 < judgement <= 5:
-            embed.title = embed.title + ": __Fair__"
+            embed.title = embed.title + "Fair"
             embed.colour = 0xffff00
             embed.description = (
                     'You\'ve broken one or more rules recently. Please follow the rules next time!' +
                     '\n\n:white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
             )
         elif 5 < judgement <= 10:
-            embed.title = embed.title + ": __Caution__"
+            embed.title = embed.title + "Caution"
             embed.colour = 0xffcc00
             embed.description = (
                     'You\'ve broken many rules recently. Moderators may issue stronger punishments.' +
                     '\n\n:white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
             )
         else:
-            embed.title = embed.title + ": __WARNING__"
+            embed.title = embed.title + "WARNING"
             embed.colour = 0xff00dd
             embed.description = (
                     'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
                     '\n\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
             )
-        embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
+        embed.set_author(name=f'@{target.name}\'s account standing', icon_url=target.avatar.url if target.avatar else None)
         msg = None
         interaction = None
         while True:
@@ -627,8 +625,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('what.')
         target = self.bot.get_user(int(target.replace('<@','',1).replace('!','',1).replace('>','',1)))
         try:
-            actions, _ = self.bot.get_user_actions(target.id)
-            warn = actions['warn'][index]
+            actions, _ = self.get_modlogs(target.id)
+            warn = actions['warns'][index]
         except:
             return await ctx.send('Could not find action!')
         embed = discord.Embed(title='Warning deleted',description=warn['reason'],color=0xffcc00)
@@ -637,11 +635,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         deleted = False
         for i in range(len(self.bot.db['modlogs'][f'{target.id}'])):
             if self.bot.db['modlogs'][f'{target.id}'][i]['type']==0:
-                searched += 1
                 if searched==index:
                     self.bot.db['modlogs'][f'{target.id}'].pop(i)
                     deleted = True
                     break
+                searched += 1
         if deleted:
             await ctx.send('Warning was deleted!', embed=embed)
         else:
@@ -659,22 +657,22 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('what.')
         target = self.bot.get_user(int(target.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1)))
         try:
-            actions, _ = self.bot.get_user_actions(target.id)
-            warn = actions['warn'][index]
+            actions, _ = self.get_modlogs(target.id)
+            ban = actions['bans'][index]
         except:
             return await ctx.send('Could not find action!')
-        embed = discord.Embed(title='Ban deleted', description=warn['reason'], color=0xff0000)
+        embed = discord.Embed(title='Ban deleted', description=ban['reason'], color=0xff0000)
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         embed.set_footer(text='WARNING: This does NOT unban the user.')
         searched = 0
         deleted = False
         for i in range(len(self.bot.db['modlogs'][f'{target.id}'])):
             if self.bot.db['modlogs'][f'{target.id}'][i]['type'] == 1:
-                searched += 1
                 if searched == index:
                     self.bot.db['modlogs'][f'{target.id}'].pop(i)
                     deleted = True
                     break
+                searched += 1
         if deleted:
             await ctx.send('Ban was deleted!', embed=embed)
         else:
