@@ -91,7 +91,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     def add_modlog(self, type, user, reason, moderator):
         t = time.time()
         try:
-            self.bot.db['modlogs'][f'{user.id}'].append({
+            self.bot.db['modlogs'][f'{user}'].append({
                 'type': type,
                 'reason': reason,
                 'time': t,
@@ -99,7 +99,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             })
         except:
             self.bot.db['modlogs'].update({
-                f'{user.id}': [{
+                f'{user}': [{
                     'type': type,
                     'reason': reason,
                     'time': t,
