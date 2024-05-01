@@ -258,7 +258,56 @@ async def on_ready():
                         toreg.append(command)
             await bot.register_application_commands(commands=toreg)
             logger.debug(f'Registered {len(toreg)} commands')
-    logger.info('Unifier is ready!')
+
+        """ SPYPET ANTI SCRAPER START"""
+        scraped_guilds = await bot.spyslayer.scan()
+        room = bot.config['main_room']
+        for scraped_guild in scraped_guilds:
+            await bot.spyslayer.disconnect(bot.get_guild(int(scraped_guild)))
+            scraper_list = ''
+            for scraper in scraped_guilds[scraped_guild]:
+                scraper_list = scraper_list + f'- <@{scraper}>\n'
+            logger.warning(f'Guild {scraped_guild} has a scraper bot!')
+            if room in list(bot.db['rooms'].keys()):
+                for guild_id in list(room.keys()):
+                    try:
+                        webhook: discord.Webhook = await bot.fetch_webhook(room[f'{guild_id}'][0])
+                    except:
+                        continue
+                    if int(guild_id) == int(scraped_guild):
+                        embed = discord.Embed(
+                            color=0xff0000,
+                            title="WARNING: A scraper bot was detected!",
+                            description="A scraper bot was detected in your server. Unifier has automatically " +
+                                        "disconnected your server for users' safety.\n\n" +
+                                        "Bots detected:\n" +
+                                        f"{scraper_list}\n" +
+                                        "Source: [kickthespy.pet ID list](https://kickthespy.pet/ids)"
+
+                        )
+                        embed.add_field(
+                            name='What now?',
+                            value='1. Ban all users shown above, as they are scraper bots.\n' +
+                                  '2. Run `u!spyscan`.\n' +
+                                  '3. If the bots are no longer detected, the ban will be lifted, unless ' +
+                                  'the server has another ongoing ban.',
+                            inline=False
+                        )
+                        await webhook.channel.send(embed=embed)
+                    else:
+                        embed = discord.Embed(
+                            color=0xff0000,
+                            title='Server removed',
+                            description="A scraper bot was found in a server! The server was removed from the " +
+                                        f"{bot.user.global_name} network and they have been informed."
+                        )
+                        await webhook.send(
+                            avatar_url=bot.user.avatar.url if bot.user.avatar else None,
+                            username=bot.user.global_name + ' (system)',
+                            embed=embed
+                        )
+
+        logger.info('Unifier is ready!')
 
 @bot.event
 async def on_message(message):
