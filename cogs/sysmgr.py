@@ -925,13 +925,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.title = ':white_check_mark: Restart to apply upgrade'
                     embed.description = f'The upgrade was successful. Please reboot the bot.'
                     embed.colour = 0x00ff00
-                    components = discord.ui.MessageComponents(
-                        discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel',
-                                              disabled=False)
-                        )
-                    )
-                    await msg.edit(embed=embed, components=components)
+                    await msg.edit(embed=embed)
                 else:
                     self.logger.info('Restarting extensions')
                     embed.description = ':white_check_mark: Downloading updates\n:white_check_mark: Installing updates\n:hourglass_flowing_sand: Reloading modules'
