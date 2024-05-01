@@ -20,8 +20,8 @@ import discord
 from discord.ext import commands
 import json
 import traceback
-from utils import log
 import re
+from utils import log
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
