@@ -125,8 +125,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
         }
         actions_recent = {
-            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and log['time'] - t <= 2592000],
-            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and log['time'] - t <= 2592000]
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
         }
 
         return actions, actions_recent
