@@ -3,6 +3,33 @@ from discord.ext import commands
 from utils import log
 import aiohttp
 
+class SpySlayer(): # NOT THE COG ITSELF, JUST THE SCANNER AND ID CACHER.
+    def __init__(self,bot,logger):
+        self.bot = bot
+        self.ids = {}
+        self.logger = logger
+        try:
+            self.ids = requests.get('https://kickthespy.pet/ids',timeout=10).json()
+            with open('spypet_cache.json','w+') as file:
+                json.dump(self.ids,file,indent=4)
+        except:
+            try:
+                with open('spypet_cache.json', 'r') as file:
+                    self.ids = json.load(file)
+            except:
+                logger.exception('Could not get spy.pet IDs!')
+
+    async def scan_all():
+        positive = {}
+        for guild in self.bot.guilds:
+            found = []
+            for member in guild.members:
+                if str(member.id) in self.ids:
+                    found.append(member.id)
+            if len(found) > 0:
+                positive.update({f'{guild.id}':found})
+        return positive
+
 class SpyPetGuard(commands.Cog, name="SpyPet Guard"):
     """Cog to check for potential web scraper users on member join."""
 
