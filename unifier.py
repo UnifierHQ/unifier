@@ -28,6 +28,7 @@ import sys
 import logging
 from utils import log
 from dotenv import load_dotenv
+import requests
 
 if os.name != "nt":
     try:
@@ -74,6 +75,14 @@ try:
 except:
     with open('update.json', 'r') as file:
         vinfo = json.load(file)
+
+try:
+    incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
+    for incident in incidents:
+        logger.warning('Discord incident: ' + incident['name'])
+        logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
+except:
+    logger.debug('Failed to get Discord status')
 
 class DiscordBot(commands.Bot):
     """Extension of discord.ext.commands.Bot for bot configuration"""

@@ -88,6 +88,57 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
+    def add_modlog(self, type, user, reason, moderator):
+        t = time.time()
+        try:
+            self.bot.db['modlogs'][f'{user}'].append({
+                'type': type,
+                'reason': reason,
+                'time': t,
+                'mod': moderator
+            })
+        except:
+            self.bot.db['modlogs'].update({
+                f'{user}': [{
+                    'type': type,
+                    'reason': reason,
+                    'time': t,
+                    'mod': moderator
+                }]
+            })
+        self.bot.db.save_data()
+
+    def get_modlogs(self, user):
+        t = time.time()
+
+        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
+            return {
+                'warns': [],
+                'bans': []
+            }, {
+                'warns': [],
+                'bans': []
+            }
+
+        actions = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
+        }
+        actions_recent = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and log['time'] - t <= 2592000],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and log['time'] - t <= 2592000]
+        }
+
+        return actions, actions_recent
+
+    def get_modlogs_count(self, user):
+        actions, actions_recent = self.get_modlogs(user)
+        return {
+            'warns': len(actions['warns']), 'bans': len(actions['bans'])
+        }, {
+            'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
+        }
+
     @commands.command(aliases=['ban'])
     async def restrict(self,ctx,*,target):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
@@ -149,8 +200,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             discreet = True
             while reason.startswith(' '):
                 reason = reason.replace(' ','',1)
-        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('Moderators can\'t moderate other moderators!')
+        if userid in self.bot.moderators and not ctx.author.id == self.bot.config['owner']:
+            return await ctx.send('You cannot punish other moderators!')
         banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send('User/server already banned!')
@@ -208,8 +259,20 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         ctx.message.embeds = []
         ctx.message.content = content
-        await ctx.send('global banned <:nevheh:990994050607906816>')
-        
+
+        self.add_modlog(1, user.id, reason, ctx.author.id)
+        actions_count, actions_count_recent = self.get_modlogs_count(user.id)
+        log_embed = discord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.utcnow())
+        log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
+        log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
+        log_embed.add_field(
+            name='User modlogs info',
+            value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in ' +
+                  f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in ' +
+                  'total) on record.',
+            inline=False)
+        await ctx.send('User was global banned. They may not use Unifier for the given time period.',
+                       embed=log_embed)
 
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,target):
@@ -247,6 +310,245 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.db['banned'].pop(f'{userid}')
         self.bot.db.save_data()
         await ctx.send('unbanned, nice')
+
+    @commands.command(aliases=['account_standing'])
+    async def standing(self,ctx,*,target=None):
+        if target and not ctx.author.id in self.bot.moderators:
+            target = None
+        menu = 0
+        page = 0
+        is_self = False
+        if target:
+            try:
+                target = self.bot.get_user(int(target.replace('<@','',1).replace('>','',1).replace('!','',1)))
+            except:
+                return await ctx.send('Invalid target!')
+        else:
+            target = ctx.author
+            is_self = True
+        if target.id == ctx.author.id:
+            is_self = True
+        embed = discord.Embed(
+            title='All good!',
+            description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
+            '\n:white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
+            color=0x00ff00)
+
+        actions_count, actions_count_recent = self.get_modlogs_count(target.id)
+        actions, _ = self.get_modlogs(target.id)
+
+        gbans = self.bot.db['banned']
+        ct = time.time()
+        noexpiry = False
+        if f'{ctx.author.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.author.id}']
+            if ct >= banuntil and not banuntil == 0:
+                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db.save_data()
+            if banuntil == 0:
+                noexpiry = True
+
+        judgement = (
+            actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
+        )
+        if f'{ctx.author.id}' in list(gbans.keys()):
+            embed.title = "SUSPENDED"
+            embed.colour = 0xff0000
+            embed.description = (
+                    'You\'ve been' + 'permanently' if noexpiry else 'temporarily' + 'suspended from this Unifier '+
+                    'instance.\n\n:white_large_square: :white_large_square: :white_large_square: :white_large_square: :octagonal_sign:'
+            )
+        elif 2 < judgement <= 5:
+            embed.title = "Fair"
+            embed.colour = 0xffff00
+            embed.description = (
+                    'You\'ve broken one or more rules recently. Please follow the rules next time!' +
+                    '\n\n:white_large_square: :warning: :white_large_square: :white_large_square: :white_large_square:'
+            )
+        elif 5 < judgement <= 10:
+            embed.title = "Caution"
+            embed.colour = 0xffcc00
+            embed.description = (
+                    'You\'ve broken many rules recently. Moderators may issue stronger punishments.' +
+                    '\n\n:white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
+            )
+        elif judgement > 10:
+            embed.title = "WARNING"
+            embed.colour = 0xff00dd
+            embed.description = (
+                    'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
+                    '\n\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
+            )
+        embed.set_author(name=f'@{target.name}\'s account standing', icon_url=target.avatar.url if target.avatar else None)
+        if target.bot:
+            embed.title = 'Bot account'
+            embed.description = 'This is a bot. Bots cannot have an account standing.'
+            embed.colour = 0xcccccc
+            return await ctx.send(embed=embed)
+        msg = None
+        interaction = None
+        while True:
+            components = None
+            if menu == 0:
+                embed.add_field(name='Recent punishments',
+                                value=f'{actions_count_recent["warns"]} warnings, {actions_count_recent["bans"]} bans',
+                                inline=False)
+                embed.add_field(name='All-time punishments',
+                                value=f'{actions_count_recent["warns"]} warnings, {actions_count_recent["bans"]} bans',
+                                inline=False)
+                embed.set_footer(text='Standing is calculated based on recent and all-time punishments. Recent '+
+                                 'punishments will have a heavier effect on your standing.')
+                components = discord.ui.MessageComponents(
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='warns',
+                            label='Warnings',
+                            emoji='\U000026A0',
+                            style=discord.ButtonStyle.gray
+                        ),
+                        discord.ui.Button(
+                            custom_id='bans',
+                            label='Bans',
+                            emoji='\U0001F6D1',
+                            style=discord.ButtonStyle.red
+                        )
+                    )
+                )
+            elif menu == 1:
+                while (page * 5) + 1 >= len(actions['warns']) and page > 0:
+                    page -= 1
+                for i in range(page * 5, (page + 1) * 5):
+                    if len(actions['warns']) == 0 or len(actions['warns'])-i-1 < 0:
+                        break
+                    embed.add_field(
+                        name=f':warning: Warning #{len(actions["warns"])-i}',
+                        value=actions['warns'][len(actions['warns'])-i-1]['reason'],
+                        inline=False
+                    )
+                    if i >= len(actions['warns']) - 1:
+                        break
+                components = discord.ui.MessageComponents(
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='back',
+                            label='Back',
+                            style=discord.ButtonStyle.gray
+                        )
+                    ),
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=page==0
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=((page+1)*5)+1 >= len(actions['warns'])
+                        )
+                    ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        )
+                    )
+                )
+                if len(embed.fields) == 0:
+                    embed.add_field(name='No warnings',value='There\'s no warnings on record. Amazing!')
+                embed.set_footer(text=f'Page {page+1}')
+            elif menu == 2:
+                while (page * 5) + 1 >= len(actions['bans']) and page > 0:
+                    page -= 1
+                for i in range(page * 5, (page + 1) * 5):
+                    if len(actions['bans']) == 0 or len(actions['bans'])-i-1 < 0:
+                        break
+                    embed.add_field(
+                        name=f':no_entry_sign: Ban #{len(actions["bans"]) - i}',
+                        value=actions['bans'][len(actions['bans']) - i - 1]['reason'],
+                        inline=False
+                    )
+                    if i >= len(actions['bans']) - 1:
+                        break
+                components = discord.ui.MessageComponents(
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='back',
+                            label='Back',
+                            style=discord.ButtonStyle.gray
+                        )
+                    ),
+                    discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=page==0
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=((page+1)*5)+1 >= len(actions['bans'])
+                        )
+                    ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
+                        discord.ui.Button(
+                            custom_id='prev',
+                            label='Previous',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        ),
+                        discord.ui.Button(
+                            custom_id='next',
+                            label='Next',
+                            style=discord.ButtonStyle.blurple,
+                            disabled=True
+                        )
+                    )
+                )
+                if len(embed.fields) == 0:
+                    embed.add_field(name='No warnings', value='There\'s no bans on record. Amazing!')
+                embed.set_footer(text=f'Page {page + 1}')
+            if not msg:
+                if ctx.message.guild and is_self:
+                    msg = await ctx.author.send(embed=embed, components=components)
+                    await ctx.send('Your account standing has been DMed to you.')
+                else:
+                    msg = await ctx.send(embed=embed, components=components)
+            else:
+                if interaction:
+                    await interaction.response.edit_message(embed=embed,components=components)
+                else:
+                    await msg.edit(embed=embed,components=components)
+            embed.clear_fields()
+
+            def check(interaction):
+                return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+
+            try:
+                interaction = await self.bot.wait_for('component_interaction',timeout=60,check=check)
+            except:
+                return await msg.edit(components=None)
+            page = 0
+            if interaction.custom_id == 'back':
+                menu = 0
+            elif interaction.custom_id == 'warns':
+                menu = 1
+            elif interaction.custom_id == 'bans':
+                menu = 2
+            elif interaction.custom_id == 'prev':
+                page -= 1 if page >= 1 else 0
+            elif interaction.custom_id == 'next':
+                page += 1
 
     @commands.command(aliases=['guilds'])
     async def servers(self,ctx,*,room='main'):
@@ -286,8 +588,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid)==26:
                 return await ctx.send('Invalid user/server!')
-        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('ok guys no friendly fire pls thanks')
+        if userid in self.bot.moderators and not ctx.author.id==self.bot.config['owner']:
+            return await ctx.send('You cannot punish other moderators!')
         banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send('User/server already banned!')
@@ -309,11 +611,86 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
         if user.bot:
             return await ctx.send('...why would you want to warn a bot?')
+        self.add_modlog(0,user.id,reason,ctx.author.id)
+        actions_count, actions_count_recent = self.get_modlogs_count(user.id)
+        log_embed = discord.Embed(title='User warned',description=reason,color=0xffff00,timestamp=datetime.utcnow())
+        log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
+        log_embed.add_field(
+            name='User modlogs info',
+            value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in '+
+                  f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in '+
+                  'total) on record.',
+            inline=False)
         try:
             await user.send(embed=embed)
+            await ctx.send('User has been warned and notified.',embed=log_embed)
         except:
-            return await ctx.send('bro has their dms off :skull:')
-        await ctx.send('user warned')
+            await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed)
+
+    @commands.command(hidden=True)
+    async def delwarn(self,ctx,target,index):
+        if not ctx.author.id in self.bot.moderators:
+            return
+        try:
+            index = int(index) - 1
+        except:
+            return await ctx.send('Invalid index!')
+        if index < 0:
+            return await ctx.send('what.')
+        target = self.bot.get_user(int(target.replace('<@','',1).replace('!','',1).replace('>','',1)))
+        try:
+            actions, _ = self.get_modlogs(target.id)
+            warn = actions['warns'][index]
+        except:
+            return await ctx.send('Could not find action!')
+        embed = discord.Embed(title='Warning deleted',description=warn['reason'],color=0xffcc00)
+        embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
+        searched = 0
+        deleted = False
+        for i in range(len(self.bot.db['modlogs'][f'{target.id}'])):
+            if self.bot.db['modlogs'][f'{target.id}'][i]['type']==0:
+                if searched==index:
+                    self.bot.db['modlogs'][f'{target.id}'].pop(i)
+                    deleted = True
+                    break
+                searched += 1
+        if deleted:
+            await ctx.send('Warning was deleted!', embed=embed)
+        else:
+            await ctx.send('Could not find warning - maybe the index was too high?')
+
+    @commands.command(hidden=True)
+    async def delban(self, ctx, target, index):
+        if not ctx.author.id in self.bot.moderators:
+            return
+        try:
+            index = int(index) - 1
+        except:
+            return await ctx.send('Invalid index!')
+        if index < 0:
+            return await ctx.send('what.')
+        target = self.bot.get_user(int(target.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1)))
+        try:
+            actions, _ = self.get_modlogs(target.id)
+            ban = actions['bans'][index]
+        except:
+            return await ctx.send('Could not find action!')
+        embed = discord.Embed(title='Ban deleted', description=ban['reason'], color=0xff0000)
+        embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
+        embed.set_footer(text='WARNING: This does NOT unban the user.')
+        searched = 0
+        deleted = False
+        for i in range(len(self.bot.db['modlogs'][f'{target.id}'])):
+            if self.bot.db['modlogs'][f'{target.id}'][i]['type'] == 1:
+                if searched == index:
+                    self.bot.db['modlogs'][f'{target.id}'].pop(i)
+                    deleted = True
+                    break
+                searched += 1
+        if deleted:
+            await ctx.send('Ban was deleted!', embed=embed)
+        else:
+            await ctx.send('Could not find ban - maybe the index was too high?')
 
     @commands.command(hidden=True,name='globaIban')
     async def globaiban(self,ctx,*,target):
@@ -346,8 +723,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             userid = target
             if not len(userid) == 26:
                 return await ctx.send('Invalid user/server!')
-        if userid in self.bot.moderators and not ctx.author.id==356456393491873795:
-            return await ctx.send('ok guys no friendly fire pls thanks')
+        if userid in self.bot.moderators and not ctx.author.id == self.bot.config['owner']:
+            return await ctx.send('You cannot punish other moderators!')
         obvious = False
         if '-obvious' in reason:
             obvious = True
