@@ -2060,8 +2060,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await interaction.response.edit_message(embed=embed,components=components)
 
     @commands.command(hidden=True)
-    async def testreg(self, ctx, *, args=''):
-        if not ctx.author.id == 356456393491873795:
+    async def forcereg(self, ctx, *, args=''):
+        if not ctx.author.id == self.bot.config['owner']:
             return
         if 'dereg' in args:
             await self.bot.register_application_commands(commands=[])
@@ -2074,54 +2074,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         return await ctx.send(f'Registered {len(toreg)} commands to bot')
 
     @commands.command(hidden=True)
-    async def viewmsg(self,ctx,*,msgid=None):
-        if not ctx.author.id == 356456393491873795:
-            return
-        try:
-            msgid = ctx.message.reference.message_id
-        except:
-            if not msgid:
-                return await ctx.send('No message detected')
-        msg: UnifierMessage = await self.bot.bridge.fetch_message(msgid)
-        embed = discord.Embed(title=f'Viewing message {msg.id}',
-                              description=f'Guild: {msg.guild_id}\nSource: {msg.source}\nParent is webhook: {msg.webhook}',
-                              color=self.bot.colors.unifier)
-        text = ''
-        for key in msg.copies:
-            info = msg.copies[key]
-            if len(text)==0:
-                text = f'{key}: {info[1]}, sent in {info[0]}'
-            else:
-                text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
-        embed.add_field(name='Copies (samesource)',value=text,inline=False)
-        for platform in msg.external_copies:
-            text = ''
-            for key in msg.external_copies[platform]:
-                info = msg.external_copies[platform][key]
-                if len(text) == 0:
-                    text = f'{key}: {info[1]}, sent in {info[0]}'
-                else:
-                    text = f'{text}\n{key}: {info[1]}, sent in {info[0]}'
-            embed.add_field(name=f'Copies ({platform})', value=text, inline=False)
-        text = ''
-        for key in msg.urls:
-            if len(text) == 0:
-                text = f'{key}: [link](<{msg.urls[key]}>)'
-            else:
-                text = f'{text}\n{key}: [link](<{msg.urls[key]}>)'
-        embed.add_field(name=f'URLs', value=text, inline=False)
-        await ctx.send(embed=embed)
-
-    @commands.command(hidden=True)
-    async def mstiming(self,ctx,*,index):
-        if not ctx.author.id == 356456393491873795:
-            return
-        index = int(index)
-        await ctx.send(f'{multisend_logs[index]}')
-
-    @commands.command(hidden=True)
     async def initbridge(self, ctx, *, args=''):
-        if not ctx.author.id == 356456393491873795:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         msgs = []
         prs = {}
@@ -2137,7 +2091,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(hidden=True)
     async def system(self, ctx, room):
-        if not ctx.author.id == 356456393491873795:
+        if not ctx.author.id == self.bot.config['owner']:
             return
         ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True)
@@ -2337,7 +2291,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         except:
                             return
                         if shouldban:
-                            if not message.author.id == 356456393491873795:
+                            if not message.author.id == self.bot.config['owner']:
                                 self.bot.db['banned'].update({f'{message.author.id}': 0})
                                 self.bot.db.save_data()
                                 self.logger.warning(f'Banned user {message.author.id} - possible raid detected')
