@@ -18,6 +18,7 @@
   "allow_prs": true,
   "enable_ctx_commands": true,
   "enable_rotating_status": true,
+  "main_room": "main",
   "posts_room": "posts",
   "posts_ref_room": "post-comments",
   "compress_cache": true,

@@ -2091,7 +2091,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(hidden=True)
     async def system(self, ctx, room):
-        if not ctx.author.id == self.bot.config['owner']:
+        if not ctx.author.id == self.bot.config["owner"]:
             return
         ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True)
@@ -2146,6 +2146,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
+                if f'{message.guild.id}' in self.bot.db['spybot']:
+                    self.bot.db['banned'][f'{message.guild.id}'] = 0
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
