@@ -394,7 +394,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                                 value=f'{actions_count_recent["warns"]} warnings, {actions_count_recent["bans"]} bans',
                                 inline=False)
                 embed.add_field(name='All-time punishments',
-                                value=f'{actions_count_recent["warns"]} warnings, {actions_count_recent["bans"]} bans',
+                                value=f'{actions_count["warns"]} warnings, {actions_count["bans"]} bans',
                                 inline=False)
                 embed.set_footer(text='Standing is calculated based on recent and all-time punishments. Recent '+
                                  'punishments will have a heavier effect on your standing.')
