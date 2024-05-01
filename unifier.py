@@ -307,7 +307,7 @@ async def on_ready():
                             embed=embed
                         )
 
-        logger.info('Unifier is ready!')
+    logger.info('Unifier is ready!')
 
 @bot.event
 async def on_message(message):
