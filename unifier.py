@@ -306,7 +306,6 @@ async def on_ready():
                             username=bot.user.global_name + ' (system)',
                             embed=embed
                         )
-            """ SPYPET ANTI SCRAPER FINISH"""
 
         logger.info('Unifier is ready!')
 
