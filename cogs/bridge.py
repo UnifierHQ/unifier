@@ -2137,7 +2137,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(hidden=True)
     async def system(self, ctx, room):
-        if not ctx.author.id == 356456393491873795:
+        if not ctx.author.id == self.bot.config["owner"]:
             return
         ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True)
