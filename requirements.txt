@@ -14,3 +14,4 @@ multidict
 ulid
 typing-extensions
 aenum
+requests
