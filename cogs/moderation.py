@@ -516,7 +516,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
                 if len(embed.fields) == 0:
-                    embed.add_field(name='No warnings', value='There\'s no bans on record. Amazing!')
+                    embed.add_field(name='No bans', value='There\'s no bans on record. Amazing!')
                 embed.set_footer(text=f'Page {page + 1}')
             if not msg:
                 if ctx.message.guild and is_self:

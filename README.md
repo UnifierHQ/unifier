@@ -18,8 +18,8 @@ Like most bridge bots, Unifier has basic commands such as link, unlink, etc., so
 all on your messaging app of choice.
 
 ### Fast and responsive bridge
-Using threading and optimizations, Unifier has been tested to be able to send up to 20.3 messages a second through webhooks, 
-so nobody needs to wait to see your messages.
+Using threading and optimizations, Unifier has been tested to be able to send up to 33 messages a second through webhooks, so 
+nobody needs to wait to see your messages. Do note that this speed will vary depending on lots of factors.
 
 ### Revolt and Guilded support
 With [Revolt](https://github.com/UnifierHQ/unifier-revolt) and [Guilded](https://github.com/UnifierHQ/unifier-guilded) 
