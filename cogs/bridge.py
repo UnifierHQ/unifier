@@ -227,24 +227,37 @@ class UnifierRaidBan:
         return self.duration > threshold
 
 class UnifierMessageRaidBan(UnifierRaidBan):
-    def __init__(self, content_hash, *args, **kwargs):
+    def __init__(self, content, involved, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.content_hash = content_hash
+        self.content = content
+        self.duration = 600 # Duration of ban in seconds. Base is 600
+        self.involved = involved # List of involved users.
+        self.action = False # Whether to take action or not.
 
-class UnifierPossibleRaidEvent:
-    def __init__(self,userid,content, frequency=1):
-        self.userid = userid # User ID of possible raider
-        self.hash = encrypt_string(content) # Hash of raid message string
-        self.time = round(time.time())  # Time when ban occurred
-        self.frequency = frequency
-        self.impact_score = 100*frequency
+    def classify(self,data):
+        """Very basic function, will change later"""
+        return 1 if len(data['involved']) >= 3 else 0
 
-    def increment(self,count=1):
-        self.frequency += count
+    def involve(self,user,message):
+        try:
+            self.involved[str(user)].append(message)
+        except:
+            self.involved.update({f'{user}':[message]})
+        self.frequency += 1
         t = math.ceil((round(time.time()) - self.time) / 60)
         i = self.frequency
-        self.impact_score = round(100*i/t)
-        return self.impact_score > 300
+        threshold = round(9600 * t / i)  # Taken from UnifierRaidBan
+        prevd = self.duration
+        self.duration = self.duration * 2
+        diff = self.duration - prevd
+        self.expire += diff
+
+        # Below are the conditions which should be met in order for the event
+        # to be classified as a raid
+        is_raid = len(self.involved) >= 3 or self.duration > threshold or self.action
+        if is_raid:
+            return {'raid': True, 'involved': list(self.involved.keys())}
+        return {'raid': False}
 
 class UnifierBridge:
     def __init__(self, bot, logger, webhook_cache=None):
