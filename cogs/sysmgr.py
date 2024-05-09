@@ -76,6 +76,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.colors = Colors
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
+        if not hasattr(self.bot, 'trusted_group'):
+            tgroup = [self.bot.config['owner']]
+            for i in self.bot.admins:
+                tgroup.append(i)
+            tgroup = list(set(test_list))
+            self.bot.trusted_group = tgroup
         if not hasattr(self.bot, 'loglevel'):
             self.bot.loglevel = logging.DEBUG if self.bot.config['debug'] else logging.INFO
         if not hasattr(self.bot, 'package'):
