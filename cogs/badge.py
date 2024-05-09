@@ -26,11 +26,13 @@ class Badge(commands.Cog):
 
         self.logger = log.buildlogger(self.bot.package,'badge',self.bot.loglevel)
 
-    @commands.command(hidden=True)
+    @commands.command()
     async def badge(self, ctx):
         user = "user"
         if ctx.author.id in self.bot.db['banned']:
             user = "banned"
+        if ctx.author.id in self.bot.trusted_group:
+            user = "trusted"
         if ctx.author.id in self.bot.moderators:
             user = "moderator"
         if ctx.author.id in self.bot.admins:
@@ -55,6 +57,12 @@ class Badge(commands.Cog):
                 description=f"<@{ctx.author.id}> is a Unifier **moderator**.",
                 color=self.bot.colors.purple  # You can change the color to your preference
             )
+        elif user == "trusted":
+            embed = discord.Embed(
+                title="Unifier",
+                description=f"<@{ctx.author.id}> is a Unifier **trusted user**.",
+                color=self.bot.colors.gold  # You can change the color to your preference
+            )
         elif user == "banned":
             embed = discord.Embed(
                 title="Unifier",
@@ -68,6 +76,37 @@ class Badge(commands.Cog):
                 description=f"<@{ctx.author.id}> is a Unifier **user**.",
                 color=self.bot.colors.blurple  # You can change the color to your preference
             )
+        await ctx.send(embed=embed)
+
+    @commands.command(hidden=True)
+    async def trust(self, ctx, action, user):
+        if not ctx.user.id in self.bot.admins:
+            return ctx.send("Nah, you can't access Unifier Trust n' safety zone! L")
+        
+        userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
+        
+        if action == "add":
+            self.bot.trusted_group.append(userid)
+            embed = discord.Embed(
+                title="Unifier"
+                description=f"Added user <@{userid}> ({userid}) to the trust group!"
+                self.bot.colors.green
+            )
+        if action == "remove":
+            self.bot.trusted_group.remove(userid)
+            embed = discord.Embed(
+                title="Unifier"
+                description=f"Removed user <@{userid}> ({userid}) to the trust group!"
+                self.bot.colors.red
+            )
+        elif:
+            embed = discord.Embed(
+                title="Unifier"
+                description=f"Action not found!"
+                self.bot.colors.purple
+            )
+            
+        
         await ctx.send(embed=embed)
 
 def setup(bot):
