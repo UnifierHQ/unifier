@@ -80,7 +80,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             tgroup = [self.bot.config['owner']]
             for i in self.bot.admins:
                 tgroup.append(i)
-            tgroup = list(set(test_list))
+            for i in self.bot.moderators:
+                tgroup.append(i)
+            tgroup = list(set(test_list)) # Remove duplicates, as green would be 3 times and ItsAsheer 2.
             self.bot.trusted_group = tgroup
         if not hasattr(self.bot, 'loglevel'):
             self.bot.loglevel = logging.DEBUG if self.bot.config['debug'] else logging.INFO
