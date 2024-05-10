@@ -3,7 +3,7 @@
   "name": "System extensions",
   "description": "Unifier system extensions",
   "version": "v1.2.2-patch",
-  "release": 41,
+  "release": 42,
   "minimum": 0,
   "shutdown": false,
   "modules": [
