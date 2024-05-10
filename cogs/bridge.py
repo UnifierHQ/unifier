@@ -43,6 +43,7 @@ with open('config.json', 'r') as file:
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
+bridge_restrict = {}
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -239,6 +240,7 @@ class UnifierMessageRaidBan(UnifierRaidBan):
         return 1 if len(data['involved']) >= 3 else 0
 
     def involve(self,user,message):
+        """Adds a user to the involved list."""
         try:
             self.involved[str(user)].append(message)
         except:
@@ -256,7 +258,7 @@ class UnifierMessageRaidBan(UnifierRaidBan):
         # to be classified as a raid
         is_raid = len(self.involved) >= 3 or self.duration > threshold or self.action
         if is_raid:
-            return {'raid': True, 'involved': list(self.involved.keys())}
+            return {'raid': True, 'involved': self.involved}
         return {'raid': False}
 
 class UnifierBridge:
@@ -267,6 +269,7 @@ class UnifierBridge:
         self.webhook_cache = webhook_cache or {}
         self.restored = False
         self.raidbans = {}
+        self.msg_raidbans = []
         self.possible_raid = {}
         self.logger = logger
 
@@ -2356,6 +2359,115 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**')
                 return
+
+        chars = ''.join(message.content.split())  # remove all whitespace
+        upper_percent = sum(i.isupper() for i in chars)/len(chars)
+
+        multi = 1
+
+        for line in message.content.split('\n'):
+            if line.startswith('# '):
+                multi *= 4
+            elif line.startswith('## '):
+                multi *= 2
+
+        log_content = (upper_percent > 0.5 and len(message.content) > 4 or len(urls) > 0 or
+                       round(len(message.content)*multi) > 200)
+
+        if f'{message.guild.id}' in list(bridge_restrict.keys()):
+            embed = discord.Embed(
+                title='Content blocked',
+                description='This server is on lockdown mode. Messages may only be 100 characters or less.',
+                color=0xff0000
+            )
+            if len(message.content) > 100:
+                return await message.channel.send(embed=embed)
+            elif f'{message.author.id}' in bridge_restrict[f'{message.guild.id}']['slowmode']:
+                if bridge_restrict[f'{message.guild.id}']['slowmode'][f'{message.author.id}'][0] >= time.time():
+                    if bridge_restrict[f'{message.guild.id}']['slowmode'][f'{message.author.id}'][1] >= 5:
+                        if not f'{message.author.id}' in list(self.bot.db['banned'].keys()):
+                            self.bot.db['banned'].update({f'{message.author.id}': 0})
+                            embed = discord.Embed(title=f'You\'ve been __global restricted__ by @Unifier (system)!',
+                                                  description='Automatic ban due to raid, contact staff to appeal.',
+                                                  color=0xff0000, timestamp=datetime.utcnow())
+                            embed.set_author(
+                                name=f'@{self.bot.user.global_name} (system)',
+                                icon_url=self.bot.user.author.avatar if self.bot.user.author else None
+                            )
+                            embed.add_field(name='Actions taken',
+                                            value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
+                                            inline=False)
+                            try:
+                                await message.author.send(embed=embed)
+                            except:
+                                pass
+                    else:
+                        bridge_restrict[f'{message.guild.id}']['slowmode'][f'{message.author.id}'][1] += 1
+                        embed.description = embed.description.replace(
+                            'Messages may only be 100 characters or less.',
+                            'There is a cooldown of 10 seconds between messages, try again later.'
+                        )
+                        await message.channel.send(embed=embed)
+                return
+
+        raidban_found = False
+        offset = 0
+        for index in range(self.bot.msg_raidbans):
+            if index - offset >= len(self.bot.msg_raidbans):
+                break
+            raidban: UnifierMessageRaidBan = self.bot.msg_raidbans[index-offset]
+            if raidban.expire > time.time():
+                self.bot.msg_raidbans.pop(index-offset)
+                offset += 1
+            already_banned = raidban.action
+            if message.content.lower()==raidban.content:
+                result = self.bot.msg_raidbans[index].involve(message.author.id,message.id)
+                if result['raid']:
+                    if not already_banned:
+                        embed = discord.Embed(
+                            title='Raid detected',
+                            description='A raid was detected. Action will be taken.',
+                            color=0xff0000
+                        )
+                        if len(raidban.involved) >= 3:
+                            embed.description = embed.description + '\nSlowmode and character limiting is now set.'
+                        await message.channel.send(embed=embed)
+                        if not f'{message.guild.id}' in list(bridge_restrict.keys()):
+                            bridge_restrict.update({f'{message.guild.id}':{'expire':round(time.time())+3600,'slowmode':{}}})
+
+                    for userid in result['involved']:
+                        try:
+                            ban = self.bot.db['banned'][userid]
+                            if ban == 0:
+                                continue
+                        except:
+                            pass
+                        self.bot.db['banned'].update({userid:0})
+                        user = self.bot.get_user(int(userid))
+                        if not user:
+                            continue
+                        embed = discord.Embed(title=f'You\'ve been __global restricted__ by @Unifier (system)!',
+                                              description='Automatic ban due to raid, contact staff to appeal.',
+                                              color=0xff0000, timestamp=datetime.utcnow())
+                        embed.set_author(
+                            name=f'@{self.bot.user.global_name} (system)',
+                            icon_url=self.bot.user.author.avatar if self.bot.user.author else None
+                        )
+                        embed.add_field(name='Actions taken',
+                                        value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
+                                        inline=False)
+                        try:
+                            await user.send(embed=embed)
+                        except:
+                            pass
+                    self.bot.db.save_data()
+
+        if log_content and not raidban_found:
+            self.bot.bridge.msg_raidbans.append(UnifierMessageRaidBan(
+                content=message.content.lower(),
+                involved={f'{message.author.id}':message.id}
+            ))
+
 
         if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
             return await message.channel.send(
