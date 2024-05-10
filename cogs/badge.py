@@ -45,15 +45,22 @@ class Badge(commands.Cog):
         }
 
     @commands.command()
-    async def badge(self, ctx):
-        user_role = self.get_user_role(ctx.author.id)
+    async def badge(self, ctx, *, user=None):
+        if user:
+            try:
+                user = self.bot.get_user(user.replace('<@','',1).replace('>','',1).replace('!','',1))
+            except:
+                user = ctx.author
+        else:
+            user = ctx.author
+        user_role = self.get_user_role(user.id)
         embed = discord.Embed(
             title="Unifier",
             description=f"<@{ctx.author.id}> is a Unifier **{user_role.value}**.",
             color=self.embed_colors[user_role]
         )
-        # Best easter egg in the world
-        #TODO ADD EASTER EGG L BOZO
+        if UserRole.BANNED:
+            embed.set_footer(text='L bozo')
 
         await ctx.send(embed=embed)
 
