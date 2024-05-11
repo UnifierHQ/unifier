@@ -34,8 +34,9 @@ import re
 import ast
 import math
 from io import BytesIO
-from tld import get_tld
-from utils import rapidphish, log
+import os
+from utils import log
+import importlib
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -258,6 +259,7 @@ class UnifierBridge:
         self.raidbans = {}
         self.possible_raid = {}
         self.logger = logger
+        self.secbans = {}
 
     def is_raidban(self,userid):
         try:
@@ -331,6 +333,22 @@ class UnifierBridge:
         del data
         self.restored = True
         return
+
+    async def run_security(self, message):
+        responses = []
+        unsafe = False
+
+        for plugin in os.listdir('plugins'):
+            with open('plugins/' + plugin) as file:
+                extinfo = json.load(file)
+                if not 'content_protection' in extinfo['services']:
+                    continue
+            script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
+            responses.append(await script.scan(message))
+            del script
+
+        return unsafe, responses
+
 
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
         if prehook and not_prehook:
@@ -2193,163 +2211,65 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        # Low-latency RapidPhish implementation
-        # Prevent message tampering
-        urls = findurl(message.content)
-        filtered = message.content.replace('\\', '')
-        for url in urls:
-            filtered = filtered.replace(url, '', 1)
-        for word in filtered.split():
-            # kill hyperlinks :woke:
-            if '](' in word:
-                # likely hyperlink, lets kill it
-                if word.startswith('['):
-                    word = word[1:]
-                if word.endswith(')'):
-                    word = word[:-1]
-                word = word.replace(')[', ' ')
-                words = word.split()
-                found = False
-                for word2 in words:
-                    words2 = word2.replace('](', ' ').split()
-                    for word3 in words2:
-                        if '.' in word3:
-                            if not word3.startswith('http://') or not word3.startswith('https://'):
-                                word3 = 'http://' + word3
-                            while True:
-                                try:
-                                    word3 = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word3))
-                                except:
-                                    break
-                            if len(word3.split('.')) == 1:
-                                continue
-                            else:
-                                if word3.split('.')[1] == '':
-                                    continue
-                            try:
-                                get_tld(word3.lower(), fix_protocol=True)
-                                if '](' in word3.lower():
-                                    word3 = word3.replace('](', ' ', 1).split()[0]
-                                urls.append(word3.lower())
-                                found = True
-                            except:
-                                pass
-
-                if found:
-                    # successful link detection from hyperlink yippee
-                    continue
-            if '.' in word:
-                while True:
-                    try:
-                        word = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word))
-                    except:
-                        break
-                if len(word.split('.')) == 1:
-                    continue
-                else:
-                    if word.split('.')[1] == '':
-                        continue
-                try:
-                    get_tld(word.lower(), fix_protocol=True)
-                    if '](' in word.lower():
-                        word = word.replace('](', ' ', 1).split()[0]
-                    urls.append(word.lower())
-                except:
-                    pass
-
-        key = 0
-        for url in urls:
-            url = url.lower()
-            urls[key] = url
-            if not url.startswith('http://') and not url.startswith('https://'):
-                urls[key] = f'http://{url}'
-            if '](' in url:
-                urls[key] = url.replace('](', ' ', 1).split()[0]
-            if ('discord.gg/' in url or 'discord.com/invite/' in url or 'discordapp.com/invite/' in url or
-                    'discord.gg/' in message.content or 'discord.com/invite/' in message.content or
-                    'discordapp.com/invite/' in message.content):
-                try:
-                    await message.delete()
-                except:
-                    pass
-                if message.author.id==self.bot.config['owner']:
-                    embed = None
-                else:
-                    if not self.bot.bridge.is_raidban(message.author.id):
-                        if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
-                            self.bot.bridge.raidbans.pop(f'{message.author.id}')
-                        self.bot.bridge.raidban(message.author.id)
-                        embed = discord.Embed(title='Automatic restriction applied',
-                                              description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
-                                              color=0xffcc00)
-                    else:
-                        try:
-                            shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
-                        except:
-                            return
-                        if shouldban:
-                            if not message.author.id == self.bot.config['owner']:
-                                self.bot.db['banned'].update({f'{message.author.id}': 0})
-                                self.bot.db.save_data()
-                                self.logger.warning(f'Banned user {message.author.id} - possible raid detected')
-                            embed = discord.Embed(title='Raid detected - permanent ban applied',
-                                                  description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
-                                                  color=0xff0000)
-                        else:
-                            expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
-                            embed = discord.Embed(title='Automatic restriction applied',
-                                                  description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
-                                                  color=0xffcc00)
-                return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!', embed=embed)
-            key = key + 1
-
-        if self.bot.bridge.is_raidban(message.author.id):
-            return
-
-        if len(urls) > 0:
-            rpresults = rapidphish.compare_urls(urls, 0.85)
-            if not rpresults.final_verdict=='safe':
-                try:
-                    await message.delete()
-                except:
-                    pass
-                if author_rp.discriminator == '0':
-                    user = f'@{author_rp.name}'
-                else:
-                    user = f'{author_rp.name}#{author_rp.discriminator}'
-                embed = discord.Embed(title='Suspicious link detected <:nevsus:1024028464954744832>',
-                                      description='RapidPhish Low-Latency Implementation has detected a suspicious link. But don\'t worry, we\'ve scanned it and took the appropriate action that you\'ve set us to take. <:neviraldi:981611276985831424>\n\nWe\'ll send the results here for you to see.',
-                                      color=0x0000ff, timestamp=datetime.utcnow())
-                try:
-                    embed.set_author(name=user, icon_url=author_rp.avatar)
-                except:
-                    embed.set_author(name=user, icon_url=author_rp.avatar)
-                embed.set_footer(text='Protected by RapidPhish LLI')
-                content = content_rp
-                if len(content) > 1020:
-                    content = content_rp[:-(len(content_rp) - 1017)]
-                embed.add_field(name='Message', value=f'||{content}||', inline=False)
-                embed.add_field(name='User ID', value=f'{author_rp.id}', inline=False)
-                embed.add_field(name='Detected by', value='RapidPhish', inline=False)
-                embed.add_field(name='Action taken', value='forwarding blocked', inline=True)
-                guild = self.bot.get_guild(self.bot.config['home_guild'])
-                ch = guild.get_channel(self.bot.config['reports_channel'])
-                await ch.send(embed=embed)
-                try:
-                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=message)
-                except:
-                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**')
+        unsafe, responses = await self.bot.bridge.run_security(message)
+        if unsafe:
+            if f'{message.author.id}' in list(self.bot.data['banned'].keys()):
                 return
 
-        if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
-            return await message.channel.send(
-                '**Hold up a sec!**\nThis server isn\'t letting Discord make sure nothing NSFW is being sent in SFW channels, meaning adult content could be sent over UniChat. We don\'t want that!'
-                + '\n\nPlease ask your server admins to enable explicit content scanning for **all members**.',
-                reference=message)
-        elif message.channel.nsfw:
-            return await message.channel.send(
-                '**Hold up a sec!**\nThis channel is marked as NSFW, meaning Discord won\'t go mad when you try sending adult content over UniChat. We don\'t want that!'
-                + '\n\nPlease ask your server admins to unmark this channel as NSFW.', reference=message)
+            banned = {}
+
+            for response in responses:
+                for user in response['target']:
+                    if user in list(banned.keys()):
+                        if response['target'][user] > 0 or banned[user]==0:
+                            continue
+                    if response['target'][user]==0:
+                        self.bot.db['banned'].update({user:0})
+                        self.bot.db.save_data()
+                    else:
+                        self.bot.bridge.secbans.update(
+                            {user:round(time.time())+response['target'][user]}
+                        )
+                    banned.update({user: response['target'][user]})
+
+            embed = discord.Embed(
+                title='Content blocked',
+                description='Your message was blocked. Moderators may be able to see the blocked content.',
+                color=0xff0000
+            )
+            await message.channel.send(embed=embed)
+
+            for user in banned:
+                nt = time.time() + banned[user]
+                embed = discord.Embed(
+                    title=f'You\'ve been __global restricted__ by @Unifier (system)!',
+                    description='Automatic action carried out by security plugins',
+                    color=0xffcc00,
+                    timestamp=datetime.utcnow()
+                )
+                embed.set_author(
+                    name='@Unifier (system)',
+                    icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
+                )
+                if banned[user]==0:
+                    embed.colour = 0xff0000
+                    embed.add_field(name='Actions taken',
+                                    value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
+                                    inline=False)
+                else:
+                    embed.add_field(name='Actions taken',
+                                    value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',
+                                    inline=False)
+                user_obj = self.bot.get_user(int(user))
+                try:
+                    await user_obj.send(embed)
+                except:
+                    pass
+
+            return
+
+        if f'{message.author.id}' in list(self.bot.bridge.secbans.keys()):
+            return
 
         multisend = True
         if message.content.startswith('['):
