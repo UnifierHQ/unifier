@@ -2250,13 +2250,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if user in list(banned.keys()):
                         if response['target'][user] > 0 or banned[user]==0:
                             continue
-                    if response['target'][user]==0:
-                        self.bot.db['banned'].update({user:0})
-                        self.bot.db.save_data()
-                    else:
-                        self.bot.bridge.secbans.update(
-                            {user:round(time.time())+response['target'][user]}
-                        )
+                    if not int(user) == self.bot.config['owner']:
+                        if response['target'][user]==0:
+                            self.bot.db['banned'].update({user:0})
+                            self.bot.db.save_data()
+                        else:
+                            self.bot.bridge.secbans.update(
+                                {user:round(time.time())+response['target'][user]}
+                            )
                     banned.update({user: response['target'][user]})
 
             embed = discord.Embed(
