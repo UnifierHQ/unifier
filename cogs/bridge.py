@@ -2299,6 +2299,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 pass
 
             for user in banned:
+                user_obj = self.bot.get_user(int(user))
+                if int(user)==self.bot.config['owner']:
+                    try:
+                        await user_obj.send('just as a fyi: this would have banned you')
+                    except:
+                        pass
+                    continue
                 nt = time.time() + banned[user]
                 embed = discord.Embed(
                     title=f'You\'ve been __global restricted__ by @Unifier (system)!',
@@ -2323,7 +2330,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',
                         inline=False
                     )
-                user_obj = self.bot.get_user(int(user))
                 try:
                     await user_obj.send(embed)
                 except:
