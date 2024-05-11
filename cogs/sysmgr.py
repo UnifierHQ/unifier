@@ -138,6 +138,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         for plugin in os.listdir('plugins'):
             if extension + '.json' == plugin:
                 plugin_name = plugin[:-5]
+                try:
+                    with open('plugins/' + plugin) as file:
+                        info = json.load(file)
+                except:
+                    continue
                 break
             else:
                 try:
