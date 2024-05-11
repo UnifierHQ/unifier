@@ -44,6 +44,7 @@ with open('config.json', 'r') as file:
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
+plugin_data = {}
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -349,12 +350,16 @@ class UnifierBridge:
                     continue
             script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
             importlib.reload(script)
-            response = await script.scan(message)
+            response = await script.scan(message,plugin_data[plugin[:-5]])
 
             if response['unsafe']:
                 unsafe = True
 
             responses.update({plugin[:-5]: response})
+            if len(response['data'] > 1):
+                if not plugin[:-5] in list(plugin_data.keys()):
+                    plugin_data.update({plugin[:-5]:{}})
+                plugin_data[plugin[:-5]].update(response['data'])
             del script
 
         return unsafe, responses
