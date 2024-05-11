@@ -335,7 +335,7 @@ class UnifierBridge:
         return
 
     async def run_security(self, message):
-        responses = []
+        responses = {}
         unsafe = False
 
         for plugin in os.listdir('plugins'):
@@ -344,7 +344,12 @@ class UnifierBridge:
                 if not 'content_protection' in extinfo['services']:
                     continue
             script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
-            responses.append(await script.scan(message))
+            response = await script.scan(message)
+
+            if response['unsafe']:
+                unsafe = True
+
+            responses.update({plugin[:-5]: response})
             del script
 
         return unsafe, responses
@@ -2231,7 +2236,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             banned = {}
 
-            for response in responses:
+            for plugin_name in responses:
+                response = responses[plugin_name]
                 for user in response['target']:
                     if user in list(banned.keys()):
                         if response['target'][user] > 0 or banned[user]==0:
@@ -2252,6 +2258,38 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
             await message.channel.send(embed=embed)
 
+            embed = discord.Embed(
+                title='Content blocked - message is as follows',
+                description=message.content[2000-len(message.content)],
+                color=0xffcc00
+            )
+
+            for plugin in responses:
+                if not responses[plugin]['unsafe']:
+                    continue
+                try:
+                    with open('plugins/' + plugin + '.json') as file:
+                        extinfo = json.load(file)
+                    plugname = extinfo['name']
+                except:
+                    plugname = plugin
+                embed.add_field(
+                    name=plugname + f' ({len(responses[plugin]["target"])} users involved)',
+                    value=responses[plugin]['description'],
+                    inline=False
+                )
+                if len(embed.fields) == 23:
+                    break
+
+            embed.add_field(name='Punished user IDs', value=' '.join(list(banned.keys())), inline=False)
+            embed.add_field(name='Message room', value=roomname, inline=False)
+
+            try:
+                ch = self.bot.get_guild(self.bot.config['home_guild']).get_channel(self.bot.config['reports_channel'])
+                await ch.send(embed=embed)
+            except:
+                pass
+
             for user in banned:
                 nt = time.time() + banned[user]
                 embed = discord.Embed(
@@ -2266,13 +2304,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 )
                 if banned[user]==0:
                     embed.colour = 0xff0000
-                    embed.add_field(name='Actions taken',
-                                    value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
-                                    inline=False)
+                    embed.add_field(
+                        name='Actions taken',
+                        value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
+                        inline=False
+                    )
                 else:
-                    embed.add_field(name='Actions taken',
-                                    value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',
-                                    inline=False)
+                    embed.add_field(
+                        name='Actions taken',
+                        value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',
+                        inline=False
+                    )
                 user_obj = self.bot.get_user(int(user))
                 try:
                     await user_obj.send(embed)
@@ -2349,7 +2391,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 tasks.append(self.bot.loop.create_task(
                     self.bot.bridge.send(room=roomname, message=message, platform=platform, extbridge=extbridge)))
 
-        pt = time.time()
         ids = []
         try:
             ids = await asyncio.gather(*tasks)
