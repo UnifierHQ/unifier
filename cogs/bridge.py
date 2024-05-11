@@ -2351,7 +2351,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         inline=False
                     )
                 try:
-                    await user_obj.send(embed)
+                    await user_obj.send(embed=embed)
                 except:
                     pass
 
@@ -2363,7 +2363,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 return
 
-        if f'{message.guild.id}' in list(self.bot.restricted.keys()):
+        if f'{message.guild.id}' in list(self.bot.bridge.restricted.keys()):
             if self.bot.bridge.restricted[f'{message.guild.id}'] > time.time():
                 self.bot.bridge.restricted.pop(f'{message.guild.id}')
             else:
