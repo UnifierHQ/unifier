@@ -341,7 +341,10 @@ class UnifierBridge:
         for plugin in os.listdir('plugins'):
             with open('plugins/' + plugin) as file:
                 extinfo = json.load(file)
-                if not 'content_protection' in extinfo['services']:
+                try:
+                    if not 'content_protection' in extinfo['services']:
+                        continue
+                except:
                     continue
             script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
             response = await script.scan(message)
@@ -358,7 +361,10 @@ class UnifierBridge:
         for plugin in os.listdir('plugins'):
             with open('plugins/' + plugin) as file:
                 extinfo = json.load(file)
-                if not 'content_processing' in extinfo['services']:
+                try:
+                    if not 'content_processing' in extinfo['services']:
+                        continue
+                except:
                     continue
             script = importlib.import_module('utils.' + plugin[:-5] + '_content_processing')
             message = await script.process(message)
