@@ -347,6 +347,7 @@ class UnifierBridge:
                 except:
                     continue
             script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
+            importlib.reload(script)
             response = await script.scan(message)
 
             if response['unsafe']:
