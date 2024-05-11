@@ -334,7 +334,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         text = f'{text}\n{index}. {rule}'
                     index += 1
             text = f'{text}\n\nPlease display these rules somewhere accessible.'
-            embed = discord.Embed(title='Please agree to the room rules first:',description=text)
+            embed = discord.Embed(
+                title='Please agree to the room rules first:',
+                description=text,
+                color=self.bot.colors.unifier
+            )
             embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
             ButtonStyle = discord.ButtonStyle
             row = [
@@ -440,7 +444,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             else:
                 text = f'{text}\n{index}. {rule}'
             index += 1
-        embed = discord.Embed(title='Room rules',description=text)
+        embed = discord.Embed(title='Room rules',description=text,color=self.bot.colors.unifier)
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
         await ctx.send(embed=embed)
 
@@ -555,9 +559,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command()
     async def rooms(self,ctx):
-        embed = discord.Embed(title=f'UniChat rooms (Total: `0`)',description=f'Use `{self.bot.command_prefix}bind <room>` to bind to a room.')
+        embed = discord.Embed(
+            title=f'UniChat rooms (Total: `0`)',
+            description=f'Use `{self.bot.command_prefix}bind <room>` to bind to a room.',
+            color=self.bot.colors.unifier
+        )
         if len(self.bot.db['rooms'])==0:
-            embed.add_field(name='',value='No rooms here <:notlikenevira:1144718936986882088>')
+            embed.add_field(name='No rooms found',value='There\'s no rooms yet...')
             return await ctx.send(embed=embed)
         count = 0
         for room in self.bot.db['rooms']:
@@ -605,9 +613,16 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command()
     async def about(self,ctx):
         if self.bot.user.id==1187093090415149056:
-            embed = discord.Embed(title="Unifier",description="Unify servers, make worthwhile conversations.",color=0xed4545)
+            embed = discord.Embed(
+                title="Unifier",
+                description="Unify servers, make worthwhile conversations.",
+                color=self.bot.colors.unifier)
         else:
-            embed = discord.Embed(title=self.bot.user.name, description="Powered by Unifier")
+            embed = discord.Embed(
+                title=self.bot.user.name,
+                description="Powered by Unifier",
+                color=self.bot.colors.unifier
+            )
         embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
         if self.bot.user.id == 1187093090415149056:
             embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
@@ -634,7 +649,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             avurl = None
         if not url=='':
             avurl = url
-        embed = discord.Embed(title='This is your UniChat avatar!',description=desc)
+        embed = discord.Embed(
+            title='This is your UniChat avatar!',
+            description=desc,
+            color=self.bot.colors.unifier
+        )
         author = f'{ctx.author.name}#{ctx.author.discriminator}'
         if ctx.author.discriminator == '0':
             author = f'@{ctx.author.name}'
