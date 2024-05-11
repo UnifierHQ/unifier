@@ -188,9 +188,11 @@ class UnifierMessage:
     async def remove_reaction(self, emoji, userid):
         userid = str(userid)
         self.reactions[emoji][userid] -= 1
-        if self.reactions[emoji][userid] < 0:
-            self.reactions[emoji][userid] = 0
-        return self.reactions[emoji][userid]
+        if self.reactions[emoji][userid] <= 0:
+            self.reactions[emoji].pop(userid)
+            return 0
+        else:
+            return self.reactions[emoji][userid]
 
     async def fetch_external_url(self, source, guild_id):
         return self.external_urls[source][guild_id]
@@ -1762,12 +1764,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await ctx.send('Could not find message in cache!', ephemeral=True)
         text = ''
         for reaction in msg.reactions:
-            count = 0
-            for user in list(msg.reactions[reaction].keys()):
-                count += msg.reactions[reaction][user]
-            if count==0:
-                continue
-            text = f'{text}{reaction} x{count} '
+            text = f'{text}{reaction} x{len(msg.reactions[reaction].keys())} '
 
         if len(text)==0:
             return await ctx.send('No reactions yet!',ephemeral=True)

@@ -538,7 +538,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = 'Failed to install plugin'
                 embed.description = f'Your Unifier does not support this plugin. Release `{minimum}` or later is required.'
                 embed.colour = 0xff0000
-                await msg.edit(embed=embed)
+                return await msg.edit(embed=embed)
 
             conflicts = []
             for module in modules:
