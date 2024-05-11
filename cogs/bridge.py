@@ -2239,7 +2239,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         message = await self.bot.bridge.run_stylizing(message)
         unsafe, responses = await self.bot.bridge.run_security(message)
         if unsafe:
-            if f'{message.author.id}' in list(self.bot.data['banned'].keys()):
+            if f'{message.author.id}' in list(self.bot.db['banned'].keys()):
                 return
 
             banned = {}
