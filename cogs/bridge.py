@@ -349,6 +349,18 @@ class UnifierBridge:
 
         return unsafe, responses
 
+    async def run_stylizing(self, message):
+        for plugin in os.listdir('plugins'):
+            with open('plugins/' + plugin) as file:
+                extinfo = json.load(file)
+                if not 'content_processing' in extinfo['services']:
+                    continue
+            script = importlib.import_module('utils.' + plugin[:-5] + '_content_processing')
+            message = await script.process(message)
+            del script
+
+        return message
+
 
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
         if prehook and not_prehook:
@@ -2211,6 +2223,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
+        message = await self.bot.bridge.run_stylizing(message)
         unsafe, responses = await self.bot.bridge.run_security(message)
         if unsafe:
             if f'{message.author.id}' in list(self.bot.data['banned'].keys()):
