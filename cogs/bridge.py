@@ -260,6 +260,7 @@ class UnifierBridge:
         self.possible_raid = {}
         self.logger = logger
         self.secbans = {}
+        self.restricted = {}
 
     def is_raidban(self,userid):
         try:
@@ -1978,6 +1979,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                  components=[reason, signature])
         await interaction.response.send_modal(modal)
 
+    @commands.command()
+    async def serverstatus(self,ctx):
+        embed = discord.Embed(
+            title='Server status',
+            description='Your server is not restricted by plugins.',
+            color=0x00ff00
+        )
+        if f'{ctx.guild.id}' in self.bot.bridge.restricted:
+            embed.description = 'Your server is currently limited by a plugin.'
+            embed.colour = 0xffce00
+        await ctx.send(embed=embed)
+
     @commands.Cog.listener()
     async def on_modal_submit(self, interaction):
         context = interaction.components[0].components[0].value
@@ -2243,6 +2256,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return
 
             banned = {}
+            restricted = []
 
             for plugin_name in responses:
                 response = responses[plugin_name]
@@ -2259,6 +2273,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                 {user:round(time.time())+response['target'][user]}
                             )
                     banned.update({user: response['target'][user]})
+                for guild in response['restrict']:
+                    if guild in restricted:
+                        continue
+                    self.bot.restricted.update({guild:round(time.time())+response['restrict'][guild]})
+                    restricted.append(guild)
 
             embed = discord.Embed(
                 title='Content blocked',
@@ -2339,7 +2358,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         if f'{message.author.id}' in list(self.bot.bridge.secbans.keys()):
-            return
+            if self.bot.bridge.secbans[f'{message.author.id}'] > time.time():
+                self.bot.bridge.secbans.pop(f'{message.author.id}')
+            else:
+                return
+
+        if f'{message.guild.id}' in list(self.bot.restricted.keys()):
+            if self.bot.bridge.restricted[f'{message.guild.id}'] > time.time():
+                self.bot.bridge.restricted.pop(f'{message.guild.id}')
+            else:
+                if len(message.content) > self.bot.config['restriction_length']:
+                    return await message.channel.send(
+                        ('Your server is currently limited for security. The maximum character limit for now is **'+
+                            self.bot.config["restriction_length"]+' characters**.')
+                    )
+                elif self.bot.bridge.cooldowned[f'{message.author.id}'] < time.time():
+                    return await message.channel.send(
+                        'Your server is currently limited for security. Please wait before sending another message.'
+                    )
 
         multisend = True
         if message.content.startswith('['):
