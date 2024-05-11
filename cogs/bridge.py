@@ -367,6 +367,7 @@ class UnifierBridge:
                 except:
                     continue
             script = importlib.import_module('utils.' + plugin[:-5] + '_content_processing')
+            importlib.reload(script)
             message = await script.process(message)
             del script
 
