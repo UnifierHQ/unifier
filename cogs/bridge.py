@@ -350,7 +350,13 @@ class UnifierBridge:
                     continue
             script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
             importlib.reload(script)
-            response = await script.scan(message,plugin_data[plugin[:-5]])
+
+            try:
+                data = plugin_data[plugin[:-5]]
+            except:
+                data = {}
+
+            response = await script.scan(message,data)
 
             if response['unsafe']:
                 unsafe = True
