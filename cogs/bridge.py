@@ -2259,9 +2259,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await message.channel.send(embed=embed)
 
             embed = discord.Embed(
-                title='Content blocked - message is as follows',
+                title='Content blocked - content is as follows',
                 description=message.content[2000-len(message.content)],
-                color=0xffcc00
+                color=0xff0000
             )
 
             for plugin in responses:
