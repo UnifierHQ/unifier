@@ -2268,7 +2268,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             embed = discord.Embed(
                 title='Content blocked - content is as follows',
-                description=message.content[:-(2000-len(message.content))],
+                description=message.content[:-(len(message.content)-2000)] if len(message.content) > 2000 else message.content,
                 color=0xff0000
             )
 
