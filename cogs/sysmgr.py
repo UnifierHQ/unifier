@@ -80,14 +80,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.colors.unifier = ast.literal_eval(f"0x{self.bot.config['main_color']}")
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
-        if not hasattr(self.bot, 'trusted_group'):
-            tgroup = [self.bot.config['owner']]
-            for i in self.bot.admins:
-                tgroup.append(i)
-            for i in self.bot.moderators:
-                tgroup.append(i)
-            tgroup = list(set(tgroup)) # Remove duplicates, as green would be 3 times and ItsAsheer 2.
-            self.bot.trusted_group = tgroup
         if not hasattr(self.bot, 'loglevel'):
             self.bot.loglevel = logging.DEBUG if self.bot.config['debug'] else logging.INFO
         if not hasattr(self.bot, 'package'):

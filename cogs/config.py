@@ -63,6 +63,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 self.bot.db.save_data()
             self.bot.bridged_emojis = self.bot.db['emojis']
         self.bot.admins = self.bot.config['admin_ids']
+        if not hasattr(self.bot, 'trusted_group'):
+            tgroup = [self.bot.config['owner']]
+            for i in self.bot.admins:
+                tgroup.append(i)
+            for i in self.bot.moderators:
+                tgroup.append(i)
+            tgroup = list(set(tgroup)) # Remove duplicates, as green would be 3 times and ItsAsheer 2.
+            self.bot.trusted_group = tgroup
         moderators = self.bot.db['moderators']
         for admin in self.bot.admins:
             if admin in moderators:
