@@ -362,7 +362,7 @@ class UnifierBridge:
                 unsafe = True
 
             responses.update({plugin[:-5]: response})
-            if len(response['data']) > 1:
+            if len(response['data']) > 0:
                 if not plugin[:-5] in list(plugin_data.keys()):
                     plugin_data.update({plugin[:-5]:{}})
                 plugin_data[plugin[:-5]].update(response['data'])
