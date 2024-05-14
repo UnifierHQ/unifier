@@ -48,7 +48,7 @@ class Badge(commands.Cog):
     async def badge(self, ctx, *, user=None):
         if user:
             try:
-                user = self.bot.get_user(user.replace('<@','',1).replace('>','',1).replace('!','',1))
+                user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
             except:
                 user = ctx.author
         else:
