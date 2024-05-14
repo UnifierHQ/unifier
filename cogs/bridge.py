@@ -539,6 +539,7 @@ class UnifierBridge:
 
     async def edit(self, message, content):
         msg: UnifierMessage = await self.fetch_message(message)
+        threads = []
 
         async def make_friendly(text):
             components = text.split('<@')
@@ -660,15 +661,25 @@ class UnifierBridge:
                     pass
 
         if msg.source=='discord':
-            await edit_discord(msg.copies)
+            threads.append(asyncio.create_task(
+                edit_discord(msg.copies)
+            ))
         elif msg.source=='revolt':
-            await edit_revolt(msg.copies)
+            threads.append(asyncio.create_task(
+                edit_revolt(msg.copies)
+            ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                await edit_discord(msg.external_copies['discord'],friendly=True)
+                threads.append(asyncio.create_task(
+                    edit_discord(msg.external_copies['discord'],friendly=True)
+                ))
             elif platform=='revolt':
-                await edit_revolt(msg.external_copies['revolt'],friendly=True)
+                threads.append(asyncio.create_task(
+                    edit_revolt(msg.external_copies['revolt'],friendly=True)
+                ))
+
+        await asyncio.gather(*threads)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False,
