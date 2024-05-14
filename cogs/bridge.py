@@ -445,43 +445,51 @@ class UnifierBridge:
 
     async def delete_copies(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
-        count = 0
+        threads = []
 
         async def delete_discord(msgs):
             count = 0
+            threads = []
             for key in list(self.bot.db['rooms'][msg.room].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
                 guild = self.bot.get_guild(int(key))
                 try:
-                    hooks = await guild.webhooks()
+                    try:
+                        webhook = self.bot.webhook_cache[f'{guild.id}'][
+                            f'{self.bot.db["rooms"][msg.room][f"{guild.id}"][0]}'
+                        ]
+                    except:
+                        webhook = None
+                        hooks = await guild.webhooks()
+                        for hook in hooks:
+                            if int(self.bot.db['rooms'][msg.room][key][0]) == hook.id:
+                                webhook = hook
+                                break
+
+                        if not webhook:
+                            # No webhook found
+                            continue
                 except:
-                    continue
-                webhook = None
-
-                # Fetch webhook
-                for hook in hooks:
-                    if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
-                        webhook = hook
-                        break
-
-                if not webhook:
-                    # No webhook found
                     continue
 
                 try:
-                    await webhook.delete_message(int(msgs[key][1]))
+                    threads.append(asyncio.create_task(
+                        webhook.delete_message(int(msgs[key][1]))
+                    ))
                     count += 1
                 except:
                     # traceback.print_exc()
                     pass
+            await asyncio.gather(*threads)
             return count
 
         async def delete_guilded(msgs):
             if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
                 return
             count = 0
+            threads = []
             for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
                 if not key in list(msgs.keys()):
                     continue
@@ -495,11 +503,14 @@ class UnifierBridge:
                     continue
 
                 try:
-                    await webhook.delete_message(msgs[key][1])
+                    threads.append(asyncio.create_task(
+                        webhook.delete_message(msgs[key][1])
+                    ))
                     count += 1
                 except:
                     # traceback.print_exc()
                     pass
+            await asyncio.gather(*threads)
             return count
 
         async def delete_revolt(msgs):
@@ -521,21 +532,34 @@ class UnifierBridge:
             return count
 
         if msg.source=='discord':
-            count += await delete_discord(msg.copies)
+            threads.append(asyncio.create_task(
+                delete_discord(msg.copies)
+            ))
         elif msg.source=='revolt':
-            count += await delete_revolt(msg.copies)
+            threads.append(asyncio.create_task(
+                delete_revolt(msg.copies)
+            ))
         elif msg.source=='guilded':
-            count += await delete_guilded(msg.copies)
+            threads.append(asyncio.create_task(
+                delete_guilded(msg.copies)
+            ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                count += await delete_discord(msg.external_copies['discord'])
+                threads.append(asyncio.create_task(
+                    delete_discord(msg.external_copies['discord'])
+                ))
             elif platform=='revolt':
-                count += await delete_revolt(msg.external_copies['revolt'])
+                threads.append(asyncio.create_task(
+                    delete_revolt(msg.external_copies['revolt'])
+                ))
             elif platform=='guilded':
-                count += await delete_guilded(msg.external_copies['guilded'])
+                threads.append(asyncio.create_task(
+                    delete_guilded(msg.external_copies['guilded'])
+                ))
 
-        return count
+        results = await asyncio.gather(*threads)
+        return sum(results)
 
     async def edit(self, message, content):
         msg: UnifierMessage = await self.fetch_message(message)
@@ -572,6 +596,8 @@ class UnifierBridge:
             return text
 
         async def edit_discord(msgs,friendly=False):
+            threads = []
+
             if friendly:
                 text = await make_friendly(content)
             else:
@@ -599,10 +625,14 @@ class UnifierBridge:
                     continue
 
                 try:
-                    await webhook.edit_message(int(msgs[key][1]),content=text,allowed_mentions=mentions)
+                    threads.append(asyncio.create_task(
+                        webhook.edit_message(int(msgs[key][1]),content=text,allowed_mentions=mentions)
+                    ))
                 except:
                     traceback.print_exc()
                     pass
+
+            await asyncio.gather(*threads)
 
         async def edit_revolt(msgs,friendly=False):
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
@@ -625,6 +655,7 @@ class UnifierBridge:
                     continue
 
         async def edit_guilded(msgs,friendly=False):
+            threads = []
             if friendly:
                 text = await make_friendly(content)
             else:
@@ -655,10 +686,14 @@ class UnifierBridge:
                     toedit = await webhook.fetch_message(msgs[key][1])
                     if msg.reply:
                         text = toedit.content.split('\n',1)[0]+'\n'+text
-                    await toedit.edit(content=text)
+                    threads.append(asyncio.create_task(
+                        toedit.edit(content=text)
+                    ))
                 except:
                     traceback.print_exc()
                     pass
+
+                await asyncio.gather(*threads)
 
         if msg.source=='discord':
             threads.append(asyncio.create_task(
