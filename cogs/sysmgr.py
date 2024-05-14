@@ -191,7 +191,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await ctx.author.send(
                     f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
                 return
-            token_start = base64.b64encode(self.bot.user.id)
+            token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
             try:
                 with redirect_stdout(stdout):
                     # ret = await func() to return output
@@ -221,6 +221,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await ctx.send('where code :thinking:')
             else:
                 await ctx.send('Something went horribly wrong.')
+                raise
         else:
             await ctx.send('Only the owner can execute code.')
 
