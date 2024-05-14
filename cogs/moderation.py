@@ -355,7 +355,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.title = "SUSPENDED"
             embed.colour = 0xff0000
             embed.description = (
-                    'You\'ve been ' + ('permanently' if noexpiry else 'temporarily') + 'suspended from this Unifier '+
+                    'You\'ve been ' + ('permanently' if noexpiry else 'temporarily') + ' suspended from this Unifier '+
                     'instance.\n\n:white_large_square: :white_large_square: :white_large_square: :white_large_square:'+
                     ' :octagonal_sign:'
             )
