@@ -55,11 +55,14 @@ class Badge(commands.Cog):
             user = ctx.author
         user_role = self.get_user_role(user.id)
         embed = discord.Embed(
-            title="Unifier",
-            description=f"<@{ctx.author.id}> is {user_role.value}.",
+            description=f"<@{user.id}> is {user_role.value}.",
             color=self.embed_colors[user_role]
         )
-        if UserRole.BANNED:
+        embed.set_author(
+            name=f'@{user.name}',
+            icon_url=user.avatar.url if user.avatar else None
+        )
+        if user_role==UserRole.BANNED:
             embed.set_footer(text='L bozo')
 
         await ctx.send(embed=embed)
