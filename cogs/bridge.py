@@ -1728,20 +1728,52 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         pages = len(emojis) // 20
         if len(emojis) % 20 > 0:
             pages += 1
-        embed = discord.Embed(title='UniChat Emojis list',
-                              description='To use an emoji, simply send `[emoji: emoji_name]`.\nIf there\'s emojis with duplicate names, use `[emoji2: emoji_name]` to send the 2nd emoji with that name.\n' + text)
+        embed = discord.Embed(
+            title='UniChat Emojis list',
+            description=(
+                    'To use an emoji, simply send `[emoji: emoji_name]`.\nIf there\'s emojis with '+
+                    'duplicate names, use `[emoji2: emoji_name]` to send the 2nd emoji with that '+
+                    'name.\n' + text
+            ),
+            color=self.bot.colors.unifier
+        )
         embed.set_footer(text=f'Page {index + 1}/{pages}')
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command()
     async def emoji(self, ctx, *, emoji=''):
-        # wip
-        return
+        emojis = []
+        for emoji in self.bot.emojis:
+            if emoji.guild_id in self.bot.db['emojis']:
+                emojis.append(emoji)
+
+        emoji_preview = None
+        for emoji1 in emojis:
+            if f'<:{emoji1.name}:{emoji1.id}>'==emoji or emoji1.name==emoji or str(emoji1.id)==emoji:
+                emoji_preview = emoji1
+                break
+
+        if not emoji_preview:
+            return await ctx.send('Could not find this emoji!')
+
+        embed = discord.Embed(
+            title=emoji_preview.name,
+            description=f'<:{emoji_preview.name}:{emoji_preview.id}>',
+            color=self.bot.colors.unifier
+        )
+        embed.add_field(
+            name='Origin guild',
+            value=emoji_preview.guild.name
+        )
+        await ctx.send(embed=embed)
 
     @commands.command(aliases=['modcall'])
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
         """Ping all moderators to the chat! Use only when necessary, or else."""
+        if not self.bot.config['enable_logging']:
+            return await ctx.send('Modping is disabled, contact your instance\'s owner.')
+
         hooks = await ctx.channel.webhooks()
         found = False
         room = ''
@@ -1937,6 +1969,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
             return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
+
+        if not self.bot.config['enable_logging']:
+            return await ctx.send('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
 
         try:
             msgdata = await self.bot.bridge.fetch_message(msg.id)
@@ -2669,6 +2704,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.Cog.listener()
     async def on_message_delete(self, message):
         gbans = self.bot.db['banned']
+
+        if not self.bot.config['enable_logging']:
+            return
 
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
             return
