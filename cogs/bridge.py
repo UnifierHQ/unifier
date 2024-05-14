@@ -2106,7 +2106,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         userid = int(interaction.custom_id.split('_')[0])
         if len(content) > 2048:
             content = content[:-(len(content) - 2048)]
-        embed = discord.Embed(title='Message report - content is as follows', description=content, color=0xffbb00)
+        embed = discord.Embed(
+            title='Message report - content is as follows',
+            description=content,
+            color=0xffbb00,
+            timestamp=datetime.utcnow()
+        )
         embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
         embed.add_field(name='Context', value=context, inline=False)
         embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
@@ -2381,7 +2386,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed = discord.Embed(
                 title='Content blocked - content is as follows',
                 description=message.content[:-(len(message.content)-2000)] if len(message.content) > 2000 else message.content,
-                color=0xff0000
+                color=0xff0000,
+                timestamp=datetime.utcnow()
             )
 
             for plugin in responses:
@@ -2403,6 +2409,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             embed.add_field(name='Punished user IDs', value=' '.join(list(banned.keys())), inline=False)
             embed.add_field(name='Message room', value=roomname, inline=False)
+            embed.set_footer(
+                text='This is an automated action performed by a plugin, always double-check before taking action',
+                icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
+            )
 
             try:
                 ch = self.bot.get_guild(self.bot.config['home_guild']).get_channel(self.bot.config['reports_channel'])
