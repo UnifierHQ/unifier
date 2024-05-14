@@ -527,6 +527,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             minimum = new['minimum']
             modules = new['modules']
             utilities = new['utils']
+            services = new['services']
 
             with open('plugins/system.json', 'r') as file:
                 vinfo = json.load(file)
@@ -561,6 +562,35 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed.title = f'Install `{plugin_id}`?'
         embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
         embed.colour = 0xffcc00
+
+        services_text = ''
+        for service in services:
+            if service=='content_protection':
+                text = (
+                    ':shield: **Content protection**\n'+
+                    'The plugin will be able to analyze messages for malicious content, as well as ban users if '+
+                    'necessary. Non-permanent bans are reset on Bridge reload.'
+                )
+            elif service=='content_processing':
+                text = (
+                    ':art: **Content stylizing**\n'+
+                    'The plugin will be able to modify message content and author information before bridging to '+
+                    'other servers.'
+                )
+            else:
+                text = (
+                    f':grey_question: `{service}`\n',
+                    'This is an unknown service.'
+                )
+            if len(services_text)==0:
+                services_text = text
+            else:
+                services_text = services_text + '\n\n' + text
+
+        embed.add_field(
+            name='Services',
+            value=services_text
+        )
         row = [
             discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
@@ -568,6 +598,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         btns = discord.ui.ActionRow(row[0], row[1])
         components = discord.ui.MessageComponents(btns)
         await msg.edit(embed=embed, components=components)
+        embed.clear_fields()
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
