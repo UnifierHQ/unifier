@@ -22,12 +22,12 @@ from utils import log
 from enum import Enum
 
 class UserRole(Enum):
-    OWNER = "owner"
-    ADMIN = "admin"
-    MODERATOR = "moderator"
-    TRUSTED = "trusted"
-    BANNED = "banned"
-    USER = "user"
+    OWNER = "the instance\'s **owner**"
+    ADMIN = "the instance\'s **admin**"
+    MODERATOR = "the instance\'s **moderator**"
+    TRUSTED = "a **verified user**"
+    BANNED = "**BANNED**"
+    USER = "a **user**"
 
 class Badge(commands.Cog):
     def __init__(self, bot):
@@ -56,7 +56,7 @@ class Badge(commands.Cog):
         user_role = self.get_user_role(user.id)
         embed = discord.Embed(
             title="Unifier",
-            description=f"<@{ctx.author.id}> is a Unifier **{user_role.value}**.",
+            description=f"<@{ctx.author.id}> is {user_role.value}.",
             color=self.embed_colors[user_role]
         )
         if UserRole.BANNED:
@@ -73,16 +73,15 @@ class Badge(commands.Cog):
         if action not in ['add', 'remove']:
             return await ctx.send("Invalid action. Please use 'add' or 'remove'.")
 
-        trusted_group = self.bot.trusted_group
         if action == 'add':
-            if user.id not in trusted_group:
-                trusted_group.append(user.id)
+            if user.id not in self.bot.trusted_group:
+                self.bot.trusted_group.append(user.id)
         elif action == 'remove':
-            if user.id in trusted_group:
-                trusted_group.remove(user.id)
+            if user.id in self.bot.trusted_group:
+                self.bot.trusted_group.remove(user.id)
 
-        self.bot.trusted_group = trusted_group
-        self.bot.save_trusted_group()
+        self.bot.db['trusted'] = self.bot.trusted_group
+        self.bot.db.save_data()
 
         user_role = UserRole.TRUSTED if action == 'add' else UserRole.USER
         embed = discord.Embed(

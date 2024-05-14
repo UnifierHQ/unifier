@@ -32,7 +32,7 @@ class AutoSaveDict(dict):
         self.update({'rules':{},'rooms':{},'rooms_revolt':{},'rooms_guilded':{},'emojis':[],'nicknames':{},
                      'descriptions':{},'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
                      'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[],
-                     'modlogs':{},'spybot':[]})
+                     'modlogs':{},'spybot':[],'trusted':[]})
 
         # Load data
         self.load_data()
@@ -70,13 +70,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             moderators.append(admin)
         self.bot.moderators = moderators
         if not hasattr(self.bot, 'trusted_group'):
-            tgroup = [self.bot.config['owner']]
-            for i in self.bot.admins:
-                tgroup.append(i)
-            for i in self.bot.moderators:
-                tgroup.append(i)
-            tgroup = list(set(tgroup)) # Remove duplicates, as green would be 3 times and ItsAsheer 2.
-            self.bot.trusted_group = tgroup
+            self.bot.trusted_group = self.bot.db['trusted']
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
     def is_user_admin(self,id):
