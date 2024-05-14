@@ -340,10 +340,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         gbans = self.bot.db['banned']
         ct = time.time()
         noexpiry = False
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
+        if f'{target.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{target.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db['banned'].pop(f'{target.id}')
                 self.bot.db.save_data()
             if banuntil == 0:
                 noexpiry = True
@@ -351,7 +351,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         judgement = (
             actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
         )
-        if f'{ctx.author.id}' in list(gbans.keys()):
+        if f'{target.id}' in list(gbans.keys()):
             embed.title = "SUSPENDED"
             embed.colour = 0xff0000
             embed.description = (

@@ -103,7 +103,7 @@ class Badge(commands.Cog):
             return UserRole.MODERATOR
         elif user_id in self.bot.trusted_group:
             return UserRole.TRUSTED
-        elif user_id in self.bot.db['banned']:
+        elif str(user_id) in self.bot.db['banned']:
             return UserRole.BANNED
         else:
             return UserRole.USER
