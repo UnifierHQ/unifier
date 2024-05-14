@@ -34,9 +34,11 @@ Server moderators can also block members and servers from bridging messages to t
 
 ### And more!
 - **Message cache backups**: Unifier's message cache is backed up on graceful shutdowns, so it remembers message IDs between
-reboots for replying, editing, and deleting.
+  reboots for replying, editing, and deleting.
+- **Easy management**: Unifier comes with a built-in upgrader, so upgrading your instance is a breeze. Even new configuration
+  keys are added automatically, so you don't have to worry about them.
 - **Message reporting**: Users can report messages to Unifier moderators, so they can more easily take action against bad
-actors.
+  actors.
 - **Plugins support**: Anyone can always code and install plugins for Unifier to extend its functionality. If you need help
   making your own plugin, you can always use our [template](https://github.com/UnifierHQ/unifier-plugin).
 - **Database-free**: No need to get a database up and running. Everything is stored locally on the same system you use to run 
