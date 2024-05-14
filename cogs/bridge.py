@@ -2145,7 +2145,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                               disabled=False)
         )
         components = discord.ui.MessageComponents(btns)
-        await ch.send(embed=embed, components=components)
+        await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
         self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
         return await interaction.response.send_message(
             "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
@@ -2416,7 +2416,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             try:
                 ch = self.bot.get_guild(self.bot.config['home_guild']).get_channel(self.bot.config['reports_channel'])
-                await ch.send(embed=embed)
+                await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed)
             except:
                 pass
 
