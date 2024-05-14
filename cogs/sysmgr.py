@@ -495,6 +495,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def install(self, ctx, url):
         if not ctx.author.id==self.bot.config['owner']:
             return
+        if url.endswith('/'):
+            url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
         embed = discord.Embed(title='Downloading extension...', description='Getting extension files from remote')
@@ -585,7 +587,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if len(services_text)==0:
                 services_text = text
             else:
-                services_text = services_text + '\n\n' + text
+                services_text = f'{services_text}\n\n{text}'
 
         embed.add_field(
             name='Services',
