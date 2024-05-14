@@ -15,7 +15,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import re
 
 import discord
 from discord.ext import commands
@@ -29,16 +28,20 @@ import os
 import sys
 import traceback
 import io
+import base64
+import re
+import ast
 import importlib
 
-class Colors:
+class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
     unifier = 0xed4545
     green = 0x2ecc71
     dark_green = 0x1f8b4c
     purple = 0x9b59b6
     red = 0xe74c3c
-    blurple = 0x7289da
+    blurple = 0x7289da # TODO add gold color!
+    gold = 0xd4a62a
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -74,6 +77,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if not hasattr(self.bot, 'colors'):
             self.bot.colors = Colors
+            self.bot.colors.unifier = ast.literal_eval(f"0x{self.bot.config['main_color']}")
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
         if not hasattr(self.bot, 'loglevel'):
@@ -126,6 +130,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         for plugin in os.listdir('plugins'):
             if extension + '.json' == plugin:
                 plugin_name = plugin[:-5]
+                try:
+                    with open('plugins/' + plugin) as file:
+                        info = json.load(file)
+                except:
+                    continue
                 break
             else:
                 try:
@@ -138,7 +147,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     break
         if not plugin_name:
             return
-        if plugin_name=='system':
+        if plugin_name == 'system':
             return
         if not info:
             raise ValueError('Invalid plugin')
@@ -182,6 +191,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await ctx.author.send(
                     f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
                 return
+            token_start = base64.b64encode(self.bot.user.id)
             try:
                 with redirect_stdout(stdout):
                     # ret = await func() to return output
@@ -189,12 +199,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
                 await ctx.send('An error occurred while executing the code.', reference=ctx.message)
+                if token_start in value:
+                    return await ctx.author.send('The error contained your bot\'s token, so it was not sent.')
                 await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
             else:
                 value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+                if token_start in value:
+                    return await ctx.send('The output contained your bot\'s token, so it was not sent.')
                 if value == '':
                     pass
                 else:
+                    #  here, cause is if haves value
                     await ctx.send('```%s```' % value)
         else:
             await ctx.send('Only the owner can execute code.')
@@ -247,7 +262,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
         if not plugin:
             offset = page * 20
-            embed = discord.Embed(title='Unifier Plugins', color=0xed4545)
+            embed = discord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
             text = ''
             if offset > len(pluglist):
                 page = len(pluglist) // 20 - 1
@@ -276,7 +291,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 pluginfo = json.load(file)
         else:
             return await ctx.send('Could not find extension!')
-        embed = discord.Embed(title=pluginfo["name"], description="Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' + pluginfo["description"], color=0xed4545)
+        embed = discord.Embed(
+            title=pluginfo["name"],
+            description=("Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' +
+                         pluginfo["description"]),
+            color=self.bot.colors.unifier
+        )
         if plugin == 'system':
             embed.description = embed.description + '\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.'
         try:
@@ -313,7 +333,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             pass
         if not extension:
             offset = page * 20
-            embed = discord.Embed(title='Unifier Extensions', color=0xed4545)
+            embed = discord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
             text = ''
             extlist = list(self.bot.extensions)
             if offset > len(extlist):
@@ -342,7 +362,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
         else:
             return await ctx.send('Could not find extension!')
-        embed = discord.Embed(title=ext_info.qualified_name, description=ext_info.description, color=0xed4545)
+        embed = discord.Embed(
+            title=ext_info.qualified_name,
+            description=ext_info.description,
+            color=self.bot.colors.unifier
+        )
         if (extension == 'cogs.sysmgr' or extension == 'cogs.lockdown' or
                 extension == 'sysmgr' or extension == 'lockdown'):
             embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
@@ -471,6 +495,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def install(self, ctx, url):
         if not ctx.author.id==self.bot.config['owner']:
             return
+        if url.endswith('/'):
+            url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
         embed = discord.Embed(title='Downloading extension...', description='Getting extension files from remote')
@@ -503,6 +529,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             minimum = new['minimum']
             modules = new['modules']
             utilities = new['utils']
+            services = new['services']
 
             with open('plugins/system.json', 'r') as file:
                 vinfo = json.load(file)
@@ -511,7 +538,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = 'Failed to install plugin'
                 embed.description = f'Your Unifier does not support this plugin. Release `{minimum}` or later is required.'
                 embed.colour = 0xff0000
-                await msg.edit(embed=embed)
+                return await msg.edit(embed=embed)
 
             conflicts = []
             for module in modules:
@@ -537,6 +564,35 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed.title = f'Install `{plugin_id}`?'
         embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
         embed.colour = 0xffcc00
+
+        services_text = ''
+        for service in services:
+            if service=='content_protection':
+                text = (
+                    ':shield: **Content protection**\n'+
+                    'The plugin will be able to analyze messages for malicious content, as well as ban users if '+
+                    'necessary. Non-permanent bans are reset on Bridge reload.'
+                )
+            elif service=='content_processing':
+                text = (
+                    ':art: **Content stylizing**\n'+
+                    'The plugin will be able to modify message content and author information before bridging to '+
+                    'other servers.'
+                )
+            else:
+                text = (
+                    f':grey_question: `{service}`\n',
+                    'This is an unknown service.'
+                )
+            if len(services_text)==0:
+                services_text = text
+            else:
+                services_text = f'{services_text}\n\n{text}'
+
+        embed.add_field(
+            name='Services',
+            value=services_text
+        )
         row = [
             discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
             discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
@@ -544,6 +600,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         btns = discord.ui.ActionRow(row[0], row[1])
         components = discord.ui.MessageComponents(btns)
         await msg.edit(embed=embed, components=components)
+        embed.clear_fields()
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id

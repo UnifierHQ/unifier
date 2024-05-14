@@ -2,8 +2,8 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v1.2.2-patch2",
-  "release": 42,
+  "version": "v1.2.3",
+  "release": 43,
   "minimum": 0,
   "shutdown": false,
   "modules": [
@@ -14,7 +14,6 @@
     "badge.py"
   ],
   "utils": [
-    "log.py",
-    "rapidphish.py"
+    "log.py"
   ]
 }

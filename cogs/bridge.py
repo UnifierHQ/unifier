@@ -34,8 +34,9 @@ import re
 import ast
 import math
 from io import BytesIO
-from tld import get_tld
-from utils import rapidphish, log
+import os
+from utils import log
+import importlib
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -43,6 +44,7 @@ with open('config.json', 'r') as file:
 mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
+plugin_data = {}
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -188,9 +190,11 @@ class UnifierMessage:
     async def remove_reaction(self, emoji, userid):
         userid = str(userid)
         self.reactions[emoji][userid] -= 1
-        if self.reactions[emoji][userid] < 0:
-            self.reactions[emoji][userid] = 0
-        return self.reactions[emoji][userid]
+        if self.reactions[emoji][userid] <= 0:
+            self.reactions[emoji].pop(userid)
+            return 0
+        else:
+            return self.reactions[emoji][userid]
 
     async def fetch_external_url(self, source, guild_id):
         return self.external_urls[source][guild_id]
@@ -256,6 +260,8 @@ class UnifierBridge:
         self.raidbans = {}
         self.possible_raid = {}
         self.logger = logger
+        self.secbans = {}
+        self.restricted = {}
 
     def is_raidban(self,userid):
         try:
@@ -330,6 +336,57 @@ class UnifierBridge:
         self.restored = True
         return
 
+    async def run_security(self, message):
+        responses = {}
+        unsafe = False
+
+        for plugin in os.listdir('plugins'):
+            with open('plugins/' + plugin) as file:
+                extinfo = json.load(file)
+                try:
+                    if not 'content_protection' in extinfo['services']:
+                        continue
+                except:
+                    continue
+            script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
+            importlib.reload(script)
+
+            try:
+                data = plugin_data[plugin[:-5]]
+            except:
+                data = {}
+
+            response = await script.scan(message,data)
+
+            if response['unsafe']:
+                unsafe = True
+
+            responses.update({plugin[:-5]: response})
+            if len(response['data']) > 0:
+                if not plugin[:-5] in list(plugin_data.keys()):
+                    plugin_data.update({plugin[:-5]:{}})
+                plugin_data[plugin[:-5]].update(response['data'])
+            del script
+
+        return unsafe, responses
+
+    async def run_stylizing(self, message):
+        for plugin in os.listdir('plugins'):
+            with open('plugins/' + plugin) as file:
+                extinfo = json.load(file)
+                try:
+                    if not 'content_processing' in extinfo['services']:
+                        continue
+                except:
+                    continue
+            script = importlib.import_module('utils.' + plugin[:-5] + '_content_processing')
+            importlib.reload(script)
+            message = await script.process(message)
+            del script
+
+        return message
+
+
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
         if prehook and not_prehook:
             raise ValueError('Conflicting arguments')
@@ -388,43 +445,51 @@ class UnifierBridge:
 
     async def delete_copies(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
-        count = 0
+        threads = []
 
         async def delete_discord(msgs):
             count = 0
+            threads = []
             for key in list(self.bot.db['rooms'][msg.room].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
                 guild = self.bot.get_guild(int(key))
                 try:
-                    hooks = await guild.webhooks()
+                    try:
+                        webhook = self.bot.webhook_cache[f'{guild.id}'][
+                            f'{self.bot.db["rooms"][msg.room][f"{guild.id}"][0]}'
+                        ]
+                    except:
+                        webhook = None
+                        hooks = await guild.webhooks()
+                        for hook in hooks:
+                            if int(self.bot.db['rooms'][msg.room][key][0]) == hook.id:
+                                webhook = hook
+                                break
+
+                        if not webhook:
+                            # No webhook found
+                            continue
                 except:
-                    continue
-                webhook = None
-
-                # Fetch webhook
-                for hook in hooks:
-                    if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
-                        webhook = hook
-                        break
-
-                if not webhook:
-                    # No webhook found
                     continue
 
                 try:
-                    await webhook.delete_message(int(msgs[key][1]))
+                    threads.append(asyncio.create_task(
+                        webhook.delete_message(int(msgs[key][1]))
+                    ))
                     count += 1
                 except:
                     # traceback.print_exc()
                     pass
+            await asyncio.gather(*threads)
             return count
 
         async def delete_guilded(msgs):
             if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
                 return
             count = 0
+            threads = []
             for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
                 if not key in list(msgs.keys()):
                     continue
@@ -438,11 +503,14 @@ class UnifierBridge:
                     continue
 
                 try:
-                    await webhook.delete_message(msgs[key][1])
+                    threads.append(asyncio.create_task(
+                        webhook.delete_message(msgs[key][1])
+                    ))
                     count += 1
                 except:
                     # traceback.print_exc()
                     pass
+            await asyncio.gather(*threads)
             return count
 
         async def delete_revolt(msgs):
@@ -464,24 +532,38 @@ class UnifierBridge:
             return count
 
         if msg.source=='discord':
-            count += await delete_discord(msg.copies)
+            threads.append(asyncio.create_task(
+                delete_discord(msg.copies)
+            ))
         elif msg.source=='revolt':
-            count += await delete_revolt(msg.copies)
+            threads.append(asyncio.create_task(
+                delete_revolt(msg.copies)
+            ))
         elif msg.source=='guilded':
-            count += await delete_guilded(msg.copies)
+            threads.append(asyncio.create_task(
+                delete_guilded(msg.copies)
+            ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                count += await delete_discord(msg.external_copies['discord'])
+                threads.append(asyncio.create_task(
+                    delete_discord(msg.external_copies['discord'])
+                ))
             elif platform=='revolt':
-                count += await delete_revolt(msg.external_copies['revolt'])
+                threads.append(asyncio.create_task(
+                    delete_revolt(msg.external_copies['revolt'])
+                ))
             elif platform=='guilded':
-                count += await delete_guilded(msg.external_copies['guilded'])
+                threads.append(asyncio.create_task(
+                    delete_guilded(msg.external_copies['guilded'])
+                ))
 
-        return count
+        results = await asyncio.gather(*threads)
+        return sum(results)
 
     async def edit(self, message, content):
         msg: UnifierMessage = await self.fetch_message(message)
+        threads = []
 
         async def make_friendly(text):
             components = text.split('<@')
@@ -514,6 +596,8 @@ class UnifierBridge:
             return text
 
         async def edit_discord(msgs,friendly=False):
+            threads = []
+
             if friendly:
                 text = await make_friendly(content)
             else:
@@ -541,10 +625,14 @@ class UnifierBridge:
                     continue
 
                 try:
-                    await webhook.edit_message(int(msgs[key][1]),content=text,allowed_mentions=mentions)
+                    threads.append(asyncio.create_task(
+                        webhook.edit_message(int(msgs[key][1]),content=text,allowed_mentions=mentions)
+                    ))
                 except:
                     traceback.print_exc()
                     pass
+
+            await asyncio.gather(*threads)
 
         async def edit_revolt(msgs,friendly=False):
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
@@ -567,6 +655,7 @@ class UnifierBridge:
                     continue
 
         async def edit_guilded(msgs,friendly=False):
+            threads = []
             if friendly:
                 text = await make_friendly(content)
             else:
@@ -597,21 +686,35 @@ class UnifierBridge:
                     toedit = await webhook.fetch_message(msgs[key][1])
                     if msg.reply:
                         text = toedit.content.split('\n',1)[0]+'\n'+text
-                    await toedit.edit(content=text)
+                    threads.append(asyncio.create_task(
+                        toedit.edit(content=text)
+                    ))
                 except:
                     traceback.print_exc()
                     pass
 
+                await asyncio.gather(*threads)
+
         if msg.source=='discord':
-            await edit_discord(msg.copies)
+            threads.append(asyncio.create_task(
+                edit_discord(msg.copies)
+            ))
         elif msg.source=='revolt':
-            await edit_revolt(msg.copies)
+            threads.append(asyncio.create_task(
+                edit_revolt(msg.copies)
+            ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                await edit_discord(msg.external_copies['discord'],friendly=True)
+                threads.append(asyncio.create_task(
+                    edit_discord(msg.external_copies['discord'],friendly=True)
+                ))
             elif platform=='revolt':
-                await edit_revolt(msg.external_copies['revolt'],friendly=True)
+                threads.append(asyncio.create_task(
+                    edit_revolt(msg.external_copies['revolt'],friendly=True)
+                ))
+
+        await asyncio.gather(*threads)
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False,
@@ -1625,20 +1728,52 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         pages = len(emojis) // 20
         if len(emojis) % 20 > 0:
             pages += 1
-        embed = discord.Embed(title='UniChat Emojis list',
-                              description='To use an emoji, simply send `[emoji: emoji_name]`.\nIf there\'s emojis with duplicate names, use `[emoji2: emoji_name]` to send the 2nd emoji with that name.\n' + text)
+        embed = discord.Embed(
+            title='UniChat Emojis list',
+            description=(
+                    'To use an emoji, simply send `[emoji: emoji_name]`.\nIf there\'s emojis with '+
+                    'duplicate names, use `[emoji2: emoji_name]` to send the 2nd emoji with that '+
+                    'name.\n' + text
+            ),
+            color=self.bot.colors.unifier
+        )
         embed.set_footer(text=f'Page {index + 1}/{pages}')
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command()
     async def emoji(self, ctx, *, emoji=''):
-        # wip
-        return
+        emojis = []
+        for emoji in self.bot.emojis:
+            if emoji.guild_id in self.bot.db['emojis']:
+                emojis.append(emoji)
+
+        emoji_preview = None
+        for emoji1 in emojis:
+            if f'<:{emoji1.name}:{emoji1.id}>'==emoji or emoji1.name==emoji or str(emoji1.id)==emoji:
+                emoji_preview = emoji1
+                break
+
+        if not emoji_preview:
+            return await ctx.send('Could not find this emoji!')
+
+        embed = discord.Embed(
+            title=emoji_preview.name,
+            description=f'<:{emoji_preview.name}:{emoji_preview.id}>',
+            color=self.bot.colors.unifier
+        )
+        embed.add_field(
+            name='Origin guild',
+            value=emoji_preview.guild.name
+        )
+        await ctx.send(embed=embed)
 
     @commands.command(aliases=['modcall'])
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
         """Ping all moderators to the chat! Use only when necessary, or else."""
+        if not self.bot.config['enable_logging']:
+            return await ctx.send('Modping is disabled, contact your instance\'s owner.')
+
         hooks = await ctx.channel.webhooks()
         found = False
         room = ''
@@ -1762,12 +1897,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await ctx.send('Could not find message in cache!', ephemeral=True)
         text = ''
         for reaction in msg.reactions:
-            count = 0
-            for user in list(msg.reactions[reaction].keys()):
-                count += msg.reactions[reaction][user]
-            if count==0:
-                continue
-            text = f'{text}{reaction} x{count} '
+            text = f'{text}{reaction} x{len(msg.reactions[reaction].keys())} '
 
         if len(text)==0:
             return await ctx.send('No reactions yet!',ephemeral=True)
@@ -1839,6 +1969,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
             return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
+
+        if not self.bot.config['enable_logging']:
+            return await ctx.send('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
 
         try:
             msgdata = await self.bot.bridge.fetch_message(msg.id)
@@ -1938,6 +2071,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                  components=[reason, signature])
         await interaction.response.send_modal(modal)
 
+    @commands.command()
+    async def serverstatus(self,ctx):
+        embed = discord.Embed(
+            title='Server status',
+            description='Your server is not restricted by plugins.',
+            color=0x00ff00
+        )
+        if f'{ctx.guild.id}' in self.bot.bridge.restricted:
+            embed.description = 'Your server is currently limited by a plugin.'
+            embed.colour = 0xffce00
+        await ctx.send(embed=embed)
+
     @commands.Cog.listener()
     async def on_modal_submit(self, interaction):
         context = interaction.components[0].components[0].value
@@ -1961,7 +2106,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         userid = int(interaction.custom_id.split('_')[0])
         if len(content) > 2048:
             content = content[:-(len(content) - 2048)]
-        embed = discord.Embed(title='Message report - content is as follows', description=content, color=0xffbb00)
+        embed = discord.Embed(
+            title='Message report - content is as follows',
+            description=content,
+            color=0xffbb00,
+            timestamp=datetime.utcnow()
+        )
         embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
         embed.add_field(name='Context', value=context, inline=False)
         embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
@@ -1995,7 +2145,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                               disabled=False)
         )
         components = discord.ui.MessageComponents(btns)
-        await ch.send(embed=embed, components=components)
+        await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
         self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
         return await interaction.response.send_message(
             "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
@@ -2196,163 +2346,138 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return
 
-        # Low-latency RapidPhish implementation
-        # Prevent message tampering
-        urls = findurl(message.content)
-        filtered = message.content.replace('\\', '')
-        for url in urls:
-            filtered = filtered.replace(url, '', 1)
-        for word in filtered.split():
-            # kill hyperlinks :woke:
-            if '](' in word:
-                # likely hyperlink, lets kill it
-                if word.startswith('['):
-                    word = word[1:]
-                if word.endswith(')'):
-                    word = word[:-1]
-                word = word.replace(')[', ' ')
-                words = word.split()
-                found = False
-                for word2 in words:
-                    words2 = word2.replace('](', ' ').split()
-                    for word3 in words2:
-                        if '.' in word3:
-                            if not word3.startswith('http://') or not word3.startswith('https://'):
-                                word3 = 'http://' + word3
-                            while True:
-                                try:
-                                    word3 = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word3))
-                                except:
-                                    break
-                            if len(word3.split('.')) == 1:
-                                continue
-                            else:
-                                if word3.split('.')[1] == '':
-                                    continue
-                            try:
-                                get_tld(word3.lower(), fix_protocol=True)
-                                if '](' in word3.lower():
-                                    word3 = word3.replace('](', ' ', 1).split()[0]
-                                urls.append(word3.lower())
-                                found = True
-                            except:
-                                pass
-
-                if found:
-                    # successful link detection from hyperlink yippee
-                    continue
-            if '.' in word:
-                while True:
-                    try:
-                        word = await self.bot.loop.run_in_executor(None, lambda: bypass_killer(word))
-                    except:
-                        break
-                if len(word.split('.')) == 1:
-                    continue
-                else:
-                    if word.split('.')[1] == '':
-                        continue
-                try:
-                    get_tld(word.lower(), fix_protocol=True)
-                    if '](' in word.lower():
-                        word = word.replace('](', ' ', 1).split()[0]
-                    urls.append(word.lower())
-                except:
-                    pass
-
-        key = 0
-        for url in urls:
-            url = url.lower()
-            urls[key] = url
-            if not url.startswith('http://') and not url.startswith('https://'):
-                urls[key] = f'http://{url}'
-            if '](' in url:
-                urls[key] = url.replace('](', ' ', 1).split()[0]
-            if ('discord.gg/' in url or 'discord.com/invite/' in url or 'discordapp.com/invite/' in url or
-                    'discord.gg/' in message.content or 'discord.com/invite/' in message.content or
-                    'discordapp.com/invite/' in message.content):
-                try:
-                    await message.delete()
-                except:
-                    pass
-                if message.author.id==self.bot.config['owner']:
-                    embed = None
-                else:
-                    if not self.bot.bridge.is_raidban(message.author.id):
-                        if f'{message.author.id}' in list(self.bot.bridge.raidbans.keys()):
-                            self.bot.bridge.raidbans.pop(f'{message.author.id}')
-                        self.bot.bridge.raidban(message.author.id)
-                        embed = discord.Embed(title='Automatic restriction applied',
-                                              description='You have been temporarily banned from Unifier for 10 minutes. Continuing to send invites will result in longer bans.',
-                                              color=0xffcc00)
-                    else:
-                        try:
-                            shouldban = self.bot.bridge.raidbans[f'{message.author.id}'].increment()
-                        except:
-                            return
-                        if shouldban:
-                            if not message.author.id == self.bot.config['owner']:
-                                self.bot.db['banned'].update({f'{message.author.id}': 0})
-                                self.bot.db.save_data()
-                                self.logger.warning(f'Banned user {message.author.id} - possible raid detected')
-                            embed = discord.Embed(title='Raid detected - permanent ban applied',
-                                                  description='A raid was detected and you have been permanently banned. Contact staff to appeal.',
-                                                  color=0xff0000)
-                        else:
-                            expiry = self.bot.bridge.raidbans[f'{message.author.id}'].expire
-                            embed = discord.Embed(title='Automatic restriction applied',
-                                                  description=f'Your ban has been extended. It will now expire <t:{expiry}:R>',
-                                                  color=0xffcc00)
-                return await message.channel.send(f'<@{message.author.id}> Invites aren\'t allowed!', embed=embed)
-            key = key + 1
-
-        if self.bot.bridge.is_raidban(message.author.id):
-            return
-
-        if len(urls) > 0:
-            rpresults = rapidphish.compare_urls(urls, 0.85)
-            if not rpresults.final_verdict=='safe':
-                try:
-                    await message.delete()
-                except:
-                    pass
-                if author_rp.discriminator == '0':
-                    user = f'@{author_rp.name}'
-                else:
-                    user = f'{author_rp.name}#{author_rp.discriminator}'
-                embed = discord.Embed(title='Suspicious link detected <:nevsus:1024028464954744832>',
-                                      description='RapidPhish Low-Latency Implementation has detected a suspicious link. But don\'t worry, we\'ve scanned it and took the appropriate action that you\'ve set us to take. <:neviraldi:981611276985831424>\n\nWe\'ll send the results here for you to see.',
-                                      color=0x0000ff, timestamp=datetime.utcnow())
-                try:
-                    embed.set_author(name=user, icon_url=author_rp.avatar)
-                except:
-                    embed.set_author(name=user, icon_url=author_rp.avatar)
-                embed.set_footer(text='Protected by RapidPhish LLI')
-                content = content_rp
-                if len(content) > 1020:
-                    content = content_rp[:-(len(content_rp) - 1017)]
-                embed.add_field(name='Message', value=f'||{content}||', inline=False)
-                embed.add_field(name='User ID', value=f'{author_rp.id}', inline=False)
-                embed.add_field(name='Detected by', value='RapidPhish', inline=False)
-                embed.add_field(name='Action taken', value='forwarding blocked', inline=True)
-                guild = self.bot.get_guild(self.bot.config['home_guild'])
-                ch = guild.get_channel(self.bot.config['reports_channel'])
-                await ch.send(embed=embed)
-                try:
-                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**',reference=message)
-                except:
-                    await message.channel.send('One or more URLs were flagged as potentially dangerous. **This incident has been reported.**')
+        message = await self.bot.bridge.run_stylizing(message)
+        unsafe, responses = await self.bot.bridge.run_security(message)
+        if unsafe:
+            if f'{message.author.id}' in list(self.bot.db['banned'].keys()):
                 return
 
-        if not message.guild.explicit_content_filter == discord.ContentFilter.all_members:
-            return await message.channel.send(
-                '**Hold up a sec!**\nThis server isn\'t letting Discord make sure nothing NSFW is being sent in SFW channels, meaning adult content could be sent over UniChat. We don\'t want that!'
-                + '\n\nPlease ask your server admins to enable explicit content scanning for **all members**.',
-                reference=message)
-        elif message.channel.nsfw:
-            return await message.channel.send(
-                '**Hold up a sec!**\nThis channel is marked as NSFW, meaning Discord won\'t go mad when you try sending adult content over UniChat. We don\'t want that!'
-                + '\n\nPlease ask your server admins to unmark this channel as NSFW.', reference=message)
+            banned = {}
+            restricted = []
+
+            for plugin_name in responses:
+                response = responses[plugin_name]
+                for user in response['target']:
+                    if user in list(banned.keys()):
+                        if response['target'][user] > 0 or banned[user]==0:
+                            continue
+                    if not int(user) == self.bot.config['owner']:
+                        if response['target'][user]==0:
+                            self.bot.db['banned'].update({user:0})
+                            self.bot.db.save_data()
+                        else:
+                            self.bot.bridge.secbans.update(
+                                {user:round(time.time())+response['target'][user]}
+                            )
+                    banned.update({user: response['target'][user]})
+                for guild in response['restrict']:
+                    if guild in restricted:
+                        continue
+                    self.bot.restricted.update({guild:round(time.time())+response['restrict'][guild]})
+                    restricted.append(guild)
+
+            embed = discord.Embed(
+                title='Content blocked',
+                description='Your message was blocked. Moderators may be able to see the blocked content.',
+                color=0xff0000
+            )
+            await message.channel.send(embed=embed)
+
+            embed = discord.Embed(
+                title='Content blocked - content is as follows',
+                description=message.content[:-(len(message.content)-2000)] if len(message.content) > 2000 else message.content,
+                color=0xff0000,
+                timestamp=datetime.utcnow()
+            )
+
+            for plugin in responses:
+                if not responses[plugin]['unsafe']:
+                    continue
+                try:
+                    with open('plugins/' + plugin + '.json') as file:
+                        extinfo = json.load(file)
+                    plugname = extinfo['name']
+                except:
+                    plugname = plugin
+                embed.add_field(
+                    name=plugname + f' ({len(responses[plugin]["target"])} users involved)',
+                    value=responses[plugin]['description'],
+                    inline=False
+                )
+                if len(embed.fields) == 23:
+                    break
+
+            embed.add_field(name='Punished user IDs', value=' '.join(list(banned.keys())), inline=False)
+            embed.add_field(name='Message room', value=roomname, inline=False)
+            embed.set_footer(
+                text='This is an automated action performed by a plugin, always double-check before taking action',
+                icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
+            )
+
+            try:
+                ch = self.bot.get_guild(self.bot.config['home_guild']).get_channel(self.bot.config['reports_channel'])
+                await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed)
+            except:
+                pass
+
+            for user in banned:
+                user_obj = self.bot.get_user(int(user))
+                if int(user)==self.bot.config['owner']:
+                    try:
+                        await user_obj.send('just as a fyi: this would have banned you')
+                    except:
+                        pass
+                    continue
+                nt = time.time() + banned[user]
+                embed = discord.Embed(
+                    title=f'You\'ve been __global restricted__ by @Unifier (system)!',
+                    description='Automatic action carried out by security plugins',
+                    color=0xffcc00,
+                    timestamp=datetime.utcnow()
+                )
+                embed.set_author(
+                    name='@Unifier (system)',
+                    icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
+                )
+                if banned[user]==0:
+                    embed.colour = 0xff0000
+                    embed.add_field(
+                        name='Actions taken',
+                        value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
+                        inline=False
+                    )
+                else:
+                    embed.add_field(
+                        name='Actions taken',
+                        value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{round(nt)}:f>. This will expire <t:{round(nt)}:R>.',
+                        inline=False
+                    )
+                try:
+                    await user_obj.send(embed=embed)
+                except:
+                    pass
+
+            return
+
+        if f'{message.author.id}' in list(self.bot.bridge.secbans.keys()):
+            if self.bot.bridge.secbans[f'{message.author.id}'] > time.time():
+                self.bot.bridge.secbans.pop(f'{message.author.id}')
+            else:
+                return
+
+        if f'{message.guild.id}' in list(self.bot.bridge.restricted.keys()):
+            if self.bot.bridge.restricted[f'{message.guild.id}'] > time.time():
+                self.bot.bridge.restricted.pop(f'{message.guild.id}')
+            else:
+                if len(message.content) > self.bot.config['restriction_length']:
+                    return await message.channel.send(
+                        ('Your server is currently limited for security. The maximum character limit for now is **'+
+                            self.bot.config["restriction_length"]+' characters**.')
+                    )
+                elif self.bot.bridge.cooldowned[f'{message.author.id}'] < time.time():
+                    return await message.channel.send(
+                        'Your server is currently limited for security. Please wait before sending another message.'
+                    )
 
         multisend = True
         if message.content.startswith('['):
@@ -2419,7 +2544,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 tasks.append(self.bot.loop.create_task(
                     self.bot.bridge.send(room=roomname, message=message, platform=platform, extbridge=extbridge)))
 
-        pt = time.time()
         ids = []
         try:
             ids = await asyncio.gather(*tasks)
@@ -2631,6 +2755,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
         try:
+            if not self.bot.config['enable_logging']:
+                raise RuntimeError()
             guild = self.bot.get_guild(self.bot.config['home_guild'])
             ch = guild.get_channel(self.bot.config['logs_channel'])
 
