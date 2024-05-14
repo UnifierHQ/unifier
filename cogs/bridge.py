@@ -2705,9 +2705,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def on_message_delete(self, message):
         gbans = self.bot.db['banned']
 
-        if not self.bot.config['enable_logging']:
-            return
-
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
             return
 
@@ -2748,6 +2745,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
         try:
+            if not self.bot.config['enable_logging']:
+                raise RuntimeError()
             guild = self.bot.get_guild(self.bot.config['home_guild'])
             ch = guild.get_channel(self.bot.config['logs_channel'])
 
