@@ -8,11 +8,11 @@ the safety of hosters and users every now and then.
 ## Supported Versions
 Currently, v1.1.x and newer receive security updates. Preceding versions
 have been discontinued and will not be updated any further.
-| Version | Type    | Supported          |
-| ------- | ------- | ------------------ |
-| 1.2.x   | release | :white_check_mark: |
-| 1.1.x   | legacy  | :white_check_mark: |
-| < 1.1   | eol     | :x:                |
+| Version | Type    | Supported                    |
+| ------- | ------- | ---------------------------- |
+| 1.2.x   | release | :white_check_mark: Supported |
+| 1.1.x   | legacy  | :warning: Near EoL           |
+| < 1.1   | eol     | :x: Unsupported              |
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.

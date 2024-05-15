@@ -29,6 +29,7 @@ import logging
 from utils import log
 from dotenv import load_dotenv
 import requests
+from pathlib import Path
 
 if os.name != "nt":
     try:
@@ -68,6 +69,10 @@ if not env_loaded:
 
 if 'token' in list(data.keys()):
     logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
+
+cgroup = Path('/proc/self/cgroup')
+if Path('/.dockerenv').is_file() or cgroup.is_file() and 'docker' in cgroup.read_text():
+    logger.warning('Unifier is running in a Docker container. Some features may need plugins to work properly.')
 
 try:
     with open('plugins/system.json', 'r') as file:
