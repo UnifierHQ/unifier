@@ -1942,7 +1942,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not ctx.author.id == msg.author_id and not ctx.author.id in self.bot.moderators:
             return await ctx.send('You didn\'t send this message!',ephemeral=True)
 
-        await ctx.interaction.response.defer_update(ephemeral=True)
+        await ctx.interaction.response.defer(ephemeral=True)
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
@@ -2159,7 +2159,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                               disabled=False)
         )
         components = discord.ui.MessageComponents(btns)
-        await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
+        msg = await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
+        thread = await msg.create_thread(
+            name=f'Discussion: #{msgid}',
+            auto_archive_duration=10080
+        )
+        self.bot.db['report_threads'].update({str(msg.id): thread.id})
+        self.bot.db.save_data()
         self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
         return await interaction.response.send_message(
             "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
@@ -2221,6 +2227,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if not interaction.user.discriminator == '0':
                 author = f'{interaction.user.name}#{interaction.user.discriminator}'
             embed.title = f'This report has been reviewed by {author}!'
+            await interaction.response.defer(ephemeral=True)
+            thread = interaction.channel.get_thread(
+                self.bot.db['report_threads'][str(interaction.message.id)]
+            )
+            if thread:
+                await thread.edit(
+                    archived=True
+                )
             await interaction.response.edit_message(embed=embed,components=components)
 
     @commands.command(hidden=True)

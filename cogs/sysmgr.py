@@ -40,7 +40,7 @@ class Colors: # format: 0xHEXCODE
     dark_green = 0x1f8b4c
     purple = 0x9b59b6
     red = 0xe74c3c
-    blurple = 0x7289da # TODO add gold color!
+    blurple = 0x7289da
     gold = 0xd4a62a
 
 def cleanup_code(content):
@@ -235,6 +235,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for extension in self.bot.extensions:
                 await self.preunload(extension)
             self.logger.info("Backing up message cache...")
+            self.bot.db.save_data()
             await self.bot.bridge.backup(limit=10000)
             self.logger.info("Backup complete")
             await ctx.send('Shutting down...')
@@ -376,6 +377,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True)
     async def reload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
+            if self.bot.update:
+                return await ctx.send('Plugin management is disabled until restart.')
+
             extensions = extensions.split(' ')
             msg = await ctx.send('Reloading extensions...')
             failed = []
@@ -416,6 +420,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True)
     async def load(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
+            if self.bot.update:
+                return await ctx.send('Plugin management is disabled until restart.')
+
             extensions = extensions.split(' ')
             msg = await ctx.send('Loading extensions...')
             failed = []
@@ -453,6 +460,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True)
     async def unload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
+            if self.bot.update:
+                return await ctx.send('Plugin management is disabled until restart.')
+
             extensions = extensions.split(' ')
             msg = await ctx.send('Unloading extensions...')
             failed = []
@@ -496,6 +506,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def install(self, ctx, url):
         if not ctx.author.id==self.bot.config['owner']:
             return
+
+        if self.bot.update:
+            return await ctx.send('Plugin management is disabled until restart.')
+
         if url.endswith('/'):
             url = url[:-1]
         if not url.endswith('.git'):
@@ -672,6 +686,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def uninstall(self, ctx, plugin):
         if not ctx.author.id == self.bot.config['owner']:
             return
+
+        if self.bot.update:
+            return await ctx.send('Plugin management is disabled until restart.')
+
         plugin = plugin.lower()
         if plugin=='system':
             return await ctx.send('System plugin cannot be uninstalled!')
@@ -751,6 +769,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def upgrade(self, ctx, plugin='system', *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
+
+        if self.bot.update:
+            return await ctx.send('Plugin management is disabled until restart.')
 
         args = args.split(' ')
         force = False
@@ -979,6 +1000,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('config.json', 'w') as file:
                     json.dump(oldcfg, file, indent=4)
                 if should_reboot:
+                    self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')
                     embed.title = ':white_check_mark: Restart to apply upgrade'
                     embed.description = f'The upgrade was successful. Please reboot the bot.'

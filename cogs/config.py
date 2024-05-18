@@ -32,7 +32,7 @@ class AutoSaveDict(dict):
         self.update({'rules':{},'rooms':{},'rooms_revolt':{},'rooms_guilded':{},'emojis':[],'nicknames':{},
                      'descriptions':{},'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
                      'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[],
-                     'modlogs':{},'spybot':[],'trusted':[]})
+                     'modlogs':{},'spybot':[],'trusted':[],'report_threads':{}})
 
         # Load data
         self.load_data()
