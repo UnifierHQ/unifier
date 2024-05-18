@@ -25,6 +25,8 @@ import traceback
 import json
 from utils import log
 
+override_st = False
+
 with open('config.json', 'r') as file:
     data = json.load(file)
 
@@ -182,7 +184,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('Invalid duration!')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
-            if userid==ctx.author.id:
+            if userid==ctx.author.id and not override_st:
                 return await ctx.send('You can\'t restrict yourself :thinking:')
         except:
             userid = target
@@ -200,7 +202,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             discreet = True
             while reason.startswith(' '):
                 reason = reason.replace(' ','',1)
-        if userid in self.bot.moderators and not ctx.author.id == self.bot.config['owner']:
+        if userid in self.bot.moderators and not ctx.author.id == self.bot.config['owner'] and not override_st:
             return await ctx.send('You cannot punish other moderators!')
         banlist = self.bot.db['banned']
         if userid in banlist:
@@ -300,6 +302,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
+            if userid==ctx.author.id and not override_st:
+                return await ctx.send('You can\'t unban yourself :thinking:')
         except:
             userid = target
             if not len(target) == 26:
@@ -574,40 +578,61 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def warn(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
-        reason = ''
-        parts = target.split(' ',1)
-        if len(parts)==2:
-            reason = parts[1]
-            target = parts[0]
+        rtt_msg = None
+        rtt_msg_content = ''
+        if ctx.message.reference:
+            msg = ctx.message.reference.cached_message
+            if not msg:
+                try:
+                    msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                    rtt_msg = await self.bot.bridge.fetch(msg.id)
+                    rtt_msg_content = msg.content
+                except:
+                    pass
+        if rtt_msg:
+            reason = target
+            target = str(rtt_msg.author_id)
         else:
-            return await ctx.send('You need to have a reason to warn this user.')
+            parts = target.split(' ',1)
+            if len(parts)==2:
+                reason = parts[1]
+                target = parts[0]
+            else:
+                return await ctx.send('You need to have a reason to warn this user.')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
-            if userid==ctx.author.id:
+            if userid==ctx.author.id and not override_st:
                 return await ctx.send('You can\'t warn yourself :thinking:')
         except:
             userid = target
             if not len(userid)==26:
                 return await ctx.send('Invalid user/server!')
-        if userid in self.bot.moderators and not ctx.author.id==self.bot.config['owner']:
+        if userid in self.bot.moderators and not ctx.author.id==self.bot.config['owner'] and not override_st:
             return await ctx.send('You cannot punish other moderators!')
-        banlist = self.bot.db['banned']
-        if userid in banlist:
-            return await ctx.send('User/server already banned!')
         if ctx.author.discriminator=='0':
             mod = f'@{ctx.author.name}'
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
         embed = discord.Embed(title=f'You\'ve been __warned__ by {mod}!',description=reason,color=0xffff00,timestamp=datetime.utcnow())
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
-        embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.',inline=False)
+        if rtt_msg:
+            if len(rtt_msg_content)==0:
+                rtt_msg_content = '[no content]'
+            if len(rtt_msg_content) > 1024:
+                rtt_msg_content = rtt_msg_content[:-(len(rtt_msg_content)-1024)]
+            embed.add_field(name='Offending message',value=rtt_msg_content,inline=False)
+        embed.add_field(
+            name='Actions taken',
+            value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.',
+            inline=False
+        )
         user = self.bot.get_user(userid)
         if not user:
             try:
                 user = self.bot.revolt_client.get_user(userid)
                 await user.send(
                     f'## {embed.title}\n{embed.description}\n\n**Actions taken**\n{embed.fields[0].value}')
-                return await ctx.send('user warned')
+                return await ctx.send('User has been warned and notified.')
             except:
                 return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
         if user.bot:
@@ -622,11 +647,86 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                   f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in '+
                   'total) on record.',
             inline=False)
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(
+                    style=discord.ButtonStyle.red,
+                    custom_id='delete',
+                    label='Delete message',
+                    emoji='\U0001F5D1'
+                )
+            )
+        )
         try:
             await user.send(embed=embed)
-            await ctx.send('User has been warned and notified.',embed=log_embed)
+            resp_msg = await ctx.send('User has been warned and notified.',embed=log_embed,components=components)
         except:
-            await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed)
+            resp_msg = await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed,components=components)
+
+        def check(interaction):
+            return interaction.user.id==ctx.author.id and interaction.message.id==resp_msg.id
+
+        try:
+            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=30.0)
+        except:
+            components = discord.ui.MessageComponents(
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.red,
+                        custom_id='delete',
+                        label='Delete message',
+                        emoji='\U0001F5D1',
+                        disabled=True
+                    )
+                )
+            )
+            return await resp_msg.edit(components=components)
+        else:
+            components = discord.ui.MessageComponents(
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.red,
+                        custom_id='delete',
+                        label='Delete message',
+                        emoji='\U0001F5D1',
+                        disabled=True
+                    )
+                )
+            )
+            await resp_msg.edit(components=components)
+            await interaction.response.defer_update(ephemeral=True)
+            components = discord.ui.MessageComponents(
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.gray,
+                        custom_id='delete',
+                        label='Original message deleted',
+                        emoji='\U0001F5D1',
+                        disabled=True
+                    )
+                )
+            )
+            try:
+                await self.bot.bridge.delete_parent(rtt_msg.id)
+                if rtt_msg.webhook:
+                    raise ValueError()
+                await resp_msg.edit(components=components)
+                return await interaction.edit_original_message(
+                    content='Deleted message (parent deleted, copies will follow)'
+                )
+            except:
+                try:
+                    deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
+                    await resp_msg.edit(components=components)
+                    return await interaction.edit_original_message(
+                        content=f'Deleted message ({deleted} copies deleted)'
+                    )
+                except:
+                    traceback.print_exc()
+                    return await interaction.edit_original_message(
+                        content='Something went wrong.'
+                    )
+
 
     @commands.command(hidden=True)
     async def delwarn(self,ctx,target,index):
