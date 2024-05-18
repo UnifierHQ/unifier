@@ -97,6 +97,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.package = self.bot.config['package']
 
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
+        if not hasattr(self.bot,'loaded_plugins'):
+            self.bot.loaded_plugins = {}
+            for plugin in os.listdir('plugins'):
+                with open('plugins/' + plugin) as file:
+                    extinfo = json.load(file)
+                    try:
+                        if not 'content_protection' in extinfo['services']:
+                            continue
+                    except:
+                        continue
+                script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
+                self.bot.loaded_plugins.update({plugin[:-5]: script})
 
         if not self.bot.ready:
             try:
@@ -166,6 +178,41 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return
         script = importlib.import_module('utils.' + plugin_name + '_check')
         await script.check(self.bot)
+
+    @commands.command(aliases=['reload-services'], hidden=True)
+    async def reload_services(self,ctx,*,services=None):
+        """Reloads bot services."""
+        if not services:
+            plugins = self.bot.loaded_plugins
+        else:
+            plugins = services.split(' ')
+        success = []
+        failed = []
+        errors = []
+        text = '```diff'
+        msg = await ctx.send('Reloading services...')
+        for plugin in plugins:
+            try:
+                importlib.reload(self.bot.loaded_plugins[plugin])
+                success.append(plugin)
+                text = text + f'\n+ [DONE] {plugin}'
+            except Exception as e:
+                failed.append(plugin)
+                errors.append(e)
+                text = text + f'\n- [FAIL] {plugin}'
+        await msg.edit(
+            content=f'Reload completed (`{len(plugins) - len(failed)}'f'/{len(plugins)}` successful)\n\n{text}```'
+        )
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**Fail logs**\n{text}')
 
     @commands.command(hidden=True)
     async def eval(self, ctx, *, body):

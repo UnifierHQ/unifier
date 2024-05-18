@@ -348,19 +348,11 @@ class UnifierBridge:
         responses = {}
         unsafe = False
 
-        for plugin in os.listdir('plugins'):
-            with open('plugins/' + plugin) as file:
-                extinfo = json.load(file)
-                try:
-                    if not 'content_protection' in extinfo['services']:
-                        continue
-                except:
-                    continue
-            script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
-            importlib.reload(script)
+        for plugin in self.bot.loaded_plugins:
+            script = self.bot.loaded_plugins[plugin]
 
             try:
-                data = plugin_data[plugin[:-5]]
+                data = plugin_data[plugin]
             except:
                 data = {}
 
@@ -369,12 +361,11 @@ class UnifierBridge:
             if response['unsafe']:
                 unsafe = True
 
-            responses.update({plugin[:-5]: response})
+            responses.update({plugin: response})
             if len(response['data']) > 0:
-                if not plugin[:-5] in list(plugin_data.keys()):
-                    plugin_data.update({plugin[:-5]:{}})
-                plugin_data[plugin[:-5]].update(response['data'])
-            del script
+                if not plugin in list(plugin_data.keys()):
+                    plugin_data.update({plugin:{}})
+                plugin_data[plugin].update(response['data'])
 
         return unsafe, responses
 
