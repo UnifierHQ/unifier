@@ -759,7 +759,7 @@ class UnifierBridge:
         try:
             is_pr = room == self.bot.config['posts_room'] and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts']
+                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
             )
         except:
             is_pr = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_room_index']
@@ -783,13 +783,13 @@ class UnifierBridge:
         try:
             temp_pr_ref = room == self.bot.config['posts_ref_room'] and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts']
+                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
             )
         except:
             temp_pr_ref = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_ref_room_index']
         if temp_pr_ref and message.content.startswith('[') and source==platform=='discord' and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts']
+                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
             ):
             pr_id = None
             components = message.content.replace('[','',1).split(']')
@@ -2561,11 +2561,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
         is_pr = roomname == pr_roomname and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts']
+                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
         )
         is_pr_ref = roomname == pr_ref_roomname and (
             self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-            self.bot.config['allow_posts']
+            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
         )
 
         should_resend = False
