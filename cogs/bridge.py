@@ -726,9 +726,11 @@ class UnifierBridge:
 
     async def send(self, room: str, message: discord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False,
-                   extbridge=False, id_override=None):
+                   extbridge=False, id_override=None, ignore=None):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
             return
+        if ignore is None:
+            ignore = []
         source = 'discord'
         pt = time.time()
         extlist = list(self.bot.extensions)
@@ -927,6 +929,9 @@ class UnifierBridge:
                     destguild = self.bot.guilded_client.get_server(guild)
                 except:
                     continue
+
+            if destguild.id in ignore:
+                continue
 
             if sameguild and not system:
                 if not should_resend or not platform=='discord':
