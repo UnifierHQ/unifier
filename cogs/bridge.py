@@ -1879,6 +1879,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.context_command(name='View reactions')
     async def reactions_ctx(self, ctx, msg: discord.Message):
+        if ctx.author.id in self.bot.db['fullbanned']:
+            return
         gbans = self.bot.db['banned']
         ct = time.time()
         if f'{ctx.author.id}' in list(gbans.keys()):
@@ -1914,6 +1916,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.context_command(name='Delete message')
     async def delete_ctx(self, ctx, msg: discord.Message):
+        if ctx.author.id in self.bot.db['fullbanned']:
+            return
         gbans = self.bot.db['banned']
         ct = time.time()
         if f'{ctx.author.id}' in list(gbans.keys()):
@@ -1965,6 +1969,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
+        if ctx.author.id in self.bot.db['fullbanned']:
+            return
         gbans = self.bot.db['banned']
         ct = time.time()
         if f'{ctx.author.id}' in list(gbans.keys()):
