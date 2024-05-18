@@ -2416,11 +2416,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             banned = {}
             restricted = []
+            public = False
+            public_reason = None
 
             for plugin_name in responses:
                 response = responses[plugin_name]
                 for user in response['target']:
-                    if user in list(banned.keys()):
+                    if user in banned.keys():
                         if response['target'][user] > 0 or banned[user]==0:
                             continue
                     if not int(user) == self.bot.config['owner']:
@@ -2437,12 +2439,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         continue
                     self.bot.restricted.update({guild:round(time.time())+response['restrict'][guild]})
                     restricted.append(guild)
+                if 'public' in responses.keys() and not public:
+                    if response['public']:
+                        public_reason = response['description']
+                        public = True
 
             embed = discord.Embed(
                 title='Content blocked',
                 description='Your message was blocked. Moderators may be able to see the blocked content.',
                 color=0xff0000
             )
+
+            if public:
+                embed.add_field(name='Reason',value=public_reason if public_reason else '[unknown]',inline=False)
+
             await message.channel.send(embed=embed)
 
             embed = discord.Embed(
