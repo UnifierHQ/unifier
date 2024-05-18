@@ -404,10 +404,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         if target in self.bot.db['fullbanned']:
             self.bot.db['fullbanned'].remove(target)
-            await ctx.send('User has been banned from the bot.')
+            await ctx.send('User has been unbanned from the bot.')
         else:
             self.bot.db['fullbanned'].append(target)
-            await ctx.send('User has been unbanned from the bot.')
+            await ctx.send('User has been banned from the bot.')
 
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,target):
