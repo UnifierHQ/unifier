@@ -191,8 +191,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             else:
                 return await ctx.send('Could not find message in cache!')
         if rtt_msg:
-            duration = target
             reason = duration + ' ' + reason
+            duration = target
             target = str(rtt_msg.author_id)
 
         forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
