@@ -387,6 +387,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                         content='Something went wrong.'
                     )
 
+    @commands.command(hidden=True)
+    async def fullban(self,ctx,target):
+        if not ctx.author.id in self.bot.admins:
+            return
+
+        if target.id in self.bot.db['fullbanned']:
+            self.bot.db['fullbanned'].remove(target.id)
+            await ctx.send('User has been banned from the bot.')
+        else:
+            self.bot.db['fullbanned'].append(target.id)
+            await ctx.send('User has been unbanned from the bot.')
+
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,target):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or

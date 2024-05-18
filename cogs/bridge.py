@@ -2286,6 +2286,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         hook = None
         idmatch = False
 
+        if message.author.id in self.bot.db['fullbanned']:
+            return
+
         if message.author.id==self.bot.config['owner'] and message.content.startswith('--match '):
             message.content = message.content.replace('--match ','',1)
             idmatch = True
@@ -2604,6 +2607,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         message = after
 
+        if message.author.id in self.bot.db['fullbanned']:
+            return
+
         if message.guild == None:
             return
 
@@ -2675,6 +2681,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         else:
             ch = self.bot.get_guild(payload.guild_id).get_channel(payload.channel_id)
             message = await ch.fetch_message(payload.message_id)
+
+            if message.author.id in self.bot.db['fullbanned']:
+                return
 
             if message.guild == None:
                 return
@@ -2825,6 +2834,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             return
 
+        if event.user_id in self.bot.db['fullbanned']:
+            return
+
         emoji = event.emoji
         if emoji.is_unicode_emoji():
             emoji = emoji.name
@@ -2838,6 +2850,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(event.message_id)
         except:
+            return
+
+        if event.user_id in self.bot.db['fullbanned']:
             return
 
         emoji = event.emoji

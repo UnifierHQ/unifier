@@ -270,6 +270,9 @@ async def on_message(message):
     if not message.webhook_id==None:
         # webhook msg
         return
+
+    if message.author.id in bot.db['fullbanned']:
+        return
         
     if message.content.lower().startswith(bot.command_prefix) and not message.author.bot:
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
