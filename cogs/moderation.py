@@ -316,8 +316,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         resp_msg = await ctx.send(
             'User was global banned. They may not use Unifier for the given time period.',
             embed=log_embed,
-            components=components
+            reference=ctx.message,
+            components=components if rtt_msg else None
         )
+
+        if not rtt_msg:
+            return
 
         def check(interaction):
             return interaction.user.id==ctx.author.id and interaction.message.id==resp_msg.id
@@ -773,9 +777,17 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         )
         try:
             await user.send(embed=embed)
-            resp_msg = await ctx.send('User has been warned and notified.',embed=log_embed,components=components)
+            resp_msg = await ctx.send(
+                'User has been warned and notified.',
+                embed=log_embed,
+                reference=ctx.message,
+                components=components if rtt_msg else None
+            )
         except:
             resp_msg = await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed,components=components)
+
+        if not rtt_msg:
+            return
 
         def check(interaction):
             return interaction.user.id==ctx.author.id and interaction.message.id==resp_msg.id
