@@ -586,10 +586,16 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             if not msg:
                 try:
                     msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-                    rtt_msg = await self.bot.bridge.fetch_message(msg.id)
-                    rtt_msg_content = msg.content
                 except:
                     pass
+            if msg:
+                try:
+                    rtt_msg = await self.bot.bridge.fetch_message(msg.id)
+                except:
+                    return await ctx.send('Could not find message in cache!')
+                rtt_msg_content = msg.content
+            else:
+                return await ctx.send('Could not find message in cache!')
         if rtt_msg:
             reason = target
             target = str(rtt_msg.author_id)
@@ -696,7 +702,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 )
             )
             await resp_msg.edit(components=components)
-            await interaction.response.defer_update(ephemeral=True)
+            await interaction.response.defer(ephemeral=True)
             components = discord.ui.MessageComponents(
                 discord.ui.ActionRow(
                     discord.ui.Button(
