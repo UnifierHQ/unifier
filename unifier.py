@@ -277,7 +277,11 @@ async def on_message(message):
         return
 
     if message.author.id in bot.db['fullbanned']:
-        return
+        if message.author.id==bot.owner:
+            bot.db['fullbanned'].remove(message.author.id)
+            bot.db.save_data()
+        else:
+            return
         
     if message.content.lower().startswith(bot.command_prefix) and not message.author.bot:
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]

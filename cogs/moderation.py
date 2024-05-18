@@ -414,6 +414,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 return await ctx.send('Invalid user!')
 
+        if target==ctx.author.id:
+            return await ctx.send('You cannot ban yourself :thinking:')
+
+        if target==self.bot.owner:
+            return await ctx.send('You cannot ban the owner :thinking:')
+
         if target in self.bot.db['fullbanned']:
             self.bot.db['fullbanned'].remove(target)
             await ctx.send('User has been unbanned from the bot.')
