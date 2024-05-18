@@ -945,7 +945,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 os.system('git clone --branch ' + new['version'] + ' --single-branch --depth 1 ' + self.bot.config[
                     'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update')
                 self.logger.debug('Confirming download...')
-                x = open(os.getcwd() + '/update/update.json', 'r')
+                x = open(os.getcwd() + '/update/plugins/system.json', 'r')
                 x.close()
                 self.logger.debug('Download confirmed, proceeding with upgrade')
             except:
