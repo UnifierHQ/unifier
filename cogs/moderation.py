@@ -527,6 +527,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 embed.title = 'COMPLETELY SUSPENDED'
                 embed.description = ('This user has been completely suspended from the bot.\n'+
                                      'Unlike global bans, the user may also not interact with any part of the bot.')
+                embed.colour = 0xff0000
             return await ctx.send(embed=embed)
         msg = None
         interaction = None
