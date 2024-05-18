@@ -192,6 +192,14 @@ class UnifierMessage:
         self.reactions[emoji][userid] -= 1
         if self.reactions[emoji][userid] <= 0:
             self.reactions[emoji].pop(userid)
+
+            total = 0
+            for user in self.reactions[emoji]:
+                total += self.reactions[emoji][user]
+
+            if total==0:
+                self.reactions.pop(emoji)
+
             return 0
         else:
             return self.reactions[emoji][userid]
@@ -330,7 +338,7 @@ class UnifierBridge:
                 reactions=data['messages'][f'{x}']['reactions'] if 'reactions' in list(data['messages'][f'{x}'].keys()) else {}
             )
             self.bridged.append(msg)
-        
+
         self.prs = data['posts']
         del data
         self.restored = True
@@ -1934,20 +1942,26 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not ctx.author.id == msg.author_id and not ctx.author.id in self.bot.moderators:
             return await ctx.send('You didn\'t send this message!',ephemeral=True)
 
-        msgconf = await ctx.send('Deleting...', ephemeral=True)
+        await ctx.interaction.response.defer_update(ephemeral=True)
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
             if msg.webhook:
                 raise ValueError()
-            return await msgconf.edit('Deleted message (parent deleted, copies will follow)')
+            return await ctx.interaction.edit_original_message(
+                content='Deleted message (parent deleted, copies will follow)'
+            )
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
-                await msgconf.edit(f'Deleted message ({deleted} copies deleted)')
+                return await ctx.interaction.edit_original_message(
+                    content=f'Deleted message ({deleted} copies deleted)'
+                )
             except:
                 traceback.print_exc()
-                await msgconf.edit('Something went wrong.')
+                return await ctx.interaction.edit_original_message(
+                    content='Something went wrong.'
+                )
 
     @commands.context_command(name='Report message')
     async def report(self, ctx, msg: discord.Message):
@@ -2791,30 +2805,34 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.bridge.delete_copies(msg.id)
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
+    async def on_raw_reaction_add(self, event):
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(reaction.message.id)
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(event.message_id)
         except:
             return
 
-        emoji = reaction.emoji
-        if type(emoji) is discord.Emoji or type(emoji) is discord.PartialEmoji:
+        emoji = event.emoji
+        if emoji.is_unicode_emoji():
+            emoji = emoji.name
+        else:
             emoji = f'<:{emoji.name}:{emoji.id}>'
 
-        await msg.add_reaction(emoji, user.id)
+        await msg.add_reaction(emoji, event.user_id)
 
     @commands.Cog.listener()
-    async def on_reaction_remove(self, reaction, user):
+    async def on_raw_reaction_remove(self, event):
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(reaction.message.id)
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(event.message_id)
         except:
             return
 
-        emoji = reaction.emoji
-        if type(emoji) is discord.Emoji or type(emoji) is discord.PartialEmoji:
+        emoji = event.emoji
+        if emoji.is_unicode_emoji():
+            emoji = emoji.name
+        else:
             emoji = f'<:{emoji.name}:{emoji.id}>'
 
-        await msg.remove_reaction(emoji, user.id)
+        await msg.remove_reaction(emoji, event.user_id)
 
 def setup(bot):
     bot.add_cog(Bridge(bot))
