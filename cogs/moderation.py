@@ -238,6 +238,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if userid in self.bot.moderators and not ctx.author.id == self.bot.config['owner'] and not override_st:
             if not userid == ctx.author.id or not override_st:
                 return await ctx.send('You cannot punish other moderators!')
+        if userid==self.bot.user.id:
+            return await ctx.send('are you fr')
         banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send('User/server already banned!')
@@ -765,6 +767,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if userid in self.bot.moderators and not ctx.author.id==self.bot.config['owner']:
             if not userid == ctx.author.id or not override_st:
                 return await ctx.send('You cannot punish other moderators!')
+        if userid==self.bot.user.id:
+            return await ctx.send('are you fr')
         if ctx.author.discriminator=='0':
             mod = f'@{ctx.author.name}'
         else:
