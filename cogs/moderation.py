@@ -392,11 +392,21 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not ctx.author.id in self.bot.admins:
             return
 
-        if target.id in self.bot.db['fullbanned']:
-            self.bot.db['fullbanned'].remove(target.id)
+        user = self.bot.get_user(target.replace('<@','',1).replace('>','',1).replace('!','',1))
+
+        if user:
+            target = user.id
+        else:
+            try:
+                target = int(target)
+            except:
+                return await ctx.send('Invalid user!')
+
+        if target in self.bot.db['fullbanned']:
+            self.bot.db['fullbanned'].remove(target)
             await ctx.send('User has been banned from the bot.')
         else:
-            self.bot.db['fullbanned'].append(target.id)
+            self.bot.db['fullbanned'].append(target)
             await ctx.send('User has been unbanned from the bot.')
 
     @commands.command(aliases=['unban'])
