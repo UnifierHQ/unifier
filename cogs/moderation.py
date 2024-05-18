@@ -518,10 +518,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     '\n\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
             )
         embed.set_author(name=f'@{target.name}\'s account standing', icon_url=target.avatar.url if target.avatar else None)
-        if target.bot:
-            embed.title = 'Bot account'
-            embed.description = 'This is a bot. Bots cannot have an account standing.'
-            embed.colour = 0xcccccc
+        if target.bot or target.id in self.bot.db['fullbanned']:
+            if target.bot:
+                embed.title = 'Bot account'
+                embed.description = 'This is a bot. Bots cannot have an account standing.'
+                embed.colour = 0xcccccc
+            else:
+                embed.title = 'COMPLETELY SUSPENDED'
+                embed.description = ('This user has been completely suspended from the bot.\n'+
+                                     'Unlike global bans, the user may also not interact with any part of the bot.')
             return await ctx.send(embed=embed)
         msg = None
         interaction = None
