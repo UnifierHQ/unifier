@@ -602,7 +602,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             minimum = new['minimum']
             modules = new['modules']
             utilities = new['utils']
-            services = new['services']
+            try:
+                services = new['services']
+            except:
+                services = []
 
             with open('plugins/system.json', 'r') as file:
                 vinfo = json.load(file)
