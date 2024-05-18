@@ -2234,14 +2234,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 author = f'{interaction.user.name}#{interaction.user.discriminator}'
             embed.title = f'This report has been reviewed by {author}!'
             await interaction.response.defer(ephemeral=True)
-            thread = interaction.channel.get_thread(
-                self.bot.db['report_threads'][str(interaction.message.id)]
-            )
+            try:
+                thread = interaction.channel.get_thread(
+                    self.bot.db['report_threads'][str(interaction.message.id)]
+                )
+            except:
+                thread = None
             if thread:
                 await thread.edit(
+                    name=f'[DONE] {thread.name}',
                     archived=True
                 )
-            await interaction.response.edit_message(embed=embed,components=components)
+                self.bot.db['report_threads'].pop(str(interaction.message.id))
+                self.bot.db.save_data()
+            await interaction.message.edit(embed=embed,components=components)
+            await interaction.edit_original_message(content='Marked thread as reviewed!')
 
     @commands.command(hidden=True)
     async def forcereg(self, ctx, *, args=''):
