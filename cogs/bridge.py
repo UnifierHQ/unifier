@@ -1292,7 +1292,7 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                                                 components=components if not system else None, wait=True)
                     except:
                         return None
                     tbresult = [
@@ -1310,7 +1310,7 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components, wait=True)
+                                                 components=components if not system else None, wait=True)
                     except:
                         continue
                     if sameguild:
