@@ -2166,12 +2166,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         components = discord.ui.MessageComponents(btns)
         msg = await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
-        thread = await msg.create_thread(
-            name=f'Discussion: #{msgid}',
-            auto_archive_duration=10080
-        )
-        self.bot.db['report_threads'].update({str(msg.id): thread.id})
-        self.bot.db.save_data()
+        try:
+            thread = await msg.create_thread(
+                name=f'Discussion: #{msgid}',
+                auto_archive_duration=10080
+            )
+            self.bot.db['report_threads'].update({str(msg.id): thread.id})
+            self.bot.db.save_data()
+        except:
+            pass
         self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
         return await interaction.response.send_message(
             "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
@@ -2241,10 +2244,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 thread = None
             if thread:
-                await thread.edit(
-                    name=f'[DONE] {thread.name}',
-                    archived=True
-                )
+                try:
+                    await thread.edit(
+                        name=f'[DONE] {thread.name}',
+                        archived=True
+                    )
+                except:
+                    try:
+                        await thread.send('This report has been reviewed.')
+                    except:
+                        pass
                 self.bot.db['report_threads'].pop(str(interaction.message.id))
                 self.bot.db.save_data()
             await interaction.message.edit(embed=embed,components=components)
