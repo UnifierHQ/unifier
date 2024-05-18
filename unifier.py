@@ -60,8 +60,13 @@ if not 'repo' in list(data.keys()):
     logger.critical('Unifier is licensed under the AGPLv3, meaning you need to make your source code available to users. Please add a repository to the config file under the repo key.')
     sys.exit(1)
 
-if 'pr_room_index' in list(data.keys()) or 'pr_ref_room_index' in list(data.keys()):
+if 'allow_prs' in list(data.keys()) and not 'allow_posts' in list(data.keys()):
+    logger.warning('From v1.2.4, allow_prs is deprecated. Use allow_posts instead.')
+
+if ('pr_room_index' in list(data.keys()) and not 'posts_room' in list(data.keys()) or
+        'pr_ref_room_index' in list(data.keys()) and not 'posts_ref_room' in list(data.keys())):
     logger.warning('From v1.1.13, pr_room_index and pr_ref_room_index are deprecated. Use posts_room and posts_ref_room instead.')
+    logger.critical('WARNING: These keys will become obsolete in the next version!')
 
 if not env_loaded:
     logger.critical('Could not load .env file! More info: https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
