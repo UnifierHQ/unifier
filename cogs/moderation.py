@@ -170,7 +170,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send('User/server can no longer forward messages to this channel!')
 
     @commands.command(hidden=True)
-    async def globalban(self, ctx, target, duration, *, reason='no reason given'):
+    async def globalban(self, ctx, target, duration=None, *, reason=None):
         if not ctx.author.id in self.bot.moderators:
             return
         rtt_msg = None
@@ -191,9 +191,19 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             else:
                 return await ctx.send('Could not find message in cache!')
         if rtt_msg:
-            reason = duration + ' ' + reason
+            if not duration and not reason:
+                reason = 'no reason given'
+            elif duration and not reason:
+                reason = duration
+            else:
+                reason = duration + ' ' + reason
             duration = target
             target = str(rtt_msg.author_id)
+        else:
+            if not duration:
+                return
+            if not reason:
+                reason = 'no reason given'
 
         forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
                    duration.lower() == 'forever' or duration.lower() == 'indefinite')
