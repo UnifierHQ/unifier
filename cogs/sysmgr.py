@@ -16,6 +16,17 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+# WARNING: EDITING THIS FILE MAY BE DANGEROUS!!!
+#
+# System Manager (sysmgr.py) contains certain admin commands, which if
+# used maliciously, may damage your Unifier instance, or even your
+# system! These commands are only to be used by the instance owner, and
+# NOT anyone else.
+#
+# We can't stop you from modifying this file (it's licensed under the
+# AGPLv3 license anyway), but we still STRONGLY recommend you DO NOT
+# modify this, unless you're ABSOLUTELY SURE of what you're doing.
+
 import discord
 from discord.ext import commands
 import inspect
