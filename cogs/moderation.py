@@ -173,8 +173,31 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def globalban(self, ctx, target, duration, *, reason='no reason given'):
         if not ctx.author.id in self.bot.moderators:
             return
+        rtt_msg = None
+        rtt_msg_content = ''
+        if ctx.message.reference:
+            msg = ctx.message.reference.cached_message
+            if not msg:
+                try:
+                    msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                except:
+                    pass
+            if msg:
+                try:
+                    rtt_msg = await self.bot.bridge.fetch_message(msg.id)
+                except:
+                    return await ctx.send('Could not find message in cache!')
+                rtt_msg_content = msg.content
+            else:
+                return await ctx.send('Could not find message in cache!')
+        if rtt_msg:
+            duration = target
+            reason = duration + ' ' + reason
+            target = str(rtt_msg.author_id)
+
         forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
                    duration.lower() == 'forever' or duration.lower() == 'indefinite')
+
         if forever:
             duration = 0
         else:
@@ -220,6 +243,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
         embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
+        if rtt_msg:
+            if len(rtt_msg_content)==0:
+                rtt_msg_content = '[no content]'
+            if len(rtt_msg_content) > 1024:
+                rtt_msg_content = rtt_msg_content[:-(len(rtt_msg_content)-1024)]
+            embed.add_field(name='Offending message',value=rtt_msg_content,inline=False)
         if forever:
             embed.colour = 0xff0000
             embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
@@ -274,8 +303,85 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                   f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in ' +
                   'total) on record.',
             inline=False)
-        await ctx.send('User was global banned. They may not use Unifier for the given time period.',
-                       embed=log_embed)
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(
+                    style=discord.ButtonStyle.red,
+                    custom_id='delete',
+                    label='Delete message',
+                    emoji='\U0001F5D1'
+                )
+            )
+        )
+        resp_msg = await ctx.send(
+            'User was global banned. They may not use Unifier for the given time period.',
+            embed=log_embed,
+            components=components
+        )
+
+        def check(interaction):
+            return interaction.user.id==ctx.author.id and interaction.message.id==resp_msg.id
+
+        try:
+            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=30.0)
+        except:
+            components = discord.ui.MessageComponents(
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.red,
+                        custom_id='delete',
+                        label='Delete message',
+                        emoji='\U0001F5D1',
+                        disabled=True
+                    )
+                )
+            )
+            return await resp_msg.edit(components=components)
+        else:
+            components = discord.ui.MessageComponents(
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.red,
+                        custom_id='delete',
+                        label='Delete message',
+                        emoji='\U0001F5D1',
+                        disabled=True
+                    )
+                )
+            )
+            await resp_msg.edit(components=components)
+            await interaction.response.defer(ephemeral=True)
+            components = discord.ui.MessageComponents(
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.gray,
+                        custom_id='delete',
+                        label='Original message deleted',
+                        emoji='\U0001F5D1',
+                        disabled=True
+                    )
+                )
+            )
+            try:
+                await self.bot.bridge.delete_parent(rtt_msg.id)
+                if rtt_msg.webhook:
+                    raise ValueError()
+                await resp_msg.edit(components=components)
+                return await interaction.edit_original_message(
+                    content='Deleted message (parent deleted, copies will follow)'
+                )
+            except:
+                try:
+                    deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
+                    await resp_msg.edit(components=components)
+                    return await interaction.edit_original_message(
+                        content=f'Deleted message ({deleted} copies deleted)'
+                    )
+                except:
+                    traceback.print_exc()
+                    return await interaction.edit_original_message(
+                        content='Something went wrong.'
+                    )
 
     @commands.command(aliases=['unban'])
     async def unrestrict(self,ctx,target):
