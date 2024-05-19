@@ -860,14 +860,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     current = json.load(file)
                 with open('update_check/update.json', 'r') as file:
                     new = json.load(file)
-                with open('upgrader.json', 'r') as file:
-                    current_up = json.load(file)
-                if new['upgrader'] > current_up['release']:
-                    embed.colour = 0xff0000
-                    embed.title = ':warning: Upgrader outdated'
-                    embed.description = f'Your Unifier Upgrader cannot install this upgrade. Please run `{self.bot.command_prefix}upgrade-upgrader`.'
-                    await msg.edit(embed=embed)
-                    return
                 release = new['release']
                 version = new['version']
                 update_available = new['release'] > current['release']
