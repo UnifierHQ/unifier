@@ -1,7 +1,7 @@
 novus>=0.2.4
 guilded.py
 revolt.py>=0.2.0
-aiohttp>=3.9.2
+aiohttp
 aiofiles
 py-cpuinfo
 tld
