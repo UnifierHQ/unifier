@@ -27,12 +27,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # AGPLv3 license anyway), but we still STRONGLY recommend you DO NOT
 # modify this, unless you're ABSOLUTELY SURE of what you're doing.
 
-import discord
-from discord.ext import commands
+import nextcord
+from nextcord.ext import commands
 import inspect
 import textwrap
 from contextlib import redirect_stdout
-from utils import log
+from utils import log, ui
 import logging
 import json
 import os
@@ -322,7 +322,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
         if not plugin:
             offset = page * 20
-            embed = discord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
             text = ''
             if offset > len(pluglist):
                 page = len(pluglist) // 20 - 1
@@ -351,7 +351,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 pluginfo = json.load(file)
         else:
             return await ctx.send('Could not find extension!')
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=pluginfo["name"],
             description=("Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' +
                          pluginfo["description"]),
@@ -393,7 +393,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             pass
         if not extension:
             offset = page * 20
-            embed = discord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
             text = ''
             extlist = list(self.bot.extensions)
             if offset > len(extlist):
@@ -422,7 +422,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
         else:
             return await ctx.send('Could not find extension!')
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=ext_info.qualified_name,
             description=ext_info.description,
             color=self.bot.colors.unifier
@@ -572,7 +572,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
-        embed = discord.Embed(title='Downloading extension...', description='Getting extension files from remote')
+        embed = nextcord.Embed(title='Downloading extension...', description='Getting extension files from remote')
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
@@ -669,34 +669,34 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             name='Services',
             value=services_text
         )
-        row = [
-            discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
-        ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await msg.edit(embed=embed, components=components)
+        btns = ui.ActionRow(
+            nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+        )
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        await msg.edit(embed=embed, view=components)
         embed.clear_fields()
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await msg.edit(view=components)
         if interaction.custom_id == 'reject':
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await interaction.response.edit_message(view=components)
 
-        await interaction.response.edit_message(embed=embed, components=None)
+        await interaction.response.edit_message(embed=embed, view=None)
         try:
             try:
                 if 'requirements' in list(new.keys()):
@@ -754,7 +754,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         plugin = plugin.lower()
         if plugin=='system':
             return await ctx.send('System plugin cannot be uninstalled!')
-        embed = discord.Embed(title='placeholder', description='This will uninstall all of the plugin\'s files. This cannot be undone!')
+        embed = nextcord.Embed(title='placeholder', description='This will uninstall all of the plugin\'s files. This cannot be undone!')
         embed.colour = 0xffcc00
         try:
             with open('plugins/' + plugin + '.json') as file:
@@ -766,33 +766,33 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await ctx.send(embed=embed)
             return
         embed.title = 'Uninstall plugin `'+plugin_info['id']+'`?'
-        row = [
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Uninstall', custom_id=f'accept', disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
-        ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        msg = await ctx.send(embed=embed, components=components)
+        btns = ui.ActionRow(
+            nextcord.ui.Button(style=nextcord.ButtonStyle.red, label='Uninstall', custom_id=f'accept', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+        )
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await msg.edit(view=components)
         if interaction.custom_id == 'reject':
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await interaction.response.edit_message(view=components)
 
-        await interaction.response.edit_message(embed=embed, components=None)
+        await interaction.response.edit_message(embed=embed, view=None)
         try:
             plugin_id = plugin_info['id']
             modules = plugin_info['modules']
@@ -848,8 +848,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         plugin = plugin.lower()
 
         if plugin=='system':
-            embed = discord.Embed(title=':inbox_tray: Checking for upgrades...',
-                                  description='Getting latest version from remote')
+            embed = nextcord.Embed(
+                title=':inbox_tray: Checking for upgrades...',
+                description='Getting latest version from remote'
+            )
             msg = await ctx.send(embed=embed)
             try:
                 os.system('rm -rf ' + os.getcwd() + '/update_check')
@@ -883,38 +885,38 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.colour = 0xffcc00
             if should_reboot:
                 embed.set_footer(text='The bot will need to reboot to apply the new update.')
-            row = [
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
+            btns = ui.ActionRow(
+                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
                                   disabled=False),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
                                   disabled=False)
-            ]
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(embed=embed, components=components)
+            )
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(embed=embed, view=components)
 
             def check(interaction):
                 return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await msg.edit(view=components)
             if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await interaction.response.edit_message(view=components)
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
                 embed.title = 'Backing up...'
                 embed.description = 'Your data is being backed up.'
-                await interaction.response.edit_message(embed=embed, components=None)
+                await interaction.response.edit_message(embed=embed, view=None)
             try:
                 if no_backup:
                     raise ValueError()
@@ -958,27 +960,27 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = '- :inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
             embed.title = ':arrow_up: Start the upgrade?'
             if no_backup:
-                await interaction.response.edit_message(embed=embed, components=components)
+                await interaction.response.edit_message(embed=embed, view=components)
             else:
-                await msg.edit(embed=embed, components=components)
+                await msg.edit(embed=embed, view=components)
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await msg.edit(view=components)
             if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
             embed.title = ':arrow_up: Upgrading Unifier'
             embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
-            await interaction.response.edit_message(embed=embed, components=None)
+            await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
             try:
                 self.logger.debug('Purging old update files')
@@ -1099,7 +1101,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
         else:
-            embed = discord.Embed(title='Downloading extension...', description='Getting extension files from remote')
+            embed = nextcord.Embed(title='Downloading extension...', description='Getting extension files from remote')
 
             try:
                 with open('plugins/'+plugin+'.json') as file:
@@ -1148,33 +1150,33 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.title = f'Update `{plugin_id}`?'
             embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
             embed.colour = 0xffcc00
-            row = [
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
-            ]
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(embed=embed, components=components)
+            btns = ui.ActionRow(
+                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+            )
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(embed=embed, view=components)
 
             def check(interaction):
                 return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await msg.edit(view=components)
             if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await interaction.response.edit_message(view=components)
 
-            await interaction.response.edit_message(embed=embed, components=None)
+            await interaction.response.edit_message(embed=embed, view=None)
             try:
                 try:
                     if 'requirements' in list(new.keys()):
