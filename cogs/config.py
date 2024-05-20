@@ -16,12 +16,12 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands
+import nextcord
+from nextcord.ext import commands
 import json
 import traceback
 import re
-from utils import log
+from utils import log, ui
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
@@ -272,7 +272,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.db.save_data()
             return await ctx.send('Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         else:
-            embed = discord.Embed(title=':test_tube: Experiments',
+            embed = nextcord.Embed(title=':test_tube: Experiments',
                                   description=f'Help us test Unifier\'s experimental features! Run `{self.bot.command_prefix}experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
                                   color=0x0000ff)
             for experiment in self.bot.db['experiments']:
@@ -303,7 +303,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data = self.bot.db['rooms'][room]
         except:
             return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of rooms.')
-        embed = discord.Embed(title='Ensuring channel is not connected...',description='This may take a while.')
+        embed = nextcord.Embed(title='Ensuring channel is not connected...',description='This may take a while.')
         msg = await ctx.send(embed=embed)
         for roomname in list(self.bot.db['rooms'].keys()):
             # Prevent duplicate binding
@@ -336,20 +336,24 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         text = f'{text}\n{index}. {rule}'
                     index += 1
             text = f'{text}\n\nPlease display these rules somewhere accessible.'
-            embed = discord.Embed(
+            embed = nextcord.Embed(
                 title='Please agree to the room rules first:',
                 description=text,
                 color=self.bot.colors.unifier
             )
             embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
-            ButtonStyle = discord.ButtonStyle
-            row = [
-                discord.ui.Button(style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept',disabled=False),
-                discord.ui.Button(style=ButtonStyle.red, label='No thanks', custom_id=f'reject',disabled=False)
-                ]
-            btns = discord.ui.ActionRow(row[0],row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(embed=embed,components=components)
+            ButtonStyle = nextcord.ButtonStyle
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept',disabled=False
+                ),
+                nextcord.ui.Button(
+                    style=ButtonStyle.red, label='No thanks', custom_id=f'reject',disabled=False
+                )
+            )
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(embed=embed,view=components)
 
             def check(interaction):
                 return interaction.user.id==ctx.author.id and (
@@ -358,19 +362,19 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     ) and interaction.channel.id==ctx.channel.id
 
             try:
-                resp = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                resp = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0],row[1])
-                components = discord.ui.MessageComponents(btns)
-                await msg.edit(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                await msg.edit(view=components)
                 return await ctx.send('Timed out.')
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0],row[1])
-            components = discord.ui.MessageComponents(btns)
-            await resp.response.edit_message(components=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await resp.response.edit_message(view=components)
             if resp.custom_id=='reject':
                 return
             webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
@@ -446,7 +450,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             else:
                 text = f'{text}\n{index}. {rule}'
             index += 1
-        embed = discord.Embed(title='Room rules',description=text,color=self.bot.colors.unifier)
+        embed = nextcord.Embed(title='Room rules',description=text,color=self.bot.colors.unifier)
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
         await ctx.send(embed=embed)
 
@@ -491,27 +495,28 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 return await ctx.send('This user is already in the whitelist!')
         except:
             return await ctx.send('Invalid user!')
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=f'Allow @{user.name} to bridge?',
             description='This will allow messages sent via webhooks created by this user to be bridged through Unifier.',
             color=0xffcc00
         )
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(label='Allow bridge',style=discord.ButtonStyle.green,custom_id='allow'),
-                discord.ui.Button(label='Cancel',style=discord.ButtonStyle.gray)
+        components = ui.MessageComponents()
+        components.add_rows(
+            ui.ActionRow(
+                nextcord.ui.Button(label='Allow bridge',style=nextcord.ButtonStyle.green,custom_id='allow'),
+                nextcord.ui.Button(label='Cancel',style=nextcord.ButtonStyle.gray)
             )
         )
-        msg = await ctx.send(embed=embed,components=components)
+        msg = await ctx.send(embed=embed,view=components)
 
         def check(interaction):
             return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=30.0)
         except:
-            return await msg.edit(components=None)
-        await interaction.response.edit_message(components=None)
+            return await msg.edit(view=None)
+        await interaction.response.edit_message(view=None)
         if not interaction.custom_id=='allow':
             return
         self.bot.db['external_bridge'].append(userid)
@@ -531,27 +536,28 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 return await ctx.send('This user isn\'t in the whitelist!')
         except:
             return await ctx.send('Invalid user!')
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=f'Remove @{user.name} from bridge?',
             description='This will stop this user\'s webhooks from bridging messages.',
             color=0xffcc00
         )
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(label='Revoke bridge', style=discord.ButtonStyle.red, custom_id='allow'),
-                discord.ui.Button(label='Cancel', style=discord.ButtonStyle.gray)
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(label='Revoke bridge', style=nextcord.ButtonStyle.red, custom_id='allow'),
+                nextcord.ui.Button(label='Cancel', style=nextcord.ButtonStyle.gray)
             )
         )
-        msg = await ctx.send(embed=embed, components=components)
+        msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
             return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=30.0)
         except:
-            return await msg.edit(components=None)
-        await interaction.response.edit_message(components=None)
+            return await msg.edit(view=None)
+        await interaction.response.edit_message(view=None)
         if not interaction.custom_id == 'allow':
             return
         self.bot.db['external_bridge'].remove(userid)
@@ -561,7 +567,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command()
     async def rooms(self,ctx):
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=f'UniChat rooms (Total: `0`)',
             description=f'Use `{self.bot.command_prefix}bind <room>` to bind to a room.',
             color=self.bot.colors.unifier
@@ -589,7 +595,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             for guild_id in self.bot.db['rooms'][room]:
                 try:
                     guild = self.bot.get_guild(int(guild_id))
-                    online += len(list(filter(lambda x: (x.status!=discord.Status.offline and x.status!=discord.Status.invisible), guild.members)))
+                    online += len(list(filter(
+                        lambda x: (
+                                x.status!=nextcord.Status.offline and x.status!=nextcord.Status.invisible
+                        ), guild.members
+                    )))
                     members += len(guild.members)
                     guilds += 1
                 except:
@@ -615,12 +625,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command()
     async def about(self,ctx):
         if self.bot.user.id==1187093090415149056:
-            embed = discord.Embed(
+            embed = nextcord.Embed(
                 title="Unifier",
                 description="Unify servers, make worthwhile conversations.",
                 color=self.bot.colors.unifier)
         else:
-            embed = discord.Embed(
+            embed = nextcord.Embed(
                 title=self.bot.user.name,
                 description="Powered by Unifier",
                 color=self.bot.colors.unifier
@@ -651,7 +661,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             avurl = None
         if not url=='':
             avurl = url
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title='This is your UniChat avatar!',
             description=desc,
             color=self.bot.colors.unifier
@@ -672,40 +682,40 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not url=='':
             embed.title = 'This is how you\'ll look!'
             embed.description = 'If you\'re satisfied, press the green button!'
-        row = [
-            discord.ui.Button(style=discord.ButtonStyle.green, label='Apply', custom_id=f'apply', disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
-        ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
+        btns = ui.ActionRow(
+            nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Apply', custom_id=f'apply', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
+        )
+        components = ui.MessageComponents()
+        components.add_row(btns)
         if url=='':
             embed.set_footer(text=f'To change your avatar, run {self.bot.command_prefix}avatar <url>.')
             components = None
-        msg = await ctx.send(embed=embed,components=components)
+        msg = await ctx.send(embed=embed,view=components)
         if not url == '':
             def check(interaction):
                 return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
 
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=30.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=30.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                await msg.edit(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                await msg.edit(view=components)
                 return await ctx.send('Timed out.',reference=msg)
             if interaction.custom_id=='cancel':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await interaction.response.edit_message(view=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(view=components)
             self.bot.db['avatars'].update({f'{ctx.author.id}':url})
             self.bot.db.save_data()
             return await interaction.response.send_message('Avatar successfully added!')

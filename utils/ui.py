@@ -9,7 +9,7 @@ class ActionRow:
         if len(args) < 0:
             raise ValueError("no items")
 
-        self.items = args
+        self.items = list(args)
 
 class View(nextcord.ui.View):
     """An extension of nextcord.ui.View to support custom ActionRow implementation."""
