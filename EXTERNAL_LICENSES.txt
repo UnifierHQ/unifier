@@ -1,7 +1,9 @@
 [Additional licensing information]
 This file contains licensing information for other works we have used to
 build Unifier or/and works that are not licensed under AGPLv3.
+
 --------
+
 Python logger formatter (CustomFormatter class in utils/log.py)
 
 Copyright (c) 2015-present Rapptz
