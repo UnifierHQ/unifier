@@ -48,9 +48,11 @@ Unifier, so the performance is not impacted by slow 10k+ ping database servers.
   avoid reconfiguring too much.
 
 ## Setup
-> [!IMPORTANT]
-> We're working on an installer, so stay tuned for that!
+### Guided setup
+You can use Installer to install Unifier through a user interface on Discord. You can download Installer
+[here](https://github.com/UnifierHQ/unifier-installer).
 
+### Manual setup
 Please follow our guides on GitBook to set up Unifier.
 
 - [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
