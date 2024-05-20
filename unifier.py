@@ -254,12 +254,7 @@ async def on_ready():
             logger.debug(f'Periodic backups disabled')
         if data['enable_ctx_commands']:
             logger.debug("Registering context commands...")
-            toreg = []
-            for command in bot.commands:
-                if isinstance(command, nextcord.MessageApplicationCommand):
-                    toreg.append(command)
-            await bot.register_application_commands(*toreg)
-            logger.debug(f'Registered {len(toreg)} commands')
+            await bot.sync_application_commands()
     logger.info('Unifier is ready!')
 
 @bot.event
