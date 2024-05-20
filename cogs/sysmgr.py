@@ -43,6 +43,7 @@ import base64
 import re
 import ast
 import importlib
+import math
 
 class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
@@ -1232,6 +1233,199 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
                 return
+
+    # noinspection PyUnresolvedReferences
+    @commands.command()
+    async def help(self,ctx):
+        show_sysmgr = False
+        show_admin = False
+        show_moderation = False
+
+        admin_restricted = [
+            'addmod','delmod','make','roomdesc','roomlock','roomrestrict','addrule','delrule'
+        ]
+
+        mod_restricted = [
+            'globalban','globalunban','warn','delwarn','delban'
+        ]
+
+        if ctx.author.id == self.bot.config['owner']:
+            show_sysmgr = True
+            show_admin = True
+            show_moderation = True
+        elif ctx.author.id in self.bot.admins:
+            show_admin = True
+            show_moderation = True
+        elif ctx.author.id in self.bot.moderators:
+            show_moderation = True
+
+        panel = 0
+        limit = 20
+        page = 0
+        cogname = ''
+        cmdname = ''
+        msg = None
+        interaction = None
+
+        while True:
+            embed = nextcord.Embed()
+            maxpage = 0
+            components = ui.MessageComponents()
+            if panel==0:
+                extlist = list(self.bot.extensions)
+                if not show_sysmgr:
+                    extlist.remove('cogs.sysmgr')
+                maxpage = math.ceil(len(extlist)/limit)-1
+                if interaction:
+                    page += 1
+                    if page > maxpage:
+                        page = maxpage
+                embed.title = f'{self.bot.user.display_name} help'
+                embed.description = 'Choose an extension to get started!'
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
+                )
+
+                for x in range(limit):
+                    index = (page*limit)-x
+                    if index >= len(extlist):
+                        break
+                    cog = self.bot.cogs[list(self.bot.cogs)[index]]
+                    ext = list(self.bot.extensions)[index]
+                    embed.add_field(
+                        name=f'{cog.qualified_name} (`{ext}`)',
+                        value=cog.description if cog.description else 'No description provided',
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=cog.qualified_name,
+                        description=cog.description if len(
+                            cog.description
+                        ) <= 100 else cog.description[-(len(cog.description)-97)]+'...',
+                        value=ext
+                    )
+
+                components.add_rows(
+                    ui.ActionRow(
+                        selection
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage
+                        )
+                    )
+                )
+            elif panel==1:
+                cmds = []
+                for x in range(len(self.bot.extensions)):
+                    if list(self.bot.extensions)[x]==cogname:
+                        cmds = self.bot.cogs[list(self.bot.cogs)[x]].get_commands()
+                        offset = 0
+                        for index in range(len(cmds)):
+                            if show_sysmgr:
+                                break
+                            cmd = cmds[index-offset]
+                            if (
+                                    cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
+                                    cmd.qualified_name in mod_restricted and not show_moderation
+                            ):
+                                cmds.pop(index-offset)
+                                offset += 1
+
+                maxpage = math.ceil(len(cmds) / limit) - 1
+                if interaction:
+                    page += 1
+                    if page > maxpage:
+                        page = maxpage
+                embed.title = f'{self.bot.user.display_name} help > {cogname}'
+                embed.description = 'Choose a command to view its info!'
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
+                )
+
+                for x in range(limit):
+                    index = (page * limit) - x
+                    if index >= len(cmds):
+                        break
+                    cmd = cmds[index]
+                    embed.add_field(
+                        name=cmd.qualified_name,
+                        value=cmd.description if cmd.description else 'No description provided',
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=cmd.qualified_name,
+                        description=cmd.description if len(
+                            cmd.description
+                        ) <= 100 else cmd.description[-(len(cmd.description) - 97)] + '...',
+                        value=cmd.qualified_name
+                    )
+
+                components.add_rows(
+                    ui.ActionRow(
+                        selection
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage
+                        )
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+            elif panel==2:
+                cmd = self.bot.get_command(cmdname)
+                embed.title = f'{self.bot.user.display_name} help > {cogname} > {cmdname}'
+                embed.description = f'`u!{cmdname}\n{cmd.description if cmd.description else "No description provided"}'
+                embed.add_field(name='Usage',value=f'`u!{cmdname} {cmd.signature}')
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+
+            embed.set_footer(text=f'Page {page+1} of {maxpage+1}')
+            if not msg:
+                msg = await ctx.send(embed=embed,view=components)
+            else:
+                await interaction.response.edit_message(embed=embed,view=components)
+            embed.clear_fields()
+
+            def check(interaction):
+                return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+
+            interaction = await self.bot.wait_for('interaction',check=check)
+            print(interaction.data)
+            return
+
+
 
 def setup(bot):
     bot.add_cog(SysManager(bot))

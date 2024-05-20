@@ -218,6 +218,7 @@ async def periodicping():
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     logger.info('Loading Unifier extensions...')
+    bot.remove_command('help')
     if hasattr(bot, 'locked'):
         locked = bot.locked
     else:
