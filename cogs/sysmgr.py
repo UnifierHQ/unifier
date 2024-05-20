@@ -180,9 +180,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         script = importlib.import_module('utils.' + plugin_name + '_check')
         await script.check(self.bot)
 
-    @commands.command(aliases=['reload-services'], hidden=True)
+    @commands.command(aliases=['reload-services'], hidden=True, description="Reloads bot services.")
     async def reload_services(self,ctx,*,services=None):
-        """Reloads bot services."""
         if not services:
             plugins = self.bot.loaded_plugins
         else:
@@ -215,7 +214,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not len(failed) == 0:
             await ctx.author.send(f'**Fail logs**\n{text}')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Evaluates code.')
     async def eval(self, ctx, *, body):
         if ctx.author.id == self.bot.config['owner']:
             env = {
@@ -284,9 +283,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can execute code.')
 
-    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True)
+    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
     async def shutdown(self, ctx):
-        """Gracefully shuts the bot down."""
         if not ctx.author.id == self.bot.config['owner']:
             return
         self.logger.info("Attempting graceful shutdown...")
@@ -308,7 +306,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.close()
         sys.exit(0)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Lists all installed plugins.')
     async def plugins(self, ctx, *, plugin=None):
         if plugin:
             plugin = plugin.lower()
@@ -380,7 +378,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed.add_field(name='Utilities', value=modtext, inline=False)
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True, aliases=['cogs'])
+    @commands.command(hidden=True, aliases=['cogs'], description='Lists all loaded extensions.')
     async def extensions(self, ctx, *, extension=None):
         if extension:
             extension = extension.lower()
@@ -433,7 +431,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Reloads an extension.')
     async def reload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -476,7 +474,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can reload extensions.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Loads an extension.')
     async def load(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -516,7 +514,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can load extensions.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Unloads an extension.')
     async def unload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -561,7 +559,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can unload extensions.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Installs a plugin.')
     async def install(self, ctx, url):
         if not ctx.author.id==self.bot.config['owner']:
             return
@@ -744,7 +742,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Uninstalls a plugin.')
     async def uninstall(self, ctx, plugin):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -827,7 +825,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Upgrades Unifier or a plugin.')
     async def upgrade(self, ctx, plugin='system', *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -1234,8 +1232,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
 
-    # noinspection PyUnresolvedReferences
-    @commands.command()
+    @commands.command(description='Shows this command.')
     async def help(self,ctx):
         show_sysmgr = False
         show_admin = False
@@ -1443,8 +1440,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description =(
                     f'# **`u!{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
                 )
-                embed.add_field(name='Usage',value=(
-                    f'`u!{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`u!{cmdname}`')
+                if len(cmd.aliases) > 0:
+                    aliases = []
+                    for alias in cmd.aliases:
+                        aliases.append(f'`u!{alias}`')
+                    embed.add_field(
+                        name='Aliases',value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
+                    )
+                embed.add_field(name='Usage', value=(
+                    f'`u!{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`u!{cmdname}`'), inline=False
                 )
                 components.add_rows(
                     ui.ActionRow(

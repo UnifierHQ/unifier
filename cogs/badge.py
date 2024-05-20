@@ -68,7 +68,7 @@ class Badge(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,aliases=[],description='Verifies a user.')
     async def trust(self, ctx, action, user: nextcord.User):
         if ctx.author.id not in self.bot.admins:
             return await ctx.send("You don't have permission to use this command.")

@@ -41,7 +41,7 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
     async def on_disconnect(self):
         self.bot.disconnects += 1
 
-    @commands.command()
+    @commands.command(description='Shows bot uptime.')
     async def uptime(self, ctx):
         embed = nextcord.Embed(
             title=f'{self.bot.user.global_name} uptime',

@@ -30,7 +30,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             self.bot.locked = False
         self.logger = log.buildlogger(self.bot.package,'admin',self.bot.loglevel)
 
-    @commands.command(hidden=True,aliases=['globalkill'])
+    @commands.command(hidden=True,aliases=['globalkill'],description='Locks the entire bot down.')
     async def lockdown(self,ctx):
         if not ctx.author.id==self.bot.config['owner']:
             return

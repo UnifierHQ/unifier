@@ -105,7 +105,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             traceback.print_exc()
             return False
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Adds a moderator to the instance.')
     async def addmod(self,ctx,*,userid):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
@@ -130,7 +130,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{user.name}'
         await ctx.send(f'**{mod}** is now a moderator!')
 
-    @commands.command(hidden=True,aliases=['remmod','delmod'])
+    @commands.command(hidden=True,aliases=['remmod','delmod'],description='Removes a moderator from the instance.')
     async def removemod(self,ctx,*,userid):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can manage moderators!')
@@ -155,7 +155,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{user.name}'
         await ctx.send(f'**{mod}** is no longer a moderator!')
 
-    @commands.command(hidden=True, aliases=['newroom'])
+    @commands.command(hidden=True, aliases=['newroom'],description='Creates a new room.')
     async def make(self,ctx,*,room):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can create rooms!')
@@ -169,7 +169,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send(f'Created room `{room}`!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Creates a new experiment.')
     async def addexperiment(self, ctx, experiment, *, experiment_name):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can add experiments!')
@@ -180,7 +180,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send(f'Created experiment `{experiment}`!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Removes an experiment.')
     async def removeexperiment(self, ctx, *, experiment):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can add experiments!')
@@ -191,7 +191,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send(f'Deleted experiment `{experiment}`!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Sets experiment description.')
     async def experimentdesc(self, ctx, experiment, *, experiment_desc):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify experiments!')
@@ -201,7 +201,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send(f'Added description to experiment `{experiment}`!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Sets room description.')
     async def roomdesc(self,ctx,room,*,desc=''):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
@@ -219,7 +219,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send('Updated description!')
 
-    @commands.command(hidden=True)
+    @commands.command(
+        hidden=True,
+        description='Restricts/unrestricts room. Only admins will be able to collect to this room when restricted.'
+    )
     async def roomrestrict(self,ctx,room):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
@@ -234,7 +237,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await ctx.send(f'Restricted `{room}`!')
         self.bot.db.save_data()
 
-    @commands.command(hidden=True)
+    @commands.command(
+        hidden=True,
+        description='Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.'
+    )
     async def roomlock(self,ctx,room):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')
@@ -249,9 +255,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await ctx.send(f'Locked `{room}`!')
         self.bot.db.save_data()
 
-    @commands.command(aliases=['experiment'])
+    @commands.command(
+        aliases=['experiment'],description='Shows a list of Unifier experiments, and lets you join or leave them.'
+    )
     async def experiments(self,ctx,action='',experiment=''):
-        """Shows a list of Unifier experiments, and lets you join or leave them."""
         if action.lower()=='enroll' or action.lower()=='add':
             if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
                 return await ctx.send('You don\'t have the necessary permissions.')
@@ -290,7 +297,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 embed.add_field(name="no experiments? :face_with_raised_eyebrow:",value='There\'s no experiments available yet!',inline=False)
             await ctx.send(embed=embed)
     
-    @commands.command(aliases=['link','connect','federate','bridge'])
+    @commands.command(aliases=['link','connect','federate','bridge'],description='Connects the channel to a given room.')
     async def bind(self,ctx,*,room=''):
         if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
             return await ctx.send('You don\'t have the necessary permissions.')
@@ -393,7 +400,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await ctx.send('Something went wrong - check my permissions.')
             raise
 
-    @commands.command(aliases=['unlink','disconnect'])
+    @commands.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
     async def unbind(self,ctx,*,room=''):
         if room=='':
             return await ctx.send('You must specify the room to unbind from.')
@@ -425,9 +432,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await ctx.send('Something went wrong - check my permissions.')
             raise
 
-    @commands.command()
+    @commands.command(description='Displays room rules for the specified room.')
     async def rules(self,ctx,*,room=''):
-        """Displays room rules for the specified room."""
         room = room.lower()
         if self.is_room_restricted(room,self.bot.db) and not self.is_user_admin(ctx.author.id):
             return await ctx.send(':eyes:')
@@ -455,7 +461,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description="Adds a rule to a given room.")
     async def addrule(self,ctx,room,*,rule):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
@@ -466,7 +472,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send('Added rule!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description="Removes a given rule from a given room.")
     async def delrule(self,ctx,room,*,rule):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rules!')
@@ -483,7 +489,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         await ctx.send('Removed rule!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
     async def addbridge(self,ctx,*,userid):
         if not self.is_user_admin(ctx.author.id):
             return
@@ -524,7 +530,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db.save_data()
         return await ctx.send('# :white_check_mark: Linked bridge to Unifier network!\nThis user\'s webhooks can now bridge messages through Unifier!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Prevents given user\'s webhooks from being bridged.')
     async def delbridge(self, ctx, *, userid):
         if not self.is_user_admin(ctx.author.id):
             return
@@ -566,7 +572,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         return await ctx.send(
             '# :white_check_mark: Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
 
-    @commands.command()
+    @commands.command(description='Shows a list of rooms.')
     async def rooms(self,ctx):
         embed = nextcord.Embed(
             title=f'UniChat rooms (Total: `0`)',
@@ -610,7 +616,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed.title = f'UniChat rooms (Total: `{count}`)'
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(description='Enables or disables usage of server emojis as Global Emojis.')
     async def toggle_emoji(self,ctx):
         if not ctx.author.guild_permissions.manage_guild:
             return await ctx.send('You don\'t have the necessary permissions.')
@@ -623,7 +629,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['emojis'] = self.bot.bridged_emojis
         self.bot.db.save_data()
 
-    @commands.command()
+    @commands.command(description='Shows bot info.')
     async def about(self,ctx):
         if self.bot.user.id==1187093090415149056:
             embed = nextcord.Embed(
@@ -648,7 +654,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             embed.set_footer(text="Unknown version | Made with \u2764\ufe0f by UnifierHQ")
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(description='Displays or sets custom avatar.')
     async def avatar(self,ctx,*,url=''):
         desc = f'You have no avatar! Run `{self.bot.command_prefix}avatar <url>` or set an avatar in your profile settings.'
         try:

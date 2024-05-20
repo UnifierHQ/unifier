@@ -1654,7 +1654,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
 
-    @commands.command(aliases=['colour'])
+    @commands.command(aliases=['colour'],description='Sets Revolt color.')
     async def color(self,ctx,*,color=''):
         if color=='':
             try:
@@ -1685,7 +1685,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.db.save_data()
             await ctx.send('Your Revolt messages will now inherit the custom color.')
 
-    @commands.command(aliases=['find'])
+    @commands.command(aliases=['find'],description='Identifies the origin of a message.')
     async def identify(self, ctx):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
@@ -1729,17 +1729,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 guildname = '[unknown]'
         await ctx.send(f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
 
-    @commands.command()
-    async def getbridged(self, ctx, *, msg_id):
-        if not ctx.author.id in self.bot.moderators:
-            return
-        try:
-            content = self.bot.bridged[msg_id]
-            await ctx.send(f'{content}')
-        except:
-            await ctx.send('No matches found!')
-
-    @commands.command()
+    @commands.command(description='Sets a nickname. An empty provided nickname will reset it.')
     async def nickname(self, ctx, *, nickname=''):
         if len(nickname) > 35:
             return await ctx.send('Please keep your nickname within 35 characters.')
@@ -1750,9 +1740,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.db.save_data()
         await ctx.send('Nickname updated.')
 
-    @commands.command()
+    @commands.command(description='Shows a list of all global emojis available on the instance.')
     async def emojis(self, ctx, *, index=1):
-        """Shows a list of all global emojis available in Unified Chat."""
         text = ''
         index = index - 1
         if index < 0:
@@ -1791,7 +1780,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.set_footer(text=f'Page {index + 1}/{pages}')
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(description='Shows emoji info.')
     async def emoji(self, ctx, *, emoji=''):
         emojis = []
         for emoji in self.bot.emojis:
@@ -1818,10 +1807,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['modcall'])
+    @commands.command(
+        aliases=['modcall'],
+        description='Ping all moderators to the chat! Use only when necessary, or else.'
+    )
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
-        """Ping all moderators to the chat! Use only when necessary, or else."""
         if not self.bot.config['enable_logging']:
             return await ctx.send('Modping is disabled, contact your instance\'s owner.')
 
@@ -1870,7 +1861,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         else:
             await ctx.send('Something went wrong pinging moderators. Please contact the developers.')
 
-    @commands.command()
+    @commands.command(description='Deletes a message.')
     async def delete(self, ctx, *, msg_id=None):
         """Deletes all bridged messages. Does not delete the original."""
 
@@ -2167,7 +2158,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         modal.add_item(signature)
         await interaction.response.send_modal(modal)
 
-    @commands.command()
+    @commands.command(description='Shows your server\'s plugin restriction status.')
     async def serverstatus(self,ctx):
         embed = nextcord.Embed(
             title='Server status',
@@ -2179,7 +2170,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.colour = 0xffce00
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(description='Shows EXP leaderboard.')
     async def leaderboard(self,ctx):
         expdata = copy.copy(self.bot.db['exp'])
         lb_data = sorted(
@@ -2453,7 +2444,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
                 ephemeral=True)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Registers commands.')
     async def forcereg(self, ctx, *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -2463,7 +2454,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.sync_application_commands()
         return await ctx.send(f'Registered commands to bot')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Initializes new UnifierBridge object.')
     async def initbridge(self, ctx, *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return

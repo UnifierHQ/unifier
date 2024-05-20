@@ -83,7 +83,7 @@ def timetoint(t,timeoutcap=False):
     return total
 
 class Moderation(commands.Cog, name=":shield: Moderation"):
-    """Moderation allows server moderators and UniChat moderators to punish bad actors.
+    """Moderation allows server moderators and instance moderators to punish bad actors.
 
     Developed by Green and ItsAsheer"""
     def __init__(self,bot):
@@ -141,7 +141,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
-    @commands.command(aliases=['ban'])
+    @commands.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
     async def restrict(self,ctx,*,target):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members):
@@ -169,7 +169,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.db.save_data()
         await ctx.send('User/server can no longer forward messages to this channel!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
     async def globalban(self, ctx, target, duration=None, *, reason=None):
         if not ctx.author.id in self.bot.moderators:
             return
@@ -403,7 +403,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                         content='Something went wrong.'
                     )
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Blocks a user from using Unifier.')
     async def fullban(self,ctx,target):
         if not ctx.author.id in self.bot.admins:
             return
@@ -431,7 +431,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self.bot.db['fullbanned'].append(target)
             await ctx.send('User has been banned from the bot.')
 
-    @commands.command(aliases=['unban'])
+    @commands.command(aliases=['unban'],description='Unblocks a user or server from bridging messages to your server.')
     async def unrestrict(self,ctx,target):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members):
@@ -451,7 +451,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.db.save_data()
         await ctx.send('User/server can now forward messages to this channel!')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
     async def globalunban(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
@@ -470,7 +470,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.db.save_data()
         await ctx.send('unbanned, nice')
 
-    @commands.command(aliases=['account_standing'])
+    @commands.command(aliases=['account_standing'],description='Shows your instance account standing.')
     async def standing(self,ctx,*,target=None):
         if target and not ctx.author.id in self.bot.moderators:
             target = None
@@ -719,7 +719,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             elif interaction.data['custom_id'] == 'next':
                 page += 1
 
-    @commands.command(aliases=['guilds'])
+    @commands.command(aliases=['guilds'],description='Lists all servers connected to a given room.')
     async def servers(self,ctx,*,room='main'):
         try:
             data = self.bot.db['rooms'][room]
@@ -738,7 +738,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed = nextcord.Embed(title=f'Servers connected to `{room}`',description=text)
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Warns a user.')
     async def warn(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
@@ -912,8 +912,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                         content='Something went wrong.'
                     )
 
-
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Deletes a logged warning.')
     async def delwarn(self,ctx,target,index):
         if not ctx.author.id in self.bot.moderators:
             return
@@ -945,7 +944,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             await ctx.send('Could not find warning - maybe the index was too high?')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Deletes a logged ban. Does not unban the user.')
     async def delban(self, ctx, target, index):
         if not ctx.author.id in self.bot.moderators:
             return
@@ -978,7 +977,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             await ctx.send('Could not find ban - maybe the index was too high?')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description="Changes a given user's nickname.")
     async def anick(self, ctx, target, *, nickname=''):
         # Check if the user is allowed to run the command
         if not ctx.author.id in self.bot.moderators:
@@ -1004,7 +1003,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await ctx.send('Nickname updated.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Locks Unifier Bridge down.')
     async def bridgelock(self,ctx):
         # Check if the user is allowed to run the command
         if not ctx.author.id in self.bot.moderators:
@@ -1100,7 +1099,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed.colour = 0xff0000
         await msg.edit(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Removes Unifier Bridge lockdown.')
     async def bridgeunlock(self,ctx):
         if not ctx.author.id in self.bot.admins:
             return
