@@ -2223,7 +2223,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             ephemeral=True)
 
     @commands.Cog.listener()
-    async def on_component_interaction(self, interaction):
+    async def on_interaction(self, interaction):
         if interaction.data["custom_id"].startswith('rp') and not interaction.user.id in self.bot.moderators:
             return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
         if interaction.data["custom_id"].startswith('rpdelete'):

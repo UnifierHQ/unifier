@@ -42,6 +42,7 @@ class MessageComponents(nextcord.ui.View):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.row_count = 0
+        self.auto_defer = False
 
     def add_rows(self, *rows: ActionRow):
         for row in rows:
