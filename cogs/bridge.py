@@ -16,12 +16,12 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
+import nextcord
 import hashlib
 import asyncio
 import guilded
 import revolt
-from discord.ext import commands
+from nextcord.ext import commands
 import traceback
 import time
 from datetime import datetime
@@ -35,13 +35,13 @@ import ast
 import math
 from io import BytesIO
 import os
-from utils import log
+from utils import log, ui
 import importlib
 
 with open('config.json', 'r') as file:
     data = json.load(file)
 
-mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
+mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
 plugin_data = {}
@@ -93,7 +93,7 @@ class UnifierTranslator:
     def __init__(self,bot):
         self.bot = bot
 
-    def identify(self,message: discord.Message or revolt.Message or guilded.Message):
+    def identify(self,message: nextcord.Message or revolt.Message or guilded.Message):
         source = 'discord'
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
@@ -117,7 +117,7 @@ class UnifierTranslator:
                         embed.fields[0].value.endswith('[Bot-Invite](https://discord.com/api/oauth2/authorize?client_id=1051199485168066610&permissions=8&scope=bot%20applications.commands)')):
                     return 'embed_silly'
 
-    def translate(self,message: discord.Message or revolt.Message or guilded.Message):
+    def translate(self,message: nextcord.Message or revolt.Message or guilded.Message):
         source = 'discord'
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
@@ -715,7 +715,7 @@ class UnifierBridge:
 
         await asyncio.gather(*threads)
 
-    async def send(self, room: str, message: discord.Message or revolt.Message,
+    async def send(self, room: str, message: nextcord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False,
                    extbridge=False, id_override=None, ignore=None):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
@@ -835,7 +835,7 @@ class UnifierBridge:
             emoji_text = ''
 
             for x in range(index):
-                emoji = discord.utils.find(
+                emoji = nextcord.utils.find(
                     lambda e: e.name == name and not e.id in skip and e.guild_id in self.bot.db['emojis'],
                     self.bot.emojis)
                 if emoji == None:
@@ -951,15 +951,15 @@ class UnifierBridge:
             if platform=='discord':
                 if is_pr or is_pr_ref:
                     if source == 'discord':
-                        button_style = discord.ButtonStyle.blurple
+                        button_style = nextcord.ButtonStyle.blurple
                     elif source == 'revolt':
-                        button_style = discord.ButtonStyle.red
+                        button_style = nextcord.ButtonStyle.red
                     else:
-                        button_style = discord.ButtonStyle.gray
+                        button_style = nextcord.ButtonStyle.gray
                     if is_pr:
-                        pr_actionrow = discord.ui.ActionRow(
-                            discord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
-                                              emoji='\U0001F4AC', disabled=True)
+                        pr_actionrow = ui.ActionRow(
+                            nextcord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
+                                               emoji='\U0001F4AC', disabled=True)
                         )
                     else:
                         try:
@@ -970,19 +970,18 @@ class UnifierBridge:
                             is_pr_ref = False
                         else:
                             try:
-                                pr_actionrow = discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post #{pr_id}',
-                                                      emoji='\U0001F517',url=await msg.fetch_url(guild))
+                                pr_actionrow = ui.ActionRow(
+                                    nextcord.ui.Button(style=nextcord.ButtonStyle.url, label=f'Referencing Post #{pr_id}',
+                                                       emoji='\U0001F517',url=await msg.fetch_url(guild))
                                 )
                             except:
-                                pr_actionrow = discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
-                                                      emoji='\U0001F517', disabled=True)
+                                pr_actionrow = ui.ActionRow(
+                                    nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
+                                                       emoji='\U0001F517', disabled=True)
                                 )
                     if pr_actionrow:
-                        components = discord.ui.MessageComponents(
-                            pr_actionrow
-                        )
+                        components = ui.View()
+                        components.add_row(pr_actionrow)
                 if reply_msg:
                     if not trimmed:
                         is_copy = False
@@ -998,7 +997,7 @@ class UnifierBridge:
                             else:
                                 msg = await message.channel.fetch_message(message.reference.message_id)
                             content = msg.content
-                        clean_content = discord.utils.remove_markdown(content)
+                        clean_content = nextcord.utils.remove_markdown(content)
 
                         if reply_msg.reply and source=='guilded' and is_copy:
                             clean_content = clean_content.split('\n',1)[1]
@@ -1028,11 +1027,11 @@ class UnifierBridge:
 
                     author_text = '[unknown]'
                     if source == 'discord':
-                        button_style = discord.ButtonStyle.blurple
+                        button_style = nextcord.ButtonStyle.blurple
                     elif source == 'revolt':
-                        button_style = discord.ButtonStyle.red
+                        button_style = nextcord.ButtonStyle.red
                     else:
-                        button_style = discord.ButtonStyle.gray
+                        button_style = nextcord.ButtonStyle.gray
 
                     try:
                         if reply_msg.source=='revolt':
@@ -1065,50 +1064,62 @@ class UnifierBridge:
                         count = len(msg.embeds) + len(msg.attachments)
 
                     if len(trimmed)==0:
-                        content_btn = discord.ui.Button(style=button_style,
-                                                        label=f'x{count}', emoji='\U0001F3DE', disabled=True)
+                        content_btn = nextcord.ui.Button(
+                            style=button_style,label=f'x{count}', emoji='\U0001F3DE', disabled=True
+                        )
                     else:
-                        content_btn = discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                        content_btn = nextcord.ui.Button(
+                            style=button_style, label=trimmed, disabled=True
+                        )
 
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
                         try:
-                            components = discord.ui.MessageComponents(
+                            components = ui.View()
+                            components.add_rows(
                                 pr_actionrow,
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
-                                                      url=await reply_msg.fetch_url(guild))
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url, label='Replying to ' + author_text,
+                                        url=await reply_msg.fetch_url(guild)
+                                    )
                                 ),
-                                discord.ui.ActionRow(
+                                ui.ActionRow(
                                     content_btn
                                 )
                             )
                         except:
-                            components = discord.ui.MessageComponents(
+                            components = ui.View()
+                            components.add_rows(
                                 pr_actionrow,
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                                      disabled=True)
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
+                                    )
                                 )
                             )
                     else:
                         try:
-                            components = discord.ui.MessageComponents(
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
-                                                      url=await reply_msg.fetch_url(guild))
+                            components = ui.View()
+                            components.add_rows(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url, label='Replying to '+author_text,
+                                        url=await reply_msg.fetch_url(guild)
+                                    )
                                 ),
-                                discord.ui.ActionRow(
+                                ui.ActionRow(
                                     content_btn
                                 )
                             )
                         except:
-                            components = discord.ui.MessageComponents(
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                                      disabled=True)
+                            components = ui.View(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
+                                    )
                                 ),
-                                discord.ui.ActionRow(
+                                ui.ActionRow(
                                     content_btn
                                 )
                             )
@@ -1135,21 +1146,23 @@ class UnifierBridge:
                     except:
                         botgld = False
                     if authid==self.bot.user.id or botrvt or botgld:
-                        reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [system]',
+                        reply_row = ui.ActionRow(
+                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [system]',
                                               disabled=True)
                         )
                     else:
-                        reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
+                        reply_row = ui.ActionRow(
+                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [unknown]',
                                               disabled=True)
                         )
                     if pr_actionrow:
-                        components = discord.ui.MessageComponents(
+                        components = ui.MessageComponents()
+                        components.add_rows(
                             pr_actionrow,reply_row
                         )
                     else:
-                        components = discord.ui.MessageComponents(
+                        components = ui.MessageComponents()
+                        components.add_rows(
                             reply_row
                         )
 
@@ -1169,10 +1182,10 @@ class UnifierBridge:
                                 return await source_file.to_file(use_cached=False, spoiler=False)
                     elif source=='revolt':
                         filebytes = await source_file.read()
-                        return discord.File(fp=BytesIO(filebytes), filename=source_file.filename)
+                        return nextcord.File(fp=BytesIO(filebytes), filename=source_file.filename)
                     elif source=='guilded':
                         tempfile = await source_file.to_file()
-                        return discord.File(fp=tempfile.fp, filename=source_file.filename)
+                        return nextcord.File(fp=tempfile.fp, filename=source_file.filename)
                 elif platform=='revolt':
                     if source=='discord':
                         f = await source_file.to_file(use_cached=True)
@@ -1404,7 +1417,7 @@ class UnifierBridge:
                         else:
                             msg = await message.channel.fetch_message(message.reference.message_id)
                         content = msg.content
-                    clean_content = discord.utils.remove_markdown(content)
+                    clean_content = nextcord.utils.remove_markdown(content)
 
                     if reply_msg.reply and source == 'guilded' and is_copy:
                         clean_content = clean_content.split('\n', 1)[1]
@@ -1583,7 +1596,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridged_external = {}
         if not hasattr(self.bot, 'bridged_obe'):
             # OBE = Owned By External
-            # Message wasn't sent from Discord.
+            # Message wasn't sent from nextcord.
             self.bot.bridged_obe = {}
         if not hasattr(self.bot, 'bridged_urls'):
             self.bot.bridged_urls = {}
@@ -1632,7 +1645,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 current_color = 'Default'
                 embed_color = self.bot.colors.unifier
-            embed = discord.Embed(title='Your Revolt color',description=current_color,color=embed_color)
+            embed = nextcord.Embed(title='Your Revolt color',description=current_color,color=embed_color)
             await ctx.send(embed=embed)
         elif color=='inherit':
             self.bot.db['colors'].update({f'{ctx.author.id}':'inherit'})
@@ -1741,7 +1754,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         pages = len(emojis) // 20
         if len(emojis) % 20 > 0:
             pages += 1
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title='UniChat Emojis list',
             description=(
                     'To use an emoji, simply send `[emoji: emoji_name]`.\nIf there\'s emojis with '+
@@ -1769,7 +1782,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not emoji_preview:
             return await ctx.send('Could not find this emoji!')
 
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=emoji_preview.name,
             description=f'<:{emoji_preview.name}:{emoji_preview.id}>',
             color=self.bot.colors.unifier
@@ -1819,7 +1832,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     role = data["moderator_role"]
                 except:
                     return await ctx.send('This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
-                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=discord.AllowedMentions(roles=True,everyone=False,users=False))
+                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
                 return await ctx.send('Moderators called!')
 
         await ctx.send('It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
@@ -1882,187 +1895,207 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 traceback.print_exc()
                 await ctx.send('Something went wrong.')
 
-    @commands.context_command(name='View reactions')
-    async def reactions_ctx(self, ctx, msg: discord.Message):
-        if ctx.author.id in self.bot.db['fullbanned']:
+    @nextcord.message_command(name='View reactions')
+    async def reactions_ctx(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
         ct = time.time()
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
+        if f'{interaction.user.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db['banned'].pop(f'{interaction.user.id}')
                 self.bot.db.save_data()
             else:
                 return
-        if f'{ctx.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.guild.id}']
+        if f'{interaction.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.guild.id}')
+                self.bot.db['banned'].pop(f'{interaction.guild.id}')
                 self.bot.db.save_data()
             else:
                 return
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('Your account or your guild is currently **global restricted**.', ephemeral=True)
+        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
+            return await interaction.response.send_message('Your account or your guild is currently **global restricted**.', ephemeral=True)
         msg_id = msg.id
 
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
-            return await ctx.send('Could not find message in cache!', ephemeral=True)
+            return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
         text = ''
         for reaction in msg.reactions:
             text = f'{text}{reaction} x{len(msg.reactions[reaction].keys())} '
 
         if len(text)==0:
-            return await ctx.send('No reactions yet!',ephemeral=True)
+            return await interaction.response.send_message('No reactions yet!',ephemeral=True)
 
-        await ctx.send(text,ephemeral=True)
+        await interaction.response.send_message(text,ephemeral=True)
 
-    @commands.context_command(name='Delete message')
-    async def delete_ctx(self, ctx, msg: discord.Message):
-        if ctx.author.id in self.bot.db['fullbanned']:
+    @nextcord.message_command(name='Delete message')
+    async def delete_ctx(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
         ct = time.time()
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
+        if f'{interaction.user.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db['banned'].pop(f'{interaction.user.id}')
                 self.bot.db.save_data()
             else:
                 return
-        if f'{ctx.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.guild.id}']
+        if f'{interaction.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.guild.id}')
+                self.bot.db['banned'].pop(f'{interaction.guild.id}')
                 self.bot.db.save_data()
             else:
                 return
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('Your account or your guild is currently **global restricted**.', ephemeral=True)
+        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
+            return await interaction.response.send_message('Your account or your guild is currently **global restricted**.', ephemeral=True)
         msg_id = msg.id
 
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
-            return await ctx.send('Could not find message in cache!',ephemeral=True)
+            return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
 
-        if not ctx.author.id == msg.author_id and not ctx.author.id in self.bot.moderators:
-            return await ctx.send('You didn\'t send this message!',ephemeral=True)
+        if not interaction.user.id == msg.author_id and not interaction.user.id in self.bot.moderators:
+            return await interaction.response.send_message('You didn\'t send this message!',ephemeral=True)
 
-        await ctx.interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
             if msg.webhook:
                 raise ValueError()
-            return await ctx.interaction.edit_original_message(
+            return await interaction.edit_original_message(
                 content='Deleted message (parent deleted, copies will follow)'
             )
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
-                return await ctx.interaction.edit_original_message(
+                return await interaction.edit_original_message(
                     content=f'Deleted message ({deleted} copies deleted)'
                 )
             except:
                 traceback.print_exc()
-                return await ctx.interaction.edit_original_message(
+                return await interaction.edit_original_message(
                     content='Something went wrong.'
                 )
 
-    @commands.context_command(name='Report message')
-    async def report(self, ctx, msg: discord.Message):
-        if ctx.author.id in self.bot.db['fullbanned']:
+    @nextcord.message_command(name='Report message')
+    async def report(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
         ct = time.time()
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
+        if f'{interaction.user.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
+                self.bot.db['banned'].pop(f'{interaction.user.id}')
                 self.bot.db.save_data()
             else:
                 return
-        if f'{ctx.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.guild.id}']
+        if f'{interaction.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.guild.id}')
+                self.bot.db['banned'].pop(f'{interaction.guild.id}')
                 self.bot.db.save_data()
             else:
                 return
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
+        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
+            return await interaction.response.send_message('You or your guild is currently **global restricted**.', ephemeral=True)
 
         if not self.bot.config['enable_logging']:
-            return await ctx.send('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
+            return await interaction.response.send_message('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
 
         try:
             msgdata = await self.bot.bridge.fetch_message(msg.id)
         except:
-            return await ctx.send('Could not find message in cache!')
+            return await interaction.response.send_message('Could not find message in cache!')
 
         roomname = msgdata.room
         userid = msgdata.author_id
         content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
 
-        ButtonStyle = discord.ButtonStyle
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False)
+        ButtonStyle = nextcord.ButtonStyle
+        btns = ui.ActionRow(
+            nextcord.ui.Button(style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False
+            )
         )
-        btns_abuse = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False)
+        btns_abuse = ui.ActionRow(
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False
+            )
         )
-        btns_explicit = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False)
+        btns_explicit = ui.ActionRow(
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False
+            )
         )
-        btns2 = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
+        btns2 = ui.ActionRow(
+            nextcord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
         )
-        components = discord.ui.MessageComponents(btns, btns2)
-        msg = await ctx.send('How does this message violate our rules?', components=components, ephemeral=True)
+        components = ui.MessageComponents()
+        components.add_rows(btns, btns2)
+        msg = await interaction.response.send_message('How does this message violate our rules?', components=components, ephemeral=True)
 
         def check(interaction):
-            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+            return interaction.user.id == interaction.user.id and interaction.message.id == msg.id
 
         try:
             interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
         except:
             try:
-                return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+                return await interaction.edit_original_message(content='Timed out.', components=None)
             except:
                 return
 
         cat = interaction.component.label
         asked = True
+        components = ui.MessageComponents()
         if interaction.custom_id == 'abuse':
-            components = discord.ui.MessageComponents(btns_abuse, btns2)
+            components.add_rows(btns_abuse, btns2)
             await interaction.response.edit_message(content='In what way?', components=components)
         elif interaction.custom_id == 'explicit':
-            components = discord.ui.MessageComponents(btns_explicit, btns2)
+            components.add_rows(btns_explicit, btns2)
             await interaction.response.edit_message(content='In what way?', components=components)
         elif interaction.custom_id == 'cancel':
             return await interaction.response.edit_message(content='Cancelled.', components=None)
@@ -2073,7 +2106,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
             except:
                 try:
-                    return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+                    return await interaction.edit_original_message(content='Timed out.', components=None)
                 except:
                     return
             cat2 = interaction.component.label
@@ -2081,24 +2114,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return await interaction.response.edit_message(content='Cancelled.', components=None)
         else:
             cat2 = 'none'
-        self.bot.reports.update({f'{ctx.author.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
-        reason = discord.ui.ActionRow(
-            discord.ui.InputText(style=discord.TextStyle.long, label='Additional details',
-                                 placeholder='Add additional context or information that we should know here.',
-                                 required=False)
+        self.bot.reports.update({f'{interaction.user.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
+        reason = nextcord.ui.TextInput(
+            style=nextcord.TextInputStyle.paragraph, label='Additional details',
+            placeholder='Add additional context or information that we should know here.',
+            required=False
         )
-        signature = discord.ui.ActionRow(
-            discord.ui.InputText(style=discord.TextStyle.short, label='Sign with your username',
-                                 placeholder='Sign this only if your report is truthful and in good faith.',
-                                 required=True, min_length=len(ctx.author.name), max_length=len(ctx.author.name))
+        signature = nextcord.ui.TextInput(
+            style=nextcord.TextInputStyle.short, label='Sign with your username',
+            placeholder='Sign this only if your report is truthful and in good faith.',
+            required=True, min_length=len(interaction.user.name), max_length=len(interaction.user.name)
         )
-        modal = discord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}',
-                                 components=[reason, signature])
+        modal = nextcord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}')
+        modal.add_item(reason)
+        modal.add_item(signature)
         await interaction.response.send_modal(modal)
 
     @commands.command()
     async def serverstatus(self,ctx):
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title='Server status',
             description='Your server is not restricted by plugins.',
             color=0x00ff00
@@ -2131,7 +2165,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         userid = int(interaction.custom_id.split('_')[0])
         if len(content) > 2048:
             content = content[:-(len(content) - 2048)]
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title='Message report - content is as follows',
             description=content,
             color=0xffbb00,
@@ -2162,14 +2196,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.set_author(name='[unknown, check sender ID]')
         guild = self.bot.get_guild(self.bot.config['home_guild'])
         ch = guild.get_channel(self.bot.config['reports_channel'])
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
-                              disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                              custom_id=f'rpreview_{msgid}',
-                              disabled=False)
+        btns = ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
+                disabled=False),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.green, label='Mark as reviewed', custom_id=f'rpreview_{msgid}',
+                disabled=False
+            )
         )
-        components = discord.ui.MessageComponents(btns)
+        components = ui.MessageComponents()
+        components.add_row(btns)
         msg = await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
         try:
             thread = await msg.create_thread(
@@ -2191,15 +2228,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
         if interaction.custom_id.startswith('rpdelete'):
             msg_id = int(interaction.custom_id.replace('rpdelete_','',1))
-            btns = discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
-                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
-                                  disabled=False)
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red, label='Delete message',
+                    custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}', disabled=True
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                    custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}', disabled=False
+                )
             )
-            components = discord.ui.MessageComponents(btns)
+            components = ui.MessageComponents()
+            components.add_row(btns)
 
             try:
                 msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
@@ -2226,15 +2266,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     traceback.print_exc()
                     await msg_orig.edit(content=f'Something went wrong.')
         elif interaction.custom_id.startswith('rpreview_'):
-            btns = discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
-                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True)
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red, label='Delete message',
+                    custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}', disabled=True
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                    custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}', disabled=True
+                )
             )
-            components = discord.ui.MessageComponents(btns)
+            components = ui.MessageComponents()
+            components.add_row(btns)
             embed = interaction.message.embeds[0]
             embed.color = 0x00ff00
             author = f'@{interaction.user.name}'
@@ -2269,14 +2312,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not ctx.author.id == self.bot.config['owner']:
             return
         if 'dereg' in args:
-            await self.bot.register_application_commands(commands=[])
+            await self.bot.delete_application_commands()
             return await ctx.send('gone, reduced to atoms (hopefully)')
-        toreg = []
-        for command in self.bot.commands:
-            if isinstance(command, commands.core.ContextMenuCommand):
-                toreg.append(command)
-        await self.bot.register_application_commands(commands=toreg)
-        return await ctx.send(f'Registered {len(toreg)} commands to bot')
+        await self.bot.sync_application_commands()
+        return await ctx.send(f'Registered commands to bot')
 
     @commands.command(hidden=True)
     async def initbridge(self, ctx, *, args=''):
@@ -2440,7 +2479,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         public_reason = response['description']
                         public = True
 
-            embed = discord.Embed(
+            embed = nextcord.Embed(
                 title='Content blocked',
                 description='Your message was blocked. Moderators may be able to see the blocked content.',
                 color=0xff0000
@@ -2451,7 +2490,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             await message.channel.send(embed=embed)
 
-            embed = discord.Embed(
+            embed = nextcord.Embed(
                 title='Content blocked - content is as follows',
                 description=message.content[:-(len(message.content)-2000)] if len(message.content) > 2000 else message.content,
                 color=0xff0000,
@@ -2497,7 +2536,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
                     continue
                 nt = time.time() + banned[user]
-                embed = discord.Embed(
+                embed = nextcord.Embed(
                     title=f'You\'ve been __global restricted__ by @Unifier (system)!',
                     description='Automatic action carried out by security plugins',
                     color=0xffcc00,
@@ -2844,7 +2883,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             if len(message.content) == 0:
                 content = '[no content]'
-            embed = discord.Embed(title=f'Message deleted from `{roomname}`', description=content)
+            embed = nextcord.Embed(title=f'Message deleted from `{roomname}`', description=content)
             embed.add_field(name='Embeds', value=f'{len(message.embeds)} embeds, {len(message.attachments)} files',
                             inline=False)
             embed.add_field(name='IDs', value=f'MSG: {message.id}\nSVR: {message.guild.id}\nUSR: {message.author.id}',
