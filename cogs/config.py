@@ -357,9 +357,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
             def check(interaction):
                 return interaction.user.id==ctx.author.id and (
-                    interaction.custom_id=='accept' or
-                    interaction.custom_id=='reject'
-                    ) and interaction.channel.id==ctx.channel.id
+                    interaction.data['custom_id']=='accept' or
+                    interaction.data['custom_id']=='reject'
+                ) and interaction.channel.id==ctx.channel.id
 
             try:
                 resp = await self.bot.wait_for("interaction", check=check, timeout=60.0)
@@ -375,7 +375,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             components = ui.MessageComponents()
             components.add_row(btns)
             await resp.response.edit_message(view=components)
-            if resp.custom_id=='reject':
+            if resp.data['custom_id']=='reject':
                 return
             webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
             data = self.bot.db['rooms'][room]
@@ -517,7 +517,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         except:
             return await msg.edit(view=None)
         await interaction.response.edit_message(view=None)
-        if not interaction.custom_id=='allow':
+        if not interaction.data['custom_id']=='allow':
             return
         self.bot.db['external_bridge'].append(userid)
         self.bot.db.save_data()
@@ -558,7 +558,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         except:
             return await msg.edit(view=None)
         await interaction.response.edit_message(view=None)
-        if not interaction.custom_id == 'allow':
+        if not interaction.data['custom_id'] == 'allow':
             return
         self.bot.db['external_bridge'].remove(userid)
         self.bot.db.save_data()
@@ -705,7 +705,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 components.add_row(btns)
                 await msg.edit(view=components)
                 return await ctx.send('Timed out.',reference=msg)
-            if interaction.custom_id=='cancel':
+            if interaction.data['custom_id']=='cancel':
                 btns.items[0].disabled = True
                 btns.items[1].disabled = True
                 components = ui.MessageComponents()

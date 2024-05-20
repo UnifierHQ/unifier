@@ -689,7 +689,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             components = ui.MessageComponents()
             components.add_row(btns)
             return await msg.edit(view=components)
-        if interaction.custom_id == 'reject':
+        if interaction.data['custom_id'] == 'reject':
             btns.items[0].disabled = True
             btns.items[1].disabled = True
             components = ui.MessageComponents()
@@ -785,7 +785,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             components = ui.MessageComponents()
             components.add_row(btns)
             return await msg.edit(view=components)
-        if interaction.custom_id == 'reject':
+        if interaction.data['custom_id'] == 'reject':
             btns.items[0].disabled = True
             btns.items[1].disabled = True
             components = ui.MessageComponents()
@@ -906,7 +906,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components = ui.MessageComponents()
                 components.add_row(btns)
                 return await msg.edit(view=components)
-            if interaction.custom_id == 'reject':
+            if interaction.data['custom_id'] == 'reject':
                 btns.items[0].disabled = True
                 btns.items[1].disabled = True
                 components = ui.MessageComponents()
@@ -971,7 +971,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components = ui.MessageComponents()
                 components.add_row(btns)
                 return await msg.edit(view=components)
-            if interaction.custom_id == 'reject':
+            if interaction.data['custom_id'] == 'reject':
                 btns.items[0].disabled = True
                 btns.items[1].disabled = True
                 components = ui.MessageComponents()
@@ -1169,7 +1169,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components = ui.MessageComponents()
                 components.add_row(btns)
                 return await msg.edit(view=components)
-            if interaction.custom_id == 'reject':
+            if interaction.data['custom_id'] == 'reject':
                 btns.items[0].disabled = True
                 btns.items[1].disabled = True
                 components = ui.MessageComponents()

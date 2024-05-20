@@ -70,7 +70,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             return await msg.edit(view=components_cancel)
-        if interaction.custom_id=='reject':
+        if interaction.data['custom_id']=='reject':
             return await interaction.response.edit_message(view=components_cancel)
         embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = '- :warning: All functions of the bot will be disabled.\n- :no_entry_sign: Managing extensions will be unavailable.\n- :arrows_counterclockwise: To restore the bot, a reboot is required.'
@@ -79,7 +79,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
             return await msg.edit(view=components_cancel)
-        if interaction.custom_id=='reject':
+        if interaction.data['custom_id']=='reject':
             return await interaction.response.edit_message(view=components_cancel)
 
         self.logger.critical(f'Bot lockdown issued by {ctx.author.id}!')

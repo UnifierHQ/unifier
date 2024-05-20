@@ -708,15 +708,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 return await msg.edit(view=None)
             page = 0
-            if interaction.custom_id == 'back':
+            if interaction.data['custom_id'] == 'back':
                 menu = 0
-            elif interaction.custom_id == 'warns':
+            elif interaction.data['custom_id'] == 'warns':
                 menu = 1
-            elif interaction.custom_id == 'bans':
+            elif interaction.data['custom_id'] == 'bans':
                 menu = 2
-            elif interaction.custom_id == 'prev':
+            elif interaction.data['custom_id'] == 'prev':
                 page -= 1 if page >= 1 else 0
-            elif interaction.custom_id == 'next':
+            elif interaction.data['custom_id'] == 'next':
                 page += 1
 
     @commands.command(aliases=['guilds'])
@@ -1046,7 +1046,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             return await msg.edit(view=components_inac)
 
-        if not interaction.custom_id=='lockdown':
+        if not interaction.data['custom_id']=='lockdown':
             return await interaction.response.edit_message(view=components_inac)
 
         embed.title = ':warning: FINAL WARNING!!! :warning:'
@@ -1062,7 +1062,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await interaction.response.edit_message(view=components_inac)
 
-        if not interaction.custom_id=='lockdown':
+        if not interaction.data['custom_id']=='lockdown':
             return
 
         self.logger.warn(f'Bridge lockdown issued by {ctx.author.id}!')
