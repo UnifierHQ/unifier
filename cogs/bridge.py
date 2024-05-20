@@ -425,6 +425,29 @@ class UnifierBridge:
         self.bridged[index]['urls'] = self.bridged[index]['urls'] | msg_tomerge.urls
         self.bridged.pop(index_tomerge)
 
+    async def add_exp(self, user_id):
+        if not self.bot.config['enable_leveling']:
+            return 0, False
+        if not f'{user_id}' in self.bot.db['exp'].keys():
+            self.bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
+        self.bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
+        ratio, remaining = await self.progression(user_id)
+        if ratio >= 1:
+            self.bot.db['exp'][f'{user_id}']['experience'] = -remaining
+            self.bot.db['exp'][f'{user_id}']['level'] += 1
+            ratio, _remaining = await self.progression(user_id)
+        self.bot.db['exp'][f'{user_id}']['progress'] = ratio
+        self.bot.db.save_data()
+        return self.bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
+
+    async def progression(self, user_id):
+        base = 100
+        rate = 1.4
+        target = base * (rate ** self.bot.db['exp'][f'{user_id}']['level'])
+        return (
+            self.bot.db['exp'][f'{user_id}']['experience']/target, target-self.bot.db['exp'][f'{user_id}']['experience']
+        )
+
     async def delete_parent(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
         if msg.source=='discord':
@@ -2154,6 +2177,106 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.colour = 0xffce00
         await ctx.send(embed=embed)
 
+    @commands.command()
+    async def leaderboard(self,ctx):
+        expdata = copy.copy(self.bot.db['exp'])
+        lb_data = sorted(
+            expdata.items(),
+            key=lambda x: x[1]['level']+x[1]['progress']
+        )
+        max_page = math.ceil(len(lb_data) / 10)
+        msg = None
+        interaction = None
+        embed = nextcord.Embed(
+            title=f'{self.bot.user.global_name} leaderboard',
+            color=self.bot.colors.unifier
+        )
+        page = 1
+
+        placement_emoji = {
+            1: ':first_place:',
+            2: ':second_place:',
+            3: ':third_place:'
+        }
+
+        while True:
+            lb = []
+            lb_text = '\n'.join(lb)
+
+            for x in range(10):
+                index = (page-1)*10 + x
+                rank = index + 1
+                if index > len(lb_data):
+                    break
+                user = self.bot.get_user(int(lb_data[index]))
+                if user:
+                    username = user.name
+                else:
+                    username = '[unknown]'
+                lb.append(
+                    f'{placement_emoji[rank]} {username}: LVL {lb_data[index][1]["level"]}' if rank <= 3 else
+                    f'`{rank}.` {username}: LVL {lb_data[index][1]["level"]}'
+                )
+
+            embed.description = lb_text
+
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023EE',
+                    custom_id='first',
+                    disabled=page==1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025C0',
+                    custom_id='prev',
+                    disabled=page==1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025B6',
+                    custom_id='next',
+                    disabled=page==max_page
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023ED',
+                    custom_id='last',
+                    disabled=page==max_page
+                )
+            )
+
+            components = ui.MessageComponents()
+            components.add_row(btns)
+
+            if not msg:
+                msg = await ctx.send(embed=embed,view=components)
+            else:
+                await interaction.response.edit_message(embed=embed,view=components)
+
+            def check(interaction):
+                return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                for x in range(len(btns.items)):
+                    btns.items[x].disabled = True
+
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                await msg.edit(view=components)
+
+            if interaction.data['custom_id']=='first':
+                page = 1
+            elif interaction.data['custom_id']=='prev':
+                page -= 1
+            elif interaction.data['custom_id']=='next':
+                page += 1
+            elif interaction.data['custom_id']=='last':
+                page = max_page
+
     @commands.Cog.listener()
     async def on_interaction(self, interaction):
         if interaction.type==nextcord.InteractionType.component:
@@ -2698,6 +2821,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 for msgid in ids:
                     text = text + f'\n{msgid}'
                 await message.channel.send('Mismatch detected.'+text)
+
+        _newexp, levelup = await self.bot.bridge.add_exp(message.author.id)
+
+        if levelup:
+            level = self.bot.db['exp'][f'{message.author.id}']['level']
+            embed = nextcord.Embed(
+                title=f'Level {level-1} => __Level {level}__',
+                color=self.bot.colors.blurple
+            )
+            embed.set_author(
+                name=f'@{message.author.global_name} leveled up!',
+                icon_url=message.author.avatar.url if message.author.avatar else None
+            )
+            await message.channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
