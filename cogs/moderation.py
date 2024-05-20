@@ -16,14 +16,14 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
+import nextcord
 import time
 import hashlib
 from datetime import datetime
-from discord.ext import commands
+from nextcord.ext import commands
 import traceback
 import json
-from utils import log
+from utils import log, ui
 
 override_st = False
 
@@ -253,7 +253,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             mod = f'@{ctx.author.name}'
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        embed = discord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
+        embed = nextcord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if rtt_msg:
             if len(rtt_msg_content)==0:
@@ -282,7 +282,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         content = ctx.message.content
         ctx.message.content = ''
-        embed = discord.Embed(description='A user was recently banned from Unifier!',color=0xff0000)
+        embed = nextcord.Embed(description='A user was recently banned from Unifier!',color=0xff0000)
         if disclose:
             if not user:
                 embed.set_author(name='@unknown')
@@ -306,7 +306,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         self.add_modlog(1, user.id, reason, ctx.author.id)
         actions_count, actions_count_recent = self.get_modlogs_count(user.id)
-        log_embed = discord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.utcnow())
+        log_embed = nextcord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.utcnow())
         log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
         log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
@@ -315,10 +315,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                   f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in ' +
                   'total) on record.',
             inline=False)
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(
-                    style=discord.ButtonStyle.red,
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
                     custom_id='delete',
                     label='Delete message',
                     emoji='\U0001F5D1'
@@ -329,7 +330,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             'User was global banned. They may not use Unifier for the given time period.',
             embed=log_embed,
             reference=ctx.message,
-            components=components if rtt_msg else None
+            view=components if rtt_msg else None
         )
 
         if not rtt_msg:
@@ -339,12 +340,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return interaction.user.id==ctx.author.id and interaction.message.id==resp_msg.id
 
         try:
-            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=30.0)
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=30.0)
         except:
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.red,
+            components = ui.MessageComponents()
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red,
                         custom_id='delete',
                         label='Delete message',
                         emoji='\U0001F5D1',
@@ -352,12 +354,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
             )
-            return await resp_msg.edit(components=components)
+            return await resp_msg.edit(view=components)
         else:
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.red,
+            components = ui.MessageComponents()
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red,
                         custom_id='delete',
                         label='Delete message',
                         emoji='\U0001F5D1',
@@ -365,12 +368,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
             )
-            await resp_msg.edit(components=components)
+            await resp_msg.edit(view=components)
             await interaction.response.defer(ephemeral=True)
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.gray,
+            components = ui.MessageComponents()
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
                         custom_id='delete',
                         label='Original message deleted',
                         emoji='\U0001F5D1',
@@ -382,14 +386,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 await self.bot.bridge.delete_parent(rtt_msg.id)
                 if rtt_msg.webhook:
                     raise ValueError()
-                await resp_msg.edit(components=components)
+                await resp_msg.edit(view=components)
                 return await interaction.edit_original_message(
                     content='Deleted message (parent deleted, copies will follow)'
                 )
             except:
                 try:
                     deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
-                    await resp_msg.edit(components=components)
+                    await resp_msg.edit(view=components)
                     return await interaction.edit_original_message(
                         content=f'Deleted message ({deleted} copies deleted)'
                     )
@@ -483,7 +487,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             is_self = True
         if target.id == ctx.author.id:
             is_self = True
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title='All good!',
             description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
             '\n:white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
@@ -560,19 +564,20 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                                 inline=False)
                 embed.set_footer(text='Standing is calculated based on recent and all-time punishments. Recent '+
                                  'punishments will have a heavier effect on your standing.')
-                components = discord.ui.MessageComponents(
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
+                components = ui.MessageComponents()
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
                             custom_id='warns',
                             label='Warnings',
                             emoji='\U000026A0',
-                            style=discord.ButtonStyle.gray
+                            style=nextcord.ButtonStyle.gray
                         ),
-                        discord.ui.Button(
+                        nextcord.ui.Button(
                             custom_id='bans',
                             label='Bans',
                             emoji='\U0001F6D1',
-                            style=discord.ButtonStyle.red
+                            style=nextcord.ButtonStyle.red
                         )
                     )
                 )
@@ -589,38 +594,39 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                     if i >= len(actions['warns']) - 1:
                         break
-                components = discord.ui.MessageComponents(
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
+                components = ui.MessageComponents()
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
                             custom_id='back',
                             label='Back',
-                            style=discord.ButtonStyle.gray
+                            style=nextcord.ButtonStyle.gray
                         )
                     ),
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
                             custom_id='prev',
                             label='Previous',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=page==0
                         ),
-                        discord.ui.Button(
+                        nextcord.ui.Button(
                             custom_id='next',
                             label='Next',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=((page+1)*5)+1 >= len(actions['warns'])
                         )
-                    ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
-                        discord.ui.Button(
+                    ) if len(embed.fields) >= 1 else ui.ActionRow(
+                        nextcord.ui.Button(
                             custom_id='prev',
                             label='Previous',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=True
                         ),
-                        discord.ui.Button(
+                        nextcord.ui.Button(
                             custom_id='next',
                             label='Next',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=True
                         )
                     )
@@ -641,38 +647,39 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                     if i >= len(actions['bans']) - 1:
                         break
-                components = discord.ui.MessageComponents(
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
+                components = ui.MessageComponents()
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
                             custom_id='back',
                             label='Back',
-                            style=discord.ButtonStyle.gray
+                            style=nextcord.ButtonStyle.gray
                         )
                     ),
-                    discord.ui.ActionRow(
-                        discord.ui.Button(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
                             custom_id='prev',
                             label='Previous',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=page==0
                         ),
-                        discord.ui.Button(
+                        nextcord.ui.Button(
                             custom_id='next',
                             label='Next',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=((page+1)*5)+1 >= len(actions['bans'])
                         )
-                    ) if len(embed.fields) >= 1 else discord.ui.ActionRow(
-                        discord.ui.Button(
+                    ) if len(embed.fields) >= 1 else ui.ActionRow(
+                        nextcord.ui.Button(
                             custom_id='prev',
                             label='Previous',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=True
                         ),
-                        discord.ui.Button(
+                        nextcord.ui.Button(
                             custom_id='next',
                             label='Next',
-                            style=discord.ButtonStyle.blurple,
+                            style=nextcord.ButtonStyle.blurple,
                             disabled=True
                         )
                     )
@@ -682,24 +689,24 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 embed.set_footer(text=f'Page {page + 1}')
             if not msg:
                 if ctx.message.guild and is_self:
-                    msg = await ctx.author.send(embed=embed, components=components)
+                    msg = await ctx.author.send(embed=embed, view=components)
                     await ctx.send('Your account standing has been DMed to you.')
                 else:
-                    msg = await ctx.send(embed=embed, components=components)
+                    msg = await ctx.send(embed=embed, view=components)
             else:
                 if interaction:
-                    await interaction.response.edit_message(embed=embed,components=components)
+                    await interaction.response.edit_message(embed=embed,view=components)
                 else:
-                    await msg.edit(embed=embed,components=components)
+                    await msg.edit(embed=embed,view=components)
             embed.clear_fields()
 
             def check(interaction):
                 return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
 
             try:
-                interaction = await self.bot.wait_for('component_interaction',timeout=60,check=check)
+                interaction = await self.bot.wait_for('interaction',timeout=60,check=check)
             except:
-                return await msg.edit(components=None)
+                return await msg.edit(view=None)
             page = 0
             if interaction.custom_id == 'back':
                 menu = 0
@@ -728,7 +735,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 text = f'- {name} (`{guild_id}`)'
             else:
                 text = f'{text}\n- {name} (`{guild_id}`)'
-        embed = discord.Embed(title=f'Servers connected to `{room}`',description=text)
+        embed = nextcord.Embed(title=f'Servers connected to `{room}`',description=text)
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True)
@@ -779,7 +786,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             mod = f'@{ctx.author.name}'
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        embed = discord.Embed(title=f'You\'ve been __warned__ by {mod}!',description=reason,color=0xffff00,timestamp=datetime.utcnow())
+        embed = nextcord.Embed(title=f'You\'ve been __warned__ by {mod}!',description=reason,color=0xffff00,timestamp=datetime.utcnow())
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if rtt_msg:
             if len(rtt_msg_content)==0:
@@ -805,7 +812,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('...why would you want to warn a bot?')
         self.add_modlog(0,user.id,reason,ctx.author.id)
         actions_count, actions_count_recent = self.get_modlogs_count(user.id)
-        log_embed = discord.Embed(title='User warned',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
+        log_embed = nextcord.Embed(title='User warned',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
         log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
             name='User modlogs info',
@@ -813,10 +820,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                   f'total) and **{actions_count_recent["bans"]}** recent bans ({actions_count["bans"]} in '+
                   'total) on record.',
             inline=False)
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(
-                    style=discord.ButtonStyle.red,
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
                     custom_id='delete',
                     label='Delete message',
                     emoji='\U0001F5D1'
@@ -829,10 +837,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 'User has been warned and notified.',
                 embed=log_embed,
                 reference=ctx.message,
-                components=components if rtt_msg else None
+                view=components if rtt_msg else None
             )
         except:
-            resp_msg = await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed,components=components)
+            resp_msg = await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed,view=components)
 
         if not rtt_msg:
             return
@@ -841,12 +849,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return interaction.user.id==ctx.author.id and interaction.message.id==resp_msg.id
 
         try:
-            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=30.0)
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=30.0)
         except:
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.red,
+            components = ui.MessageComponents()
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red,
                         custom_id='delete',
                         label='Delete message',
                         emoji='\U0001F5D1',
@@ -854,12 +863,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
             )
-            return await resp_msg.edit(components=components)
+            return await resp_msg.edit(view=components)
         else:
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.red,
+            components = ui.MessageComponents()
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red,
                         custom_id='delete',
                         label='Delete message',
                         emoji='\U0001F5D1',
@@ -867,12 +877,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
                 )
             )
-            await resp_msg.edit(components=components)
+            await resp_msg.edit(view=components)
             await interaction.response.defer(ephemeral=True)
-            components = discord.ui.MessageComponents(
-                discord.ui.ActionRow(
-                    discord.ui.Button(
-                        style=discord.ButtonStyle.gray,
+            components = ui.MessageComponents()
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
                         custom_id='delete',
                         label='Original message deleted',
                         emoji='\U0001F5D1',
@@ -884,14 +895,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 await self.bot.bridge.delete_parent(rtt_msg.id)
                 if rtt_msg.webhook:
                     raise ValueError()
-                await resp_msg.edit(components=components)
+                await resp_msg.edit(view=components)
                 return await interaction.edit_original_message(
                     content='Deleted message (parent deleted, copies will follow)'
                 )
             except:
                 try:
                     deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
-                    await resp_msg.edit(components=components)
+                    await resp_msg.edit(view=components)
                     return await interaction.edit_original_message(
                         content=f'Deleted message ({deleted} copies deleted)'
                     )
@@ -918,7 +929,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             warn = actions['warns'][index]
         except:
             return await ctx.send('Could not find action!')
-        embed = discord.Embed(title='Warning deleted',description=warn['reason'],color=0xffcc00)
+        embed = nextcord.Embed(title='Warning deleted',description=warn['reason'],color=0xffcc00)
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         searched = 0
         deleted = False
@@ -950,7 +961,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             ban = actions['bans'][index]
         except:
             return await ctx.send('Could not find action!')
-        embed = discord.Embed(title='Ban deleted', description=ban['reason'], color=0xff0000)
+        embed = nextcord.Embed(title='Ban deleted', description=ban['reason'], color=0xff0000)
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         embed.set_footer(text='WARNING: This does NOT unban the user.')
         searched = 0
@@ -1000,33 +1011,43 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return
         if not hasattr(self.bot, 'bridge'):
             return await ctx.send('Bridge already locked down.')
-        embed = discord.Embed(title='Lock bridge down?',
+        embed = nextcord.Embed(title='Lock bridge down?',
                               description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
                               color=0xffcc00)
-        components = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red,label='Lockdown',custom_id='lockdown'),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel')
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,label='Lockdown',custom_id='lockdown'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray, label='Cancel'
+                )
             )
         )
-        components_inac = discord.ui.MessageComponents(
-            discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', disabled=True)
+        components_inac = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red, label='Lockdown', custom_id='lockdown',disabled=True
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray, label='Cancel', disabled=True
+                )
             )
         )
-        msg = await ctx.send(embed=embed,components=components)
+        msg = await ctx.send(embed=embed,view=components)
 
         def check(interaction):
             return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
 
         try:
-            interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=30)
         except:
-            return await msg.edit(components=components_inac)
+            return await msg.edit(view=components_inac)
 
         if not interaction.custom_id=='lockdown':
-            return await interaction.response.edit_message(components=components_inac)
+            return await interaction.response.edit_message(view=components_inac)
 
         embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = 'LOCKDOWNS CANNOT BE REVERSED BY NON-ADMINS!\nDo NOT lock down the chat if you don\'t know what you\'re doing!'
@@ -1035,11 +1056,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await interaction.response.edit_message(embed=embed)
 
         try:
-            interaction = await self.bot.wait_for('component_interaction',check=check,timeout=30)
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=30)
         except:
-            return await msg.edit(components=components_inac)
+            return await msg.edit(view=components_inac)
 
-        await interaction.response.edit_message(components=components_inac)
+        await interaction.response.edit_message(view=components_inac)
 
         if not interaction.custom_id=='lockdown':
             return
@@ -1096,13 +1117,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             try:
                 self.bot.load_extension('cogs.bridge_revolt')
             except Exception as e:
-                if not isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
                     traceback.print_exc()
         if 'guilded' in externals:
             try:
                 self.bot.load_extension('cogs.bridge_guilded')
             except Exception as e:
-                if not isinstance(e, discord.ext.commands.errors.ExtensionAlreadyLoaded):
+                if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
                     traceback.print_exc()
         await ctx.send('Lockdown removed')
 
