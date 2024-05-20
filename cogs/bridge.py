@@ -435,13 +435,15 @@ class UnifierBridge:
         if ratio >= 1:
             self.bot.db['exp'][f'{user_id}']['experience'] = -remaining
             self.bot.db['exp'][f'{user_id}']['level'] += 1
-            ratio, _remaining = await self.progression(user_id)
-        self.bot.db['exp'][f'{user_id}']['progress'] = ratio
+            newratio, _remaining = await self.progression(user_id)
+        else:
+            newratio = ratio
+        self.bot.db['exp'][f'{user_id}']['progress'] = newratio
         self.bot.db.save_data()
         return self.bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
 
     async def progression(self, user_id):
-        base = 100
+        base = 1000
         rate = 1.4
         target = base * (rate ** self.bot.db['exp'][f'{user_id}']['level'])
         return (
@@ -2182,16 +2184,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         expdata = copy.copy(self.bot.db['exp'])
         lb_data = sorted(
             expdata.items(),
-            key=lambda x: x[1]['level']+x[1]['progress']
+            key=lambda x: x[1]['level']+x[1]['progress'],
+            reverse=True
         )
-        max_page = math.ceil(len(lb_data) / 10)
         msg = None
         interaction = None
         embed = nextcord.Embed(
-            title=f'{self.bot.user.global_name} leaderboard',
+            title=f'{self.bot.user.display_name} leaderboard',
             color=self.bot.colors.unifier
         )
         page = 1
+        limit = 10
+        max_page = math.ceil(len(lb_data) / limit)
 
         placement_emoji = {
             1: ':first_place:',
@@ -2201,22 +2205,23 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         while True:
             lb = []
-            lb_text = '\n'.join(lb)
 
-            for x in range(10):
-                index = (page-1)*10 + x
+            for x in range(limit):
+                index = (page-1)*limit + x
                 rank = index + 1
-                if index > len(lb_data):
+                if index >= len(lb_data):
                     break
-                user = self.bot.get_user(int(lb_data[index]))
+                user = self.bot.get_user(int(lb_data[index][0]))
                 if user:
                     username = user.name
                 else:
                     username = '[unknown]'
                 lb.append(
-                    f'{placement_emoji[rank]} {username}: LVL {lb_data[index][1]["level"]}' if rank <= 3 else
-                    f'`{rank}.` {username}: LVL {lb_data[index][1]["level"]}'
+                    f'{placement_emoji[rank]} **{username}**: LVL {lb_data[index][1]["level"]}' if rank <= 3 else
+                    f'`{rank}.` **{username}**: Level {lb_data[index][1]["level"]}'
                 )
+
+            lb_text = '\n'.join(lb)
 
             embed.description = lb_text
 
@@ -2267,6 +2272,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 components = ui.MessageComponents()
                 components.add_row(btns)
                 await msg.edit(view=components)
+                break
 
             if interaction.data['custom_id']=='first':
                 page = 1
