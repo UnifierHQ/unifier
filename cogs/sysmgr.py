@@ -1268,13 +1268,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         interaction = None
 
         while True:
-            embed = nextcord.Embed()
+            embed = nextcord.Embed(color=self.bot.colors.unifier)
             maxpage = 0
             components = ui.MessageComponents()
             if panel==0:
                 extlist = list(self.bot.extensions)
                 if not show_sysmgr:
                     extlist.remove('cogs.sysmgr')
+                if not show_admin:
+                    extlist.remove('cogs.lockdown')
                 maxpage = math.ceil(len(extlist)/limit)-1
                 if interaction:
                     page += 1
@@ -1286,22 +1288,54 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
                 )
 
+                selection.add_option(
+                    label='All commands',
+                    description='Shows commands from all extensions.',
+                    value='all'
+                )
+
                 for x in range(limit):
-                    index = (page*limit)-x
+                    index = (page*limit)+x
                     if index >= len(extlist):
                         break
                     cog = self.bot.cogs[list(self.bot.cogs)[index]]
                     ext = list(self.bot.extensions)[index]
+                    if not cog.description:
+                        description = 'No description provided'
+                    else:
+                        split = False
+                        description = cog.description
+                        if '\n' in cog.description:
+                            description = description.split('\n',1)[0]
+                            split = True
+                        if len(description) > 100:
+                            description = description[:-(len(description)-97)]+'...'
+                        elif split:
+                            description = description + '\n...'
+
+                    name = cog.qualified_name
+                    parts = name.split(' ')
+                    offset = 0
+                    for x in range(len(parts)):
+                        index = x - offset
+                        if len(parts)==1:
+                            break
+                        if parts[index].startswith(':') and parts[index].endswith(':'):
+                            parts.pop(index)
+                            offset += 1
+                    if len(parts)==1:
+                        name = parts[0]
+                    else:
+                        name = ' '.join(parts)
+
                     embed.add_field(
                         name=f'{cog.qualified_name} (`{ext}`)',
-                        value=cog.description if cog.description else 'No description provided',
+                        value=description,
                         inline=False
                     )
                     selection.add_option(
-                        label=cog.qualified_name,
-                        description=cog.description if len(
-                            cog.description
-                        ) <= 100 else cog.description[-(len(cog.description)-97)]+'...',
+                        label=name,
+                        description=description,
                         value=ext
                     )
 
@@ -1326,34 +1360,37 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==1:
                 cmds = []
-                for x in range(len(self.bot.extensions)):
-                    if list(self.bot.extensions)[x]==cogname:
-                        cmds = self.bot.cogs[list(self.bot.cogs)[x]].get_commands()
-                        offset = 0
-                        for index in range(len(cmds)):
-                            if show_sysmgr:
-                                break
-                            cmd = cmds[index-offset]
-                            if (
-                                    cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
-                                    cmd.qualified_name in mod_restricted and not show_moderation
-                            ):
-                                cmds.pop(index-offset)
-                                offset += 1
+                if cogname=='':
+                    cmds =list(self.bot.commands)
+                else:
+                    for x in range(len(self.bot.extensions)):
+                        if list(self.bot.extensions)[x]==cogname:
+                            cmds = list(self.bot.cogs[list(self.bot.cogs)[x]].get_commands())
+
+                offset = 0
+                for index in range(len(cmds)):
+                    if show_sysmgr:
+                        break
+                    cmd = cmds[index-offset]
+                    if (
+                            cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
+                            cmd.qualified_name in mod_restricted and not show_moderation
+                    ):
+                        cmds.pop(index-offset)
+                        offset += 1
 
                 maxpage = math.ceil(len(cmds) / limit) - 1
-                if interaction:
-                    page += 1
-                    if page > maxpage:
-                        page = maxpage
-                embed.title = f'{self.bot.user.display_name} help > {cogname}'
+                embed.title = (
+                    f'{self.bot.user.display_name} help > {cogname}' if not cogname=='' else
+                    f'{self.bot.user.display_name} help > all'
+                )
                 embed.description = 'Choose a command to view its info!'
                 selection = nextcord.ui.StringSelect(
-                    max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
                 )
 
                 for x in range(limit):
-                    index = (page * limit) - x
+                    index = (page * limit) + x
                     if index >= len(cmds):
                         break
                     cmd = cmds[index]
@@ -1364,9 +1401,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
                     selection.add_option(
                         label=cmd.qualified_name,
-                        description=cmd.description if len(
+                        description=(cmd.description if len(
                             cmd.description
-                        ) <= 100 else cmd.description[-(len(cmd.description) - 97)] + '...',
+                        ) <= 100 else cmd.description[:-(len(cmd.description) - 97)] + '...'
+                                     ) if cmd.description else 'No description provided',
                         value=cmd.qualified_name
                     )
 
@@ -1398,9 +1436,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==2:
                 cmd = self.bot.get_command(cmdname)
-                embed.title = f'{self.bot.user.display_name} help > {cogname} > {cmdname}'
-                embed.description = f'`u!{cmdname}\n{cmd.description if cmd.description else "No description provided"}'
-                embed.add_field(name='Usage',value=f'`u!{cmdname} {cmd.signature}')
+                embed.title = (
+                    f'{self.bot.user.display_name} help > {cogname} > {cmdname}' if not cogname=='' else
+                    f'{self.bot.user.display_name} help > all > {cmdname}'
+                )
+                embed.description =(
+                    f'# **`u!{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
+                )
+                embed.add_field(name='Usage',value=(
+                    f'`u!{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`u!{cmdname}`')
+                )
                 components.add_rows(
                     ui.ActionRow(
                         nextcord.ui.Button(
@@ -1421,11 +1466,34 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             def check(interaction):
                 return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
 
-            interaction = await self.bot.wait_for('interaction',check=check)
-            print(interaction.data)
-            return
-
-
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                await msg.edit(view=None)
+                break
+            if interaction.data['custom_id']=='selection':
+                if panel==0:
+                    cogname = interaction.data['values'][0]
+                elif panel==1:
+                    cmdname = interaction.data['values'][0]
+                if cogname=='all':
+                    cogname = ''
+                if not cogname=='' or cogname=='search':
+                    for x in range(len(self.bot.extensions)):
+                        if list(self.bot.extensions)[x]==cogname:
+                            if len(self.bot.cogs[list(self.bot.cogs)[x]].get_commands())==0:
+                                continue
+                panel += 1
+                page = 0
+            elif interaction.data['custom_id']=='back':
+                panel -= 1
+                if panel < 0:
+                    panel = 0
+                page = 0
+            elif interaction.data['custom_id']=='prev':
+                page -= 1
+            elif interaction.data['custom_id'] == 'next':
+                page += 1
 
 def setup(bot):
     bot.add_cog(SysManager(bot))

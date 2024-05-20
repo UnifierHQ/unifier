@@ -46,6 +46,7 @@ class Badge(commands.Cog):
 
     @commands.command()
     async def badge(self, ctx, *, user=None):
+        """Shows your Unifier user badge."""
         if user:
             try:
                 user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
@@ -54,7 +55,7 @@ class Badge(commands.Cog):
         else:
             user = ctx.author
         user_role = self.get_user_role(user.id)
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             description=f"<@{user.id}> is {user_role.value}.",
             color=self.embed_colors[user_role]
         )
