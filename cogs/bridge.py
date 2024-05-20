@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import discord
 import hashlib
 import asyncio
+import aiohttp
 import guilded
 import revolt
 from discord.ext import commands
@@ -37,6 +38,9 @@ from io import BytesIO
 import os
 from utils import log
 import importlib
+import aiomultiprocess
+from aiomultiprocess import Worker
+aiomultiprocess.set_start_method("fork")
 
 with open('config.json', 'r') as file:
     data = json.load(file)
@@ -270,6 +274,9 @@ class UnifierBridge:
         self.logger = logger
         self.secbans = {}
         self.restricted = {}
+
+        if os.name == "darwin":
+            self.logger.warning('Unifier is running on macOS, multi-core bridge will be disabled.')
 
     def is_raidban(self,userid):
         try:
@@ -723,7 +730,6 @@ class UnifierBridge:
         if ignore is None:
             ignore = []
         source = 'discord'
-        pt = time.time()
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
             if not 'cogs.bridge_revolt' in extlist:
@@ -888,8 +894,14 @@ class UnifierBridge:
         thread_urls = {}
         threads = []
         tb_v2 = source=='discord'
+        tb_multicore = (
+            message.guild.id in self.bot.db['experiments']['multicore'] if 'multicore' in self.bot.db['experiments'].keys() else False
+        ) and tb_v2 and os.name != "darwin" and platform=='discord'
+
+        tb_multicore = message.guild.id==1196475780973207604 and platform=='discord'
 
         # Broadcast message
+        pt = time.time()
         for guild in list(guilds.keys()):
             if source=='revolt' or source=='guilded':
                 sameguild = guild == str(message.server.id)
@@ -1284,12 +1296,20 @@ class UnifierBridge:
                     continue
 
                 async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
-                                 thread_sameguild,destguild):
+                                 thread_sameguild,destguild,multicore=False):
                     try:
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components if not system else None, wait=True)
+                        if multicore:
+                            async with aiohttp.ClientSession() as session:
+                                webhook.session = session
+                                msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                         content=message.content, files=files, allowed_mentions=mentions,
+                                                         components=components if not system else None, wait=True)
+                        else:
+                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                     content=message.content, files=files, allowed_mentions=mentions,
+                                                     components=components if not system else None, wait=True)
                     except:
+                        traceback.print_exc()
                         return None
                     tbresult = [
                         {f'{destguild.id}': [webhook.channel.id, msg.id]},
@@ -1299,9 +1319,28 @@ class UnifierBridge:
                     return tbresult
 
                 if tb_v2:
-                    threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
-                                                              mentions,components,sameguild,thread_sameguild,
-                                                              destguild)))
+                    if tb_multicore:
+                        # noinspection PyTypeChecker
+                        threads.append(
+                            Worker(
+                                target=tbsend,
+                                args=(
+                                    webhook, url, msg_author_dc, embeds, message, files, mentions, components,
+                                    sameguild, thread_sameguild, destguild
+                                ),
+                                kwargs={'multicore':True}
+                            )
+                        )
+                        threads[len(threads)-1].start()
+                    else:
+                        threads.append(
+                            asyncio.create_task(
+                                tbsend(
+                                    webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
+                                    thread_sameguild,destguild
+                                )
+                            )
+                        )
                 else:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
@@ -1498,7 +1537,17 @@ class UnifierBridge:
         # Update cache
         tbv2_results = []
         if tb_v2:
-            tbv2_results = await asyncio.gather(*threads)
+            if tb_multicore:
+                count = len(threads)
+                for thread in threads:
+                    tbv2_results.append(await thread.join())
+                if count > 0:
+                    self.logger.info(f'Speed: {round(1/((time.time()-pt)/count),2)}mps')
+            else:
+                count = len(threads)
+                tbv2_results = await asyncio.gather(*threads)
+                if count > 0:
+                    self.logger.info(f'Speed: {round(1/((time.time()-pt)/count),2)}mps')
         urls = urls | thread_urls
 
         parent_id = None
