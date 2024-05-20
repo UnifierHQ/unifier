@@ -2081,7 +2081,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return interaction.user.id == interaction.user.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
         except:
             try:
                 return await interaction.edit_original_message(content='Timed out.', view=None)
@@ -2103,7 +2103,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             asked = False
         if asked:
             try:
-                interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
             except:
                 try:
                     return await interaction.edit_original_message(content='Timed out.', view=None)
