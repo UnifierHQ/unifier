@@ -1392,7 +1392,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         break
                     cmd = cmds[index]
                     embed.add_field(
-                        name=cmd.qualified_name,
+                        name=f'`{cmd.qualified_name}`',
                         value=cmd.description if cmd.description else 'No description provided',
                         inline=False
                     )
