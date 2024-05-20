@@ -1,4 +1,4 @@
-novus>=0.2.4
+nextcord
 guilded.py
 revolt.py>=0.2.0
 aiohttp
