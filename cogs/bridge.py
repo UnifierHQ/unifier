@@ -1301,7 +1301,7 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components if not system else None, wait=True)
+                                                 view=components if not system else None, wait=True)
                     except:
                         return None
                     tbresult = [
@@ -1319,7 +1319,7 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components if not system else None, wait=True)
+                                                 view=components if not system else None, wait=True)
                     except:
                         continue
                     if sameguild:
@@ -2075,7 +2075,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         components = ui.MessageComponents()
         components.add_rows(btns, btns2)
-        msg = await interaction.response.send_message('How does this message violate our rules?', components=components, ephemeral=True)
+        msg = await interaction.response.send_message('How does this message violate our rules?', view=components, ephemeral=True)
 
         def check(interaction):
             return interaction.user.id == interaction.user.id and interaction.message.id == msg.id
@@ -2084,7 +2084,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
         except:
             try:
-                return await interaction.edit_original_message(content='Timed out.', components=None)
+                return await interaction.edit_original_message(content='Timed out.', view=None)
             except:
                 return
 
@@ -2093,12 +2093,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         components = ui.MessageComponents()
         if interaction.custom_id == 'abuse':
             components.add_rows(btns_abuse, btns2)
-            await interaction.response.edit_message(content='In what way?', components=components)
+            await interaction.response.edit_message(content='In what way?', view=components)
         elif interaction.custom_id == 'explicit':
             components.add_rows(btns_explicit, btns2)
-            await interaction.response.edit_message(content='In what way?', components=components)
+            await interaction.response.edit_message(content='In what way?', view=components)
         elif interaction.custom_id == 'cancel':
-            return await interaction.response.edit_message(content='Cancelled.', components=None)
+            return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             asked = False
         if asked:
@@ -2106,12 +2106,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
             except:
                 try:
-                    return await interaction.edit_original_message(content='Timed out.', components=None)
+                    return await interaction.edit_original_message(content='Timed out.', view=None)
                 except:
                     return
             cat2 = interaction.component.label
             if interaction.custom_id == 'cancel':
-                return await interaction.response.edit_message(content='Cancelled.', components=None)
+                return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             cat2 = 'none'
         self.bot.reports.update({f'{interaction.user.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
@@ -2207,7 +2207,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         components = ui.MessageComponents()
         components.add_row(btns)
-        msg = await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
+        msg = await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, view=components)
         try:
             thread = await msg.create_thread(
                 name=f'Discussion: #{msgid}',
@@ -2255,12 +2255,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await self.bot.bridge.delete_parent(msg_id)
                 if msg.webhook:
                     raise ValueError()
-                await interaction.message.edit(components=components)
+                await interaction.message.edit(view=components)
                 return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
             except:
                 try:
                     deleted = await self.bot.bridge.delete_copies(msg_id)
-                    await interaction.message.edit(components=components)
+                    await interaction.message.edit(view=components)
                     return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
                 except:
                     traceback.print_exc()
@@ -2304,7 +2304,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
                 self.bot.db['report_threads'].pop(str(interaction.message.id))
                 self.bot.db.save_data()
-            await interaction.message.edit(embed=embed,components=components)
+            await interaction.message.edit(embed=embed,view=components)
             await interaction.edit_original_message(content='Marked thread as reviewed!')
 
     @commands.command(hidden=True)
