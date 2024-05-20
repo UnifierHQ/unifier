@@ -2076,6 +2076,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         components = ui.MessageComponents()
         components.add_rows(btns, btns2)
         msg = await interaction.response.send_message('How does this message violate our rules?', view=components, ephemeral=True)
+        msg = await msg.fetch()
 
         def check(interaction):
             return interaction.user.id == interaction.user.id and interaction.message.id == msg.id
@@ -2088,7 +2089,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 return
 
-        cat = interaction.component.label
+        buttons = msg.components[0].children
+        cat = None
+        for button in buttons:
+            if button.custom_id==interaction.data["custom_id"]:
+                cat = button.label
+                break
+
         asked = True
         components = ui.MessageComponents()
         if interaction.data["custom_id"] == 'abuse':
@@ -2109,7 +2116,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     return await interaction.edit_original_message(content='Timed out.', view=None)
                 except:
                     return
-            cat2 = interaction.component.label
+            buttons = msg.components[0].children
+            cat2 = None
+            for button in buttons:
+                if button.custom_id == interaction.data["custom_id"]:
+                    cat2 = button.label
+                    break
             if interaction.data["custom_id"] == 'cancel':
                 return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
@@ -2125,7 +2137,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             placeholder='Sign this only if your report is truthful and in good faith.',
             required=True, min_length=len(interaction.user.name), max_length=len(interaction.user.name)
         )
-        modal = nextcord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}')
+        modal = nextcord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}', auto_defer=False)
         modal.add_item(reason)
         modal.add_item(signature)
         await interaction.response.send_modal(modal)
@@ -2143,169 +2155,174 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send(embed=embed)
 
     @commands.Cog.listener()
-    async def on_modal_submit(self, interaction):
-        context = interaction.components[0].components[0].value
-        if not interaction.components[1].components[0].value.lower() == interaction.user.name.lower():
-            return
-        if context is None or context == '':
-            context = 'no context given'
-        author = f'@{interaction.user.name}'
-        if not interaction.user.discriminator == '0':
-            author = f'{interaction.user.name}#{interaction.user.discriminator}'
-        try:
-            report = self.bot.reports[f'{interaction.user.id}_{interaction.data["custom_id"]}']
-        except:
-            return await interaction.response.send_message('Something went wrong while submitting the report.', ephemeral=True)
-        cat = report[0]
-        cat2 = report[1]
-        content = report[2]
-        roomname = report[3]
-        msgid = report[4]
-        msgdata = await self.bot.bridge.fetch_message(msgid)
-        userid = int(interaction.data["custom_id"].split('_')[0])
-        if len(content) > 2048:
-            content = content[:-(len(content) - 2048)]
-        embed = nextcord.Embed(
-            title='Message report - content is as follows',
-            description=content,
-            color=0xffbb00,
-            timestamp=datetime.utcnow()
-        )
-        embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
-        embed.add_field(name='Context', value=context, inline=False)
-        embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
-        embed.add_field(name="Message room", value=roomname, inline=False)
-        embed.add_field(name="Message ID", value=str(msgid), inline=False)
-        embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
-        try:
-            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.', icon_url=interaction.user.avatar.url)
-        except:
-            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
-        try:
-            user = self.bot.get_user(userid)
-            if not user:
-                user = self.bot.revolt_client.get_user(userid)
-            sender = f'@{user.name}'
-            if not user.discriminator == '0':
-                sender = f'{user.name}#{user.discriminator}'
-            try:
-                embed.set_author(name=sender, icon_url=user.avatar.url)
-            except:
-                embed.set_author(name=sender)
-        except:
-            embed.set_author(name='[unknown, check sender ID]')
-        guild = self.bot.get_guild(self.bot.config['home_guild'])
-        ch = guild.get_channel(self.bot.config['reports_channel'])
-        btns = ui.ActionRow(
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
-                disabled=False),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.green, label='Mark as reviewed', custom_id=f'rpreview_{msgid}',
-                disabled=False
-            )
-        )
-        components = ui.MessageComponents()
-        components.add_row(btns)
-        msg = await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, view=components)
-        try:
-            thread = await msg.create_thread(
-                name=f'Discussion: #{msgid}',
-                auto_archive_duration=10080
-            )
-            self.bot.db['report_threads'].update({str(msg.id): thread.id})
-            self.bot.db.save_data()
-        except:
-            pass
-        self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
-        return await interaction.response.send_message(
-            "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
-            ephemeral=True)
-
-    @commands.Cog.listener()
     async def on_interaction(self, interaction):
-        if interaction.data["custom_id"].startswith('rp') and not interaction.user.id in self.bot.moderators:
-            return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
-        if interaction.data["custom_id"].startswith('rpdelete'):
-            msg_id = int(interaction.data["custom_id"].replace('rpdelete_','',1))
-            btns = ui.ActionRow(
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.red, label='Delete message',
-                    custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
-                ),
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.green, label='Mark as reviewed',
-                    custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=False
+        if interaction.type==nextcord.InteractionType.component:
+            if not 'custom_id' in interaction.data.keys():
+                return
+            if interaction.data["custom_id"].startswith('rp') and not interaction.user.id in self.bot.moderators:
+                return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
+            if interaction.data["custom_id"].startswith('rpdelete'):
+                msg_id = int(interaction.data["custom_id"].replace('rpdelete_','',1))
+                btns = ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red, label='Delete message',
+                        custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                        custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=False
+                    )
                 )
-            )
-            components = ui.MessageComponents()
-            components.add_row(btns)
+                components = ui.MessageComponents()
+                components.add_row(btns)
 
-            try:
-                msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
-            except:
-                return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
-
-            if not interaction.user.id in self.bot.moderators:
-                return await interaction.response.send_message('go away',ephemeral=True)
-
-            msg_orig = await interaction.response.send_message("Deleting...",ephemeral=True)
-
-            try:
-                await self.bot.bridge.delete_parent(msg_id)
-                if msg.webhook:
-                    raise ValueError()
-                await interaction.message.edit(view=components)
-                return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
-            except:
                 try:
-                    deleted = await self.bot.bridge.delete_copies(msg_id)
-                    await interaction.message.edit(view=components)
-                    return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
+                    msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
                 except:
-                    traceback.print_exc()
-                    await msg_orig.edit(content=f'Something went wrong.')
-        elif interaction.data["custom_id"].startswith('rpreview_'):
-            btns = ui.ActionRow(
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.red, label='Delete message',
-                    custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
-                ),
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.green, label='Mark as reviewed',
-                    custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=True
+                    return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
+
+                if not interaction.user.id in self.bot.moderators:
+                    return await interaction.response.send_message('go away',ephemeral=True)
+
+                msg_orig = await interaction.response.send_message("Deleting...",ephemeral=True)
+
+                try:
+                    await self.bot.bridge.delete_parent(msg_id)
+                    if msg.webhook:
+                        raise ValueError()
+                    await interaction.message.edit(view=components)
+                    return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
+                except:
+                    try:
+                        deleted = await self.bot.bridge.delete_copies(msg_id)
+                        await interaction.message.edit(view=components)
+                        return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
+                    except:
+                        traceback.print_exc()
+                        await msg_orig.edit(content=f'Something went wrong.')
+            elif interaction.data["custom_id"].startswith('rpreview_'):
+                btns = ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red, label='Delete message',
+                        custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                        custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=True
+                    )
                 )
-            )
-            components = ui.MessageComponents()
-            components.add_row(btns)
-            embed = interaction.message.embeds[0]
-            embed.color = 0x00ff00
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                embed = interaction.message.embeds[0]
+                embed.color = 0x00ff00
+                author = f'@{interaction.user.name}'
+                if not interaction.user.discriminator == '0':
+                    author = f'{interaction.user.name}#{interaction.user.discriminator}'
+                embed.title = f'This report has been reviewed by {author}!'
+                await interaction.response.defer(ephemeral=True)
+                try:
+                    thread = interaction.channel.get_thread(
+                        self.bot.db['report_threads'][str(interaction.message.id)]
+                    )
+                except:
+                    thread = None
+                if thread:
+                    try:
+                        await thread.edit(
+                            name=f'[DONE] {thread.name}',
+                            archived=True
+                        )
+                    except:
+                        try:
+                            await thread.send('This report has been reviewed.')
+                        except:
+                            pass
+                    self.bot.db['report_threads'].pop(str(interaction.message.id))
+                    self.bot.db.save_data()
+                await interaction.message.edit(embed=embed,view=components)
+                await interaction.edit_original_message(content='Marked thread as reviewed!')
+        elif interaction.type == nextcord.InteractionType.modal_submit:
+            context = interaction.data['components'][0]['components'][0]['value']
+            if not interaction.data['components'][1]['components'][0]['value'].lower() == interaction.user.name.lower():
+                return
+            if context is None or context == '':
+                context = 'no context given'
             author = f'@{interaction.user.name}'
             if not interaction.user.discriminator == '0':
                 author = f'{interaction.user.name}#{interaction.user.discriminator}'
-            embed.title = f'This report has been reviewed by {author}!'
-            await interaction.response.defer(ephemeral=True)
             try:
-                thread = interaction.channel.get_thread(
-                    self.bot.db['report_threads'][str(interaction.message.id)]
-                )
+                report = self.bot.reports[f'{interaction.user.id}_{interaction.data["custom_id"]}']
             except:
-                thread = None
-            if thread:
+                return await interaction.response.send_message('Something went wrong while submitting the report.',
+                                                               ephemeral=True)
+            cat = report[0]
+            cat2 = report[1]
+            content = report[2]
+            roomname = report[3]
+            msgid = report[4]
+            msgdata = await self.bot.bridge.fetch_message(msgid)
+            userid = int(interaction.data["custom_id"].split('_')[0])
+            if len(content) > 2048:
+                content = content[:-(len(content) - 2048)]
+            embed = nextcord.Embed(
+                title='Message report - content is as follows',
+                description=content,
+                color=0xffbb00,
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
+            embed.add_field(name='Context', value=context, inline=False)
+            embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
+            embed.add_field(name="Message room", value=roomname, inline=False)
+            embed.add_field(name="Message ID", value=str(msgid), inline=False)
+            embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
+            try:
+                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.',
+                                 icon_url=interaction.user.avatar.url)
+            except:
+                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
+            try:
+                user = self.bot.get_user(userid)
+                if not user:
+                    user = self.bot.revolt_client.get_user(userid)
+                sender = f'@{user.name}'
+                if not user.discriminator == '0':
+                    sender = f'{user.name}#{user.discriminator}'
                 try:
-                    await thread.edit(
-                        name=f'[DONE] {thread.name}',
-                        archived=True
-                    )
+                    embed.set_author(name=sender, icon_url=user.avatar.url)
                 except:
-                    try:
-                        await thread.send('This report has been reviewed.')
-                    except:
-                        pass
-                self.bot.db['report_threads'].pop(str(interaction.message.id))
+                    embed.set_author(name=sender)
+            except:
+                embed.set_author(name='[unknown, check sender ID]')
+            guild = self.bot.get_guild(self.bot.config['home_guild'])
+            ch = guild.get_channel(self.bot.config['reports_channel'])
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
+                    disabled=False),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green, label='Mark as reviewed', custom_id=f'rpreview_{msgid}',
+                    disabled=False
+                )
+            )
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            msg: nextcord.Message = await ch.send(
+                f'<@&{self.bot.config["moderator_role"]}>', embed=embed, view=components
+            )
+            try:
+                thread = await msg.create_thread(
+                    name=f'Discussion: #{msgid}',
+                    auto_archive_duration=10080
+                )
+                self.bot.db['report_threads'].update({str(msg.id): thread.id})
                 self.bot.db.save_data()
-            await interaction.message.edit(embed=embed,view=components)
-            await interaction.edit_original_message(content='Marked thread as reviewed!')
+            except:
+                pass
+            self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
+            return await interaction.response.send_message(
+                "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
+                ephemeral=True)
 
     @commands.command(hidden=True)
     async def forcereg(self, ctx, *, args=''):
