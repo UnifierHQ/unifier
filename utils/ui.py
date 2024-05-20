@@ -11,7 +11,7 @@ class ActionRow:
 
         self.items = list(args)
 
-class View(nextcord.ui.View):
+class MessageComponents(nextcord.ui.View):
     """An extension of nextcord.ui.View to support custom ActionRow implementation."""
 
     def __init__(self, *args, **kwargs):
@@ -38,8 +38,8 @@ class View(nextcord.ui.View):
         self.row_count += 1
         return self.row_count
 
-class MessageComponents(View):
-    """Alias for View, in case I get lazy"""
+class View(MessageComponents):
+    """Alias for View"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
