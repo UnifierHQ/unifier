@@ -2091,13 +2091,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         cat = interaction.component.label
         asked = True
         components = ui.MessageComponents()
-        if interaction.data['custom_id'] == 'abuse':
+        if interaction.data["custom_id"] == 'abuse':
             components.add_rows(btns_abuse, btns2)
             await interaction.response.edit_message(content='In what way?', view=components)
-        elif interaction.data['custom_id'] == 'explicit':
+        elif interaction.data["custom_id"] == 'explicit':
             components.add_rows(btns_explicit, btns2)
             await interaction.response.edit_message(content='In what way?', view=components)
-        elif interaction.data['custom_id'] == 'cancel':
+        elif interaction.data["custom_id"] == 'cancel':
             return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             asked = False
@@ -2110,7 +2110,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     return
             cat2 = interaction.component.label
-            if interaction.data['custom_id'] == 'cancel':
+            if interaction.data["custom_id"] == 'cancel':
                 return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             cat2 = 'none'
@@ -2153,7 +2153,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not interaction.user.discriminator == '0':
             author = f'{interaction.user.name}#{interaction.user.discriminator}'
         try:
-            report = self.bot.reports[f'{interaction.user.id}_{interaction.data['custom_id']}']
+            report = self.bot.reports[f'{interaction.user.id}_{interaction.data["custom_id"]}']
         except:
             return await interaction.response.send_message('Something went wrong while submitting the report.', ephemeral=True)
         cat = report[0]
@@ -2162,7 +2162,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         roomname = report[3]
         msgid = report[4]
         msgdata = await self.bot.bridge.fetch_message(msgid)
-        userid = int(interaction.data['custom_id'].split('_')[0])
+        userid = int(interaction.data["custom_id"].split('_')[0])
         if len(content) > 2048:
             content = content[:-(len(content) - 2048)]
         embed = nextcord.Embed(
@@ -2217,25 +2217,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.db.save_data()
         except:
             pass
-        self.bot.reports.pop(f'{interaction.user.id}_{interaction.data['custom_id']}')
+        self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
         return await interaction.response.send_message(
             "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
             ephemeral=True)
 
     @commands.Cog.listener()
     async def on_component_interaction(self, interaction):
-        if interaction.data['custom_id'].startswith('rp') and not interaction.user.id in self.bot.moderators:
+        if interaction.data["custom_id"].startswith('rp') and not interaction.user.id in self.bot.moderators:
             return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
-        if interaction.data['custom_id'].startswith('rpdelete'):
-            msg_id = int(interaction.data['custom_id'].replace('rpdelete_','',1))
+        if interaction.data["custom_id"].startswith('rpdelete'):
+            msg_id = int(interaction.data["custom_id"].replace('rpdelete_','',1))
             btns = ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.red, label='Delete message',
-                    custom_id=f'rpdelete_{interaction.data['custom_id'].split("_")[1]}', disabled=True
+                    custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
                 ),
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.green, label='Mark as reviewed',
-                    custom_id=f'rpreview_{interaction.data['custom_id'].split("_")[1]}', disabled=False
+                    custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=False
                 )
             )
             components = ui.MessageComponents()
@@ -2265,15 +2265,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     traceback.print_exc()
                     await msg_orig.edit(content=f'Something went wrong.')
-        elif interaction.data['custom_id'].startswith('rpreview_'):
+        elif interaction.data["custom_id"].startswith('rpreview_'):
             btns = ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.red, label='Delete message',
-                    custom_id=f'rpdelete_{interaction.data['custom_id'].split("_")[1]}', disabled=True
+                    custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
                 ),
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.green, label='Mark as reviewed',
-                    custom_id=f'rpreview_{interaction.data['custom_id'].split("_")[1]}', disabled=True
+                    custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=True
                 )
             )
             components = ui.MessageComponents()
