@@ -73,10 +73,12 @@ Unifier is licensed under the AGPLv3. If you wish to use its source code, please
 
 ## Acknowledgments
 We want to thank:
-- [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued (it
-  is now re-continued, but for now we'd like to use Novus)
+- [**Nextcord**](https://github.com/nextcord), for continuing the discord.py project as Nextcord when it was discontinued, and also
+  supporting context menu commands in a Cog
+- [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued, which
+  is the library we used to use until we moved to Nextcord
 - [**Rapptz**](https://github.com/Rapptz) and [**discord.py**](https://github.com/Rapptz/discord.py) developers, for creating the
-  discord.py library Novus is based on
+  discord.py library Novus and Nextcord are based on
 - [**Revolt**](https://github.com/revoltchat), for creating revolt.py and an awesome open-source Discord alternative
 - [**shayypy**](https://github.com/shayypy), for creating guilded.py
 
