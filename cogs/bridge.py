@@ -2449,7 +2449,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not ctx.author.id == self.bot.config['owner']:
             return
         if 'dereg' in args:
-            await self.bot.delete_application_commands()
+            await self.bot.delete_application_commands(*self.bot.get_all_application_commands())
             return await ctx.send('gone, reduced to atoms (hopefully)')
         await self.bot.sync_application_commands()
         return await ctx.send(f'Registered commands to bot')
@@ -2470,7 +2470,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridge.prs = prs
         await ctx.send('Bridge initialized')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Sends a message as system.')
     async def system(self, ctx, room):
         if not ctx.author.id == self.bot.config['owner']:
             return
