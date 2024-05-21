@@ -2362,6 +2362,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await interaction.message.edit(embed=embed,view=components)
                 await interaction.edit_original_message(content='Marked thread as reviewed!')
         elif interaction.type == nextcord.InteractionType.modal_submit:
+            if not interaction.data['custom_id']==f'{interaction.user.id}_{interaction.message.id}':
+                # not a report
+                return
             context = interaction.data['components'][0]['components'][0]['value']
             if not interaction.data['components'][1]['components'][0]['value'].lower() == interaction.user.name.lower():
                 return

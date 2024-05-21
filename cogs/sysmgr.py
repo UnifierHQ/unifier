@@ -15,7 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import discord.ui.modal
 # WARNING: EDITING THIS FILE MAY BE DANGEROUS!!!
 #
 # System Manager (sysmgr.py) contains certain admin commands, which if
@@ -1259,6 +1259,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         panel = 0
         limit = 20
         page = 0
+        match = 0
+        namematch = False
+        descmatch = False
         cogname = ''
         cmdname = ''
         msg = None
@@ -1352,63 +1355,99 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             label='Next',
                             custom_id='next',
                             disabled=page >= maxpage
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D'
                         )
                     )
                 )
             elif panel==1:
                 cmds = []
-                if cogname=='':
-                    cmds =list(self.bot.commands)
+                if cogname=='' or cogname=='search':
+                    cmds = list(self.bot.commands)
                 else:
                     for x in range(len(self.bot.extensions)):
                         if list(self.bot.extensions)[x]==cogname:
                             cmds = list(self.bot.cogs[list(self.bot.cogs)[x]].get_commands())
 
                 offset = 0
+
+                def search_filter(query, query_cmd):
+                    if match==0:
+                        return (
+                            query.lower() in query_cmd.qualified_name and namematch or
+                            query.lower() in query_cmd.description.lower() and descmatch
+                        )
+                    elif match==1:
+                        return (
+                            ((query.lower() in query_cmd.qualified_name and namematch) or not namematch) and
+                            ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
+                        )
+
                 for index in range(len(cmds)):
-                    if show_sysmgr:
-                        break
                     cmd = cmds[index-offset]
                     if (
                             cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
                             cmd.qualified_name in mod_restricted and not show_moderation
+                    ) and not show_sysmgr or (
+                            cogname=='search' and not search_filter(cmdname,cmd)
                     ):
                         cmds.pop(index-offset)
                         offset += 1
 
-                maxpage = math.ceil(len(cmds) / limit) - 1
                 embed.title = (
-                    f'{self.bot.user.display_name} help > {cogname}' if not cogname=='' else
-                    f'{self.bot.user.display_name} help > all'
+                    f'{self.bot.user.display_name} help / {cogname}' if not cogname == '' else
+                    f'{self.bot.user.display_name} help / all'
                 )
                 embed.description = 'Choose a command to view its info!'
-                selection = nextcord.ui.StringSelect(
-                    max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
-                )
+                selection = None
 
-                for x in range(limit):
-                    index = (page * limit) + x
-                    if index >= len(cmds):
-                        break
-                    cmd = cmds[index]
+                if len(cmds)==0:
+                    maxpage = 0
                     embed.add_field(
-                        name=f'`{cmd.qualified_name}`',
-                        value=cmd.description if cmd.description else 'No description provided',
+                        name='No commands',
+                        value=(
+                            'There are no commands matching your search query.' if cogname=='search' else
+                            'There are no commands in this extension.'
+                        ),
                         inline=False
                     )
-                    selection.add_option(
-                        label=cmd.qualified_name,
-                        description=(cmd.description if len(
-                            cmd.description
-                        ) <= 100 else cmd.description[:-(len(cmd.description) - 97)] + '...'
-                                     ) if cmd.description else 'No description provided',
-                        value=cmd.qualified_name
+                else:
+                    maxpage = math.ceil(len(cmds) / limit) - 1
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
                     )
 
-                components.add_rows(
-                    ui.ActionRow(
-                        selection
-                    ),
+                    for x in range(limit):
+                        index = (page * limit) + x
+                        if index >= len(cmds):
+                            break
+                        cmd = cmds[index]
+                        embed.add_field(
+                            name=f'`{cmd.qualified_name}`',
+                            value=cmd.description if cmd.description else 'No description provided',
+                            inline=False
+                        )
+                        selection.add_option(
+                            label=cmd.qualified_name,
+                            description=(cmd.description if len(
+                                cmd.description
+                            ) <= 100 else cmd.description[:-(len(cmd.description) - 97)] + '...'
+                                         ) if cmd.description else 'No description provided',
+                            value=cmd.qualified_name
+                        )
+
+                if selection:
+                    components.add_row(
+                        ui.ActionRow(
+                            selection
+                        )
+                    )
+
+                components.add_row(
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
@@ -1421,8 +1460,46 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             label='Next',
                             custom_id='next',
                             disabled=page >= maxpage
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D'
                         )
-                    ),
+                    )
+                )
+                if cogname=='search':
+                    components.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                custom_id='match',
+                                label=(
+                                    'Matches any of' if match==0 else
+                                    'Matches both'
+                                ),
+                                style=(
+                                    nextcord.ButtonStyle.green if match==0 else
+                                    nextcord.ButtonStyle.blurple
+                                ),
+                                emoji=(
+                                    '\U00002194' if match==0 else
+                                    '\U000023FA'
+                                )
+                            ),
+                            nextcord.ui.Button(
+                                custom_id='name',
+                                label='Command name',
+                                style=nextcord.ButtonStyle.green if namematch else nextcord.ButtonStyle.gray
+                            ),
+                            nextcord.ui.Button(
+                                custom_id='desc',
+                                label='Command description',
+                                style=nextcord.ButtonStyle.green if descmatch else nextcord.ButtonStyle.gray
+                            )
+                        )
+                    )
+                components.add_row(
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
@@ -1434,8 +1511,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             elif panel==2:
                 cmd = self.bot.get_command(cmdname)
                 embed.title = (
-                    f'{self.bot.user.display_name} help > {cogname} > {cmdname}' if not cogname=='' else
-                    f'{self.bot.user.display_name} help > all > {cmdname}'
+                    f'{self.bot.user.display_name} help / {cogname} / {cmdname}' if not cogname=='' else
+                    f'{self.bot.user.display_name} help / all / {cmdname}'
                 )
                 embed.description =(
                     f'# **`u!{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
@@ -1464,7 +1541,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if not msg:
                 msg = await ctx.send(embed=embed,view=components)
             else:
-                await interaction.response.edit_message(embed=embed,view=components)
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed,view=components)
             embed.clear_fields()
 
             def check(interaction):
@@ -1475,29 +1553,54 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 await msg.edit(view=None)
                 break
-            if interaction.data['custom_id']=='selection':
-                if panel==0:
-                    cogname = interaction.data['values'][0]
-                elif panel==1:
-                    cmdname = interaction.data['values'][0]
-                if cogname=='all':
-                    cogname = ''
-                if not cogname=='' or cogname=='search':
-                    for x in range(len(self.bot.extensions)):
-                        if list(self.bot.extensions)[x]==cogname:
-                            if len(self.bot.cogs[list(self.bot.cogs)[x]].get_commands())==0:
-                                continue
-                panel += 1
-                page = 0
-            elif interaction.data['custom_id']=='back':
-                panel -= 1
-                if panel < 0:
-                    panel = 0
-                page = 0
-            elif interaction.data['custom_id']=='prev':
-                page -= 1
-            elif interaction.data['custom_id'] == 'next':
-                page += 1
+            if interaction.type==nextcord.InteractionType.component:
+                if interaction.data['custom_id']=='selection':
+                    if panel==0:
+                        cogname = interaction.data['values'][0]
+                    elif panel==1:
+                        cmdname = interaction.data['values'][0]
+                    if cogname=='all':
+                        cogname = ''
+                    panel += 1
+                    page = 0
+                elif interaction.data['custom_id'] == 'back':
+                    panel -= 1
+                    if panel < 0:
+                        panel = 0
+                    page = 0
+                elif interaction.data['custom_id'] == 'prev':
+                    page -= 1
+                elif interaction.data['custom_id'] == 'next':
+                    page += 1
+                elif interaction.data['custom_id'] == 'search':
+                    modal = nextcord.ui.Modal(title='Search...',auto_defer=False)
+                    modal.add_item(
+                        nextcord.ui.TextInput(
+                            label='Search query',
+                            style=nextcord.TextInputStyle.short,
+                            placeholder='Type a command...'
+                        )
+                    )
+                    await interaction.response.send_modal(modal)
+                elif interaction.data['custom_id'] == 'match':
+                    match += 1
+                    if match > 1:
+                        match = 0
+                elif interaction.data['custom_id'] == 'name':
+                    namematch = not namematch
+                    if not namematch and not descmatch:
+                        namematch = True
+                elif interaction.data['custom_id'] == 'desc':
+                    descmatch = not descmatch
+                    if not namematch and not descmatch:
+                        descmatch = True
+            elif interaction.type==nextcord.InteractionType.modal_submit:
+                panel = 1
+                cogname = 'search'
+                cmdname = interaction.data['components'][0]['components'][0]['value']
+                namematch = True
+                descmatch = False
+                match = 0
 
 def setup(bot):
     bot.add_cog(SysManager(bot))
