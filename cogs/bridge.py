@@ -774,13 +774,10 @@ class UnifierBridge:
         elif platform=='guilded':
             guilds = self.bot.db['rooms_guilded'][room]
 
-        try:
-            is_pr = room == self.bot.config['posts_room'] and (
-                self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
-            )
-        except:
-            is_pr = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_room_index']
+        is_pr = room == self.bot.config['posts_room'] and (
+            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
+            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        )
         is_pr_ref = False
         pr_id = ""
 
@@ -798,13 +795,10 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        try:
-            temp_pr_ref = room == self.bot.config['posts_ref_room'] and (
-                self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
-            )
-        except:
-            temp_pr_ref = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_ref_room_index']
+        temp_pr_ref = room == self.bot.config['posts_ref_room'] and (
+            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
+            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        )
         if temp_pr_ref and message.content.startswith('[') and source==platform=='discord' and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
                 self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
@@ -2736,14 +2730,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
                     multisend = False
 
-        try:
-            pr_roomname = self.bot.config['posts_room']
-        except:
-            pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_room_index']]]
-        try:
-            pr_ref_roomname = self.bot.config['posts_ref_room']
-        except:
-            pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
+        pr_roomname = self.bot.config['posts_room']
+        pr_ref_roomname = self.bot.config['posts_ref_room']
         is_pr = roomname == pr_roomname and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
                 self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
