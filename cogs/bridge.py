@@ -614,8 +614,8 @@ class UnifierBridge:
                 except:
                     offset += 1
                     continue
-                text = text.replace(f'<@{userid}>',f'@{user.display_name or user.name}').replace(
-                    f'<@!{userid}>', f'@{user.display_name or user.name}')
+                text = text.replace(f'<@{userid}>',f'@{user.global_name or user.name}').replace(
+                    f'<@!{userid}>', f'@{user.global_name or user.name}')
                 offset += 1
             return text
 
@@ -1055,10 +1055,7 @@ class UnifierBridge:
                     try:
                         if reply_msg.source=='revolt':
                             user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            if not user.display_name:
-                                author_text = f'@{user.name}'
-                            else:
-                                author_text = f'@{user.display_name}'
+                            author_text = f'@{user.global_name or user.name}'
                         elif reply_msg.source=='guilded':
                             user = self.bot.guilded_client.get_user(reply_msg.author_id)
                             author_text = f'@{user.name}'
@@ -2176,7 +2173,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg = None
         interaction = None
         embed = nextcord.Embed(
-            title=f'{self.bot.user.display_name} leaderboard',
+            title=f'{self.bot.user.global_name or self.bot.user.name} leaderboard',
             color=self.bot.colors.unifier
         )
         page = 1
@@ -2288,7 +2285,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg = None
         interaction = None
         embed = nextcord.Embed(
-            title=f'{self.bot.user.display_name} Squads leaderboard',
+            title=f'{self.bot.user.global_name or self.bot.user.name} Squads leaderboard',
             color=self.bot.colors.unifier
         )
         page = 1

@@ -15,7 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import discord.ui.modal
+
 # WARNING: EDITING THIS FILE MAY BE DANGEROUS!!!
 #
 # System Manager (sysmgr.py) contains certain admin commands, which if
@@ -1284,7 +1284,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     page += 1
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.user.display_name} help'
+                embed.title = f'{self.bot.user.global_name or self.bot.user.name} help'
                 embed.description = 'Choose an extension to get started!'
                 selection = nextcord.ui.StringSelect(
                     max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
@@ -1401,8 +1401,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         offset += 1
 
                 embed.title = (
-                    f'{self.bot.user.display_name} help / {cogname}' if not cogname == '' else
-                    f'{self.bot.user.display_name} help / all'
+                    f'{self.bot.user.global_name or self.bot.user.name} help / {cogname}' if not cogname == '' else
+                    f'{self.bot.user.global_name or self.bot.user.name} help / all'
                 )
                 embed.description = 'Choose a command to view its info!'
 
@@ -1533,8 +1533,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             elif panel==2:
                 cmd = self.bot.get_command(cmdname)
                 embed.title = (
-                    f'{self.bot.user.display_name} help / {cogname} / {cmdname}' if not cogname=='' else
-                    f'{self.bot.user.display_name} help / all / {cmdname}'
+                    f'{self.bot.user.global_name or self.bot.user.name} help / {cogname} / {cmdname}' if not cogname=='' else
+                    f'{self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
                 )
                 embed.description =(
                     f'# **`u!{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
