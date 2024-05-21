@@ -1264,6 +1264,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         descmatch = False
         cogname = ''
         cmdname = ''
+        query = ''
         msg = None
         interaction = None
 
@@ -1271,6 +1272,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed = nextcord.Embed(color=self.bot.colors.unifier)
             maxpage = 0
             components = ui.MessageComponents()
+
             if panel==0:
                 extlist = list(self.bot.extensions)
                 if not show_sysmgr:
@@ -1393,7 +1395,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
                             cmd.qualified_name in mod_restricted and not show_moderation
                     ) and not show_sysmgr or (
-                            cogname=='search' and not search_filter(cmdname,cmd)
+                            cogname=='search' and not search_filter(query,cmd)
                     ):
                         cmds.pop(index-offset)
                         offset += 1
@@ -1403,7 +1405,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     f'{self.bot.user.display_name} help / all'
                 )
                 embed.description = 'Choose a command to view its info!'
-                selection = None
 
                 if len(cmds)==0:
                     maxpage = 0
@@ -1415,10 +1416,23 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         ),
                         inline=False
                     )
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Command...',disabled=True
+                    )
+                    selection.add_option(
+                        label='No commands'
+                    )
                 else:
                     maxpage = math.ceil(len(cmds) / limit) - 1
                     selection = nextcord.ui.StringSelect(
                         max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
+                    )
+
+                    cmds = await self.bot.loop.run_in_executor(
+                        None,lambda: sorted(
+                            cmds,
+                            key=lambda x: x.qualified_name
+                        )
                     )
 
                     for x in range(limit):
@@ -1440,12 +1454,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             value=cmd.qualified_name
                         )
 
-                if selection:
-                    components.add_row(
-                        ui.ActionRow(
-                            selection
-                        )
+                if cogname=='search':
+                    embed.description = f'Searching: {query} (**{len(cmds)}** results)'
+                    maxcount = (page+1)*20
+                    if maxcount > len(cmds):
+                        maxcount = len(cmds)
+                    embed.set_footer(
+                        text=f'Page {page + 1} of {maxpage + 1} | {page*20+1}-{maxcount} of {len(cmds)} results'
                     )
+
+                components.add_row(
+                    ui.ActionRow(
+                        selection
+                    )
+                )
 
                 components.add_row(
                     ui.ActionRow(
@@ -1537,9 +1559,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
                 )
 
-            embed.set_footer(text=f'Page {page+1} of {maxpage+1}')
+            if not cogname=='search' and panel==1:
+                embed.set_footer(text=f'Page {page+1} of {maxpage+1}')
             if not msg:
-                msg = await ctx.send(embed=embed,view=components)
+                msg = await ctx.send(embed=embed,view=components,reference=ctx.message,mention_author=False)
             else:
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed,view=components)
@@ -1597,9 +1620,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             elif interaction.type==nextcord.InteractionType.modal_submit:
                 panel = 1
                 cogname = 'search'
-                cmdname = interaction.data['components'][0]['components'][0]['value']
+                query = interaction.data['components'][0]['components'][0]['value']
                 namematch = True
-                descmatch = False
+                descmatch = True
                 match = 0
 
 def setup(bot):

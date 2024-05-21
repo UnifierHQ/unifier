@@ -2164,13 +2164,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.colour = 0xffce00
         await ctx.send(embed=embed)
 
-    @commands.command(description='Shows EXP leaderboard.')
+    @commands.command(aliases=['lb'],description='Shows EXP leaderboard.')
     async def leaderboard(self,ctx):
         expdata = copy.copy(self.bot.db['exp'])
-        lb_data = sorted(
-            expdata.items(),
-            key=lambda x: x[1]['level']+x[1]['progress'],
-            reverse=True
+        lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                expdata.items(),
+                key=lambda x: x[1]['level']+x[1]['progress'],
+                reverse=True
+            )
         )
         msg = None
         interaction = None
@@ -2202,7 +2203,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 else:
                     username = '[unknown]'
                 lb.append(
-                    f'{placement_emoji[rank]} **{username}**: LVL {lb_data[index][1]["level"]}' if rank <= 3 else
+                    f'{placement_emoji[rank]} **{username}**: Level {lb_data[index][1]["level"]}' if rank <= 3 else
                     f'`{rank}.` **{username}**: Level {lb_data[index][1]["level"]}'
                 )
 
@@ -2266,6 +2267,114 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif interaction.data['custom_id']=='next':
                 page += 1
             elif interaction.data['custom_id']=='last':
+                page = max_page
+
+    @commands.command(description='Makes a Squad.')
+    async def makesquad(self,ctx):
+        if str(ctx.guild.id) in self.bot.db['squads'].keys():
+            return await ctx.send('Your server already has a Squad! Disband it first to make a new one.')
+
+        pass
+
+    @commands.command(name='squad-leaderboard', aliases=['squadlb'], description='Shows Squad points leaderboard.')
+    async def squad_leaderboard(self, ctx):
+        expdata = copy.copy(self.bot.db['squads'])
+        lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                expdata.items(),
+                key=lambda x: x[1]['points'],
+                reverse=True
+            )
+        )
+        msg = None
+        interaction = None
+        embed = nextcord.Embed(
+            title=f'{self.bot.user.display_name} Squads leaderboard',
+            color=self.bot.colors.unifier
+        )
+        page = 1
+        limit = 10
+        max_page = math.ceil(len(lb_data) / limit)
+
+        placement_emoji = {
+            1: ':first_place:',
+            2: ':second_place:',
+            3: ':third_place:'
+        }
+
+        while True:
+            lb = []
+
+            for x in range(limit):
+                index = (page - 1) * limit + x
+                rank = index + 1
+                if index >= len(lb_data):
+                    break
+                username = lb_data[index][1]['name']
+                lb.append(
+                    f'{placement_emoji[rank]} **{username}**: {lb_data[index][1]["points"]} points' if rank <= 3 else
+                    f'`{rank}.` **{username}**: {lb_data[index][1]["level"]} points'
+                )
+
+            lb_text = '\n'.join(lb)
+
+            embed.description = lb_text
+
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023EE',
+                    custom_id='first',
+                    disabled=page == 1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025C0',
+                    custom_id='prev',
+                    disabled=page == 1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025B6',
+                    custom_id='next',
+                    disabled=page == max_page
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023ED',
+                    custom_id='last',
+                    disabled=page == max_page
+                )
+            )
+
+            components = ui.MessageComponents()
+            components.add_row(btns)
+
+            if not msg:
+                msg = await ctx.send(embed=embed, view=components)
+            else:
+                await interaction.response.edit_message(embed=embed, view=components)
+
+            def check(interaction):
+                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            except:
+                for x in range(len(btns.items)):
+                    btns.items[x].disabled = True
+
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                await msg.edit(view=components)
+                break
+
+            if interaction.data['custom_id'] == 'first':
+                page = 1
+            elif interaction.data['custom_id'] == 'prev':
+                page -= 1
+            elif interaction.data['custom_id'] == 'next':
+                page += 1
+            elif interaction.data['custom_id'] == 'last':
                 page = max_page
 
     @commands.Cog.listener()
