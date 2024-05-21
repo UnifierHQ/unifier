@@ -10,12 +10,14 @@ Currently, v1.1.x and newer receive security updates. Preceding versions
 have been discontinued and will not be updated any further.
 | Version | Type    | Supported                    |
 | ------- | ------- | ---------------------------- |
-| 1.2.x   | release | :white_check_mark: Supported |
+| 2.0.x   | release | :white_check_mark: Supported |
+| 1.2.x   | legacy  | :white_check_mark: Supported |
 | 1.1.x   | legacy  | :white_check_mark: Supported |
 | < 1.1   | eol     | :x: Unsupported              |
 
 > [!NOTE]
-> We have decided to extend v1.1.x support while we work on v2.
+> We have decided to extend v1.1.x support to ensure the previous series
+> of Unifier Micro can receive security updates.
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.
