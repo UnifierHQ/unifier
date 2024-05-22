@@ -85,7 +85,7 @@ class Badge(commands.Cog):
                 self.bot.trusted_group.remove(user.id)
 
         self.bot.db['trusted'] = self.bot.trusted_group
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
         user_role = UserRole.TRUSTED if action == 'add' else UserRole.USER
         embed = nextcord.Embed(

@@ -22,6 +22,7 @@ import json
 import traceback
 import re
 from utils import log, ui
+import threading
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
@@ -33,7 +34,7 @@ class AutoSaveDict(dict):
                      'descriptions':{},'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
                      'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[],
                      'modlogs':{},'spybot':[],'trusted':[],'report_threads':{},'fullbanned':[],'exp':{},
-                     'squads':{},'squads_joined':{}})
+                     'squads':{},'squads_joined':{},'squads_optout':{}})
 
         # Load data
         self.load_data()
@@ -61,7 +62,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not hasattr(self.bot, 'bridged_emojis'):
             if not 'emojis' in list(self.bot.db.keys()):
                 self.bot.db.update({'emojis':[]})
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             self.bot.bridged_emojis = self.bot.db['emojis']
         self.bot.admins = self.bot.config['admin_ids']
         moderators = self.bot.db['moderators']
@@ -124,7 +125,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if self.is_user_admin(userid) or user.bot:
             return await ctx.send('are you fr')
         self.bot.db['moderators'].append(userid)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         mod = f'{user.name}#{user.discriminator}'
         if user.discriminator=='0':
             mod = f'@{user.name}'
@@ -149,7 +150,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if self.is_user_admin(userid):
             return await ctx.send('are you fr')
         self.bot.db['moderators'].remove(userid)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         mod = f'{user.name}#{user.discriminator}'
         if user.discriminator=='0':
             mod = f'@{user.name}'
@@ -166,7 +167,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('This room already exists!')
         self.bot.db['rooms'].update({room:{}})
         self.bot.db['rules'].update({room:[]})
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'Created room `{room}`!')
 
     @commands.command(hidden=True,description='Creates a new experiment.')
@@ -177,7 +178,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('This experiment already exists!')
         self.bot.db['experiments'].update({experiment: []})
         self.bot.db['experiments_info'].update({experiment: {'name':experiment_name,'description':'A new experiment'}})
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'Created experiment `{experiment}`!')
 
     @commands.command(hidden=True,description='Removes an experiment.')
@@ -188,7 +189,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('This experiment doesn\'t exist!')
         self.bot.db['experiments'].pop(experiment)
         self.bot.db['experiments_info'].pop(experiment)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'Deleted experiment `{experiment}`!')
 
     @commands.command(hidden=True,description='Sets experiment description.')
@@ -198,7 +199,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not experiment in list(self.bot.db['experiments'].keys()):
             return await ctx.send('This experiment doesn\'t exist!')
         self.bot.db['experiments_info'][experiment].update({'description': experiment_desc})
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'Added description to experiment `{experiment}`!')
 
     @commands.command(hidden=True,description='Sets room description.')
@@ -213,10 +214,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 self.bot.db['descriptions'][room].pop()
             except:
                 return await ctx.send('there was no description to begin with...')
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             return await ctx.send('Description removed.')
         self.bot.db['descriptions'].update({room:desc})
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Updated description!')
 
     @commands.command(
@@ -235,7 +236,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         else:
             self.bot.db['restricted'].append(room)
             await ctx.send(f'Restricted `{room}`!')
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(
         hidden=True,
@@ -253,7 +254,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         else:
             self.bot.db['locked'].append(room)
             await ctx.send(f'Locked `{room}`!')
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(
         aliases=['experiment'],description='Shows a list of Unifier experiments, and lets you join or leave them.'
@@ -267,7 +268,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if ctx.guild.id in self.bot.db['experiments'][experiment]:
                 return await ctx.send('Your server is already a part of this experiment!')
             self.bot.db['experiments'][experiment].append(ctx.guild.id)
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             return await ctx.send('Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         elif action.lower()=='unenroll' or action.lower()=='remove':
             if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
@@ -277,7 +278,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if not ctx.guild.id in self.bot.db['experiments'][experiment]:
                 return await ctx.send('Your server is not a part of this experiment!')
             self.bot.db['experiments'][experiment].remove(ctx.guild.id)
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             return await ctx.send('Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         else:
             embed = nextcord.Embed(title=':test_tube: Experiments',
@@ -390,7 +391,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             guild = [webhook.id]
             data.update({f'{ctx.guild.id}':guild})
             self.bot.db['rooms'][room] = data
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send('# :white_check_mark: Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
             try:
                 await msg.pin()
@@ -426,7 +427,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     break
             data.pop(f'{ctx.guild.id}')
             self.bot.db['rooms'][room] = data
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send('# :white_check_mark: Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
         except:
             await ctx.send('Something went wrong - check my permissions.')
@@ -469,7 +470,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in list(self.bot.db['rules'].keys()):
             return await ctx.send('This room does not exist!')
         self.bot.db['rules'][room].append(rule)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Added rule!')
 
     @commands.command(hidden=True,description="Removes a given rule from a given room.")
@@ -486,7 +487,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in list(self.bot.db['rules'].keys()):
             return await ctx.send('This room does not exist!')
         self.bot.db['rules'][room].pop(rule-1)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Removed rule!')
 
     @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
@@ -527,7 +528,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not interaction.data['custom_id']=='allow':
             return
         self.bot.db['external_bridge'].append(userid)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         return await ctx.send('# :white_check_mark: Linked bridge to Unifier network!\nThis user\'s webhooks can now bridge messages through Unifier!')
 
     @commands.command(hidden=True,description='Prevents given user\'s webhooks from being bridged.')
@@ -568,7 +569,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not interaction.data['custom_id'] == 'allow':
             return
         self.bot.db['external_bridge'].remove(userid)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         return await ctx.send(
             '# :white_check_mark: Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
 
@@ -627,7 +628,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.bridged_emojis.append(ctx.guild.id)
             await ctx.send('All members can now use your emojis!')
         self.bot.db['emojis'] = self.bot.bridged_emojis
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(description='Shows bot info.')
     async def about(self,ctx):
@@ -724,7 +725,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             components.add_row(btns)
             await msg.edit(view=components)
             self.bot.db['avatars'].update({f'{ctx.author.id}':url})
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             return await interaction.response.send_message('Avatar successfully added!')
 
 def setup(bot):

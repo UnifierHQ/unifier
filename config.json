@@ -21,6 +21,7 @@
   "allow_posts": true,
   "enable_ctx_commands": true,
   "enable_rotating_status": true,
+  "enable_squads": false,
   "main_room": "main",
   "posts_room": "posts",
   "posts_ref_room": "post-comments",

@@ -305,10 +305,10 @@ class UnifierBridge:
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
         if self.bot.config['compress_cache']:
-            compress_json.dump(data,filename+'.lzma')
+            await self.bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
         else:
             with open(filename, "w+") as file:
-                json.dump(data, file)
+                await self.bot.loop.run_in_executor(None, lambda: json.dump(data, file))
         del data
         return
 
@@ -439,7 +439,7 @@ class UnifierBridge:
         else:
             newratio = ratio
         self.bot.db['exp'][f'{user_id}']['progress'] = newratio
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         return self.bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
 
     async def progression(self, user_id):
@@ -1665,7 +1665,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await ctx.send(embed=embed)
         elif color=='inherit':
             self.bot.db['colors'].update({f'{ctx.author.id}':'inherit'})
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send('Your Revolt messages will now inherit your Discord role color.')
         else:
             try:
@@ -1673,7 +1673,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 return await ctx.send('Invalid hex code!')
             self.bot.db['colors'].update({f'{ctx.author.id}':color})
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send('Your Revolt messages will now inherit the custom color.')
 
     @commands.command(aliases=['find'],description='Identifies the origin of a message.')
@@ -1728,7 +1728,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
         else:
             self.bot.db['nicknames'].update({f'{ctx.author.id}': nickname})
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Nickname updated.')
 
     @commands.command(description='Shows a list of all global emojis available on the instance.')
@@ -1862,14 +1862,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -1912,14 +1912,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{interaction.user.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{interaction.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{interaction.guild.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
@@ -1949,14 +1949,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{interaction.user.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{interaction.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{interaction.guild.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
@@ -2002,14 +2002,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{interaction.user.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{interaction.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{interaction.guild.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
@@ -2267,14 +2267,177 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 page = max_page
 
     @commands.command(description='Makes a Squad.')
-    async def makesquad(self,ctx):
+    async def makesquad(self,ctx,*,squadname):
+        if not ctx.author.guild_permissions.manage_guild:
+            return await ctx.send('Only those with Manage Server permissions can manage their Squad.')
+        if not self.bot.config['enable_squads']:
+            return await ctx.send('Squads aren\'t enabled on this instance.')
         if str(ctx.guild.id) in self.bot.db['squads'].keys():
             return await ctx.send('Your server already has a Squad! Disband it first to make a new one.')
 
+        embed = nextcord.Embed(
+            title=f'Creating {squadname}',
+            description='First, your Squad must have a HQ channel so your members can receive updates on Squad events.',
+            color=self.bot.colors.unifier
+        )
+
+        components = ui.MessageComponents()
+        components.add_rows(
+            ui.ActionRow(
+                nextcord.ui.ChannelSelect(
+                    max_values=1,
+                    min_values=1,
+                    placeholder='Channel...'
+                )
+            ),
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    custom_id='cancel',
+                    label='Cancel',
+                    style=nextcord.ButtonStyle.gray
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['component_type']==2:
+            return await interaction.response.edit_message(view=None)
+
+        hq_id = int(interaction.data['values'][0])
+        squad = {
+            'name': squadname,
+            'suspended': False,
+            'suspended_expire': 0,
+            'members': [],
+            'leader': ctx.author.id,
+            'captains': [],
+            'invited': [],
+            'joinreqs': [],
+            'points': 0,
+            'hq': hq_id,
+            'icon': None
+        }
+
+        self.bot.db['squads'].update({f'{ctx.guild.id}': squad})
+        self.bot.db.save()
+
+        added = 0
+        while True:
+            components = ui.MessageComponents()
+            components.add_rows(
+                ui.ActionRow(
+                    nextcord.ui.UserSelect(
+                        max_values=1,
+                        min_values=1,
+                        placeholder='Select users...'
+                    )
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        custom_id='cancel',
+                        label='Add later',
+                        style=nextcord.ButtonStyle.gray
+                    )
+                )
+            )
+
+            embed.description = (
+                'Your squad was created, now you need your Squad captains! You\'re already a Squad captain, but you '+
+                'should add two more. They\'ll be sent an invitation if they aren\'t in a Squad yet.'+
+                '\n\n**You need 2 more Squad captains.**' if added==0 else '\n\n**You need 1 more Squad captain.**'
+            )
+
+            await msg.edit(embed=embed,view=components)
+
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=300)
+            except:
+                return await msg.edit(view=None)
+
+            if interaction.data['component_type']==2:
+                return await interaction.response.edit_message(view=None)
+
+            if added==2:
+                break
+
+            user = self.bot.get_user(int(interaction.data['values'][0]))
+
+            fail_msg = (
+                'The bot could not send a Squad invitation! This is either because:\n- The user has their DMs with '+
+                'the bot off\n- The user is ignoring Squad invitations from your server'
+            )
+
+            try:
+                if f'{user.id}' in self.bot.db['squads_optout'].keys():
+                    optout = self.bot.db['squads_optout'][f'{user.id}']
+                    if optout['all']:
+                        fail_msg = f'{user.global_name or user.name} has opted out of receiving Squad invitations.'
+                        raise ValueError()
+                    elif ctx.guild.id in optout['guilds']:
+                        raise ValueError()
+                if f'{user.id}' in self.bot.db['squads_joined'].keys():
+                    if self.bot.db['squads_optout'][f'{user.id}'] is None:
+                        fail_msg = f'{user.global_name or user.name} is already in a Squad!'
+                        raise ValueError()
+                embed = nextcord.Embed(
+                    title=(
+                        f'{ctx.author.global_name or ctx.author.name} has invited you to join {ctx.guild.name}\'s '+
+                        f'**{squadname}** Squad!'
+                    ),
+                    description=(
+                        'You\'ve been invited to join as a **Squad Captain**!\nAs a captain, you may:\n'+
+                        '- Make submissions for events on your Squad\'s behalf\n'+
+                        '- Accept and deny join requests for your Squad\n\n'+
+                        f'To join this squad, run `u!joinsquad {ctx.guild.id}`!'
+                    )
+                )
+                embed.set_footer(
+                    text=(
+                        f'Reminder - you can always run u!ignoresquad {ctx.guild.id} to stop receiving invites from '+
+                        'this server\'s Squad.'
+                    )
+                )
+                await user.send(embed=embed)
+                added += 1
+                if added == 2:
+                    break
+                else:
+                    embed.description = (
+                        'Your squad was created, now you need your Squad captains! You\'re already a Squad captain, but you ' +
+                        'should add two more. They\'ll be sent an invitation if they aren\'t in a Squad yet.' +
+                        '\n\n**You need 1 more Squad captain.**'
+                    )
+
+                    await msg.edit(embed=embed, view=components)
+                    self.bot.db['squads'][f'{ctx.guild.id}']['invited'].append(user.id)
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                    await interaction.response.send_message('Invite sent!', ephemeral=True)
+            except:
+                await interaction.response.send_message(fail_msg,ephemeral=True)
+
+        await interaction.response.edit_message(embed=embed,view=None)
         pass
+
+    @commands.command(description='Disbands your squad.')
+    async def disbandsquad(self,ctx):
+        if not ctx.author.guild_permissions.manage_guild:
+            return await ctx.send('Only those with Manage Server permissions can manage their Squad.')
+        if not self.bot.config['enable_squads']:
+            return await ctx.send('Squads aren\'t enabled on this instance.')
 
     @commands.command(name='squad-leaderboard', aliases=['squadlb'], description='Shows Squad points leaderboard.')
     async def squad_leaderboard(self, ctx):
+        if not self.bot.config['enable_squads']:
+            return await ctx.send('Squads aren\'t enabled on this instance.')
         expdata = copy.copy(self.bot.db['squads'])
         lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
                 expdata.items(),
@@ -2458,7 +2621,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         except:
                             pass
                     self.bot.db['report_threads'].pop(str(interaction.message.id))
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 await interaction.message.edit(embed=embed,view=components)
                 await interaction.edit_original_message(content='Marked thread as reviewed!')
         elif interaction.type == nextcord.InteractionType.modal_submit:
@@ -2539,7 +2702,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     auto_archive_duration=10080
                 )
                 self.bot.db['report_threads'].update({str(msg.id): thread.id})
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             except:
                 pass
             self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
@@ -2629,14 +2792,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
 
@@ -2703,7 +2866,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if not int(user) == self.bot.config['owner']:
                         if response['target'][user]==0:
                             self.bot.db['banned'].update({user:0})
-                            self.bot.db.save_data()
+                            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                         else:
                             self.bot.bridge.secbans.update(
                                 {user:round(time.time())+response['target'][user]}
@@ -2951,14 +3114,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
 
@@ -3026,14 +3189,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     banuntil = gbans[f'{message.author.id}']
                     if ct >= banuntil and not banuntil == 0:
                         self.bot.db['banned'].pop(f'{message.author.id}')
-                        self.bot.db.save_data()
+                        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                     else:
                         return
                 if f'{message.guild.id}' in list(gbans.keys()):
                     banuntil = gbans[f'{message.guild.id}']
                     if ct >= banuntil and not banuntil == 0:
                         self.bot.db['banned'].pop(f'{message.guild.id}')
-                        self.bot.db.save_data()
+                        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                     else:
                         return
 

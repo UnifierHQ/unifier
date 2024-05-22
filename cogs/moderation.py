@@ -166,7 +166,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if userid in banlist:
             return await ctx.send('User/server already banned!')
         self.bot.db['blocked'][f'{ctx.guild.id}'].append(userid)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('User/server can no longer forward messages to this channel!')
 
     @commands.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
@@ -248,7 +248,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if forever:
             nt = 0
         self.bot.db['banned'].update({f'{userid}':nt})
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         if ctx.author.discriminator=='0':
             mod = f'@{ctx.author.name}'
         else:
@@ -304,7 +304,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ctx.message.embeds = []
         ctx.message.content = content
 
-        self.add_modlog(1, user.id, reason, ctx.author.id)
+        await self.bot.loop.run_in_executor(None, lambda: self.add_modlog(1, user.id, reason, ctx.author.id))
         actions_count, actions_count_recent = self.get_modlogs_count(user.id)
         log_embed = nextcord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.utcnow())
         log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
@@ -448,7 +448,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not userid in banlist:
             return await ctx.send('User/server not banned!')
         self.bot.db['blocked'][f'{ctx.guild.id}'].remove(userid)
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('User/server can now forward messages to this channel!')
 
     @commands.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
@@ -467,7 +467,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not f'{userid}' in list(banlist.keys()):
             return await ctx.send('User/server not banned!')
         self.bot.db['banned'].pop(f'{userid}')
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('unbanned, nice')
 
     @commands.command(aliases=['account_standing'],description='Shows your instance account standing.')
@@ -503,7 +503,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             banuntil = gbans[f'{target.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{target.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             if banuntil == 0:
                 noexpiry = True
 
@@ -810,7 +810,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
         if user.bot:
             return await ctx.send('...why would you want to warn a bot?')
-        self.add_modlog(0,user.id,reason,ctx.author.id)
+        await self.bot.loop.run_in_executor(None, lambda: self.add_modlog(0,user.id,reason,ctx.author.id))
         actions_count, actions_count_recent = self.get_modlogs_count(user.id)
         log_embed = nextcord.Embed(title='User warned',description=reason,color=0xffcc00,timestamp=datetime.utcnow())
         log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
@@ -999,7 +999,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self.bot.db['nicknames'][str(userid)] = nickname
 
         # Save changes to the database
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
         await ctx.send('Nickname updated.')
 
