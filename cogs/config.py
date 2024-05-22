@@ -22,7 +22,6 @@ import json
 import traceback
 import re
 from utils import log, ui
-import threading
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
@@ -34,7 +33,7 @@ class AutoSaveDict(dict):
                      'descriptions':{},'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
                      'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[],
                      'modlogs':{},'spybot':[],'trusted':[],'report_threads':{},'fullbanned':[],'exp':{},
-                     'squads':{},'squads_joined':{},'squads_optout':{}})
+                     'squads':{},'squads_joined':{},'squads_optout':{},'threads':{}})
 
         # Load data
         self.load_data()
@@ -62,7 +61,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not hasattr(self.bot, 'bridged_emojis'):
             if not 'emojis' in list(self.bot.db.keys()):
                 self.bot.db.update({'emojis':[]})
-                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                self.bot.db.save_data()
             self.bot.bridged_emojis = self.bot.db['emojis']
         self.bot.admins = self.bot.config['admin_ids']
         moderators = self.bot.db['moderators']

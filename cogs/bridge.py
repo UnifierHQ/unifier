@@ -137,7 +137,8 @@ class UnifierTranslator:
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
-                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False, reactions=None):
+                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False, reactions=None,
+                 thread=None):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -151,7 +152,8 @@ class UnifierMessage:
         self.webhook = webhook
         self.prehook = prehook
         self.reply = reply
-        self.external_bridged = external_bridged
+        self.external_bridged = external_bridged,
+        self.thread = thread
         if not reactions or not type(reactions) is dict:
             self.reactions = {}
         else:
@@ -385,6 +387,11 @@ class UnifierBridge:
 
         return message
 
+    async def find_thread(self,thread_id):
+        for thread in self.bot.db['threads']:
+            if int(thread)==thread_id or int(thread_id) in self.bot.db['threads'][thread].values():
+                return {thread: self.bot.db['threads'][thread]}
+        return None
 
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
         if prehook and not_prehook:
@@ -1002,7 +1009,10 @@ class UnifierBridge:
                         components = ui.View()
                         components.add_row(pr_actionrow)
                 if reply_msg:
-                    if not trimmed:
+                    if message.thread:
+                        # i probably want to research how nextcord threads work first, will come back to this
+                        pass
+                    elif not trimmed:
                         is_copy = False
                         try:
                             content = message.reference.cached_message.content
@@ -1164,12 +1174,12 @@ class UnifierBridge:
                     if authid==self.bot.user.id or botrvt or botgld:
                         reply_row = ui.ActionRow(
                             nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [system]',
-                                              disabled=True)
+                                               disabled=True)
                         )
                     else:
                         reply_row = ui.ActionRow(
                             nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [unknown]',
-                                              disabled=True)
+                                               disabled=True)
                         )
                     if pr_actionrow:
                         components = ui.MessageComponents()
