@@ -860,18 +860,17 @@ class UnifierBridge:
 
         should_resend = (is_pr or is_pr_ref or emojified) and source==platform=='discord'
 
-        # Try to delete message if it should be resent as a webhook message
+        # Check if message can be deleted
         if should_resend:
-            try:
-                await message.delete()
-            except:
+            if not message.channel.permissions_for(message.guild.me).manage_messages:
                 if emojified or is_pr_ref:
-                    await message.channel.send('Parent message could not be deleted. I may be missing the `Manage Messages` permission.')
+                    await message.channel.send(
+                        'Parent message could not be deleted. I may be missing the `Manage Messages` permission.')
                     raise SelfDeleteException('Could not delete parent message')
                 elif is_pr:
-                    await message.channel.send(f'Post ID assigned: `{pr_id}`',reference=message)
+                    await message.channel.send(f'Post ID assigned: `{pr_id}`', reference=message)
                 should_resend = False
-        elif is_pr and source==platform:
+        elif is_pr and source == platform:
             if source == 'revolt':
                 await message.channel.send(f'Post ID assigned: `{pr_id}`', replies=[revolt.MessageReply(message)])
             elif source == 'guilded':
@@ -2306,9 +2305,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        author_rp = message.author
-        content_rp = message.content
-
         extbridge = False
         hook = None
         idmatch = False
@@ -2575,13 +2571,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
 
         should_resend = False
+        emojified = False
 
         if '[emoji:' in message.content or is_pr or is_pr_ref:
             multisend = False
             should_resend = True
+            emojified = True
 
         tasks = []
         parent_id = None
+
+        if not message.channel.permissions_for(message.guild.me).manage_messages:
+            if emojified or is_pr_ref:
+                return await message.channel.send(
+                    'Parent message could not be deleted. I may be missing the `Manage Messages` permission.'
+                )
 
         if (message.content.lower().startswith('is unifier down') or
                 message.content.lower().startswith('unifier not working')):
@@ -2629,6 +2633,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     experiments.append(experiment)
             self.logger.info(f'Experiments: {experiments}')
             pass
+
+        if should_resend:
+            await message.delete()
 
         if idmatch:
             if not ids:
