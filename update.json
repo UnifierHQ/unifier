@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.9",
-  "release": 31,
-  "reboot": 30,
-  "description": "AGPLv3 compliance"
+  "version": "v1.1.15",
+  "release": 34,
+  "reboot": 33,
+  "description": "- Fixes an issue where Posts with attachments of certain filetypes failed to send (#134)"
 }
