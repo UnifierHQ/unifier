@@ -89,6 +89,7 @@ the `EXTERNAL_LICENSES.txt` file.
 As the project founder and leader, I want to give my special thanks to:
 - [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for joining the team and helping me fix my shitty Python and
   adding a lot of amazing features to Unifier
+- [**Ente Community**](https://github.com/ente-io), for offering me invaluable advice for open sourcing this project
 - **My best friend**, for turning my life around for the better and always supporting me even at my worst
 
 And lastly but *most importantly*, **the late role model of mine I used to know very well**: He's the one that brought me and my 
