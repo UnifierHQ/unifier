@@ -1,7 +1,6 @@
 nextcord
 guilded.py
 https://github.com/revoltchat/revolt.py/archive/master.zip
-aiohttp
 aiofiles
 py-cpuinfo
 tld
