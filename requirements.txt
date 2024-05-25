@@ -1,6 +1,6 @@
 nextcord
 guilded.py
-revolt.py>=0.2.0
+https://github.com/revoltchat/revolt.py/archive/master.zip
 aiohttp
 aiofiles
 py-cpuinfo
