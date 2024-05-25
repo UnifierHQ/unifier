@@ -272,6 +272,8 @@ class UnifierBridge:
         self.logger = logger
         self.secbans = {}
         self.restricted = {}
+        self.backup_running = False
+        self.backup_lock = False
 
     def is_raidban(self,userid):
         try:
@@ -284,6 +286,11 @@ class UnifierBridge:
         self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
     async def backup(self,filename='bridge.json',limit=10000):
+        if self.backup_lock:
+            return
+
+        self.backup_running = True
+
         data = {'messages':{},'posts':{}}
         og_limit = limit
 
@@ -312,6 +319,7 @@ class UnifierBridge:
             with open(filename, "w+") as file:
                 await self.bot.loop.run_in_executor(None, lambda: json.dump(data, file))
         del data
+        self.backup_running = False
         return
 
     async def restore(self,filename='bridge.json'):

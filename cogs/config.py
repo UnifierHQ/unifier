@@ -22,6 +22,7 @@ import json
 import traceback
 import re
 from utils import log, ui
+import threading
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
@@ -33,7 +34,8 @@ class AutoSaveDict(dict):
                      'descriptions':{},'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
                      'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[],
                      'modlogs':{},'spybot':[],'trusted':[],'report_threads':{},'fullbanned':[],'exp':{},
-                     'squads':{},'squads_joined':{},'squads_optout':{},'threads':{}})
+                     'squads':{},'squads_joined':{},'squads_optout':{}})
+        self.threads = []
 
         # Load data
         self.load_data()
@@ -46,9 +48,22 @@ class AutoSaveDict(dict):
         except FileNotFoundError:
             pass  # If the file is not found, initialize an empty dictionary
 
-    def save_data(self):
+    def save(self):
         with open(self.file_path, 'w') as file:
             json.dump(self, file, indent=4)
+        return
+
+    def cleanup(self):
+        for thread in self.threads:
+            thread.join()
+        count = len(self.threads)
+        self.threads.clear()
+        return count
+
+    def save_data(self):
+        thread = threading.Thread(target=self.save)
+        thread.start()
+        self.threads.append(thread)
 
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.

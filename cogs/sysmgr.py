@@ -44,6 +44,7 @@ import re
 import ast
 import importlib
 import math
+import asyncio
 
 class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
@@ -288,11 +289,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not ctx.author.id == self.bot.config['owner']:
             return
         self.logger.info("Attempting graceful shutdown...")
+        self.bot.bridge.backup_lock = True
         try:
+            if self.bot.bridge.backup_running:
+                self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
+                try:
+                    while self.bot.bridge.backup_running:
+                        await asyncio.sleep(1)
+                except KeyboardInterrupt:
+                    pass
             for extension in self.bot.extensions:
                 await self.preunload(extension)
             self.logger.info("Backing up message cache...")
             self.bot.db.save_data()
+            self.bot.bridge.backup_lock = False
             await self.bot.bridge.backup(limit=10000)
             self.logger.info("Backup complete")
             await ctx.send('Shutting down...')
