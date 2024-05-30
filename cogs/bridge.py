@@ -2984,13 +2984,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         if f'{message.author.id}' in list(self.bot.bridge.secbans.keys()):
-            if self.bot.bridge.secbans[f'{message.author.id}'] > time.time():
+            if self.bot.bridge.secbans[f'{message.author.id}'] < time.time():
                 self.bot.bridge.secbans.pop(f'{message.author.id}')
             else:
                 return
 
         if f'{message.guild.id}' in list(self.bot.bridge.restricted.keys()):
-            if self.bot.bridge.restricted[f'{message.guild.id}'] > time.time():
+            if self.bot.bridge.restricted[f'{message.guild.id}'] < time.time():
                 self.bot.bridge.restricted.pop(f'{message.guild.id}')
             else:
                 if len(message.content) > self.bot.config['restriction_length']:
