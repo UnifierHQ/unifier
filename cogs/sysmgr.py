@@ -1467,11 +1467,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 if cogname=='search':
                     embed.description = f'Searching: {query} (**{len(cmds)}** results)'
-                    maxcount = (page+1)*20
+                    maxcount = (page+1)*limit
                     if maxcount > len(cmds):
                         maxcount = len(cmds)
                     embed.set_footer(
-                        text=f'Page {page + 1} of {maxpage + 1} | {page*20+1}-{maxcount} of {len(cmds)} results'
+                        text=f'Page {page + 1} of {maxpage + 1} | {page*limit+1}-{maxcount} of {len(cmds)} results'
                     )
 
                 components.add_row(
