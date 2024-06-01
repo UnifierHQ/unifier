@@ -9,4 +9,6 @@ uvloop
 compress-json
 python-dotenv
 requests
+ulid-py
 ujson
+emoji

@@ -37,11 +37,24 @@ from io import BytesIO
 import os
 from utils import log, ui
 import importlib
+import emoji as pymoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
 plugin_data = {}
+
+dedupe_emojis = [
+    '\U0001F7E5',
+    '\U0001F7E7',
+    '\U0001F7E8',
+    '\U0001F7E9',
+    '\U0001F7E6',
+    '\U0001F7EA',
+    '\U0001F7EB',
+    '\U00002B1C',
+    '\U00002B1B'
+]
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -272,6 +285,7 @@ class UnifierBridge:
         self.backup_running = False
         self.backup_lock = False
         self.msg_stats = {}
+        self.dedupe = {}
 
     def is_raidban(self,userid):
         try:
@@ -439,7 +453,7 @@ class UnifierBridge:
         self.bridged.pop(index_tomerge)
 
     async def add_exp(self, user_id):
-        if not self.bot.config['enable_leveling']:
+        if not self.bot.config['enable_leveling'] or user_id==self.bot.user.id:
             return 0, False
         if not f'{user_id}' in self.bot.db['exp'].keys():
             self.bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
@@ -484,6 +498,16 @@ class UnifierBridge:
         return {
             'online': online, 'members': members, 'guilds': guilds, 'messages': messages
         }
+
+    async def dedupe_name(self, username, userid):
+        if not username in self.dedupe.keys():
+            self.dedupe.update({username:[userid]})
+            return -1
+        if not userid in self.dedupe[username]:
+            self.dedupe[username].append(userid)
+        if self.dedupe[username].index(userid)-1 >= len(dedupe_emojis):
+            return len(self.dedupe[username])-1
+        return self.dedupe[username].index(userid)-1
 
     async def delete_parent(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
@@ -930,6 +954,54 @@ class UnifierBridge:
             elif source == 'guilded':
                 await message.channel.send(f'Post ID assigned: `{pr_id}`', reply_to=[message])
 
+        # Username
+        if source == 'revolt':
+            if not message.author.display_name:
+                author = message.author.name
+            else:
+                author = message.author.display_name
+        elif source == 'guilded':
+            author = message.author.name
+        else:
+            author = message.author.global_name if message.author.global_name else message.author.name
+        if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
+            author = self.bot.db['nicknames'][f'{message.author.id}']
+
+        # Get dedupe
+        dedupe = await self.dedupe_name(author, message.author.id)
+        should_dedupe = dedupe > -1
+
+        # Emoji time
+        useremoji = None
+        if self.bot.config['enable_emoji_tags'] and not system:
+            while True:
+                author_split = [*author]
+                if len(author_split) == 1:
+                    if source == 'guilded':
+                        author = 'Moderated username'
+                    else:
+                        author = message.author.name
+                    break
+                if pymoji.is_emoji(author_split[len(author_split)-1]):
+                    author_split.pop(len(author_split)-1)
+                    author = ''.join(author_split)
+                    while author.endswith(' '):
+                        author = author[:-1]
+                else:
+                    break
+            if message.author.id == self.bot.config['owner']:
+                useremoji = '\U0001F451'
+            elif message.author.id in self.bot.admins:
+                useremoji = '\U0001F510'
+            elif message.author.id in self.bot.moderators:
+                useremoji = '\U0001F6E1'
+            elif message.author.id in self.bot.db['trusted']:
+                useremoji = '\U0001F31F'
+            elif message.author.bot:
+                useremoji = '\U0001F916'
+            elif should_dedupe:
+                useremoji = dedupe_emojis[dedupe]
+
         message_ids = {}
         urls = {}
         limit_notified = False
@@ -1289,19 +1361,6 @@ class UnifierBridge:
                     break
                 files.append(await to_file(attachment))
 
-            # Username
-            if source == 'revolt':
-                if not message.author.display_name:
-                    author = message.author.name
-                else:
-                    author = message.author.display_name
-            elif source=='guilded':
-                author = message.author.name
-            else:
-                author = message.author.global_name
-            if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
-                author = self.bot.db['nicknames'][f'{message.author.id}']
-
             # Avatar
             try:
                 if f'{message.author.id}' in self.bot.db['avatars']:
@@ -1320,7 +1379,7 @@ class UnifierBridge:
             # Add system identifier
             msg_author = author
             if system:
-                msg_author = self.bot.user.global_name + ' (system)'
+                msg_author = self.bot.user.global_name if self.bot.user.global_name else self.bot.user.name + ' (system)'
 
             # Send message
             embeds = message.embeds
@@ -1334,6 +1393,11 @@ class UnifierBridge:
                 msg_author_dc = msg_author
                 if len(msg_author) > 35:
                     msg_author_dc = msg_author[:-(len(msg_author) - 35)]
+                    if useremoji:
+                        msg_author_dc = msg_author[:-2]
+
+                if useremoji:
+                    msg_author_dc = msg_author_dc + ' ' + useremoji
 
                 webhook = None
                 try:
@@ -1428,6 +1492,11 @@ class UnifierBridge:
                 msg_author_rv = msg_author
                 if len(msg_author) > 32:
                     msg_author_rv = msg_author[:-(len(msg_author)-32)]
+                    if useremoji:
+                        msg_author_rv = msg_author[:-2]
+
+                if useremoji:
+                    msg_author_rv = msg_author_rv + ' ' + useremoji
 
                 try:
                     persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
@@ -1640,7 +1709,7 @@ class UnifierBridge:
             try:
                 self.msg_stats[room] += 1
             except:
-                self.msg_stats.update({room: 0})
+                self.msg_stats.update({room: 1})
         return parent_id
 
 class Bridge(commands.Cog, name=':link: Bridge'):
@@ -1765,8 +1834,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(description='Sets a nickname. An empty provided nickname will reset it.')
     async def nickname(self, ctx, *, nickname=''):
-        if len(nickname) > 35:
-            return await ctx.send('Please keep your nickname within 35 characters.')
+        if len(nickname) > 33:
+            return await ctx.send('Please keep your nickname within 33 characters.')
         if len(nickname) == 0:
             self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
         else:
@@ -2202,6 +2271,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if f'{ctx.guild.id}' in self.bot.bridge.restricted:
             embed.description = 'Your server is currently limited by a plugin.'
             embed.colour = 0xffce00
+        await ctx.send(embed=embed)
+
+    @commands.command(aliases=['exp','lvl','experience'], description='Shows your level and EXP.')
+    async def level(self,ctx):
+        try:
+            data = self.bot.db['exp'][f'{ctx.author.id}']
+        except:
+            data = {'experience':0,'level':1,'progress':0}
+        bars = round(data['progress']*20)
+        empty = 20-bars
+        progressbar = '['+(bars*'|')+(empty*' ')+']'
+        embed = nextcord.Embed(
+            title='Your level',
+            description=(
+                f'Level {data["level"]} | {round(data["experience"],2)} EXP\n\n'+
+                f'`{progressbar}`\n{round(data["progress"]*100)}% towards next level'
+            ),
+            color=self.bot.colors.unifier
+        )
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['lb'],description='Shows EXP leaderboard.')
@@ -2645,7 +2733,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
                 embed.title = f'This report has been reviewed by {author}!'
-                await interaction.response.defer(ephemeral=True)
+                await interaction.response.defer(ephemeral=True, with_message=True)
                 try:
                     thread = interaction.channel.get_thread(
                         self.bot.db['report_threads'][str(interaction.message.id)]
@@ -2666,7 +2754,87 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     self.bot.db['report_threads'].pop(str(interaction.message.id))
                     await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 await interaction.message.edit(embed=embed,view=components)
-                await interaction.edit_original_message(content='Marked thread as reviewed!')
+                await interaction.edit_original_message(content='Marked report as reviewed!')
+            elif interaction.data["custom_id"].startswith('apaccept_') or interaction.data["custom_id"].startswith('apreject_'):
+                btns = ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=(
+                            nextcord.ButtonStyle.gray if interaction.data["custom_id"].startswith('apaccept_')
+                            else nextcord.ButtonStyle.red
+                        ),
+                        label='Reject',
+                        disabled=True
+                    ),
+                    nextcord.ui.Button(
+                        style=(
+                            nextcord.ButtonStyle.gray if interaction.data["custom_id"].startswith('apreject_')
+                            else nextcord.ButtonStyle.green
+                        ),
+                        label='Accept',
+                        disabled=True
+                    )
+                )
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                embed = interaction.message.embeds[0]
+                embed.color = 0x00ff00
+                author = f'@{interaction.user.name}'
+                if not interaction.user.discriminator == '0':
+                    author = f'{interaction.user.name}#{interaction.user.discriminator}'
+                embed.title = (
+                    'This appeal has been ' +
+                    ('accepted' if interaction.data["custom_id"].startswith('apaccept_') else 'rejected') +
+                    f' by {author}!'
+                )
+                await interaction.response.defer(ephemeral=True, with_message=True)
+                try:
+                    thread = interaction.channel.get_thread(
+                        self.bot.db['report_threads'][str(interaction.message.id)]
+                    )
+                except:
+                    thread = None
+                if thread:
+                    try:
+                        await thread.edit(
+                            name=f'[DONE] {thread.name}',
+                            archived=True
+                        )
+                    except:
+                        try:
+                            await thread.send('This appeal has been closed.')
+                        except:
+                            pass
+                    self.bot.db['report_threads'].pop(str(interaction.message.id))
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                userid = int(interaction.data["custom_id"][9:])
+                if interaction.data["custom_id"].startswith('apaccept_'):
+                    try:
+                        self.bot.db['banned'].pop(str(userid))
+                        for i in range(len(self.bot.db['modlogs'][f'{userid}'])):
+                            if self.bot.db['modlogs'][f'{userid}'][len(self.bot.db['modlogs'][f'{userid}']) - i - 1][
+                                    'type'] == 1:
+                                self.bot.db['modlogs'][f'{userid}'].pop(
+                                    len(self.bot.db['modlogs'][f'{userid}']) - i - 1)
+                                break
+                        self.bot.db.save_data()
+                    except:
+                        pass
+                    results_embed = nextcord.Embed(
+                        title='Your ban appeal was approved!',
+                        description='You were unbanned by the moderators and you may continue chatting.',
+                        color=0x00ff00
+                    )
+                else:
+                    results_embed = nextcord.Embed(
+                        title='Your ban appeal was denied.',
+                        description='You may continue chatting once the current ban expires.',
+                        color=0xff0000
+                    )
+                user = self.bot.get_user(userid)
+                if user:
+                    await user.send(embed=results_embed)
+                await interaction.message.edit(embed=embed,view=components)
+                await interaction.edit_original_message(content='Marked appeal as reviewed!')
         elif interaction.type == nextcord.InteractionType.modal_submit:
             if not interaction.data['custom_id']==f'{interaction.user.id}_{interaction.message.id}':
                 # not a report
@@ -3089,6 +3257,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_bridged=extbridge
                 )
             )
+            try:
+                self.bot.bridge.msg_stats[roomname] += 1
+            except:
+                self.bot.bridge.msg_stats.update({roomname: 1})
             tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord', extbridge=extbridge))
         else:
             parent_id = await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
@@ -3140,7 +3312,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 color=self.bot.colors.blurple
             )
             embed.set_author(
-                name=f'@{message.author.global_name} leveled up!',
+                name=(
+                    f'@{message.author.global_name if message.author.global_name else message.author.name} leveled'+
+                    ' up!'
+                ),
                 icon_url=message.author.avatar.url if message.author.avatar else None
             )
             await message.channel.send(embed=embed)

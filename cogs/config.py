@@ -874,6 +874,46 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 components.add_rows(
                     ui.ActionRow(
                         nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='View room rules',
+                            custom_id='rules',
+                        )
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+            elif panel==3:
+                embed.title = (
+                    f'{self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname} / rules'
+                    if was_searching else
+                    f'{self.bot.user.global_name or self.bot.user.name} rooms / {roomname} / rules'
+                )
+                index = 0
+                text = ''
+                if roomname in list(self.bot.db['rules'].keys()):
+                    rules = self.bot.db['rules'][roomname]
+                else:
+                    rules = []
+                for rule in rules:
+                    if text == '':
+                        text = f'1. {rule}'
+                    else:
+                        text = f'{text}\n{index}. {rule}'
+                    index += 1
+                if len(rules)==0:
+                    text = (
+                        'The room admins haven\'t added rules for this room yet.\n'+
+                        'Though, do remember to use common sense and refrain from doing things that you shouldn\'t do.'
+                    )
+                embed.description=text
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
@@ -881,7 +921,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     )
                 )
 
-            if not panel == 1:
+            if panel == 0:
                 embed.set_footer(text=f'Page {page + 1} of {maxpage + 1}')
             if not msg:
                 msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
@@ -908,6 +948,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     if panel < 0 or panel==1 and not was_searching:
                         panel = 0
                     page = 0
+                elif interaction.data['custom_id'] == 'rules':
+                    panel += 1
                 elif interaction.data['custom_id'] == 'prev':
                     page -= 1
                 elif interaction.data['custom_id'] == 'next':

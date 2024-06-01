@@ -15,7 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import discord.ui.modal
 import nextcord
 import time
 import hashlib
@@ -469,6 +469,124 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.db['banned'].pop(f'{userid}')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('unbanned, nice')
+
+    @commands.command(description='Appeals your ban, if you have one.')
+    async def appeal(self,ctx):
+        gbans = self.bot.db['banned']
+        banned = False
+
+        if ctx.guild:
+            return await ctx.send('You can only appeal your ban in DMs.')
+
+        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
+            ct = time.time()
+            if f'{ctx.author.id}' in list(gbans.keys()):
+                banuntil = gbans[f'{ctx.author.id}']
+                if ct >= banuntil and not banuntil == 0:
+                    self.bot.db['banned'].pop(f'{ctx.author.id}')
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                else:
+                    banned = True
+
+        if not banned:
+            return await ctx.send('You don\'t have an active ban!')
+
+        actions, _ = self.get_modlogs(ctx.author.id)
+        ban = actions['bans'][len(actions['bans'])-1]
+
+        embed = nextcord.Embed(
+            title='Global restriction',description=ban['reason'],color=0xff0000
+        )
+        embed.set_author(name=f'@{ctx.author.name}', icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+        components = ui.MessageComponents()
+        components.add_rows(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green,
+                    label='Yes',
+                    custom_id='yes'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='No',
+                    custom_id='no'
+                )
+            )
+        )
+        msg = await ctx.send('Please confirm that this is the ban you\'re appealing.',embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        await msg.edit(view=None)
+
+        modal = nextcord.ui.Modal(title='Appeal ban', auto_defer=False)
+        modal.add_item(
+            nextcord.ui.TextInput(
+                style=nextcord.TextInputStyle.paragraph, label='Appeal reason',
+                placeholder='Why should we consider your appeal?',
+                required=True
+            )
+        )
+        modal.add_item(
+            nextcord.ui.TextInput(
+                style=nextcord.TextInputStyle.short, label='Sign with your username',
+                placeholder='Sign this only if your appeal is in good faith.',
+                required=True, min_length=len(ctx.author.name), max_length=len(ctx.author.name)
+            )
+        )
+        await interaction.response.send_modal(modal)
+
+        while True:
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=600)
+            except:
+                return await msg.edit(view=None)
+            if interaction.data['components'][1]['components'][0]['value'].lower() == ctx.author.name.lower():
+                break
+
+        embed = nextcord.Embed(
+            title='Ban appeal - reason is as follows',
+            description=interaction.data['components'][0]['components'][0]['value'],
+            color=self.bot.colors.gold
+        )
+        embed.set_author(name=f'@{ctx.author.name}',icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+        embed.add_field(name='Original ban reason',value=ban['reason'],inline=False)
+        guild = self.bot.get_guild(self.bot.config['home_guild'])
+        ch = guild.get_channel(self.bot.config['reports_channel'])
+        btns = ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red, label='Reject', custom_id=f'apreject_{ctx.author.id}',
+                disabled=False
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.green, label='Accept', custom_id=f'apaccept_{ctx.author.id}',
+                disabled=False
+            )
+        )
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        msg: nextcord.Message = await ch.send(
+            f'<@&{self.bot.config["moderator_role"]}>', embed=embed, view=components
+        )
+        try:
+            thread = await msg.create_thread(
+                name=f'Discussion: @{ctx.author.name}',
+                auto_archive_duration=10080
+            )
+            self.bot.db['report_threads'].update({str(msg.id): thread.id})
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+        except:
+            pass
+        return await interaction.response.send_message(
+            "# :white_check_mark: Your appeal was submitted!\nWe\'ll get back to you once the moderators have agreed on a decision.",
+            ephemeral=True
+        )
 
     @commands.command(aliases=['account_standing'],description='Shows your instance account standing.')
     async def standing(self,ctx,*,target=None):
