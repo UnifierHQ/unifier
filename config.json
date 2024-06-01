@@ -20,6 +20,7 @@
   "moderator_role": 1212461330309849128,
   "allow_posts": true,
   "enable_emoji_tags": true,
+  "enable_threads": false,
   "enable_ctx_commands": true,
   "enable_rotating_status": true,
   "enable_squads": false,

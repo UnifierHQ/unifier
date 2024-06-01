@@ -1111,7 +1111,7 @@ class UnifierBridge:
                     if message.thread:
                         # i probably want to research how nextcord threads work first, will come back to this
                         pass
-                    elif not trimmed:
+                    if not trimmed:
                         is_copy = False
                         try:
                             content = message.reference.cached_message.content
