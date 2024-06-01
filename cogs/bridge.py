@@ -2770,7 +2770,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             nextcord.ButtonStyle.gray if interaction.data["custom_id"].startswith('apreject_')
                             else nextcord.ButtonStyle.green
                         ),
-                        label='Accept',
+                        label='Accept & unban',
                         disabled=True
                     )
                 )

@@ -266,6 +266,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
         else:
             embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
+        embed.add_field(name='Did we make a mistake?',value=f'If you think we didn\'t make the right call, you can always appeal your ban using `{self.bot.command_prefix}!appeal`.',inline=False)
         user = self.bot.get_user(userid)
         if not user:
             try:
@@ -470,6 +471,24 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('unbanned, nice')
 
+    @commands.command(description='Bans a user from appealing their ban.')
+    async def appealban(self,ctx,*,target):
+        if not ctx.author.id in self.bot.admins:
+            return
+        try:
+            userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
+            if userid==ctx.author.id and not override_st:
+                return await ctx.send('You can\'t ban yourself :thinking:')
+        except:
+            userid = target
+        if userid in self.bot.db['appealban']:
+            self.bot.db['appealban'].remove(userid)
+            await ctx.send('User can now appeal bans.')
+        else:
+            self.bot.db['appealban'].append(userid)
+            await ctx.send('User can no longer appeal bans.')
+        self.bot.db.save_data()
+
     @commands.command(description='Appeals your ban, if you have one.')
     async def appeal(self,ctx):
         gbans = self.bot.db['banned']
@@ -478,7 +497,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if ctx.guild:
             return await ctx.send('You can only appeal your ban in DMs.')
 
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
+        if f'{ctx.author.id}' in list(gbans.keys()):
             ct = time.time()
             if f'{ctx.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{ctx.author.id}']
@@ -490,6 +509,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         if not banned:
             return await ctx.send('You don\'t have an active ban!')
+
+        if ctx.author.id in self.bot.db['appealban']:
+            return await ctx.send('You cannot appeal this ban, contact staff for more info.')
 
         actions, _ = self.get_modlogs(ctx.author.id)
         ban = actions['bans'][len(actions['bans'])-1]
@@ -522,6 +544,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
         except:
             return await msg.edit(view=None)
+
+        if not interaction.data['custom_id']=='yes':
+            return await interaction.response.edit_message(view=None)
 
         await msg.edit(view=None)
 
@@ -565,7 +590,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.green, label='Accept', custom_id=f'apaccept_{ctx.author.id}',
+                style=nextcord.ButtonStyle.green, label='Accept & unban', custom_id=f'apaccept_{ctx.author.id}',
                 disabled=False
             )
         )
