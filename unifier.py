@@ -22,7 +22,7 @@ import random
 import aiohttp
 import asyncio
 import hashlib
-import json
+import ujson as json
 import os
 import sys
 import logging

@@ -28,7 +28,7 @@ from datetime import datetime
 import random
 import string
 import copy
-import json
+import ujson as json
 import compress_json
 import re
 import ast
@@ -37,9 +37,6 @@ from io import BytesIO
 import os
 from utils import log, ui
 import importlib
-
-with open('config.json', 'r') as file:
-    data = json.load(file)
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
@@ -1853,7 +1850,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if hook_id==hook.id:
                 ch = guild.get_channel(hook.channel_id)
                 try:
-                    role = data["moderator_role"]
+                    role = self.bot.config["moderator_role"]
                 except:
                     return await ctx.send('This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
                 await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
@@ -3074,7 +3071,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 )))
             else:
                 tasks.append(self.bot.loop.create_task(
-                    self.bot.bridge.send(room=roomname, message=message, platform=platform, extbridge=extbridge)))
+                    self.bot.bridge.send(room=roomname, message=message, platform=platform, extbridge=extbridge)
+                ))
 
         ids = []
         try:

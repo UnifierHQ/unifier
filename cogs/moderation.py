@@ -22,7 +22,7 @@ import hashlib
 from datetime import datetime
 from nextcord.ext import commands
 import traceback
-import json
+import ujson as json
 from utils import log, ui
 
 override_st = False

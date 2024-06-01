@@ -34,7 +34,7 @@ import textwrap
 from contextlib import redirect_stdout
 from utils import log, ui
 import logging
-import json
+import ujson as json
 import os
 import sys
 import traceback

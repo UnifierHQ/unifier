@@ -8,5 +8,5 @@ jellyfish
 uvloop
 compress-json
 python-dotenv
-multidict
 requests
+ujson

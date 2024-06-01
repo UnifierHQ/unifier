@@ -18,7 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-import json
+import ujson as json
 import traceback
 import re
 from utils import log, ui
