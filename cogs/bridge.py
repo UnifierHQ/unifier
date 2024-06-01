@@ -271,6 +271,7 @@ class UnifierBridge:
         self.restricted = {}
         self.backup_running = False
         self.backup_lock = False
+        self.msg_stats = {}
 
     def is_raidban(self,userid):
         try:
@@ -461,6 +462,28 @@ class UnifierBridge:
         return (
             self.bot.db['exp'][f'{user_id}']['experience']/target, target-self.bot.db['exp'][f'{user_id}']['experience']
         )
+
+    async def roomstats(self, roomname):
+        online = 0
+        members = 0
+        guilds = 0
+        for guild_id in self.bot.db['rooms'][roomname]:
+            try:
+                guild = self.bot.get_guild(int(guild_id))
+                online += len(list(
+                    filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
+                           guild.members)))
+                members += len(guild.members)
+                guilds += 1
+            except:
+                pass
+        try:
+            messages = self.msg_stats[roomname]
+        except:
+            messages = 0
+        return {
+            'online': online, 'members': members, 'guilds': guilds, 'messages': messages
+        }
 
     async def delete_parent(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
@@ -1240,6 +1263,8 @@ class UnifierBridge:
                         return guilded.File(fp=tempfile.fp, filename=source_file.filename)
 
             for attachment in message.attachments:
+                if system:
+                    break
                 if source=='guilded':
                     if not attachment.file_type.image and not attachment.file_type.video:
                         continue
@@ -1612,6 +1637,10 @@ class UnifierBridge:
                 reply=replying,
                 external_bridged=extbridge
             ))
+            try:
+                self.msg_stats[room] += 1
+            except:
+                self.msg_stats.update({room: 0})
         return parent_id
 
 class Bridge(commands.Cog, name=':link: Bridge'):
@@ -2662,8 +2691,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             msgid = report[4]
             msgdata = await self.bot.bridge.fetch_message(msgid)
             userid = int(interaction.data["custom_id"].split('_')[0])
-            if len(content) > 2048:
-                content = content[:-(len(content) - 2048)]
+            if len(content) > 4096:
+                content = content[:-(len(content) - 4096)]
             embed = nextcord.Embed(
                 title='Message report - content is as follows',
                 description=content,
@@ -2906,7 +2935,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             embed = nextcord.Embed(
                 title='Content blocked - content is as follows',
-                description=message.content[:-(len(message.content)-2000)] if len(message.content) > 2000 else message.content,
+                description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
                 color=0xff0000,
                 timestamp=datetime.utcnow()
             )
