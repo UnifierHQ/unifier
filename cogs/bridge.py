@@ -3873,7 +3873,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if emoji.is_unicode_emoji():
             emoji = emoji.name
         else:
-            emoji = f'<:{emoji.name}:{emoji.id}>'
+            emoji = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
 
         await msg.add_reaction(emoji, event.user_id)
 
@@ -3891,7 +3891,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if emoji.is_unicode_emoji():
             emoji = emoji.name
         else:
-            emoji = f'<:{emoji.name}:{emoji.id}>'
+            emoji = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
 
         await msg.remove_reaction(emoji, event.user_id)
 
