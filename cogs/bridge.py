@@ -43,6 +43,7 @@ mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
 plugin_data = {}
+level_cooldown = {}
 
 dedupe_emojis = [
     '\U0001F7E5',
@@ -457,6 +458,14 @@ class UnifierBridge:
             return 0, False
         if not f'{user_id}' in self.bot.db['exp'].keys():
             self.bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
+        t = time.time()
+        if f'{user_id}' in level_cooldown.keys():
+            if t < level_cooldown[f'{user_id}']:
+                return self.bot.db['exp'][f'{user_id}']['experience'], self.bot.db['exp'][f'{user_id}']['progress'] >= 1
+            else:
+                level_cooldown[f'{user_id}'] = round(time.time()) + 30
+        else:
+            level_cooldown.update({f'{user_id}': round(time.time()) + 30})
         self.bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
         ratio, remaining = await self.progression(user_id)
         if ratio >= 1:
@@ -1750,17 +1759,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
         msgs = []
         prs = {}
+        msg_stats = {}
         restored = False
         if hasattr(self.bot, 'bridge'):
             if self.bot.bridge: # Avoid restoring if bridge is None
                 msgs = self.bot.bridge.bridged
                 prs = self.bot.bridge.prs
                 restored = self.bot.bridge.restored
+                msg_stats = self.bot.bridge.msg_stats
                 del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
+        self.bot.bridge.msg_stats = msg_stats
 
     def add_modlog(self, type, user, reason, moderator):
         t = time.time()
@@ -2575,6 +2587,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             ),
             color=self.bot.colors.unifier
         )
+        embed.set_author(
+            name=f'@{ctx.author.global_name if ctx.author.global_name else ctx.author.name}',
+            icon_url=ctx.author.avatar.url if ctx.author.avatar else None
+        )
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['lb'],description='Shows EXP leaderboard.')
@@ -3137,6 +3153,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 return await interaction.response.send_message('Something went wrong while submitting the report.',
                                                                ephemeral=True)
+
+            await interaction.response.defer(ephemeral=True,with_message=False)
             cat = report[0]
             cat2 = report[1]
             content = report[2]
@@ -3202,9 +3220,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 pass
             self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
-            return await interaction.response.send_message(
-                "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
-                ephemeral=True)
+            return await interaction.edit_original_message(
+                content="# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
+                view=None
+            )
 
     @commands.command(hidden=True,description='Registers commands.')
     async def forcereg(self, ctx, *, args=''):
