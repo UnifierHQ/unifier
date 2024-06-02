@@ -422,7 +422,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if target==ctx.author.id:
             return await ctx.send('You cannot ban yourself :thinking:')
 
-        if target==self.bot.owner:
+        if target==self.bot.config['owner']:
             return await ctx.send('You cannot ban the owner :thinking:')
 
         if target in self.bot.db['fullbanned']:
@@ -633,6 +633,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         menu = 0
         page = 0
         is_self = False
+        orig_id = int(target.replace('<@','',1).replace('>','',1).replace('!','',1))
         if target:
             try:
                 target = self.bot.get_user(int(target.replace('<@','',1).replace('>','',1).replace('!','',1)))
@@ -641,24 +642,25 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             target = ctx.author
             is_self = True
-        if target.id == ctx.author.id:
-            is_self = True
+        if target:
+            if target.id == ctx.author.id:
+                is_self = True
         embed = nextcord.Embed(
             title='All good!',
             description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
             '\n:white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
             color=0x00ff00)
 
-        actions_count, actions_count_recent = self.get_modlogs_count(target.id)
-        actions, _ = self.get_modlogs(target.id)
+        actions_count, actions_count_recent = self.get_modlogs_count(orig_id)
+        actions, _ = self.get_modlogs(orig_id)
 
         gbans = self.bot.db['banned']
         ct = time.time()
         noexpiry = False
-        if f'{target.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{target.id}']
+        if f'{orig_id}' in list(gbans.keys()):
+            banuntil = gbans[f'{orig_id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{target.id}')
+                self.bot.db['banned'].pop(f'{orig_id}')
                 await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             if banuntil == 0:
                 noexpiry = True
@@ -666,7 +668,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         judgement = (
             actions_count['bans'] + actions_count_recent['warns'] + (actions_count_recent['bans']*4)
         )
-        if f'{target.id}' in list(gbans.keys()):
+        if f'{orig_id}' in list(gbans.keys()):
             embed.title = "SUSPENDED"
             embed.colour = 0xff0000
             embed.description = (
@@ -695,17 +697,27 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
                     '\n\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
             )
-        embed.set_author(name=f'@{target.name}\'s account standing', icon_url=target.avatar.url if target.avatar else None)
-        if target.bot or target.id in self.bot.db['fullbanned']:
-            if target.bot:
-                embed.title = 'Bot account'
-                embed.description = 'This is a bot. Bots cannot have an account standing.'
-                embed.colour = 0xcccccc
-            else:
-                embed.title = 'COMPLETELY SUSPENDED'
-                embed.description = ('This user has been completely suspended from the bot.\n'+
-                                     'Unlike global bans, the user may also not interact with any part of the bot.')
-                embed.colour = 0xff0000
+        if target:
+            embed.set_author(name=f'@{target.name}\'s account standing', icon_url=target.avatar.url if target.avatar else None)
+        else:
+            embed.set_author(name=f'{orig_id}\'s account standing')
+        if target:
+            if target.bot or target.id in self.bot.db['fullbanned']:
+                if target.bot:
+                    embed.title = 'Bot account'
+                    embed.description = 'This is a bot. Bots cannot have an account standing.'
+                    embed.colour = 0xcccccc
+                else:
+                    embed.title = 'COMPLETELY SUSPENDED'
+                    embed.description = ('This user has been completely suspended from the bot.\n'+
+                                         'Unlike global bans, the user may also not interact with any part of the bot.')
+                    embed.colour = 0xff0000
+                return await ctx.send(embed=embed)
+        elif orig_id in self.bot.db['fullbanned']:
+            embed.title = 'COMPLETELY SUSPENDED'
+            embed.description = ('This user has been completely suspended from the bot.\n' +
+                                 'Unlike global bans, the user may also not interact with any part of the bot.')
+            embed.colour = 0xff0000
             return await ctx.send(embed=embed)
         msg = None
         interaction = None
