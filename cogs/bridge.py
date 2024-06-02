@@ -2582,12 +2582,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.command(aliases=['exp','lvl','experience'], description='Shows you or someone else\'s level and EXP.')
     async def level(self,ctx,*,user=None):
         if not user:
-            user = ctx.author.id
+            user = ctx.author
         else:
             try:
                 user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
             except:
-                user = ctx.author.id
+                user = ctx.author
         try:
             data = self.bot.db['exp'][f'{user.id}']
         except:
