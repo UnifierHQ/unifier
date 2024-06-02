@@ -1960,7 +1960,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if index >= len(emojis):
                         break
                     name = emojis[index].name
-                    emoji = f'<:{name}:{emojis[index].id}>'
+                    emoji = (
+                        f'<a:{name}:{emojis[index].id}>' if emojis[index].animated else f'<:{name}:{emojis[index].id}>'
+                    )
 
                     embed.add_field(
                         name=f'`:{name}:`',
@@ -2056,7 +2058,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         if index >= len(emojis):
                             break
                         name = emojis[index].name
-                        emoji = f'<:{name}:{emojis[index].id}>'
+                        emoji = (
+                            f'<a:{name}:{emojis[index].id}>' if emojis[index].animated else
+                            f'<:{name}:{emojis[index].id}>'
+                        )
                         embed.add_field(
                             name=f'`:{name}:`',
                             value=emoji,
@@ -2123,7 +2128,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if was_searching else
                     f'{self.bot.user.global_name or self.bot.user.name} emojis / {emojiname}'
                 )
-                emoji = f'<:{emojiname}:{emoji_obj.id}>'
+                emoji = (
+                    f'<a:{emojiname}:{emoji_obj.id}>' if emoji_obj.animated else f'<:{emojiname}:{emoji_obj.id}>'
+                )
                 embed.description = f'# **{emoji} `:{emojiname}:`**\nFrom: {emoji_obj.guild.name}'
                 embed.add_field(
                     name='How to use',
@@ -2187,34 +2194,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 panel = 1
                 query = interaction.data['components'][0]['components'][0]['value']
                 page = 0
-
-
-    @commands.command(description='Shows emoji info.')
-    async def emoji(self, ctx, *, emoji=''):
-        emojis = []
-        for emoji in self.bot.emojis:
-            if emoji.guild_id in self.bot.db['emojis']:
-                emojis.append(emoji)
-
-        emoji_preview = None
-        for emoji1 in emojis:
-            if f'<:{emoji1.name}:{emoji1.id}>'==emoji or emoji1.name==emoji or str(emoji1.id)==emoji:
-                emoji_preview = emoji1
-                break
-
-        if not emoji_preview:
-            return await ctx.send('Could not find this emoji!')
-
-        embed = nextcord.Embed(
-            title=emoji_preview.name,
-            description=f'<:{emoji_preview.name}:{emoji_preview.id}>',
-            color=self.bot.colors.unifier
-        )
-        embed.add_field(
-            name='Origin guild',
-            value=emoji_preview.guild.name
-        )
-        await ctx.send(embed=embed)
 
     @commands.command(
         aliases=['modcall'],
