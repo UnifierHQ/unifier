@@ -15,7 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import discord.ui.modal
+
 import nextcord
 import time
 import hashlib
@@ -466,6 +466,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('Invalid user/server!')
         banlist = self.bot.db['banned']
         if not f'{userid}' in list(banlist.keys()):
+            if f'{userid}' in list(self.bot.bridge.secbans.keys()):
+                self.bot.bridge.secbans.pop(f'{userid}')
+                return await ctx.send('unbanned, nice')
             return await ctx.send('User/server not banned!')
         self.bot.db['banned'].pop(f'{userid}')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
@@ -514,6 +517,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('You cannot appeal this ban, contact staff for more info.')
 
         actions, _ = self.get_modlogs(ctx.author.id)
+
+        if len(actions['bans'])==0:
+            return await ctx.send(
+                'You\'re currently banned, but we couldn\'t find the ban reason. Contact moderators directly to appeal.'
+            )
+
         ban = actions['bans'][len(actions['bans'])-1]
 
         embed = nextcord.Embed(
@@ -609,7 +618,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             pass
         return await interaction.response.send_message(
-            "# :white_check_mark: Your appeal was submitted!\nWe\'ll get back to you once the moderators have agreed on a decision.",
+            (
+                "# :white_check_mark: Your appeal was submitted!\nWe\'ll get back to you once the moderators have"+
+                " agreed on a decision. Please be patient and respectful towards moderators while they review your "+
+                "appeal."
+            ),
             ephemeral=True
         )
 
