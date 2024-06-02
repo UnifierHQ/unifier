@@ -1420,7 +1420,9 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 view=components if not system else None, wait=True)
+                                                 view=(
+                                                     components if components else ui.MessageComponents()
+                                                 ) if not system else None, wait=True)
                     except:
                         return None
                     tbresult = [
@@ -1438,7 +1440,9 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 view=components if not system else None, wait=True)
+                                                 view=(
+                                                     components if components else ui.MessageComponents()
+                                                 ) if not system else None, wait=True)
                     except:
                         continue
                     if sameguild:
@@ -1652,8 +1656,8 @@ class UnifierBridge:
         if not parent_id:
             parent_id = message.id
 
-        if is_pr and not pr_id in list(self.prs.keys()) and platform==source:
-            self.prs.update({pr_id:parent_id})
+        if is_pr and not pr_id in list(self.prs.keys()) and platform == source:
+            self.prs.update({pr_id: parent_id})
 
         if system:
             msg_author = self.bot.user.id
@@ -1666,22 +1670,23 @@ class UnifierBridge:
         try:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
-            if msg_object.source==platform:
+            if msg_object.source == platform:
                 self.bridged[index].copies = msg_object.copies | message_ids
             else:
                 try:
-                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[platform] | message_ids
+                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[
+                                                                        platform] | message_ids
                 except:
-                    self.bridged[index].external_copies.update({platform:message_ids})
+                    self.bridged[index].external_copies.update({platform: message_ids})
             self.bridged[index].urls = self.bridged[index].urls | urls
         except:
             copies = {}
             external_copies = {}
-            if source==platform:
+            if source == platform:
                 copies = message_ids
             else:
-                external_copies = {platform:message_ids}
-            if source=='revolt':
+                external_copies = {platform: message_ids}
+            if source == 'revolt':
                 server_id = message.server.id
             else:
                 server_id = message.guild.id
