@@ -1757,6 +1757,57 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
 
+    def add_modlog(self, type, user, reason, moderator):
+        t = time.time()
+        try:
+            self.bot.db['modlogs'][f'{user}'].append({
+                'type': type,
+                'reason': reason,
+                'time': t,
+                'mod': moderator
+            })
+        except:
+            self.bot.db['modlogs'].update({
+                f'{user}': [{
+                    'type': type,
+                    'reason': reason,
+                    'time': t,
+                    'mod': moderator
+                }]
+            })
+        self.bot.db.save_data()
+
+    def get_modlogs(self, user):
+        t = time.time()
+
+        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
+            return {
+                'warns': [],
+                'bans': []
+            }, {
+                'warns': [],
+                'bans': []
+            }
+
+        actions = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
+        }
+        actions_recent = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
+        }
+
+        return actions, actions_recent
+
+    def get_modlogs_count(self, user):
+        actions, actions_recent = self.get_modlogs(user)
+        return {
+            'warns': len(actions['warns']), 'bans': len(actions['bans'])
+        }, {
+            'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
+        }
+
     @commands.command(aliases=['colour'],description='Sets Revolt color.')
     async def color(self,ctx,*,color=''):
         if color=='':
@@ -1844,44 +1895,273 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send('Nickname updated.')
 
     @commands.command(description='Shows a list of all global emojis available on the instance.')
-    async def emojis(self, ctx, *, index=1):
-        text = ''
-        index = index - 1
-        if index < 0:
-            return await ctx.send('what')
-        offset = index * 20
-        emojis = []
-        for emoji in self.bot.emojis:
-            if emoji.guild_id in self.bot.db['emojis']:
-                emojis.append(emoji)
-        for i in range(20):
-            try:
-                emoji = emojis[i + offset]
-            except:
-                break
-            emoji_text = f'<:{emoji.name}:{emoji.id}>'
-            if emoji.animated:
-                emoji_text = f'<a:{emoji.name}:{emoji.id}>'
-            if len(text) == 0:
-                text = f'- {emoji_text} {emoji.name}'
+    async def emojis(self,ctx):
+        panel = 0
+        limit = 8
+        page = 0
+        was_searching = False
+        emojiname = None
+        query = ''
+        msg = None
+        interaction = None
+
+        while True:
+            embed = nextcord.Embed(color=self.bot.colors.unifier)
+            maxpage = 0
+            components = ui.MessageComponents()
+
+            if panel == 0:
+                was_searching = False
+                emojis = self.bot.emojis
+                offset = 0
+                for x in range(len(emojis)):
+                    if not emojis[x-offset].guild_id in self.bot.db['emojis']:
+                        emojis.pop(x-offset)
+                        offset += 1
+
+                maxpage = math.ceil(len(emojis) / limit) - 1
+                if interaction:
+                    page += 1
+                    if page > maxpage:
+                        page = maxpage
+                embed.title = f'{self.bot.user.global_name or self.bot.user.name} emojis'
+                embed.description = 'Choose an emoji to view its info!'
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                )
+
+                for x in range(limit):
+                    index = (page * limit) + x
+                    if index >= len(emojis):
+                        break
+                    name = emojis[index].name
+                    emoji = f'<:{name}:{emojis[index].id}>'
+
+                    embed.add_field(
+                        name=f'`:{name}:`',
+                        value=emoji,
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=name,
+                        emoji=emoji,
+                        value=name
+                    )
+                if len(embed.fields)==0:
+                    embed.add_field(
+                        name='No emojis',
+                        value='There\'s no global emojis here!',
+                        inline=False
+                    )
+                    selection.add_option(
+                        label='placeholder',
+                        value='placeholder'
+                    )
+                    selection.disabled = True
+
+                components.add_rows(
+                    ui.ActionRow(
+                        selection
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0 or selection.disabled
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage or selection.disabled
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D',
+                            disabled=selection.disabled
+                        )
+                    )
+                )
+            elif panel == 1:
+                was_searching = True
+                emojis = self.bot.emojis
+
+                def search_filter(query, query_cmd):
+                    return query.lower() in query_cmd.name.lower()
+
+                offset = 0
+                for x in range(len(emojis)):
+                    emoji = emojis[x - offset]
+                    if not emojis[x-offset].guild_id in self.bot.db['emojis'] or not search_filter(query,emoji):
+                        emojis.pop(x - offset)
+                        offset += 1
+
+                embed.title = f'{self.bot.user.global_name or self.bot.user.name} emojis / search'
+                embed.description = 'Choose an emoji to view its info!'
+
+                if len(emojis) == 0:
+                    maxpage = 0
+                    embed.add_field(
+                        name='No emojis',
+                        value='There are no emojis matching your search query.',
+                        inline=False
+                    )
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
+                    )
+                    selection.add_option(
+                        label='No rooms'
+                    )
+                else:
+                    maxpage = math.ceil(len(emojis) / limit) - 1
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                    )
+
+                    emojis = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                        emojis,
+                        key=lambda x: x.name
+                    ))
+
+                    for x in range(limit):
+                        index = (page * limit) + x
+                        if index >= len(emojis):
+                            break
+                        name = emojis[index].name
+                        emoji = f'<:{name}:{emojis[index].id}>'
+                        embed.add_field(
+                            name=f'`:{name}:`',
+                            value=emoji,
+                            inline=False
+                        )
+                        selection.add_option(
+                            label=name,
+                            value=name,
+                            emoji=emoji
+                        )
+
+                embed.description = f'Searching: {query} (**{len(emojis)}** results)'
+                maxcount = (page + 1) * limit
+                if maxcount > len(emojis):
+                    maxcount = len(emojis)
+                embed.set_footer(
+                    text=(
+                            f'Page {page + 1} of {maxpage + 1} | {page * limit + 1}-{maxcount} of {len(emojis)}'+
+                            ' results'
+                    )
+                )
+
+                components.add_row(
+                    ui.ActionRow(
+                        selection
+                    )
+                )
+
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D'
+                        )
+                    )
+                ),
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+            elif panel == 2:
+                emoji_obj = nextcord.utils.get(self.bot.emojis, name=emojiname)
+                embed.title = (
+                    f'{self.bot.user.global_name or self.bot.user.name} emojis / search / {emojiname}'
+                    if was_searching else
+                    f'{self.bot.user.global_name or self.bot.user.name} emojis / {emojiname}'
+                )
+                emoji = f'<:{emojiname}:{emoji_obj.id}>'
+                embed.description = f'# **{emoji} `:{emojiname}:`**\nFrom: {emoji_obj.guild.name}'
+                embed.add_field(
+                    name='How to use',
+                    value=f'Type `[emoji: {emojiname}]` in your message to use this emoji!',
+                    inline=False
+                )
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+
+            if panel == 0:
+                embed.set_footer(text=f'Page {page + 1} of {maxpage + 1 if maxpage >= 0 else 1}')
+            if not msg:
+                msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
             else:
-                text = f'{text}\n- {emoji_text} {emoji.name}'
-        if len(text) == 0:
-            return await ctx.send('Out of range!')
-        pages = len(emojis) // 20
-        if len(emojis) % 20 > 0:
-            pages += 1
-        embed = nextcord.Embed(
-            title='UniChat Emojis list',
-            description=(
-                    'To use an emoji, simply send `[emoji: emoji_name]`.\nIf there\'s emojis with '+
-                    'duplicate names, use `[emoji2: emoji_name]` to send the 2nd emoji with that '+
-                    'name.\n' + text
-            ),
-            color=self.bot.colors.unifier
-        )
-        embed.set_footer(text=f'Page {index + 1}/{pages}')
-        await ctx.send(embed=embed)
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed, view=components)
+            embed.clear_fields()
+
+            def check(interaction):
+                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            except:
+                await msg.edit(view=None)
+                break
+            if interaction.type == nextcord.InteractionType.component:
+                if interaction.data['custom_id'] == 'selection':
+                    emojiname = interaction.data['values'][0]
+                    panel = 2
+                    page = 0
+                elif interaction.data['custom_id'] == 'back':
+                    panel -= 1
+                    if panel < 0 or panel==1 and not was_searching:
+                        panel = 0
+                    page = 0
+                elif interaction.data['custom_id'] == 'rules':
+                    panel += 1
+                elif interaction.data['custom_id'] == 'prev':
+                    page -= 1
+                elif interaction.data['custom_id'] == 'next':
+                    page += 1
+                elif interaction.data['custom_id'] == 'search':
+                    modal = nextcord.ui.Modal(title='Search...', auto_defer=False)
+                    modal.add_item(
+                        nextcord.ui.TextInput(
+                            label='Search query',
+                            style=nextcord.TextInputStyle.short,
+                            placeholder='Type something...'
+                        )
+                    )
+                    await interaction.response.send_modal(modal)
+            elif interaction.type == nextcord.InteractionType.modal_submit:
+                panel = 1
+                query = interaction.data['components'][0]['components'][0]['value']
+
 
     @commands.command(description='Shows emoji info.')
     async def emoji(self, ctx, *, emoji=''):
@@ -3164,12 +3444,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
                         inline=False
                     )
+                    embed.add_field(name='Did we make a mistake?',
+                                    value=f'If you think we didn\'t make the right call, you can always appeal your ban using `{self.bot.command_prefix}!appeal`.',
+                                    inline=False)
+                    await self.bot.loop.run_in_executor(None,lambda: self.add_modlog(0, user_obj.id, 'Automatic action carried out by security plugins', self.bot.user.id))
                 else:
                     embed.add_field(
                         name='Actions taken',
                         value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{round(nt)}:f>. This will expire <t:{round(nt)}:R>.',
                         inline=False
                     )
+                    embed.add_field(name='Did we make a mistake?',
+                                    value='Unfortunately, this ban cannot be appealed using `u!appeal`. You will need to ask moderators for help.',
+                                    inline=False)
                 try:
                     await user_obj.send(embed=embed)
                 except:
