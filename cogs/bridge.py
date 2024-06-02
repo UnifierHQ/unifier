@@ -286,6 +286,7 @@ class UnifierBridge:
         self.backup_running = False
         self.backup_lock = False
         self.msg_stats = {}
+        self.msg_stats_reset = datetime.now().day
         self.dedupe = {}
 
     def is_raidban(self,userid):
@@ -1720,6 +1721,8 @@ class UnifierBridge:
                 reply=replying,
                 external_bridged=extbridge
             ))
+            if datetime.now().day != self.msg_stats_reset:
+                self.msg_stats = {}
             try:
                 self.msg_stats[room] += 1
             except:
@@ -1760,6 +1763,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msgs = []
         prs = {}
         msg_stats = {}
+        msg_stats_reset = datetime.now().day
         restored = False
         if hasattr(self.bot, 'bridge'):
             if self.bot.bridge: # Avoid restoring if bridge is None
@@ -1767,12 +1771,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 prs = self.bot.bridge.prs
                 restored = self.bot.bridge.restored
                 msg_stats = self.bot.bridge.msg_stats
+                msg_stats_reset = self.bot.bridge.msg_stats_reset
                 del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
         self.bot.bridge.msg_stats = msg_stats
+        self.bot.bridge.msg_stats_reset = msg_stats_reset
 
     def add_modlog(self, type, user, reason, moderator):
         t = time.time()
@@ -1929,7 +1935,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             if panel == 0:
                 was_searching = False
-                emojis = self.bot.emojis
+                emojis = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                    self.bot.emojis,
+                    key=lambda x: x.name.lower()
+                ))
                 offset = 0
                 for x in range(len(emojis)):
                     if not emojis[x-offset].guild_id in self.bot.db['emojis']:
@@ -1938,7 +1947,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
                 maxpage = math.ceil(len(emojis) / limit) - 1
                 if interaction:
-                    page += 1
                     if page > maxpage:
                         page = maxpage
                 embed.title = f'{self.bot.user.global_name or self.bot.user.name} emojis'
@@ -2030,7 +2038,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
                     )
                     selection.add_option(
-                        label='No rooms'
+                        label='No emojis'
                     )
                 else:
                     maxpage = math.ceil(len(emojis) / limit) - 1
@@ -2178,6 +2186,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif interaction.type == nextcord.InteractionType.modal_submit:
                 panel = 1
                 query = interaction.data['components'][0]['components'][0]['value']
+                page = 0
 
 
     @commands.command(description='Shows emoji info.')
@@ -2570,17 +2579,27 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.colour = 0xffce00
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['exp','lvl','experience'], description='Shows your level and EXP.')
-    async def level(self,ctx):
+    @commands.command(aliases=['exp','lvl','experience'], description='Shows you or someone else\'s level and EXP.')
+    async def level(self,ctx,*,user=None):
+        if not user:
+            user = ctx.author.id
+        else:
+            try:
+                user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
+            except:
+                user = ctx.author.id
         try:
-            data = self.bot.db['exp'][f'{ctx.author.id}']
+            data = self.bot.db['exp'][f'{user.id}']
         except:
             data = {'experience':0,'level':1,'progress':0}
         bars = round(data['progress']*20)
         empty = 20-bars
         progressbar = '['+(bars*'|')+(empty*' ')+']'
         embed = nextcord.Embed(
-            title='Your level',
+            title=(
+                'Your level' if user.id==ctx.author.id else
+                f'{user.global_name if user.global_name else user.name}\'s level'
+             ),
             description=(
                 f'Level {data["level"]} | {round(data["experience"],2)} EXP\n\n'+
                 f'`{progressbar}`\n{round(data["progress"]*100)}% towards next level'
@@ -2588,8 +2607,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             color=self.bot.colors.unifier
         )
         embed.set_author(
-            name=f'@{ctx.author.global_name if ctx.author.global_name else ctx.author.name}',
-            icon_url=ctx.author.avatar.url if ctx.author.avatar else None
+            name=f'@{user.global_name if user.global_name else user.name}',
+            icon_url=user.avatar.url if user.avatar else None
         )
         await ctx.send(embed=embed)
 
@@ -3568,6 +3587,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_bridged=extbridge
                 )
             )
+            if datetime.now().day != self.bot.bridge.msg_stats_reset:
+                self.bot.bridge.msg_stats = {}
             try:
                 self.bot.bridge.msg_stats[roomname] += 1
             except:

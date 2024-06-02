@@ -1293,7 +1293,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     extlist.remove('cogs.lockdown')
                 maxpage = math.ceil(len(extlist)/limit)-1
                 if interaction:
-                    page += 1
                     if page > maxpage:
                         page = maxpage
                 embed.title = f'{self.bot.user.global_name or self.bot.user.name} help'
@@ -1443,7 +1442,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     cmds = await self.bot.loop.run_in_executor(
                         None,lambda: sorted(
                             cmds,
-                            key=lambda x: x.qualified_name
+                            key=lambda x: x.qualified_name.lower()
                         )
                     )
 

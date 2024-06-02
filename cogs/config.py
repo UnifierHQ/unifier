@@ -651,7 +651,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
                 maxpage = math.ceil(len(roomlist) / limit) - 1
                 if interaction:
-                    page += 1
                     if page > maxpage:
                         page = maxpage
                 embed.title = f'{self.bot.user.global_name or self.bot.user.name} rooms'
@@ -778,7 +777,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
                     )
 
-                    roomlist = await self.bot.loop.run_in_executor(None, lambda: sorted(roomlist))
+                    roomlist = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                        roomlist,
+                        key=lambda x: x.lower()
+                    ))
 
                     for x in range(limit):
                         index = (page * limit) + x
