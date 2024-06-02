@@ -3614,22 +3614,23 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     text = text + f'\n{msgid}'
                 await message.channel.send('Mismatch detected.'+text)
 
-        _newexp, levelup = await self.bot.bridge.add_exp(message.author.id)
+        if not message.author.bot:
+            _newexp, levelup = await self.bot.bridge.add_exp(message.author.id)
 
-        if levelup:
-            level = self.bot.db['exp'][f'{message.author.id}']['level']
-            embed = nextcord.Embed(
-                title=f'Level {level-1} => __Level {level}__',
-                color=self.bot.colors.blurple
-            )
-            embed.set_author(
-                name=(
-                    f'@{message.author.global_name if message.author.global_name else message.author.name} leveled'+
-                    ' up!'
-                ),
-                icon_url=message.author.avatar.url if message.author.avatar else None
-            )
-            await message.channel.send(embed=embed)
+            if levelup:
+                level = self.bot.db['exp'][f'{message.author.id}']['level']
+                embed = nextcord.Embed(
+                    title=f'Level {level-1} => __Level {level}__',
+                    color=self.bot.colors.blurple
+                )
+                embed.set_author(
+                    name=(
+                        f'@{message.author.global_name if message.author.global_name else message.author.name} leveled'+
+                        ' up!'
+                    ),
+                    icon_url=message.author.avatar.url if message.author.avatar else None
+                )
+                await message.channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
