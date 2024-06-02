@@ -666,6 +666,18 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         value=name
                     )
 
+                if len(embed.fields) == 0:
+                    embed.add_field(
+                        name='No rooms',
+                        value='There\'s no rooms here!',
+                        inline=False
+                    )
+                    selection.add_option(
+                        label='placeholder',
+                        value='placeholder'
+                    )
+                    selection.disabled = True
+
                 components.add_rows(
                     ui.ActionRow(
                         selection
@@ -675,19 +687,20 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             style=nextcord.ButtonStyle.blurple,
                             label='Previous',
                             custom_id='prev',
-                            disabled=page <= 0
+                            disabled=page <= 0 or selection.disabled
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
                             label='Next',
                             custom_id='next',
-                            disabled=page >= maxpage
+                            disabled=page >= maxpage or selection.disabled
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
                             label='Search',
                             custom_id='search',
-                            emoji='\U0001F50D'
+                            emoji='\U0001F50D',
+                            disabled=selection.disabled
                         )
                     )
                 )
