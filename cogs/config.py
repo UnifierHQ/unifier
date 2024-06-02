@@ -24,6 +24,7 @@ import re
 from utils import log, ui
 import threading
 import math
+import emoji as pymoji
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
@@ -35,7 +36,7 @@ class AutoSaveDict(dict):
                      'descriptions':{},'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
                      'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[],
                      'modlogs':{},'spybot':[],'trusted':[],'report_threads':{},'fullbanned':[],'exp':{},
-                     'squads':{},'squads_joined':{},'squads_optout':{},'appealban':[]})
+                     'squads':{},'squads_joined':{},'squads_optout':{},'appealban':[], 'roomemojis': {}})
         self.threads = []
 
         # Load data
@@ -234,6 +235,26 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['descriptions'].update({room:desc})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Updated description!')
+
+    @commands.command(hidden=True, description='Sets room description.')
+    async def roomemoji(self, ctx, room, *, emoji=''):
+        if not self.is_user_admin(ctx.author.id):
+            return await ctx.send('Only admins can modify rooms!')
+        room = room.lower()
+        if not room in list(self.bot.db['rooms'].keys()):
+            return await ctx.send('This room does not exist!')
+        if len(emoji) == 0:
+            try:
+                self.bot.db['roomemojis'][room].pop()
+            except:
+                return await ctx.send('there was no emoji to begin with...')
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+            return await ctx.send('Emoji removed.')
+        if not pymoji.is_emoji(emoji):
+            return await ctx.send('This is not a valid emoji.')
+        self.bot.db['roomemojis'].update({room: emoji})
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+        await ctx.send('Updated emoji!')
 
     @commands.command(
         hidden=True,
@@ -652,7 +673,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         '\U0001F527' if self.is_room_restricted(roomlist[index],self.bot.db) else
                         '\U0001F512' if self.is_room_locked(roomlist[index],self.bot.db) else
                         '\U0001F310'
-                    )
+                    ) if not name in self.bot.db['roomemojis'] else self.bot.db['roomemojis'][name]
 
                     embed.add_field(
                         name=f'{emoji} `{name}`',
@@ -768,7 +789,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             '\U0001F527' if self.is_room_restricted(roomlist[index], self.bot.db) else
                             '\U0001F512' if self.is_room_locked(roomlist[index], self.bot.db) else
                             '\U0001F310'
-                        )
+                        ) if not room in self.bot.db['roomemojis'] else self.bot.db['roomemojis'][room]
                         roomdesc = (
                             self.bot.db['descriptions'][room] if room in self.bot.db['descriptions'].keys() else
                             'This room has no description.'
@@ -876,7 +897,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     '\U0001F527' if self.is_room_restricted(roomname, self.bot.db) else
                     '\U0001F512' if self.is_room_locked(roomname, self.bot.db) else
                     '\U0001F310'
-                )
+                ) if not roomname in self.bot.db['roomemojis'] else self.bot.db['roomemojis'][roomname]
                 embed.description = f'# **{emoji} `{roomname}`**\n{description}'
                 stats = await self.bot.bridge.roomstats(roomname)
                 embed.add_field(name='Statistics',value=(
