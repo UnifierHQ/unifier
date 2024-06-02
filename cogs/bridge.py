@@ -1421,8 +1421,8 @@ class UnifierBridge:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  view=(
-                                                     components if components else ui.MessageComponents()
-                                                 ) if not system else None, wait=True)
+                                                     components if components and not system else ui.MessageComponents()
+                                                 ), wait=True)
                     except:
                         return None
                     tbresult = [
@@ -1441,8 +1441,8 @@ class UnifierBridge:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  view=(
-                                                     components if components else ui.MessageComponents()
-                                                 ) if not system else None, wait=True)
+                                                     components if components and not system else ui.MessageComponents()
+                                                 ), wait=True)
                     except:
                         continue
                     if sameguild:
@@ -2958,7 +2958,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if interaction.type==nextcord.InteractionType.component:
             if not 'custom_id' in interaction.data.keys():
                 return
-            if interaction.data["custom_id"].startswith('rp') and not interaction.user.id in self.bot.moderators:
+            if (interaction.data["custom_id"].startswith('rp') or interaction.data["custom_id"].startswith('ap')) and not interaction.user.id in self.bot.moderators:
                 return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
             if interaction.data["custom_id"].startswith('rpdelete'):
                 msg_id = int(interaction.data["custom_id"].replace('rpdelete_','',1))
