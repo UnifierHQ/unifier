@@ -146,7 +146,9 @@ class DiscordBot(commands.Bot):
 
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
-data['enable_squads'] = False
+if data['enable_squads']:
+    logger.warning('Squads have been disabled as they are still incomplete.')
+    data['enable_squads'] = False
 bot.config = data
 bot.safemode = 'safemode' in sys.argv
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)

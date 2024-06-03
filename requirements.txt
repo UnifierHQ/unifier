@@ -12,3 +12,4 @@ requests
 ulid-py
 ujson
 emoji
+discord-emoji

@@ -38,6 +38,7 @@ import os
 from utils import log, ui
 import importlib
 import emoji as pymoji
+import discord_emoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
@@ -2327,14 +2328,102 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
             return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
-        text = ''
-        for reaction in msg.reactions:
-            text = f'{text}{reaction} x{len(msg.reactions[reaction].keys())} '
 
-        if len(text)==0:
-            return await interaction.response.send_message('No reactions yet!',ephemeral=True)
+        embed = nextcord.Embed(title='Reactions',color=self.bot.colors.unifier)
 
-        await interaction.response.send_message(text,ephemeral=True)
+        index = 0
+        page = 0
+        limit = 2
+
+        maxpage = math.ceil(len(msg.reactions.keys()) / limit) - 1
+        author_id = interaction.user.id
+        respmsg = None
+        interaction_resp = None
+
+        while True:
+            selection = nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+            )
+
+            for x in range(limit):
+                if x + (page * limit) >= len(msg.reactions.keys()):
+                    break
+                if x==0 and index < x + (page * limit) or x==limit-1 and index > x + (page * limit):
+                    index = x + (page * limit)
+                emoji = nextcord.PartialEmoji.from_str(list(msg.reactions.keys())[x + (page * limit)])
+                if emoji.is_unicode_emoji():
+                    name = discord_emoji.to_discord(list(
+                        msg.reactions.keys()
+                    )[x + (page * limit)], get_all=True, put_colons=False)
+                else:
+                    name = emoji.name
+                if not name:
+                    name = 'unknown'
+                selection.add_option(
+                    label=f':{name}:',
+                    emoji=list(msg.reactions.keys())[x + (page * limit)],
+                    value=f'{x}',
+                    default=x + (page * limit)==index
+                )
+            users = []
+
+            if len(msg.reactions.keys()) == 0:
+                embed.description = f'No reactions yet!'
+            else:
+                for user in list(msg.reactions[list(msg.reactions.keys())[index]].keys()):
+                    userobj = self.bot.get_user(int(user))
+                    if userobj:
+                        users.append(f'@{userobj.global_name if userobj.global_name else userobj.name}')
+                    else:
+                        users.append('@[unknown]')
+                embed.description = f'# {list(msg.reactions.keys())[index]}\n' + ('\n'.join(users))
+
+            components = ui.MessageComponents()
+            components.add_rows(
+                ui.ActionRow(
+                    selection
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        label=f'{page*limit+1}-{page*(limit+1)}' if page > 0 else '-',
+                        style=nextcord.ButtonStyle.blurple,
+                        custom_id='prev',
+                        disabled=page <= 0
+                    ),
+                    nextcord.ui.Button(
+                        label=(
+                            f'{page*(limit+1)+1}-{page*(limit+2)}' if limit*maxpage >= page*(limit+2) else
+                            f'{page*(limit+1)+1}-{maxpage*limit}'
+                        ) if page < maxpage else '-',
+                        style=nextcord.ButtonStyle.blurple,
+                        custom_id='next',
+                        disabled=page >= maxpage
+                    )
+                )
+            )
+
+            if respmsg:
+                await interaction_resp.response.edit_message(embed=embed,view=components)
+            else:
+                if len(msg.reactions.keys()) == 0:
+                    return await interaction.response.send_message(embed=embed,ephemeral=True)
+                respmsg = await interaction.response.send_message(embed=embed,view=components,ephemeral=True)
+                respmsg = await respmsg.fetch()
+
+            def check(interaction):
+                return interaction.message.id==respmsg.id and interaction.user.id==author_id
+
+            try:
+                interaction_resp = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                return await respmsg.edit(view=None)
+
+            if interaction_resp.data['custom_id'] == 'selection':
+                index = int(interaction_resp.data['values'][0]) + (page * 25)
+            elif interaction_resp.data['custom_id'] == 'next':
+                page += 1
+            elif interaction_resp.data['custom_id'] == 'prev':
+                page -= 1
 
     @nextcord.message_command(name='Delete message')
     async def delete_ctx(self, interaction, msg: nextcord.Message):
@@ -2586,7 +2675,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             color=self.bot.colors.unifier
         )
         embed.set_author(
-            name=f'@{user.global_name if user.global_name else user.name}',
+            name=f'@{user.name}',
             icon_url=user.avatar.url if user.avatar else None
         )
         await ctx.send(embed=embed)
