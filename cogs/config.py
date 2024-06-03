@@ -761,7 +761,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 if len(roomlist) == 0:
                     maxpage = 0
                     embed.add_field(
-                        name='No commands',
+                        name='No rooms',
                         value='There are no rooms matching your search query.',
                         inline=False
                     )
