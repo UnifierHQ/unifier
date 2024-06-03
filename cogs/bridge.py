@@ -2355,6 +2355,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     name = discord_emoji.to_discord(list(
                         msg.reactions.keys()
                     )[x + (page * limit)], get_all=True, put_colons=False)
+                    if type(name) is list:
+                        name = name[0]
                 else:
                     name = emoji.name
                 if not name:
