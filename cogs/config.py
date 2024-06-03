@@ -236,7 +236,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Updated description!')
 
-    @commands.command(hidden=True, description='Sets room description.')
+    @commands.command(hidden=True, description='Sets room emoji.')
     async def roomemoji(self, ctx, room, *, emoji=''):
         if not self.is_user_admin(ctx.author.id):
             return await ctx.send('Only admins can modify rooms!')

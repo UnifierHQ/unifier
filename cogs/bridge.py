@@ -1918,6 +1918,32 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Nickname updated.')
 
+    @commands.command()
+    async def ping(self, ctx):
+        """Measures bot latency."""
+        t = time.time()
+        msg = await ctx.send('Ping!')
+        diff = round((time.time() - t) * 1000, 1)
+        text = 'Pong! :ping_pong:'
+        if diff <= 300 and self.bot.latency <= 0.2:
+            embed = nextcord.Embed(title='Normal - all is well!',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nAll is working normally!',
+                                   color=0x00ff00)
+        elif diff <= 600 and self.bot.latency <= 0.5:
+            embed = nextcord.Embed(title='Fair - could be better.',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nNothing\'s wrong, but the latency could be better.',
+                                   color=0xffff00)
+        elif diff <= 2000 and self.bot.latency <= 1.0:
+            embed = nextcord.Embed(title='SLOW - __**oh no.**__',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nBot latency is higher than normal, messages may be slow to arrive.',
+                                   color=0xff0000)
+        else:
+            text = 'what'
+            embed = nextcord.Embed(title='**WAY TOO SLOW**',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nSomething is DEFINITELY WRONG here. Consider checking [Discord status](https://discordstatus.com) page.',
+                                   color=0xbb00ff)
+        await msg.edit(content=text, embed=embed)
+
     @commands.command(description='Shows a list of all global emojis available on the instance.')
     async def emojis(self,ctx):
         panel = 0
