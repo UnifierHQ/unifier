@@ -2333,7 +2333,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         index = 0
         page = 0
-        limit = 2
+        limit = 25
 
         maxpage = math.ceil(len(msg.reactions.keys()) / limit) - 1
         author_id = interaction.user.id
@@ -2365,7 +2365,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     label=f':{name}:',
                     emoji=list(msg.reactions.keys())[x + (page * limit)],
                     value=f'{x}',
-                    default=x + (page * limit)==index
+                    default=x + (page * limit)==index,
+                    description=f'{len(msg.reactions[list(msg.reactions.keys())[x + (page * limit)]].keys())} reactions'
                 )
             users = []
 
@@ -2387,15 +2388,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 ),
                 ui.ActionRow(
                     nextcord.ui.Button(
-                        label=f'{page*limit+1}-{page*(limit+1)}' if page > 0 else '-',
+                        label=f'{(page-1)*limit+1}-{page*limit}' if page > 0 else '-',
                         style=nextcord.ButtonStyle.blurple,
                         custom_id='prev',
                         disabled=page <= 0
                     ),
                     nextcord.ui.Button(
                         label=(
-                            f'{page*(limit+1)+1}-{page*(limit+2)}' if limit*maxpage >= page*(limit+2) else
-                            f'{page*(limit+1)+1}-{maxpage*limit}'
+                            f'{(page+1)*limit+1}-{limit*(page+2)}' if len(msg.reactions.keys()) >= limit*(page+2) else
+                            f'{limit*(page+1)+1}-{len(msg.reactions.keys())}'
                         ) if page < maxpage else '-',
                         style=nextcord.ButtonStyle.blurple,
                         custom_id='next',
