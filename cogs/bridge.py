@@ -1918,9 +1918,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Nickname updated.')
 
-    @commands.command()
+    @commands.command(description='Measures bot latency.')
     async def ping(self, ctx):
-        """Measures bot latency."""
         t = time.time()
         msg = await ctx.send('Ping!')
         diff = round((time.time() - t) * 1000, 1)
