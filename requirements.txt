@@ -6,7 +6,7 @@ py-cpuinfo
 tld
 jellyfish
 uvloop
-compress_json
+compress-json
 python-dotenv
 requests
 ulid-py
