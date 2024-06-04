@@ -350,18 +350,16 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of rooms.')
         embed = nextcord.Embed(title='Ensuring channel is not connected...',description='This may take a while.')
         msg = await ctx.send(embed=embed)
+        hooks = await ctx.channel.webhooks()
         for roomname in list(self.bot.db['rooms'].keys()):
             # Prevent duplicate binding
-            try:
-                hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
-                hook = await self.bot.fetch_webhook(hook_id)
-                if hook.channel_id == ctx.channel.id:
+            hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
+            for hook in hooks:
+                if hook.id == hook_id:
                     embed.title = 'Channel already linked!'
                     embed.colour = 0xff0000
                     embed.description = f'This channel is already linked to `{roomname}`!\nRun `{self.bot.command_prefix}unbind {roomname}` to unbind from it.'
                     return await msg.edit(embed=embed)
-            except:
-                continue
         try:
             try:
                 guild = data[f'{ctx.guild.id}']
