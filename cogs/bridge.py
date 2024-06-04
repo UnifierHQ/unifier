@@ -3198,7 +3198,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
                 embed.title = (
-                    'This appeal has been ' +
+                    'This appeal was ' +
                     ('accepted' if interaction.data["custom_id"].startswith('apaccept_') else 'rejected') +
                     f' by {author}!'
                 )
@@ -3236,8 +3236,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     except:
                         pass
                     results_embed = nextcord.Embed(
-                        title='Your ban appeal was approved!',
-                        description='You were unbanned by the moderators and you may continue chatting.',
+                        title='Your ban appeal was accepted!',
+                        description=(
+                            'This ban has been removed from your account and will no longer impact your standing.\n'+
+                            'You may now continue chatting!'
+                        ),
                         color=0x00ff00
                     )
                 else:
