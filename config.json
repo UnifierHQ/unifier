@@ -19,6 +19,8 @@
   "reports_channel": 1212462215828082759,
   "moderator_role": 1212461330309849128,
   "allow_posts": true,
+  "enable_exp": true,
+  "exp_cooldown": 30,
   "enable_emoji_tags": true,
   "enable_threads": false,
   "enable_ctx_commands": true,

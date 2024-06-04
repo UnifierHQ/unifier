@@ -465,9 +465,9 @@ class UnifierBridge:
             if t < level_cooldown[f'{user_id}']:
                 return self.bot.db['exp'][f'{user_id}']['experience'], self.bot.db['exp'][f'{user_id}']['progress'] >= 1
             else:
-                level_cooldown[f'{user_id}'] = round(time.time()) + 30
+                level_cooldown[f'{user_id}'] = round(time.time()) + self.bot.config['exp_cooldown']
         else:
-            level_cooldown.update({f'{user_id}': round(time.time()) + 30})
+            level_cooldown.update({f'{user_id}': round(time.time()) + self.bot.config['exp_cooldown']})
         self.bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
         ratio, remaining = await self.progression(user_id)
         if ratio >= 1:
@@ -2677,6 +2677,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(aliases=['exp','lvl','experience'], description='Shows you or someone else\'s level and EXP.')
     async def level(self,ctx,*,user=None):
+        if not self.bot.config['enable_exp']:
+            return await ctx.send('Leveling system is disabled on this instance.')
         if not user:
             user = ctx.author
         else:
@@ -2710,6 +2712,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(aliases=['lb'],description='Shows EXP leaderboard.')
     async def leaderboard(self,ctx):
+        if not self.bot.config['enable_exp']:
+            return await ctx.send('Leveling system is disabled on this instance.')
         expdata = copy.copy(self.bot.db['exp'])
         lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
                 expdata.items(),
@@ -3734,7 +3738,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     text = text + f'\n{msgid}'
                 await message.channel.send('Mismatch detected.'+text)
 
-        if not message.author.bot:
+        if not message.author.bot and self.bot.config['enable_exp']:
             _newexp, levelup = await self.bot.bridge.add_exp(message.author.id)
 
             if levelup:
