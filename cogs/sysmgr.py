@@ -27,14 +27,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # AGPLv3 license anyway), but we still STRONGLY recommend you DO NOT
 # modify this, unless you're ABSOLUTELY SURE of what you're doing.
 
-import discord
-from discord.ext import commands
+import nextcord
+from nextcord.ext import commands
 import inspect
 import textwrap
 from contextlib import redirect_stdout
-from utils import log
+from utils import log, ui
 import logging
-import json
+import ujson as json
 import os
 import sys
 import traceback
@@ -43,6 +43,8 @@ import base64
 import re
 import ast
 import importlib
+import math
+import asyncio
 
 class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
@@ -99,16 +101,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
         if not hasattr(self.bot,'loaded_plugins'):
             self.bot.loaded_plugins = {}
-            for plugin in os.listdir('plugins'):
-                with open('plugins/' + plugin) as file:
-                    extinfo = json.load(file)
-                    try:
-                        if not 'content_protection' in extinfo['services']:
+            if not self.bot.safemode:
+                for plugin in os.listdir('plugins'):
+                    with open('plugins/' + plugin) as file:
+                        extinfo = json.load(file)
+                        try:
+                            if not 'content_protection' in extinfo['services']:
+                                continue
+                        except:
                             continue
-                    except:
-                        continue
-                script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
-                self.bot.loaded_plugins.update({plugin[:-5]: script})
+                    script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
+                    self.bot.loaded_plugins.update({plugin[:-5]: script})
 
         if not self.bot.ready:
             try:
@@ -179,9 +182,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         script = importlib.import_module('utils.' + plugin_name + '_check')
         await script.check(self.bot)
 
-    @commands.command(aliases=['reload-services'], hidden=True)
+    @commands.command(aliases=['reload-services'], hidden=True, description="Reloads bot services.")
     async def reload_services(self,ctx,*,services=None):
-        """Reloads bot services."""
         if not services:
             plugins = self.bot.loaded_plugins
         else:
@@ -214,7 +216,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not len(failed) == 0:
             await ctx.author.send(f'**Fail logs**\n{text}')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Evaluates code.')
     async def eval(self, ctx, *, body):
         if ctx.author.id == self.bot.config['owner']:
             env = {
@@ -283,17 +285,25 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can execute code.')
 
-    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True)
+    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
     async def shutdown(self, ctx):
-        """Gracefully shuts the bot down."""
         if not ctx.author.id == self.bot.config['owner']:
             return
         self.logger.info("Attempting graceful shutdown...")
+        self.bot.bridge.backup_lock = True
         try:
+            if self.bot.bridge.backup_running:
+                self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
+                try:
+                    while self.bot.bridge.backup_running:
+                        await asyncio.sleep(1)
+                except KeyboardInterrupt:
+                    pass
             for extension in self.bot.extensions:
                 await self.preunload(extension)
             self.logger.info("Backing up message cache...")
             self.bot.db.save_data()
+            self.bot.bridge.backup_lock = False
             await self.bot.bridge.backup(limit=10000)
             self.logger.info("Backup complete")
             await ctx.send('Shutting down...')
@@ -307,7 +317,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.close()
         sys.exit(0)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Lists all installed plugins.')
     async def plugins(self, ctx, *, plugin=None):
         if plugin:
             plugin = plugin.lower()
@@ -322,7 +332,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
         if not plugin:
             offset = page * 20
-            embed = discord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
             text = ''
             if offset > len(pluglist):
                 page = len(pluglist) // 20 - 1
@@ -351,7 +361,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 pluginfo = json.load(file)
         else:
             return await ctx.send('Could not find extension!')
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=pluginfo["name"],
             description=("Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' +
                          pluginfo["description"]),
@@ -379,7 +389,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed.add_field(name='Utilities', value=modtext, inline=False)
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True, aliases=['cogs'])
+    @commands.command(hidden=True, aliases=['cogs'], description='Lists all loaded extensions.')
     async def extensions(self, ctx, *, extension=None):
         if extension:
             extension = extension.lower()
@@ -393,7 +403,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             pass
         if not extension:
             offset = page * 20
-            embed = discord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
             text = ''
             extlist = list(self.bot.extensions)
             if offset > len(extlist):
@@ -422,7 +432,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
         else:
             return await ctx.send('Could not find extension!')
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=ext_info.qualified_name,
             description=ext_info.description,
             color=self.bot.colors.unifier
@@ -432,7 +442,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Reloads an extension.')
     async def reload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -475,7 +485,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can reload extensions.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Loads an extension.')
     async def load(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -515,7 +525,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can load extensions.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Unloads an extension.')
     async def unload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -560,7 +570,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can unload extensions.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Installs a plugin.')
     async def install(self, ctx, url):
         if not ctx.author.id==self.bot.config['owner']:
             return
@@ -572,7 +582,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
-        embed = discord.Embed(title='Downloading extension...', description='Getting extension files from remote')
+        embed = nextcord.Embed(title='Downloading extension...', description='Getting extension files from remote')
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
@@ -669,34 +679,34 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             name='Services',
             value=services_text
         )
-        row = [
-            discord.ui.Button(style=discord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
-        ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        await msg.edit(embed=embed, components=components)
+        btns = ui.ActionRow(
+            nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+        )
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        await msg.edit(embed=embed, view=components)
         embed.clear_fields()
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
-        if interaction.custom_id == 'reject':
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await msg.edit(view=components)
+        if interaction.data['custom_id'] == 'reject':
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await interaction.response.edit_message(view=components)
 
-        await interaction.response.edit_message(embed=embed, components=None)
+        await interaction.response.edit_message(embed=embed, view=None)
         try:
             try:
                 if 'requirements' in list(new.keys()):
@@ -743,7 +753,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Uninstalls a plugin.')
     async def uninstall(self, ctx, plugin):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -754,7 +764,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         plugin = plugin.lower()
         if plugin=='system':
             return await ctx.send('System plugin cannot be uninstalled!')
-        embed = discord.Embed(title='placeholder', description='This will uninstall all of the plugin\'s files. This cannot be undone!')
+        embed = nextcord.Embed(title='placeholder', description='This will uninstall all of the plugin\'s files. This cannot be undone!')
         embed.colour = 0xffcc00
         try:
             with open('plugins/' + plugin + '.json') as file:
@@ -766,33 +776,33 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await ctx.send(embed=embed)
             return
         embed.title = 'Uninstall plugin `'+plugin_info['id']+'`?'
-        row = [
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Uninstall', custom_id=f'accept', disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
-        ]
-        btns = discord.ui.ActionRow(row[0], row[1])
-        components = discord.ui.MessageComponents(btns)
-        msg = await ctx.send(embed=embed, components=components)
+        btns = ui.ActionRow(
+            nextcord.ui.Button(style=nextcord.ButtonStyle.red, label='Uninstall', custom_id=f'accept', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+        )
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await msg.edit(components=components)
-        if interaction.custom_id == 'reject':
-            row[0].disabled = True
-            row[1].disabled = True
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            return await interaction.response.edit_message(components=components)
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await msg.edit(view=components)
+        if interaction.data['custom_id'] == 'reject':
+            btns.items[0].disabled = True
+            btns.items[1].disabled = True
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            return await interaction.response.edit_message(view=components)
 
-        await interaction.response.edit_message(embed=embed, components=None)
+        await interaction.response.edit_message(embed=embed, view=None)
         try:
             plugin_id = plugin_info['id']
             modules = plugin_info['modules']
@@ -826,7 +836,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Upgrades Unifier or a plugin.')
     async def upgrade(self, ctx, plugin='system', *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -848,8 +858,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         plugin = plugin.lower()
 
         if plugin=='system':
-            embed = discord.Embed(title=':inbox_tray: Checking for upgrades...',
-                                  description='Getting latest version from remote')
+            embed = nextcord.Embed(
+                title=':inbox_tray: Checking for upgrades...',
+                description='Getting latest version from remote'
+            )
             msg = await ctx.send(embed=embed)
             try:
                 os.system('rm -rf ' + os.getcwd() + '/update_check')
@@ -883,38 +895,38 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.colour = 0xffcc00
             if should_reboot:
                 embed.set_footer(text='The bot will need to reboot to apply the new update.')
-            row = [
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
+            btns = ui.ActionRow(
+                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
                                   disabled=False),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
                                   disabled=False)
-            ]
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(embed=embed, components=components)
+            )
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(embed=embed, view=components)
 
             def check(interaction):
                 return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
-            if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await msg.edit(view=components)
+            if interaction.data['custom_id'] == 'reject':
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await interaction.response.edit_message(view=components)
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
                 embed.title = 'Backing up...'
                 embed.description = 'Your data is being backed up.'
-                await interaction.response.edit_message(embed=embed, components=None)
+                await interaction.response.edit_message(embed=embed, view=None)
             try:
                 if no_backup:
                     raise ValueError()
@@ -958,27 +970,27 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = '- :inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
             embed.title = ':arrow_up: Start the upgrade?'
             if no_backup:
-                await interaction.response.edit_message(embed=embed, components=components)
+                await interaction.response.edit_message(embed=embed, view=components)
             else:
-                await msg.edit(embed=embed, components=components)
+                await msg.edit(embed=embed, view=components)
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
-            if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await msg.edit(view=components)
+            if interaction.data['custom_id'] == 'reject':
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
             embed.title = ':arrow_up: Upgrading Unifier'
             embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
-            await interaction.response.edit_message(embed=embed, components=None)
+            await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
             try:
                 self.logger.debug('Purging old update files')
@@ -1099,7 +1111,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
         else:
-            embed = discord.Embed(title='Downloading extension...', description='Getting extension files from remote')
+            embed = nextcord.Embed(title='Downloading extension...', description='Getting extension files from remote')
 
             try:
                 with open('plugins/'+plugin+'.json') as file:
@@ -1148,33 +1160,33 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.title = f'Update `{plugin_id}`?'
             embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
             embed.colour = 0xffcc00
-            row = [
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
-            ]
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(embed=embed, components=components)
+            btns = ui.ActionRow(
+                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+            )
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            await msg.edit(embed=embed, view=components)
 
             def check(interaction):
                 return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
             try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+                interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
-            if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await msg.edit(view=components)
+            if interaction.data['custom_id'] == 'reject':
+                btns.items[0].disabled = True
+                btns.items[1].disabled = True
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                return await interaction.response.edit_message(view=components)
 
-            await interaction.response.edit_message(embed=embed, components=None)
+            await interaction.response.edit_message(embed=embed, view=None)
             try:
                 try:
                     if 'requirements' in list(new.keys()):
@@ -1230,6 +1242,398 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
                 return
+
+    @commands.command(description='Shows this command.')
+    async def help(self,ctx):
+        show_sysmgr = False
+        show_admin = False
+        show_moderation = False
+
+        admin_restricted = [
+            'addmod','delmod','make','roomdesc','roomlock','roomrestrict','addrule','delrule'
+        ]
+
+        mod_restricted = [
+            'globalban','globalunban','warn','delwarn','delban'
+        ]
+
+        if ctx.author.id == self.bot.config['owner']:
+            show_sysmgr = True
+            show_admin = True
+            show_moderation = True
+        elif ctx.author.id in self.bot.admins:
+            show_admin = True
+            show_moderation = True
+        elif ctx.author.id in self.bot.moderators:
+            show_moderation = True
+
+        panel = 0
+        limit = 20
+        page = 0
+        match = 0
+        namematch = False
+        descmatch = False
+        cogname = ''
+        cmdname = ''
+        query = ''
+        msg = None
+        interaction = None
+
+        while True:
+            embed = nextcord.Embed(color=self.bot.colors.unifier)
+            maxpage = 0
+            components = ui.MessageComponents()
+
+            if panel==0:
+                extlist = list(self.bot.extensions)
+                if not show_sysmgr:
+                    extlist.remove('cogs.sysmgr')
+                if not show_admin:
+                    extlist.remove('cogs.lockdown')
+                maxpage = math.ceil(len(extlist)/limit)-1
+                if interaction:
+                    if page > maxpage:
+                        page = maxpage
+                embed.title = f'{self.bot.user.global_name or self.bot.user.name} help'
+                embed.description = 'Choose an extension to get started!'
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
+                )
+
+                selection.add_option(
+                    label='All commands',
+                    description='Shows commands from all extensions.',
+                    value='all'
+                )
+
+                for x in range(limit):
+                    index = (page*limit)+x
+                    if index >= len(extlist):
+                        break
+                    cog = self.bot.cogs[list(self.bot.cogs)[index]]
+                    ext = list(self.bot.extensions)[index]
+                    if not cog.description:
+                        description = 'No description provided'
+                    else:
+                        split = False
+                        description = cog.description
+                        if '\n' in cog.description:
+                            description = description.split('\n',1)[0]
+                            split = True
+                        if len(description) > 100:
+                            description = description[:-(len(description)-97)]+'...'
+                        elif split:
+                            description = description + '\n...'
+
+                    name = cog.qualified_name
+                    parts = name.split(' ')
+                    offset = 0
+                    for x in range(len(parts)):
+                        index = x - offset
+                        if len(parts)==1:
+                            break
+                        if parts[index].startswith(':') and parts[index].endswith(':'):
+                            parts.pop(index)
+                            offset += 1
+                    if len(parts)==1:
+                        name = parts[0]
+                    else:
+                        name = ' '.join(parts)
+
+                    embed.add_field(
+                        name=f'{cog.qualified_name} (`{ext}`)',
+                        value=description,
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=name,
+                        description=description,
+                        value=ext
+                    )
+
+                components.add_rows(
+                    ui.ActionRow(
+                        selection
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D'
+                        )
+                    )
+                )
+            elif panel==1:
+                cmds = []
+                if cogname=='' or cogname=='search':
+                    cmds = list(self.bot.commands)
+                else:
+                    for x in range(len(self.bot.extensions)):
+                        if list(self.bot.extensions)[x]==cogname:
+                            cmds = list(self.bot.cogs[list(self.bot.cogs)[x]].get_commands())
+
+                offset = 0
+
+                def search_filter(query, query_cmd):
+                    if match==0:
+                        return (
+                            query.lower() in query_cmd.qualified_name and namematch or
+                            query.lower() in query_cmd.description.lower() and descmatch
+                        )
+                    elif match==1:
+                        return (
+                            ((query.lower() in query_cmd.qualified_name and namematch) or not namematch) and
+                            ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
+                        )
+
+                for index in range(len(cmds)):
+                    cmd = cmds[index-offset]
+                    if (
+                            cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
+                            cmd.qualified_name in mod_restricted and not show_moderation
+                    ) and not show_sysmgr or (
+                            cogname=='search' and not search_filter(query,cmd)
+                    ):
+                        cmds.pop(index-offset)
+                        offset += 1
+
+                embed.title = (
+                    f'{self.bot.user.global_name or self.bot.user.name} help / {cogname}' if not cogname == '' else
+                    f'{self.bot.user.global_name or self.bot.user.name} help / all'
+                )
+                embed.description = 'Choose a command to view its info!'
+
+                if len(cmds)==0:
+                    maxpage = 0
+                    embed.add_field(
+                        name='No commands',
+                        value=(
+                            'There are no commands matching your search query.' if cogname=='search' else
+                            'There are no commands in this extension.'
+                        ),
+                        inline=False
+                    )
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Command...',disabled=True
+                    )
+                    selection.add_option(
+                        label='No commands'
+                    )
+                else:
+                    maxpage = math.ceil(len(cmds) / limit) - 1
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
+                    )
+
+                    cmds = await self.bot.loop.run_in_executor(
+                        None,lambda: sorted(
+                            cmds,
+                            key=lambda x: x.qualified_name.lower()
+                        )
+                    )
+
+                    for x in range(limit):
+                        index = (page * limit) + x
+                        if index >= len(cmds):
+                            break
+                        cmd = cmds[index]
+                        embed.add_field(
+                            name=f'`{cmd.qualified_name}`',
+                            value=cmd.description if cmd.description else 'No description provided',
+                            inline=False
+                        )
+                        selection.add_option(
+                            label=cmd.qualified_name,
+                            description=(cmd.description if len(
+                                cmd.description
+                            ) <= 100 else cmd.description[:-(len(cmd.description) - 97)] + '...'
+                                         ) if cmd.description else 'No description provided',
+                            value=cmd.qualified_name
+                        )
+
+                if cogname=='search':
+                    embed.description = f'Searching: {query} (**{len(cmds)}** results)'
+                    maxcount = (page+1)*limit
+                    if maxcount > len(cmds):
+                        maxcount = len(cmds)
+                    embed.set_footer(
+                        text=f'Page {page + 1} of {maxpage + 1} | {page*limit+1}-{maxcount} of {len(cmds)} results'
+                    )
+
+                components.add_row(
+                    ui.ActionRow(
+                        selection
+                    )
+                )
+
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D'
+                        )
+                    )
+                )
+                if cogname=='search':
+                    components.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                custom_id='match',
+                                label=(
+                                    'Matches any of' if match==0 else
+                                    'Matches both'
+                                ),
+                                style=(
+                                    nextcord.ButtonStyle.green if match==0 else
+                                    nextcord.ButtonStyle.blurple
+                                ),
+                                emoji=(
+                                    '\U00002194' if match==0 else
+                                    '\U000023FA'
+                                )
+                            ),
+                            nextcord.ui.Button(
+                                custom_id='name',
+                                label='Command name',
+                                style=nextcord.ButtonStyle.green if namematch else nextcord.ButtonStyle.gray
+                            ),
+                            nextcord.ui.Button(
+                                custom_id='desc',
+                                label='Command description',
+                                style=nextcord.ButtonStyle.green if descmatch else nextcord.ButtonStyle.gray
+                            )
+                        )
+                    )
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+            elif panel==2:
+                cmd = self.bot.get_command(cmdname)
+                embed.title = (
+                    f'{self.bot.user.global_name or self.bot.user.name} help / {cogname} / {cmdname}' if not cogname=='' else
+                    f'{self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
+                )
+                embed.description =(
+                    f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
+                )
+                if len(cmd.aliases) > 0:
+                    aliases = []
+                    for alias in cmd.aliases:
+                        aliases.append(f'`{self.bot.command_prefix}{alias}`')
+                    embed.add_field(
+                        name='Aliases',value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
+                    )
+                embed.add_field(name='Usage', value=(
+                    f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
+                )
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+
+            if not cogname=='search' and panel==1:
+                embed.set_footer(text=f'Page {page+1} of {maxpage+1}')
+            if not msg:
+                msg = await ctx.send(embed=embed,view=components,reference=ctx.message,mention_author=False)
+            else:
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed,view=components)
+            embed.clear_fields()
+
+            def check(interaction):
+                return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                await msg.edit(view=None)
+                break
+            if interaction.type==nextcord.InteractionType.component:
+                if interaction.data['custom_id']=='selection':
+                    if panel==0:
+                        cogname = interaction.data['values'][0]
+                    elif panel==1:
+                        cmdname = interaction.data['values'][0]
+                    if cogname=='all':
+                        cogname = ''
+                    panel += 1
+                    page = 0
+                elif interaction.data['custom_id'] == 'back':
+                    panel -= 1
+                    if panel < 0:
+                        panel = 0
+                    page = 0
+                elif interaction.data['custom_id'] == 'prev':
+                    page -= 1
+                elif interaction.data['custom_id'] == 'next':
+                    page += 1
+                elif interaction.data['custom_id'] == 'search':
+                    modal = nextcord.ui.Modal(title='Search...',auto_defer=False)
+                    modal.add_item(
+                        nextcord.ui.TextInput(
+                            label='Search query',
+                            style=nextcord.TextInputStyle.short,
+                            placeholder='Type a command...'
+                        )
+                    )
+                    await interaction.response.send_modal(modal)
+                elif interaction.data['custom_id'] == 'match':
+                    match += 1
+                    if match > 1:
+                        match = 0
+                elif interaction.data['custom_id'] == 'name':
+                    namematch = not namematch
+                    if not namematch and not descmatch:
+                        namematch = True
+                elif interaction.data['custom_id'] == 'desc':
+                    descmatch = not descmatch
+                    if not namematch and not descmatch:
+                        descmatch = True
+            elif interaction.type==nextcord.InteractionType.modal_submit:
+                panel = 1
+                cogname = 'search'
+                query = interaction.data['components'][0]['components'][0]['value']
+                namematch = True
+                descmatch = True
+                match = 0
 
 def setup(bot):
     bot.add_cog(SysManager(bot))

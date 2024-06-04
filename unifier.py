@@ -16,13 +16,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands, tasks
+import nextcord
+from nextcord.ext import commands, tasks
 import random
 import aiohttp
 import asyncio
 import hashlib
-import json
+import ujson as json
 import os
 import sys
 import logging
@@ -62,11 +62,6 @@ if not 'repo' in list(data.keys()):
 
 if 'allow_prs' in list(data.keys()) and not 'allow_posts' in list(data.keys()):
     logger.warning('From v1.2.4, allow_prs is deprecated. Use allow_posts instead.')
-
-if ('pr_room_index' in list(data.keys()) and not 'posts_room' in list(data.keys()) or
-        'pr_ref_room_index' in list(data.keys()) and not 'posts_ref_room' in list(data.keys())):
-    logger.warning('From v1.1.13, pr_room_index and pr_ref_room_index are deprecated. Use posts_room and posts_ref_room instead.')
-    logger.critical('WARNING: These keys will become obsolete in the next version!')
 
 if not env_loaded:
     logger.critical('Could not load .env file! More info: https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
@@ -150,10 +145,13 @@ class DiscordBot(commands.Bot):
         self.__safemode = status
 
 
-bot = DiscordBot(command_prefix=data['prefix'],intents=discord.Intents.all())
+bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
+if data['enable_squads']:
+    logger.warning('Squads have been disabled as they are still incomplete.')
+    data['enable_squads'] = False
 bot.config = data
 bot.safemode = 'safemode' in sys.argv
-mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
+mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
 if bot.safemode:
     logger.warning('Safemode is enabled. Only system extensions will be loaded.')
@@ -199,9 +197,9 @@ async def changestatus():
     ]
     new_stat = random.choice(status_messages)
     if new_stat == "webhooks":
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
+        await bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.watching, name=new_stat))
     else:
-        await bot.change_presence(activity=discord.Game(name=new_stat))
+        await bot.change_presence(activity=nextcord.Game(name=new_stat))
 
 @tasks.loop(seconds=round(data['periodic_backup']))
 async def periodic_backup():
@@ -223,6 +221,7 @@ async def periodicping():
 async def on_ready():
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     logger.info('Loading Unifier extensions...')
+    bot.remove_command('help')
     if hasattr(bot, 'locked'):
         locked = bot.locked
     else:
@@ -259,15 +258,7 @@ async def on_ready():
             logger.debug(f'Periodic backups disabled')
         if data['enable_ctx_commands']:
             logger.debug("Registering context commands...")
-            toreg = []
-            for command in bot.commands:
-                if isinstance(command, commands.core.ContextMenuCommand):
-                    if command.name=='Reaction image':
-                        toreg.insert(0,command)
-                    else:
-                        toreg.append(command)
-            await bot.register_application_commands(commands=toreg)
-            logger.debug(f'Registered {len(toreg)} commands')
+            await bot.sync_application_commands()
     logger.info('Unifier is ready!')
 
 @bot.event

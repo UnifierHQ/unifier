@@ -16,9 +16,9 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands
-from utils import log
+import nextcord
+from nextcord.ext import commands
+from utils import log, ui
 
 class Lockdown(commands.Cog, name=':lock: Lockdown'):
     """An emergency extension that unloads literally everything.
@@ -30,43 +30,57 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             self.bot.locked = False
         self.logger = log.buildlogger(self.bot.package,'admin',self.bot.loglevel)
 
-    @commands.command(hidden=True,aliases=['globalkill'])
+    @commands.command(hidden=True,aliases=['globalkill'],description='Locks the entire bot down.')
     async def lockdown(self,ctx):
         if not ctx.author.id==self.bot.config['owner']:
             return
         if self.bot.locked:
             return await ctx.send('Bot is already locked down.')
-        embed = discord.Embed(title='Activate lockdown?',description='This will unload ALL EXTENSIONS and lock down the bot until next restart. Continue?',color=0xff0000)
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=False)
+        embed = nextcord.Embed(
+            title='Activate lockdown?',
+            description='This will unload ALL EXTENSIONS and lock down the bot until next restart. Continue?',
+            color=0xff0000
         )
-        components = discord.ui.MessageComponents(btns)
-        btns2 = discord.ui.ActionRow(
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=True),
-            discord.ui.Button(style=discord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=True)
+        btns = ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=False
+            )
         )
-        components_cancel = discord.ui.MessageComponents(btns2)
-        msg = await ctx.send(embed=embed,components=components)
+        components = ui.MessageComponents()
+        components.add_row(btns)
+        btns2 = ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=True
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=True
+            )
+        )
+        components_cancel = ui.MessageComponents()
+        components_cancel.add_row(btns2)
+        msg = await ctx.send(embed=embed,view=components)
 
         def check(interaction):
             return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
 
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            return await msg.edit(components=components_cancel)
-        if interaction.custom_id=='reject':
-            return await interaction.response.edit_message(components=components_cancel)
+            return await msg.edit(view=components_cancel)
+        if interaction.data['custom_id']=='reject':
+            return await interaction.response.edit_message(view=components_cancel)
         embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = '- :warning: All functions of the bot will be disabled.\n- :no_entry_sign: Managing extensions will be unavailable.\n- :arrows_counterclockwise: To restore the bot, a reboot is required.'
         await interaction.response.edit_message(embed=embed)
         try:
-            interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
+            interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
         except:
-            return await msg.edit(components=components_cancel)
-        if interaction.custom_id=='reject':
-            return await interaction.response.edit_message(components=components_cancel)
+            return await msg.edit(view=components_cancel)
+        if interaction.data['custom_id']=='reject':
+            return await interaction.response.edit_message(view=components_cancel)
 
         self.logger.critical(f'Bot lockdown issued by {ctx.author.id}!')
 
@@ -106,7 +120,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
 
         embed.title = 'Lockdown activated'
         embed.description = 'The bot is now in a crippled state. It cannot recover without a reboot.'
-        return await interaction.response.edit_message(embed=embed,components=components_cancel)
+        return await interaction.response.edit_message(embed=embed,view=components_cancel)
 
 def setup(bot):
     bot.add_cog(Lockdown(bot))

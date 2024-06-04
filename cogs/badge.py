@@ -16,8 +16,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands
+import nextcord
+from nextcord.ext import commands
 from utils import log
 from enum import Enum
 
@@ -37,15 +37,16 @@ class Badge(commands.Cog):
             UserRole.OWNER: (
                 self.bot.colors.greens_hair if self.bot.user.id==1187093090415149056 else self.bot.colors.unifier
             ),
-            UserRole.ADMIN: discord.Color.green(),
-            UserRole.MODERATOR: discord.Color.purple(),
+            UserRole.ADMIN: nextcord.Color.green(),
+            UserRole.MODERATOR: nextcord.Color.purple(),
             UserRole.TRUSTED: self.bot.colors.gold,
-            UserRole.BANNED: discord.Color.red(),
-            UserRole.USER: discord.Color.blurple()
+            UserRole.BANNED: nextcord.Color.red(),
+            UserRole.USER: nextcord.Color.blurple()
         }
 
     @commands.command()
     async def badge(self, ctx, *, user=None):
+        """Shows your Unifier user badge."""
         if user:
             try:
                 user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
@@ -54,7 +55,7 @@ class Badge(commands.Cog):
         else:
             user = ctx.author
         user_role = self.get_user_role(user.id)
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             description=f"<@{user.id}> is {user_role.value}.",
             color=self.embed_colors[user_role]
         )
@@ -67,8 +68,8 @@ class Badge(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
-    async def trust(self, ctx, action, user: discord.User):
+    @commands.command(hidden=True,aliases=[],description='Verifies a user.')
+    async def trust(self, ctx, action, user: nextcord.User):
         if ctx.author.id not in self.bot.admins:
             return await ctx.send("You don't have permission to use this command.")
 
@@ -84,10 +85,10 @@ class Badge(commands.Cog):
                 self.bot.trusted_group.remove(user.id)
 
         self.bot.db['trusted'] = self.bot.trusted_group
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
         user_role = UserRole.TRUSTED if action == 'add' else UserRole.USER
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title="Unifier",
             description=f"{'Added' if action == 'add' else 'Removed'} user {user.mention} from the trust group.",
             color=self.embed_colors[user_role],

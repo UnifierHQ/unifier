@@ -16,8 +16,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands
+import nextcord
+from nextcord.ext import commands
 from utils import log
 import time
 import datetime
@@ -41,9 +41,9 @@ class Uptime(commands.Cog, name=':stopwatch: Uptime'):
     async def on_disconnect(self):
         self.bot.disconnects += 1
 
-    @commands.command()
+    @commands.command(description='Shows bot uptime.')
     async def uptime(self, ctx):
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title=f'{self.bot.user.global_name} uptime',
             description=f'The bot has been up since <t:{self.bot.ut_total}:f>.',
             color=self.bot.colors.unifier

@@ -16,35 +16,47 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
+import nextcord
 import hashlib
 import asyncio
 import guilded
 import revolt
-from discord.ext import commands
+from nextcord.ext import commands
 import traceback
 import time
-from datetime import datetime
+import datetime
 import random
 import string
 import copy
-import json
+import ujson as json
 import compress_json
 import re
 import ast
 import math
 from io import BytesIO
 import os
-from utils import log
+from utils import log, ui
 import importlib
+import emoji as pymoji
+import discord_emoji
 
-with open('config.json', 'r') as file:
-    data = json.load(file)
-
-mentions = discord.AllowedMentions(everyone=False, roles=False, users=False)
+mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 
 multisend_logs = []
 plugin_data = {}
+level_cooldown = {}
+
+dedupe_emojis = [
+    '\U0001F7E5',
+    '\U0001F7E7',
+    '\U0001F7E8',
+    '\U0001F7E9',
+    '\U0001F7E6',
+    '\U0001F7EA',
+    '\U0001F7EB',
+    '\U00002B1C',
+    '\U00002B1B'
+]
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -93,7 +105,7 @@ class UnifierTranslator:
     def __init__(self,bot):
         self.bot = bot
 
-    def identify(self,message: discord.Message or revolt.Message or guilded.Message):
+    def identify(self,message: nextcord.Message or revolt.Message or guilded.Message):
         source = 'discord'
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
@@ -117,7 +129,7 @@ class UnifierTranslator:
                         embed.fields[0].value.endswith('[Bot-Invite](https://discord.com/api/oauth2/authorize?client_id=1051199485168066610&permissions=8&scope=bot%20applications.commands)')):
                     return 'embed_silly'
 
-    def translate(self,message: discord.Message or revolt.Message or guilded.Message):
+    def translate(self,message: nextcord.Message or revolt.Message or guilded.Message):
         source = 'discord'
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
@@ -137,7 +149,8 @@ class UnifierTranslator:
 
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
-                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False, reactions=None):
+                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False, reactions=None,
+                 thread=None):
         self.author_id = author_id
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -151,7 +164,8 @@ class UnifierMessage:
         self.webhook = webhook
         self.prehook = prehook
         self.reply = reply
-        self.external_bridged = external_bridged
+        self.external_bridged = external_bridged,
+        self.thread = thread
         if not reactions or not type(reactions) is dict:
             self.reactions = {}
         else:
@@ -270,6 +284,11 @@ class UnifierBridge:
         self.logger = logger
         self.secbans = {}
         self.restricted = {}
+        self.backup_running = False
+        self.backup_lock = False
+        self.msg_stats = {}
+        self.msg_stats_reset = datetime.datetime.now().day
+        self.dedupe = {}
 
     def is_raidban(self,userid):
         try:
@@ -282,6 +301,11 @@ class UnifierBridge:
         self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
     async def backup(self,filename='bridge.json',limit=10000):
+        if self.backup_lock:
+            return
+
+        self.backup_running = True
+
         data = {'messages':{},'posts':{}}
         og_limit = limit
 
@@ -305,11 +329,12 @@ class UnifierBridge:
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
         if self.bot.config['compress_cache']:
-            compress_json.dump(data,filename+'.lzma')
+            await self.bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
         else:
             with open(filename, "w+") as file:
-                json.dump(data, file)
+                await self.bot.loop.run_in_executor(None, lambda: json.dump(data, file))
         del data
+        self.backup_running = False
         return
 
     async def restore(self,filename='bridge.json'):
@@ -385,6 +410,11 @@ class UnifierBridge:
 
         return message
 
+    async def find_thread(self,thread_id):
+        for thread in self.bot.db['threads']:
+            if int(thread)==thread_id or int(thread_id) in self.bot.db['threads'][thread].values():
+                return {thread: self.bot.db['threads'][thread]}
+        return None
 
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
         if prehook and not_prehook:
@@ -424,6 +454,71 @@ class UnifierBridge:
         self.bridged[index]['external_copies'] = self.bridged[index]['external_copies'] | msg_tomerge.external_copies
         self.bridged[index]['urls'] = self.bridged[index]['urls'] | msg_tomerge.urls
         self.bridged.pop(index_tomerge)
+
+    async def add_exp(self, user_id):
+        if not self.bot.config['enable_leveling'] or user_id==self.bot.user.id:
+            return 0, False
+        if not f'{user_id}' in self.bot.db['exp'].keys():
+            self.bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
+        t = time.time()
+        if f'{user_id}' in level_cooldown.keys():
+            if t < level_cooldown[f'{user_id}']:
+                return self.bot.db['exp'][f'{user_id}']['experience'], self.bot.db['exp'][f'{user_id}']['progress'] >= 1
+            else:
+                level_cooldown[f'{user_id}'] = round(time.time()) + self.bot.config['exp_cooldown']
+        else:
+            level_cooldown.update({f'{user_id}': round(time.time()) + self.bot.config['exp_cooldown']})
+        self.bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
+        ratio, remaining = await self.progression(user_id)
+        if ratio >= 1:
+            self.bot.db['exp'][f'{user_id}']['experience'] = -remaining
+            self.bot.db['exp'][f'{user_id}']['level'] += 1
+            newratio, _remaining = await self.progression(user_id)
+        else:
+            newratio = ratio
+        self.bot.db['exp'][f'{user_id}']['progress'] = newratio
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+        return self.bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
+
+    async def progression(self, user_id):
+        base = 1000
+        rate = 1.4
+        target = base * (rate ** self.bot.db['exp'][f'{user_id}']['level'])
+        return (
+            self.bot.db['exp'][f'{user_id}']['experience']/target, target-self.bot.db['exp'][f'{user_id}']['experience']
+        )
+
+    async def roomstats(self, roomname):
+        online = 0
+        members = 0
+        guilds = 0
+        for guild_id in self.bot.db['rooms'][roomname]:
+            try:
+                guild = self.bot.get_guild(int(guild_id))
+                online += len(list(
+                    filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
+                           guild.members)))
+                members += len(guild.members)
+                guilds += 1
+            except:
+                pass
+        try:
+            messages = self.msg_stats[roomname]
+        except:
+            messages = 0
+        return {
+            'online': online, 'members': members, 'guilds': guilds, 'messages': messages
+        }
+
+    async def dedupe_name(self, username, userid):
+        if not username in self.dedupe.keys():
+            self.dedupe.update({username:[userid]})
+            return -1
+        if not userid in self.dedupe[username]:
+            self.dedupe[username].append(userid)
+        if self.dedupe[username].index(userid)-1 >= len(dedupe_emojis):
+            return len(self.dedupe[username])-1
+        return self.dedupe[username].index(userid)-1
 
     async def delete_parent(self, message):
         msg: UnifierMessage = await self.fetch_message(message)
@@ -589,8 +684,8 @@ class UnifierBridge:
                 except:
                     offset += 1
                     continue
-                text = text.replace(f'<@{userid}>',f'@{user.display_name or user.name}').replace(
-                    f'<@!{userid}>', f'@{user.display_name or user.name}')
+                text = text.replace(f'<@{userid}>',f'@{user.global_name or user.name}').replace(
+                    f'<@!{userid}>', f'@{user.global_name or user.name}')
                 offset += 1
             return text
 
@@ -715,7 +810,7 @@ class UnifierBridge:
 
         await asyncio.gather(*threads)
 
-    async def send(self, room: str, message: discord.Message or revolt.Message,
+    async def send(self, room: str, message: nextcord.Message or revolt.Message,
                    platform: str = 'discord', system: bool = False,
                    extbridge=False, id_override=None, ignore=None):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
@@ -749,13 +844,10 @@ class UnifierBridge:
         elif platform=='guilded':
             guilds = self.bot.db['rooms_guilded'][room]
 
-        try:
-            is_pr = room == self.bot.config['posts_room'] and (
-                self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
-            )
-        except:
-            is_pr = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_room_index']
+        is_pr = room == self.bot.config['posts_room'] and (
+            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
+            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        )
         is_pr_ref = False
         pr_id = ""
 
@@ -773,13 +865,10 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        try:
-            temp_pr_ref = room == self.bot.config['posts_ref_room'] and (
-                self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
-            )
-        except:
-            temp_pr_ref = list(self.bot.db['rooms'].keys()).index(room) == self.bot.config['pr_ref_room_index']
+        temp_pr_ref = room == self.bot.config['posts_ref_room'] and (
+            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
+            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        )
         if temp_pr_ref and message.content.startswith('[') and source==platform=='discord' and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
                 self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
@@ -835,7 +924,7 @@ class UnifierBridge:
             emoji_text = ''
 
             for x in range(index):
-                emoji = discord.utils.find(
+                emoji = nextcord.utils.find(
                     lambda e: e.name == name and not e.id in skip and e.guild_id in self.bot.db['emojis'],
                     self.bot.emojis)
                 if emoji == None:
@@ -875,6 +964,54 @@ class UnifierBridge:
                 await message.channel.send(f'Post ID assigned: `{pr_id}`', replies=[revolt.MessageReply(message)])
             elif source == 'guilded':
                 await message.channel.send(f'Post ID assigned: `{pr_id}`', reply_to=[message])
+
+        # Username
+        if source == 'revolt':
+            if not message.author.display_name:
+                author = message.author.name
+            else:
+                author = message.author.display_name
+        elif source == 'guilded':
+            author = message.author.name
+        else:
+            author = message.author.global_name if message.author.global_name else message.author.name
+        if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
+            author = self.bot.db['nicknames'][f'{message.author.id}']
+
+        # Get dedupe
+        dedupe = await self.dedupe_name(author, message.author.id)
+        should_dedupe = dedupe > -1
+
+        # Emoji time
+        useremoji = None
+        if self.bot.config['enable_emoji_tags'] and not system:
+            while True:
+                author_split = [*author]
+                if len(author_split) == 1:
+                    if source == 'guilded':
+                        author = 'Moderated username'
+                    else:
+                        author = message.author.name
+                    break
+                if pymoji.is_emoji(author_split[len(author_split)-1]):
+                    author_split.pop(len(author_split)-1)
+                    author = ''.join(author_split)
+                    while author.endswith(' '):
+                        author = author[:-1]
+                else:
+                    break
+            if message.author.id == self.bot.config['owner']:
+                useremoji = '\U0001F451'
+            elif message.author.id in self.bot.admins:
+                useremoji = '\U0001F510'
+            elif message.author.id in self.bot.moderators:
+                useremoji = '\U0001F6E1'
+            elif message.author.id in self.bot.db['trusted']:
+                useremoji = '\U0001F31F'
+            elif message.author.bot:
+                useremoji = '\U0001F916'
+            elif should_dedupe:
+                useremoji = dedupe_emojis[dedupe]
 
         message_ids = {}
         urls = {}
@@ -950,15 +1087,15 @@ class UnifierBridge:
             if platform=='discord':
                 if is_pr or is_pr_ref:
                     if source == 'discord':
-                        button_style = discord.ButtonStyle.blurple
+                        button_style = nextcord.ButtonStyle.blurple
                     elif source == 'revolt':
-                        button_style = discord.ButtonStyle.red
+                        button_style = nextcord.ButtonStyle.red
                     else:
-                        button_style = discord.ButtonStyle.gray
+                        button_style = nextcord.ButtonStyle.gray
                     if is_pr:
-                        pr_actionrow = discord.ui.ActionRow(
-                            discord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
-                                              emoji='\U0001F4AC', disabled=True)
+                        pr_actionrow = ui.ActionRow(
+                            nextcord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
+                                               emoji='\U0001F4AC', disabled=True)
                         )
                     else:
                         try:
@@ -969,20 +1106,22 @@ class UnifierBridge:
                             is_pr_ref = False
                         else:
                             try:
-                                pr_actionrow = discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url, label=f'Referencing Post #{pr_id}',
-                                                      emoji='\U0001F517',url=await msg.fetch_url(guild))
+                                pr_actionrow = ui.ActionRow(
+                                    nextcord.ui.Button(style=nextcord.ButtonStyle.url, label=f'Referencing Post #{pr_id}',
+                                                       emoji='\U0001F517',url=await msg.fetch_url(guild))
                                 )
                             except:
-                                pr_actionrow = discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
-                                                      emoji='\U0001F517', disabled=True)
+                                pr_actionrow = ui.ActionRow(
+                                    nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
+                                                       emoji='\U0001F517', disabled=True)
                                 )
                     if pr_actionrow:
-                        components = discord.ui.MessageComponents(
-                            pr_actionrow
-                        )
+                        components = ui.View()
+                        components.add_row(pr_actionrow)
                 if reply_msg:
+                    if message.thread:
+                        # i probably want to research how nextcord threads work first, will come back to this
+                        pass
                     if not trimmed:
                         is_copy = False
                         try:
@@ -997,7 +1136,7 @@ class UnifierBridge:
                             else:
                                 msg = await message.channel.fetch_message(message.reference.message_id)
                             content = msg.content
-                        clean_content = discord.utils.remove_markdown(content)
+                        clean_content = nextcord.utils.remove_markdown(content)
 
                         if reply_msg.reply and source=='guilded' and is_copy:
                             clean_content = clean_content.split('\n',1)[1]
@@ -1027,19 +1166,16 @@ class UnifierBridge:
 
                     author_text = '[unknown]'
                     if source == 'discord':
-                        button_style = discord.ButtonStyle.blurple
+                        button_style = nextcord.ButtonStyle.blurple
                     elif source == 'revolt':
-                        button_style = discord.ButtonStyle.red
+                        button_style = nextcord.ButtonStyle.red
                     else:
-                        button_style = discord.ButtonStyle.gray
+                        button_style = nextcord.ButtonStyle.gray
 
                     try:
                         if reply_msg.source=='revolt':
                             user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            if not user.display_name:
-                                author_text = f'@{user.name}'
-                            else:
-                                author_text = f'@{user.display_name}'
+                            author_text = f'@{user.global_name or user.name}'
                         elif reply_msg.source=='guilded':
                             user = self.bot.guilded_client.get_user(reply_msg.author_id)
                             author_text = f'@{user.name}'
@@ -1064,50 +1200,62 @@ class UnifierBridge:
                         count = len(msg.embeds) + len(msg.attachments)
 
                     if len(trimmed)==0:
-                        content_btn = discord.ui.Button(style=button_style,
-                                                        label=f'x{count}', emoji='\U0001F3DE', disabled=True)
+                        content_btn = nextcord.ui.Button(
+                            style=button_style,label=f'x{count}', emoji='\U0001F3DE', disabled=True
+                        )
                     else:
-                        content_btn = discord.ui.Button(style=button_style, label=trimmed, disabled=True)
+                        content_btn = nextcord.ui.Button(
+                            style=button_style, label=trimmed, disabled=True
+                        )
 
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
                         try:
-                            components = discord.ui.MessageComponents(
+                            components = ui.View()
+                            components.add_rows(
                                 pr_actionrow,
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url,label='Replying to '+author_text,
-                                                      url=await reply_msg.fetch_url(guild))
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url, label='Replying to ' + author_text,
+                                        url=await reply_msg.fetch_url(guild)
+                                    )
                                 ),
-                                discord.ui.ActionRow(
+                                ui.ActionRow(
                                     content_btn
                                 )
                             )
                         except:
-                            components = discord.ui.MessageComponents(
+                            components = ui.View()
+                            components.add_rows(
                                 pr_actionrow,
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                                      disabled=True)
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
+                                    )
                                 )
                             )
                     else:
                         try:
-                            components = discord.ui.MessageComponents(
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.url, label='Replying to '+author_text,
-                                                      url=await reply_msg.fetch_url(guild))
+                            components = ui.View()
+                            components.add_rows(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url, label='Replying to '+author_text,
+                                        url=await reply_msg.fetch_url(guild)
+                                    )
                                 ),
-                                discord.ui.ActionRow(
+                                ui.ActionRow(
                                     content_btn
                                 )
                             )
                         except:
-                            components = discord.ui.MessageComponents(
-                                discord.ui.ActionRow(
-                                    discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                                      disabled=True)
+                            components = ui.View(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
+                                    )
                                 ),
-                                discord.ui.ActionRow(
+                                ui.ActionRow(
                                     content_btn
                                 )
                             )
@@ -1134,21 +1282,23 @@ class UnifierBridge:
                     except:
                         botgld = False
                     if authid==self.bot.user.id or botrvt or botgld:
-                        reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [system]',
-                                              disabled=True)
+                        reply_row = ui.ActionRow(
+                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [system]',
+                                               disabled=True)
                         )
                     else:
-                        reply_row = discord.ui.ActionRow(
-                            discord.ui.Button(style=discord.ButtonStyle.gray, label='Replying to [unknown]',
-                                              disabled=True)
+                        reply_row = ui.ActionRow(
+                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [unknown]',
+                                               disabled=True)
                         )
                     if pr_actionrow:
-                        components = discord.ui.MessageComponents(
+                        components = ui.MessageComponents()
+                        components.add_rows(
                             pr_actionrow,reply_row
                         )
                     else:
-                        components = discord.ui.MessageComponents(
+                        components = ui.MessageComponents()
+                        components.add_rows(
                             reply_row
                         )
 
@@ -1168,10 +1318,10 @@ class UnifierBridge:
                                 return await source_file.to_file(use_cached=False, spoiler=False)
                     elif source=='revolt':
                         filebytes = await source_file.read()
-                        return discord.File(fp=BytesIO(filebytes), filename=source_file.filename)
+                        return nextcord.File(fp=BytesIO(filebytes), filename=source_file.filename)
                     elif source=='guilded':
                         tempfile = await source_file.to_file()
-                        return discord.File(fp=tempfile.fp, filename=source_file.filename)
+                        return nextcord.File(fp=tempfile.fp, filename=source_file.filename)
                 elif platform=='revolt':
                     if source=='discord':
                         f = await source_file.to_file(use_cached=True)
@@ -1196,6 +1346,8 @@ class UnifierBridge:
                         return guilded.File(fp=tempfile.fp, filename=source_file.filename)
 
             for attachment in message.attachments:
+                if system:
+                    break
                 if source=='guilded':
                     if not attachment.file_type.image and not attachment.file_type.video:
                         continue
@@ -1220,19 +1372,6 @@ class UnifierBridge:
                     break
                 files.append(await to_file(attachment))
 
-            # Username
-            if source == 'revolt':
-                if not message.author.display_name:
-                    author = message.author.name
-                else:
-                    author = message.author.display_name
-            elif source=='guilded':
-                author = message.author.name
-            else:
-                author = message.author.global_name
-            if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
-                author = self.bot.db['nicknames'][f'{message.author.id}']
-
             # Avatar
             try:
                 if f'{message.author.id}' in self.bot.db['avatars']:
@@ -1251,7 +1390,7 @@ class UnifierBridge:
             # Add system identifier
             msg_author = author
             if system:
-                msg_author = self.bot.user.global_name + ' (system)'
+                msg_author = self.bot.user.global_name if self.bot.user.global_name else self.bot.user.name + ' (system)'
 
             # Send message
             embeds = message.embeds
@@ -1265,6 +1404,11 @@ class UnifierBridge:
                 msg_author_dc = msg_author
                 if len(msg_author) > 35:
                     msg_author_dc = msg_author[:-(len(msg_author) - 35)]
+                    if useremoji:
+                        msg_author_dc = msg_author[:-2]
+
+                if useremoji:
+                    msg_author_dc = msg_author_dc + ' ' + useremoji
 
                 webhook = None
                 try:
@@ -1287,7 +1431,9 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components if not system else None, wait=True)
+                                                 view=(
+                                                     components if components and not system else ui.MessageComponents()
+                                                 ), wait=True)
                     except:
                         return None
                     tbresult = [
@@ -1305,7 +1451,9 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
-                                                 components=components if not system else None, wait=True)
+                                                 view=(
+                                                     components if components and not system else ui.MessageComponents()
+                                                 ), wait=True)
                     except:
                         continue
                     if sameguild:
@@ -1359,6 +1507,11 @@ class UnifierBridge:
                 msg_author_rv = msg_author
                 if len(msg_author) > 32:
                     msg_author_rv = msg_author[:-(len(msg_author)-32)]
+                    if useremoji:
+                        msg_author_rv = msg_author[:-2]
+
+                if useremoji:
+                    msg_author_rv = msg_author_rv + ' ' + useremoji
 
                 try:
                     persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
@@ -1403,7 +1556,7 @@ class UnifierBridge:
                         else:
                             msg = await message.channel.fetch_message(message.reference.message_id)
                         content = msg.content
-                    clean_content = discord.utils.remove_markdown(content)
+                    clean_content = nextcord.utils.remove_markdown(content)
 
                     if reply_msg.reply and source == 'guilded' and is_copy:
                         clean_content = clean_content.split('\n', 1)[1]
@@ -1514,8 +1667,8 @@ class UnifierBridge:
         if not parent_id:
             parent_id = message.id
 
-        if is_pr and not pr_id in list(self.prs.keys()) and platform==source:
-            self.prs.update({pr_id:parent_id})
+        if is_pr and not pr_id in list(self.prs.keys()) and platform == source:
+            self.prs.update({pr_id: parent_id})
 
         if system:
             msg_author = self.bot.user.id
@@ -1528,22 +1681,23 @@ class UnifierBridge:
         try:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
-            if msg_object.source==platform:
+            if msg_object.source == platform:
                 self.bridged[index].copies = msg_object.copies | message_ids
             else:
                 try:
-                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[platform] | message_ids
+                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[
+                                                                        platform] | message_ids
                 except:
-                    self.bridged[index].external_copies.update({platform:message_ids})
+                    self.bridged[index].external_copies.update({platform: message_ids})
             self.bridged[index].urls = self.bridged[index].urls | urls
         except:
             copies = {}
             external_copies = {}
-            if source==platform:
+            if source == platform:
                 copies = message_ids
             else:
-                external_copies = {platform:message_ids}
-            if source=='revolt':
+                external_copies = {platform: message_ids}
+            if source == 'revolt':
                 server_id = message.server.id
             else:
                 server_id = message.guild.id
@@ -1568,6 +1722,12 @@ class UnifierBridge:
                 reply=replying,
                 external_bridged=extbridge
             ))
+            if datetime.datetime.now().day != self.msg_stats_reset:
+                self.msg_stats = {}
+            try:
+                self.msg_stats[room] += 1
+            except:
+                self.msg_stats.update({room: 1})
         return parent_id
 
 class Bridge(commands.Cog, name=':link: Bridge'):
@@ -1582,7 +1742,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridged_external = {}
         if not hasattr(self.bot, 'bridged_obe'):
             # OBE = Owned By External
-            # Message wasn't sent from Discord.
+            # Message wasn't sent from nextcord.
             self.bot.bridged_obe = {}
         if not hasattr(self.bot, 'bridged_urls'):
             self.bot.bridged_urls = {}
@@ -1603,19 +1763,76 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
         msgs = []
         prs = {}
+        msg_stats = {}
+        msg_stats_reset = datetime.datetime.now().day
         restored = False
         if hasattr(self.bot, 'bridge'):
             if self.bot.bridge: # Avoid restoring if bridge is None
                 msgs = self.bot.bridge.bridged
                 prs = self.bot.bridge.prs
                 restored = self.bot.bridge.restored
+                msg_stats = self.bot.bridge.msg_stats
+                msg_stats_reset = self.bot.bridge.msg_stats_reset
                 del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
         self.bot.bridge.prs = prs
         self.bot.bridge.restored = restored
+        self.bot.bridge.msg_stats = msg_stats
+        self.bot.bridge.msg_stats_reset = msg_stats_reset
 
-    @commands.command(aliases=['colour'])
+    def add_modlog(self, type, user, reason, moderator):
+        t = time.time()
+        try:
+            self.bot.db['modlogs'][f'{user}'].append({
+                'type': type,
+                'reason': reason,
+                'time': t,
+                'mod': moderator
+            })
+        except:
+            self.bot.db['modlogs'].update({
+                f'{user}': [{
+                    'type': type,
+                    'reason': reason,
+                    'time': t,
+                    'mod': moderator
+                }]
+            })
+        self.bot.db.save_data()
+
+    def get_modlogs(self, user):
+        t = time.time()
+
+        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
+            return {
+                'warns': [],
+                'bans': []
+            }, {
+                'warns': [],
+                'bans': []
+            }
+
+        actions = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
+        }
+        actions_recent = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
+        }
+
+        return actions, actions_recent
+
+    def get_modlogs_count(self, user):
+        actions, actions_recent = self.get_modlogs(user)
+        return {
+            'warns': len(actions['warns']), 'bans': len(actions['bans'])
+        }, {
+            'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
+        }
+
+    @commands.command(aliases=['colour'],description='Sets Revolt color.')
     async def color(self,ctx,*,color=''):
         if color=='':
             try:
@@ -1631,11 +1848,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 current_color = 'Default'
                 embed_color = self.bot.colors.unifier
-            embed = discord.Embed(title='Your Revolt color',description=current_color,color=embed_color)
+            embed = nextcord.Embed(title='Your Revolt color',description=current_color,color=embed_color)
             await ctx.send(embed=embed)
         elif color=='inherit':
             self.bot.db['colors'].update({f'{ctx.author.id}':'inherit'})
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send('Your Revolt messages will now inherit your Discord role color.')
         else:
             try:
@@ -1643,10 +1860,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 return await ctx.send('Invalid hex code!')
             self.bot.db['colors'].update({f'{ctx.author.id}':color})
-            self.bot.db.save_data()
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send('Your Revolt messages will now inherit the custom color.')
 
-    @commands.command(aliases=['find'])
+    @commands.command(aliases=['find'],description='Identifies the origin of a message.')
     async def identify(self, ctx):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
@@ -1690,99 +1907,326 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 guildname = '[unknown]'
         await ctx.send(f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
 
-    @commands.command()
-    async def getbridged(self, ctx, *, msg_id):
-        if not ctx.author.id in self.bot.moderators:
-            return
-        try:
-            content = self.bot.bridged[msg_id]
-            await ctx.send(f'{content}')
-        except:
-            await ctx.send('No matches found!')
-
-    @commands.command()
+    @commands.command(description='Sets a nickname. An empty provided nickname will reset it.')
     async def nickname(self, ctx, *, nickname=''):
-        if len(nickname) > 35:
-            return await ctx.send('Please keep your nickname within 35 characters.')
+        if len(nickname) > 33:
+            return await ctx.send('Please keep your nickname within 33 characters.')
         if len(nickname) == 0:
             self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
         else:
             self.bot.db['nicknames'].update({f'{ctx.author.id}': nickname})
-        self.bot.db.save_data()
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Nickname updated.')
 
-    @commands.command()
-    async def emojis(self, ctx, *, index=1):
-        """Shows a list of all global emojis available in Unified Chat."""
-        text = ''
-        index = index - 1
-        if index < 0:
-            return await ctx.send('what')
-        offset = index * 20
-        emojis = []
-        for emoji in self.bot.emojis:
-            if emoji.guild_id in self.bot.db['emojis']:
-                emojis.append(emoji)
-        for i in range(20):
-            try:
-                emoji = emojis[i + offset]
-            except:
-                break
-            emoji_text = f'<:{emoji.name}:{emoji.id}>'
-            if emoji.animated:
-                emoji_text = f'<a:{emoji.name}:{emoji.id}>'
-            if len(text) == 0:
-                text = f'- {emoji_text} {emoji.name}'
+    @commands.command(description='Measures bot latency.')
+    async def ping(self, ctx):
+        t = time.time()
+        msg = await ctx.send('Ping!')
+        diff = round((time.time() - t) * 1000, 1)
+        text = 'Pong! :ping_pong:'
+        if diff <= 300 and self.bot.latency <= 0.2:
+            embed = nextcord.Embed(title='Normal - all is well!',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nAll is working normally!',
+                                   color=0x00ff00)
+        elif diff <= 600 and self.bot.latency <= 0.5:
+            embed = nextcord.Embed(title='Fair - could be better.',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nNothing\'s wrong, but the latency could be better.',
+                                   color=0xffff00)
+        elif diff <= 2000 and self.bot.latency <= 1.0:
+            embed = nextcord.Embed(title='SLOW - __**oh no.**__',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nBot latency is higher than normal, messages may be slow to arrive.',
+                                   color=0xff0000)
+        else:
+            text = 'what'
+            embed = nextcord.Embed(title='**WAY TOO SLOW**',
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nSomething is DEFINITELY WRONG here. Consider checking [Discord status](https://discordstatus.com) page.',
+                                   color=0xbb00ff)
+        await msg.edit(content=text, embed=embed)
+
+    @commands.command(description='Shows a list of all global emojis available on the instance.')
+    async def emojis(self,ctx):
+        panel = 0
+        limit = 8
+        page = 0
+        was_searching = False
+        emojiname = None
+        query = ''
+        msg = None
+        interaction = None
+
+        while True:
+            embed = nextcord.Embed(color=self.bot.colors.unifier)
+            maxpage = 0
+            components = ui.MessageComponents()
+
+            if panel == 0:
+                was_searching = False
+                emojis = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                    self.bot.emojis,
+                    key=lambda x: x.name.lower()
+                ))
+                offset = 0
+                for x in range(len(emojis)):
+                    if not emojis[x-offset].guild_id in self.bot.db['emojis']:
+                        emojis.pop(x-offset)
+                        offset += 1
+
+                maxpage = math.ceil(len(emojis) / limit) - 1
+                if interaction:
+                    if page > maxpage:
+                        page = maxpage
+                embed.title = f'{self.bot.user.global_name or self.bot.user.name} emojis'
+                embed.description = 'Choose an emoji to view its info!'
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                )
+
+                for x in range(limit):
+                    index = (page * limit) + x
+                    if index >= len(emojis):
+                        break
+                    name = emojis[index].name
+                    emoji = (
+                        f'<a:{name}:{emojis[index].id}>' if emojis[index].animated else f'<:{name}:{emojis[index].id}>'
+                    )
+
+                    embed.add_field(
+                        name=f'`:{name}:`',
+                        value=emoji,
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=name,
+                        emoji=emoji,
+                        value=name
+                    )
+                if len(embed.fields)==0:
+                    embed.add_field(
+                        name='No emojis',
+                        value='There\'s no global emojis here!',
+                        inline=False
+                    )
+                    selection.add_option(
+                        label='placeholder',
+                        value='placeholder'
+                    )
+                    selection.disabled = True
+
+                components.add_rows(
+                    ui.ActionRow(
+                        selection
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0 or selection.disabled
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage or selection.disabled
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D',
+                            disabled=selection.disabled
+                        )
+                    )
+                )
+            elif panel == 1:
+                was_searching = True
+                emojis = self.bot.emojis
+
+                def search_filter(query, query_cmd):
+                    return query.lower() in query_cmd.name.lower()
+
+                offset = 0
+                for x in range(len(emojis)):
+                    emoji = emojis[x - offset]
+                    if not emojis[x-offset].guild_id in self.bot.db['emojis'] or not search_filter(query,emoji):
+                        emojis.pop(x - offset)
+                        offset += 1
+
+                embed.title = f'{self.bot.user.global_name or self.bot.user.name} emojis / search'
+                embed.description = 'Choose an emoji to view its info!'
+
+                if len(emojis) == 0:
+                    maxpage = 0
+                    embed.add_field(
+                        name='No emojis',
+                        value='There are no emojis matching your search query.',
+                        inline=False
+                    )
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
+                    )
+                    selection.add_option(
+                        label='No emojis'
+                    )
+                else:
+                    maxpage = math.ceil(len(emojis) / limit) - 1
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                    )
+
+                    emojis = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                        emojis,
+                        key=lambda x: x.name
+                    ))
+
+                    for x in range(limit):
+                        index = (page * limit) + x
+                        if index >= len(emojis):
+                            break
+                        name = emojis[index].name
+                        emoji = (
+                            f'<a:{name}:{emojis[index].id}>' if emojis[index].animated else
+                            f'<:{name}:{emojis[index].id}>'
+                        )
+                        embed.add_field(
+                            name=f'`:{name}:`',
+                            value=emoji,
+                            inline=False
+                        )
+                        selection.add_option(
+                            label=name,
+                            value=name,
+                            emoji=emoji
+                        )
+
+                embed.description = f'Searching: {query} (**{len(emojis)}** results)'
+                maxcount = (page + 1) * limit
+                if maxcount > len(emojis):
+                    maxcount = len(emojis)
+                embed.set_footer(
+                    text=(
+                            f'Page {page + 1} of {maxpage + 1} | {page * limit + 1}-{maxcount} of {len(emojis)}'+
+                            ' results'
+                    )
+                )
+
+                components.add_row(
+                    ui.ActionRow(
+                        selection
+                    )
+                )
+
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji='\U0001F50D'
+                        )
+                    )
+                ),
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+            elif panel == 2:
+                emoji_obj = nextcord.utils.get(self.bot.emojis, name=emojiname)
+                embed.title = (
+                    f'{self.bot.user.global_name or self.bot.user.name} emojis / search / {emojiname}'
+                    if was_searching else
+                    f'{self.bot.user.global_name or self.bot.user.name} emojis / {emojiname}'
+                )
+                emoji = (
+                    f'<a:{emojiname}:{emoji_obj.id}>' if emoji_obj.animated else f'<:{emojiname}:{emoji_obj.id}>'
+                )
+                embed.description = f'# **{emoji} `:{emojiname}:`**\nFrom: {emoji_obj.guild.name}'
+                embed.add_field(
+                    name='How to use',
+                    value=f'Type `[emoji: {emojiname}]` in your message to use this emoji!',
+                    inline=False
+                )
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                        )
+                    )
+                )
+
+            if panel == 0:
+                embed.set_footer(text=f'Page {page + 1} of {maxpage + 1 if maxpage >= 0 else 1}')
+            if not msg:
+                msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
             else:
-                text = f'{text}\n- {emoji_text} {emoji.name}'
-        if len(text) == 0:
-            return await ctx.send('Out of range!')
-        pages = len(emojis) // 20
-        if len(emojis) % 20 > 0:
-            pages += 1
-        embed = discord.Embed(
-            title='UniChat Emojis list',
-            description=(
-                    'To use an emoji, simply send `[emoji: emoji_name]`.\nIf there\'s emojis with '+
-                    'duplicate names, use `[emoji2: emoji_name]` to send the 2nd emoji with that '+
-                    'name.\n' + text
-            ),
-            color=self.bot.colors.unifier
-        )
-        embed.set_footer(text=f'Page {index + 1}/{pages}')
-        await ctx.send(embed=embed)
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed, view=components)
+            embed.clear_fields()
 
-    @commands.command()
-    async def emoji(self, ctx, *, emoji=''):
-        emojis = []
-        for emoji in self.bot.emojis:
-            if emoji.guild_id in self.bot.db['emojis']:
-                emojis.append(emoji)
+            def check(interaction):
+                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
-        emoji_preview = None
-        for emoji1 in emojis:
-            if f'<:{emoji1.name}:{emoji1.id}>'==emoji or emoji1.name==emoji or str(emoji1.id)==emoji:
-                emoji_preview = emoji1
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            except:
+                await msg.edit(view=None)
                 break
+            if interaction.type == nextcord.InteractionType.component:
+                if interaction.data['custom_id'] == 'selection':
+                    emojiname = interaction.data['values'][0]
+                    panel = 2
+                    page = 0
+                elif interaction.data['custom_id'] == 'back':
+                    panel -= 1
+                    if panel < 0 or panel==1 and not was_searching:
+                        panel = 0
+                    page = 0
+                elif interaction.data['custom_id'] == 'rules':
+                    panel += 1
+                elif interaction.data['custom_id'] == 'prev':
+                    page -= 1
+                elif interaction.data['custom_id'] == 'next':
+                    page += 1
+                elif interaction.data['custom_id'] == 'search':
+                    modal = nextcord.ui.Modal(title='Search...', auto_defer=False)
+                    modal.add_item(
+                        nextcord.ui.TextInput(
+                            label='Search query',
+                            style=nextcord.TextInputStyle.short,
+                            placeholder='Type something...'
+                        )
+                    )
+                    await interaction.response.send_modal(modal)
+            elif interaction.type == nextcord.InteractionType.modal_submit:
+                panel = 1
+                query = interaction.data['components'][0]['components'][0]['value']
+                page = 0
 
-        if not emoji_preview:
-            return await ctx.send('Could not find this emoji!')
-
-        embed = discord.Embed(
-            title=emoji_preview.name,
-            description=f'<:{emoji_preview.name}:{emoji_preview.id}>',
-            color=self.bot.colors.unifier
-        )
-        embed.add_field(
-            name='Origin guild',
-            value=emoji_preview.guild.name
-        )
-        await ctx.send(embed=embed)
-
-    @commands.command(aliases=['modcall'])
+    @commands.command(
+        aliases=['modcall'],
+        description='Ping all moderators to the chat! Use only when necessary, or else.'
+    )
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
-        """Ping all moderators to the chat! Use only when necessary, or else."""
         if not self.bot.config['enable_logging']:
             return await ctx.send('Modping is disabled, contact your instance\'s owner.')
 
@@ -1815,10 +2259,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if hook_id==hook.id:
                 ch = guild.get_channel(hook.channel_id)
                 try:
-                    role = data["moderator_role"]
+                    role = self.bot.config["moderator_role"]
                 except:
                     return await ctx.send('This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
-                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=discord.AllowedMentions(roles=True,everyone=False,users=False))
+                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
                 return await ctx.send('Moderators called!')
 
         await ctx.send('It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
@@ -1831,7 +2275,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         else:
             await ctx.send('Something went wrong pinging moderators. Please contact the developers.')
 
-    @commands.command()
+    @commands.command(description='Deletes a message.')
     async def delete(self, ctx, *, msg_id=None):
         """Deletes all bridged messages. Does not delete the original."""
 
@@ -1841,14 +2285,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             banuntil = gbans[f'{ctx.author.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{ctx.guild.id}' in list(gbans.keys()):
             banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
                 self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.save_data()
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
@@ -1881,223 +2325,347 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 traceback.print_exc()
                 await ctx.send('Something went wrong.')
 
-    @commands.context_command(name='View reactions')
-    async def reactions_ctx(self, ctx, msg: discord.Message):
-        if ctx.author.id in self.bot.db['fullbanned']:
+    @nextcord.message_command(name='View reactions')
+    async def reactions_ctx(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
         ct = time.time()
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
+        if f'{interaction.user.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.save_data()
+                self.bot.db['banned'].pop(f'{interaction.user.id}')
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{ctx.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.guild.id}']
+        if f'{interaction.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.save_data()
+                self.bot.db['banned'].pop(f'{interaction.guild.id}')
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('Your account or your guild is currently **global restricted**.', ephemeral=True)
+        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
+            return await interaction.response.send_message('Your account or your guild is currently **global restricted**.', ephemeral=True)
         msg_id = msg.id
 
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
-            return await ctx.send('Could not find message in cache!', ephemeral=True)
-        text = ''
-        for reaction in msg.reactions:
-            text = f'{text}{reaction} x{len(msg.reactions[reaction].keys())} '
+            return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
 
-        if len(text)==0:
-            return await ctx.send('No reactions yet!',ephemeral=True)
+        embed = nextcord.Embed(title='Reactions',color=self.bot.colors.unifier)
 
-        await ctx.send(text,ephemeral=True)
+        index = 0
+        page = 0
+        limit = 25
 
-    @commands.context_command(name='Delete message')
-    async def delete_ctx(self, ctx, msg: discord.Message):
-        if ctx.author.id in self.bot.db['fullbanned']:
+        maxpage = math.ceil(len(msg.reactions.keys()) / limit) - 1
+        author_id = interaction.user.id
+        respmsg = None
+        interaction_resp = None
+
+        while True:
+            selection = nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+            )
+
+            for x in range(limit):
+                if x + (page * limit) >= len(msg.reactions.keys()):
+                    break
+                if x==0 and index < x + (page * limit) or x==limit-1 and index > x + (page * limit):
+                    index = x + (page * limit)
+                emoji = nextcord.PartialEmoji.from_str(list(msg.reactions.keys())[x + (page * limit)])
+                if emoji.is_unicode_emoji():
+                    name = discord_emoji.to_discord(list(
+                        msg.reactions.keys()
+                    )[x + (page * limit)], get_all=True, put_colons=False)
+                    if type(name) is list:
+                        name = name[0]
+                else:
+                    name = emoji.name
+                if not name:
+                    name = 'unknown'
+                selection.add_option(
+                    label=f':{name}:',
+                    emoji=list(msg.reactions.keys())[x + (page * limit)],
+                    value=f'{x}',
+                    default=x + (page * limit)==index,
+                    description=f'{len(msg.reactions[list(msg.reactions.keys())[x + (page * limit)]].keys())} reactions'
+                )
+            users = []
+
+            if len(msg.reactions.keys()) == 0:
+                embed.description = f'No reactions yet!'
+            else:
+                for user in list(msg.reactions[list(msg.reactions.keys())[index]].keys()):
+                    userobj = self.bot.get_user(int(user))
+                    if userobj:
+                        users.append(f'@{userobj.global_name if userobj.global_name else userobj.name}')
+                    else:
+                        users.append('@[unknown]')
+                embed.description = f'# {list(msg.reactions.keys())[index]}\n' + ('\n'.join(users))
+
+            components = ui.MessageComponents()
+            components.add_rows(
+                ui.ActionRow(
+                    selection
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        label=f'{(page-1)*limit+1}-{page*limit}' if page > 0 else '-',
+                        style=nextcord.ButtonStyle.blurple,
+                        custom_id='prev',
+                        disabled=page <= 0
+                    ),
+                    nextcord.ui.Button(
+                        label=(
+                            f'{(page+1)*limit+1}-{limit*(page+2)}' if len(msg.reactions.keys()) >= limit*(page+2) else
+                            f'{limit*(page+1)+1}-{len(msg.reactions.keys())}'
+                        ) if page < maxpage else '-',
+                        style=nextcord.ButtonStyle.blurple,
+                        custom_id='next',
+                        disabled=page >= maxpage
+                    )
+                )
+            )
+
+            if respmsg:
+                await interaction_resp.response.edit_message(embed=embed,view=components)
+            else:
+                if len(msg.reactions.keys()) == 0:
+                    return await interaction.response.send_message(embed=embed,ephemeral=True)
+                respmsg = await interaction.response.send_message(embed=embed,view=components,ephemeral=True)
+                respmsg = await respmsg.fetch()
+
+            def check(interaction):
+                return interaction.message.id==respmsg.id and interaction.user.id==author_id
+
+            try:
+                interaction_resp = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                return await respmsg.edit(view=None)
+
+            if interaction_resp.data['custom_id'] == 'selection':
+                index = int(interaction_resp.data['values'][0]) + (page * 25)
+            elif interaction_resp.data['custom_id'] == 'next':
+                page += 1
+            elif interaction_resp.data['custom_id'] == 'prev':
+                page -= 1
+
+    @nextcord.message_command(name='Delete message')
+    async def delete_ctx(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
         ct = time.time()
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
+        if f'{interaction.user.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.save_data()
+                self.bot.db['banned'].pop(f'{interaction.user.id}')
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{ctx.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.guild.id}']
+        if f'{interaction.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.save_data()
+                self.bot.db['banned'].pop(f'{interaction.guild.id}')
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('Your account or your guild is currently **global restricted**.', ephemeral=True)
+        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
+            return await interaction.response.send_message('Your account or your guild is currently **global restricted**.', ephemeral=True)
         msg_id = msg.id
 
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
-            return await ctx.send('Could not find message in cache!',ephemeral=True)
+            return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
 
-        if not ctx.author.id == msg.author_id and not ctx.author.id in self.bot.moderators:
-            return await ctx.send('You didn\'t send this message!',ephemeral=True)
+        if not interaction.user.id == msg.author_id and not interaction.user.id in self.bot.moderators:
+            return await interaction.response.send_message('You didn\'t send this message!',ephemeral=True)
 
-        await ctx.interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
             if msg.webhook:
                 raise ValueError()
-            return await ctx.interaction.edit_original_message(
+            return await interaction.edit_original_message(
                 content='Deleted message (parent deleted, copies will follow)'
             )
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
-                return await ctx.interaction.edit_original_message(
+                return await interaction.edit_original_message(
                     content=f'Deleted message ({deleted} copies deleted)'
                 )
             except:
                 traceback.print_exc()
-                return await ctx.interaction.edit_original_message(
+                return await interaction.edit_original_message(
                     content='Something went wrong.'
                 )
 
-    @commands.context_command(name='Report message')
-    async def report(self, ctx, msg: discord.Message):
-        if ctx.author.id in self.bot.db['fullbanned']:
+    @nextcord.message_command(name='Report message')
+    async def report(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
         ct = time.time()
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
+        if f'{interaction.user.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.user.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
-                self.bot.db.save_data()
+                self.bot.db['banned'].pop(f'{interaction.user.id}')
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{ctx.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.guild.id}']
+        if f'{interaction.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{interaction.guild.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                self.bot.db.save_data()
+                self.bot.db['banned'].pop(f'{interaction.guild.id}')
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('You or your guild is currently **global restricted**.', ephemeral=True)
+        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
+            return await interaction.response.send_message('You or your guild is currently **global restricted**.', ephemeral=True)
 
         if not self.bot.config['enable_logging']:
-            return await ctx.send('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
+            return await interaction.response.send_message('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
 
         try:
             msgdata = await self.bot.bridge.fetch_message(msg.id)
         except:
-            return await ctx.send('Could not find message in cache!')
+            return await interaction.response.send_message('Could not find message in cache!')
 
         roomname = msgdata.room
         userid = msgdata.author_id
         content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
 
-        ButtonStyle = discord.ButtonStyle
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False)
+        ButtonStyle = nextcord.ButtonStyle
+        btns = ui.ActionRow(
+            nextcord.ui.Button(style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False
+            )
         )
-        btns_abuse = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False)
+        btns_abuse = ui.ActionRow(
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False
+            )
         )
-        btns_explicit = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4',
-                              disabled=False),
-            discord.ui.Button(style=ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False)
+        btns_explicit = ui.ActionRow(
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4', disabled=False
+            ),
+            nextcord.ui.Button(
+                style=ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False
+            )
         )
-        btns2 = discord.ui.ActionRow(
-            discord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
+        btns2 = ui.ActionRow(
+            nextcord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
         )
-        components = discord.ui.MessageComponents(btns, btns2)
-        msg = await ctx.send('How does this message violate our rules?', components=components, ephemeral=True)
+        components = ui.MessageComponents()
+        components.add_rows(btns, btns2)
+        msg = await interaction.response.send_message('How does this message violate our rules?', view=components, ephemeral=True)
+        msg = await msg.fetch()
 
         def check(interaction):
-            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+            return interaction.user.id == interaction.user.id and interaction.message.id == msg.id
 
         try:
-            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
         except:
             try:
-                return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+                return await interaction.edit_original_message(content='Timed out.', view=None)
             except:
                 return
 
-        cat = interaction.component.label
+        buttons = msg.components[0].children
+        cat = None
+        for button in buttons:
+            if button.custom_id==interaction.data["custom_id"]:
+                cat = button.label
+                break
+
         asked = True
-        if interaction.custom_id == 'abuse':
-            components = discord.ui.MessageComponents(btns_abuse, btns2)
-            await interaction.response.edit_message(content='In what way?', components=components)
-        elif interaction.custom_id == 'explicit':
-            components = discord.ui.MessageComponents(btns_explicit, btns2)
-            await interaction.response.edit_message(content='In what way?', components=components)
-        elif interaction.custom_id == 'cancel':
-            return await interaction.response.edit_message(content='Cancelled.', components=None)
+        components = ui.MessageComponents()
+        if interaction.data["custom_id"] == 'abuse':
+            components.add_rows(btns_abuse, btns2)
+            await interaction.response.edit_message(content='In what way?', view=components)
+        elif interaction.data["custom_id"] == 'explicit':
+            components.add_rows(btns_explicit, btns2)
+            await interaction.response.edit_message(content='In what way?', view=components)
+        elif interaction.data["custom_id"] == 'cancel':
+            return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             asked = False
         if asked:
             try:
-                interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
             except:
                 try:
-                    return await ctx.interaction.edit_original_message(content='Timed out.', components=None)
+                    return await interaction.edit_original_message(content='Timed out.', view=None)
                 except:
                     return
-            cat2 = interaction.component.label
-            if interaction.custom_id == 'cancel':
-                return await interaction.response.edit_message(content='Cancelled.', components=None)
+            buttons = msg.components[0].children
+            cat2 = None
+            for button in buttons:
+                if button.custom_id == interaction.data["custom_id"]:
+                    cat2 = button.label
+                    break
+            if interaction.data["custom_id"] == 'cancel':
+                return await interaction.response.edit_message(content='Cancelled.', view=None)
         else:
             cat2 = 'none'
-        self.bot.reports.update({f'{ctx.author.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
-        reason = discord.ui.ActionRow(
-            discord.ui.InputText(style=discord.TextStyle.long, label='Additional details',
-                                 placeholder='Add additional context or information that we should know here.',
-                                 required=False)
+        self.bot.reports.update({f'{interaction.user.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
+        reason = nextcord.ui.TextInput(
+            style=nextcord.TextInputStyle.paragraph, label='Additional details',
+            placeholder='Add additional context or information that we should know here.',
+            required=False
         )
-        signature = discord.ui.ActionRow(
-            discord.ui.InputText(style=discord.TextStyle.short, label='Sign with your username',
-                                 placeholder='Sign this only if your report is truthful and in good faith.',
-                                 required=True, min_length=len(ctx.author.name), max_length=len(ctx.author.name))
+        signature = nextcord.ui.TextInput(
+            style=nextcord.TextInputStyle.short, label='Sign with your username',
+            placeholder='Sign this only if your report is truthful and in good faith.',
+            required=True, min_length=len(interaction.user.name), max_length=len(interaction.user.name)
         )
-        modal = discord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}',
-                                 components=[reason, signature])
+        modal = nextcord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}', auto_defer=False)
+        modal.add_item(reason)
+        modal.add_item(signature)
         await interaction.response.send_modal(modal)
 
-    @commands.command()
+    @commands.command(description='Shows your server\'s plugin restriction status.')
     async def serverstatus(self,ctx):
-        embed = discord.Embed(
+        embed = nextcord.Embed(
             title='Server status',
             description='Your server is not restricted by plugins.',
             color=0x00ff00
@@ -2107,177 +2675,689 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.colour = 0xffce00
         await ctx.send(embed=embed)
 
-    @commands.Cog.listener()
-    async def on_modal_submit(self, interaction):
-        context = interaction.components[0].components[0].value
-        if not interaction.components[1].components[0].value.lower() == interaction.user.name.lower():
-            return
-        if context is None or context == '':
-            context = 'no context given'
-        author = f'@{interaction.user.name}'
-        if not interaction.user.discriminator == '0':
-            author = f'{interaction.user.name}#{interaction.user.discriminator}'
+    @commands.command(aliases=['exp','lvl','experience'], description='Shows you or someone else\'s level and EXP.')
+    async def level(self,ctx,*,user=None):
+        if not self.bot.config['enable_exp']:
+            return await ctx.send('Leveling system is disabled on this instance.')
+        if not user:
+            user = ctx.author
+        else:
+            try:
+                user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
+            except:
+                user = ctx.author
         try:
-            report = self.bot.reports[f'{interaction.user.id}_{interaction.custom_id}']
+            data = self.bot.db['exp'][f'{user.id}']
         except:
-            return await interaction.response.send_message('Something went wrong while submitting the report.', ephemeral=True)
-        cat = report[0]
-        cat2 = report[1]
-        content = report[2]
-        roomname = report[3]
-        msgid = report[4]
-        msgdata = await self.bot.bridge.fetch_message(msgid)
-        userid = int(interaction.custom_id.split('_')[0])
-        if len(content) > 2048:
-            content = content[:-(len(content) - 2048)]
-        embed = discord.Embed(
-            title='Message report - content is as follows',
-            description=content,
-            color=0xffbb00,
-            timestamp=datetime.utcnow()
+            data = {'experience':0,'level':1,'progress':0}
+        bars = round(data['progress']*20)
+        empty = 20-bars
+        progressbar = '['+(bars*'|')+(empty*' ')+']'
+        embed = nextcord.Embed(
+            title=(
+                'Your level' if user.id==ctx.author.id else
+                f'{user.global_name if user.global_name else user.name}\'s level'
+             ),
+            description=(
+                f'Level {data["level"]} | {round(data["experience"],2)} EXP\n\n'+
+                f'`{progressbar}`\n{round(data["progress"]*100)}% towards next level'
+            ),
+            color=self.bot.colors.unifier
         )
-        embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
-        embed.add_field(name='Context', value=context, inline=False)
-        embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
-        embed.add_field(name="Message room", value=roomname, inline=False)
-        embed.add_field(name="Message ID", value=str(msgid), inline=False)
-        embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
-        try:
-            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.', icon_url=interaction.user.avatar.url)
-        except:
-            embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
-        try:
-            user = self.bot.get_user(userid)
-            if not user:
-                user = self.bot.revolt_client.get_user(userid)
-            sender = f'@{user.name}'
-            if not user.discriminator == '0':
-                sender = f'{user.name}#{user.discriminator}'
-            try:
-                embed.set_author(name=sender, icon_url=user.avatar.url)
-            except:
-                embed.set_author(name=sender)
-        except:
-            embed.set_author(name='[unknown, check sender ID]')
-        guild = self.bot.get_guild(self.bot.config['home_guild'])
-        ch = guild.get_channel(self.bot.config['reports_channel'])
-        btns = discord.ui.ActionRow(
-            discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
-                              disabled=False),
-            discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                              custom_id=f'rpreview_{msgid}',
-                              disabled=False)
+        embed.set_author(
+            name=f'@{user.name}',
+            icon_url=user.avatar.url if user.avatar else None
         )
-        components = discord.ui.MessageComponents(btns)
-        msg = await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed, components=components)
-        try:
-            thread = await msg.create_thread(
-                name=f'Discussion: #{msgid}',
-                auto_archive_duration=10080
+        await ctx.send(embed=embed)
+
+    @commands.command(aliases=['lb'],description='Shows EXP leaderboard.')
+    async def leaderboard(self,ctx):
+        if not self.bot.config['enable_exp']:
+            return await ctx.send('Leveling system is disabled on this instance.')
+        expdata = copy.copy(self.bot.db['exp'])
+        lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                expdata.items(),
+                key=lambda x: x[1]['level']+x[1]['progress'],
+                reverse=True
             )
-            self.bot.db['report_threads'].update({str(msg.id): thread.id})
-            self.bot.db.save_data()
+        )
+        msg = None
+        interaction = None
+        embed = nextcord.Embed(
+            title=f'{self.bot.user.global_name or self.bot.user.name} leaderboard',
+            color=self.bot.colors.unifier
+        )
+        page = 1
+        limit = 10
+        max_page = math.ceil(len(lb_data) / limit)
+
+        placement_emoji = {
+            1: ':first_place:',
+            2: ':second_place:',
+            3: ':third_place:'
+        }
+
+        while True:
+            lb = []
+
+            for x in range(limit):
+                index = (page-1)*limit + x
+                rank = index + 1
+                if index >= len(lb_data):
+                    break
+                user = self.bot.get_user(int(lb_data[index][0]))
+                if user:
+                    username = user.name
+                else:
+                    username = '[unknown]'
+                lb.append(
+                    f'{placement_emoji[rank]} **{username}**: Level {lb_data[index][1]["level"]}' if rank <= 3 else
+                    f'`{rank}.` **{username}**: Level {lb_data[index][1]["level"]}'
+                )
+
+            lb_text = '\n'.join(lb)
+
+            embed.description = lb_text
+
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023EE',
+                    custom_id='first',
+                    disabled=page==1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025C0',
+                    custom_id='prev',
+                    disabled=page==1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025B6',
+                    custom_id='next',
+                    disabled=page==max_page
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023ED',
+                    custom_id='last',
+                    disabled=page==max_page
+                )
+            )
+
+            components = ui.MessageComponents()
+            components.add_row(btns)
+
+            if not msg:
+                msg = await ctx.send(embed=embed,view=components)
+            else:
+                await interaction.response.edit_message(embed=embed,view=components)
+
+            def check(interaction):
+                return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                for x in range(len(btns.items)):
+                    btns.items[x].disabled = True
+
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                await msg.edit(view=components)
+                break
+
+            if interaction.data['custom_id']=='first':
+                page = 1
+            elif interaction.data['custom_id']=='prev':
+                page -= 1
+            elif interaction.data['custom_id']=='next':
+                page += 1
+            elif interaction.data['custom_id']=='last':
+                page = max_page
+
+    @commands.command(description='Makes a Squad.')
+    async def makesquad(self,ctx,*,squadname):
+        if not ctx.author.guild_permissions.manage_guild:
+            return await ctx.send('Only those with Manage Server permissions can manage their Squad.')
+        if not self.bot.config['enable_squads']:
+            return await ctx.send('Squads aren\'t enabled on this instance.')
+        if str(ctx.guild.id) in self.bot.db['squads'].keys():
+            return await ctx.send('Your server already has a Squad! Disband it first to make a new one.')
+
+        embed = nextcord.Embed(
+            title=f'Creating {squadname}',
+            description='First, your Squad must have a HQ channel so your members can receive updates on Squad events.',
+            color=self.bot.colors.unifier
+        )
+
+        components = ui.MessageComponents()
+        components.add_rows(
+            ui.ActionRow(
+                nextcord.ui.ChannelSelect(
+                    max_values=1,
+                    min_values=1,
+                    placeholder='Channel...'
+                )
+            ),
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    custom_id='cancel',
+                    label='Cancel',
+                    style=nextcord.ButtonStyle.gray
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
         except:
-            pass
-        self.bot.reports.pop(f'{interaction.user.id}_{interaction.custom_id}')
-        return await interaction.response.send_message(
-            "# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
-            ephemeral=True)
+            return await msg.edit(view=None)
+
+        if interaction.data['component_type']==2:
+            return await interaction.response.edit_message(view=None)
+
+        hq_id = int(interaction.data['values'][0])
+        squad = {
+            'name': squadname,
+            'suspended': False,
+            'suspended_expire': 0,
+            'members': [],
+            'leader': ctx.author.id,
+            'captains': [],
+            'invited': [],
+            'joinreqs': [],
+            'points': 0,
+            'hq': hq_id,
+            'icon': None
+        }
+
+        self.bot.db['squads'].update({f'{ctx.guild.id}': squad})
+        self.bot.db.save()
+
+        added = 0
+        while True:
+            components = ui.MessageComponents()
+            components.add_rows(
+                ui.ActionRow(
+                    nextcord.ui.UserSelect(
+                        max_values=1,
+                        min_values=1,
+                        placeholder='Select users...'
+                    )
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        custom_id='cancel',
+                        label='Add later',
+                        style=nextcord.ButtonStyle.gray
+                    )
+                )
+            )
+
+            embed.description = (
+                'Your squad was created, now you need your Squad captains! You\'re already a Squad captain, but you '+
+                'should add two more. They\'ll be sent an invitation if they aren\'t in a Squad yet.'+
+                '\n\n**You need 2 more Squad captains.**' if added==0 else '\n\n**You need 1 more Squad captain.**'
+            )
+
+            await msg.edit(embed=embed,view=components)
+
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=300)
+            except:
+                return await msg.edit(view=None)
+
+            if interaction.data['component_type']==2:
+                return await interaction.response.edit_message(view=None)
+
+            if added==2:
+                break
+
+            user = self.bot.get_user(int(interaction.data['values'][0]))
+
+            fail_msg = (
+                'The bot could not send a Squad invitation! This is either because:\n- The user has their DMs with '+
+                'the bot off\n- The user is ignoring Squad invitations from your server'
+            )
+
+            try:
+                if f'{user.id}' in self.bot.db['squads_optout'].keys():
+                    optout = self.bot.db['squads_optout'][f'{user.id}']
+                    if optout['all']:
+                        fail_msg = f'{user.global_name or user.name} has opted out of receiving Squad invitations.'
+                        raise ValueError()
+                    elif ctx.guild.id in optout['guilds']:
+                        raise ValueError()
+                if f'{user.id}' in self.bot.db['squads_joined'].keys():
+                    if self.bot.db['squads_optout'][f'{user.id}'] is None:
+                        fail_msg = f'{user.global_name or user.name} is already in a Squad!'
+                        raise ValueError()
+                embed = nextcord.Embed(
+                    title=(
+                        f'{ctx.author.global_name or ctx.author.name} has invited you to join {ctx.guild.name}\'s '+
+                        f'**{squadname}** Squad!'
+                    ),
+                    description=(
+                        'You\'ve been invited to join as a **Squad Captain**!\nAs a captain, you may:\n'+
+                        '- Make submissions for events on your Squad\'s behalf\n'+
+                        '- Accept and deny join requests for your Squad\n\n'+
+                        f'To join this squad, run `u!joinsquad {ctx.guild.id}`!'
+                    )
+                )
+                embed.set_footer(
+                    text=(
+                        f'Reminder - you can always run u!ignoresquad {ctx.guild.id} to stop receiving invites from '+
+                        'this server\'s Squad.'
+                    )
+                )
+                await user.send(embed=embed)
+                added += 1
+                if added == 2:
+                    break
+                else:
+                    embed.description = (
+                        'Your squad was created, now you need your Squad captains! You\'re already a Squad captain, but you ' +
+                        'should add two more. They\'ll be sent an invitation if they aren\'t in a Squad yet.' +
+                        '\n\n**You need 1 more Squad captain.**'
+                    )
+
+                    await msg.edit(embed=embed, view=components)
+                    self.bot.db['squads'][f'{ctx.guild.id}']['invited'].append(user.id)
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                    await interaction.response.send_message('Invite sent!', ephemeral=True)
+            except:
+                await interaction.response.send_message(fail_msg,ephemeral=True)
+
+        await interaction.response.edit_message(embed=embed,view=None)
+        pass
+
+    @commands.command(description='Disbands your squad.')
+    async def disbandsquad(self,ctx):
+        if not ctx.author.guild_permissions.manage_guild:
+            return await ctx.send('Only those with Manage Server permissions can manage their Squad.')
+        if not self.bot.config['enable_squads']:
+            return await ctx.send('Squads aren\'t enabled on this instance.')
+
+    @commands.command(name='squad-leaderboard', aliases=['squadlb'], description='Shows Squad points leaderboard.')
+    async def squad_leaderboard(self, ctx):
+        if not self.bot.config['enable_squads']:
+            return await ctx.send('Squads aren\'t enabled on this instance.')
+        expdata = copy.copy(self.bot.db['squads'])
+        lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                expdata.items(),
+                key=lambda x: x[1]['points'],
+                reverse=True
+            )
+        )
+        msg = None
+        interaction = None
+        embed = nextcord.Embed(
+            title=f'{self.bot.user.global_name or self.bot.user.name} Squads leaderboard',
+            color=self.bot.colors.unifier
+        )
+        page = 1
+        limit = 10
+        max_page = math.ceil(len(lb_data) / limit)
+
+        placement_emoji = {
+            1: ':first_place:',
+            2: ':second_place:',
+            3: ':third_place:'
+        }
+
+        while True:
+            lb = []
+
+            for x in range(limit):
+                index = (page - 1) * limit + x
+                rank = index + 1
+                if index >= len(lb_data):
+                    break
+                username = lb_data[index][1]['name']
+                lb.append(
+                    f'{placement_emoji[rank]} **{username}**: {lb_data[index][1]["points"]} points' if rank <= 3 else
+                    f'`{rank}.` **{username}**: {lb_data[index][1]["level"]} points'
+                )
+
+            lb_text = '\n'.join(lb)
+
+            embed.description = lb_text
+
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023EE',
+                    custom_id='first',
+                    disabled=page == 1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025C0',
+                    custom_id='prev',
+                    disabled=page == 1
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    emoji='\U000025B6',
+                    custom_id='next',
+                    disabled=page == max_page
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    emoji='\U000023ED',
+                    custom_id='last',
+                    disabled=page == max_page
+                )
+            )
+
+            components = ui.MessageComponents()
+            components.add_row(btns)
+
+            if not msg:
+                msg = await ctx.send(embed=embed, view=components)
+            else:
+                await interaction.response.edit_message(embed=embed, view=components)
+
+            def check(interaction):
+                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            except:
+                for x in range(len(btns.items)):
+                    btns.items[x].disabled = True
+
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                await msg.edit(view=components)
+                break
+
+            if interaction.data['custom_id'] == 'first':
+                page = 1
+            elif interaction.data['custom_id'] == 'prev':
+                page -= 1
+            elif interaction.data['custom_id'] == 'next':
+                page += 1
+            elif interaction.data['custom_id'] == 'last':
+                page = max_page
 
     @commands.Cog.listener()
-    async def on_component_interaction(self, interaction):
-        if interaction.custom_id.startswith('rp') and not interaction.user.id in self.bot.moderators:
-            return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
-        if interaction.custom_id.startswith('rpdelete'):
-            msg_id = int(interaction.custom_id.replace('rpdelete_','',1))
-            btns = discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
-                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
-                                  disabled=False)
-            )
-            components = discord.ui.MessageComponents(btns)
+    async def on_interaction(self, interaction):
+        if interaction.type==nextcord.InteractionType.component:
+            if not 'custom_id' in interaction.data.keys():
+                return
+            if (interaction.data["custom_id"].startswith('rp') or interaction.data["custom_id"].startswith('ap')) and not interaction.user.id in self.bot.moderators:
+                return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
+            if interaction.data["custom_id"].startswith('rpdelete'):
+                msg_id = int(interaction.data["custom_id"].replace('rpdelete_','',1))
+                btns = ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red, label='Delete message',
+                        custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                        custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=False
+                    )
+                )
+                components = ui.MessageComponents()
+                components.add_row(btns)
 
-            try:
-                msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
-            except:
-                return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
-
-            if not interaction.user.id in self.bot.moderators:
-                return await interaction.response.send_message('go away',ephemeral=True)
-
-            msg_orig = await interaction.response.send_message("Deleting...",ephemeral=True)
-
-            try:
-                await self.bot.bridge.delete_parent(msg_id)
-                if msg.webhook:
-                    raise ValueError()
-                await interaction.message.edit(components=components)
-                return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
-            except:
                 try:
-                    deleted = await self.bot.bridge.delete_copies(msg_id)
-                    await interaction.message.edit(components=components)
-                    return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
+                    msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
                 except:
-                    traceback.print_exc()
-                    await msg_orig.edit(content=f'Something went wrong.')
-        elif interaction.custom_id.startswith('rpreview_'):
-            btns = discord.ui.ActionRow(
-                discord.ui.Button(style=discord.ButtonStyle.red, label='Delete message',
-                                  custom_id=f'rpdelete_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True),
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Mark as reviewed',
-                                  custom_id=f'rpreview_{interaction.custom_id.split("_")[1]}',
-                                  disabled=True)
-            )
-            components = discord.ui.MessageComponents(btns)
-            embed = interaction.message.embeds[0]
-            embed.color = 0x00ff00
+                    return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
+
+                if not interaction.user.id in self.bot.moderators:
+                    return await interaction.response.send_message('go away',ephemeral=True)
+
+                msg_orig = await interaction.response.send_message("Deleting...",ephemeral=True)
+
+                try:
+                    await self.bot.bridge.delete_parent(msg_id)
+                    if msg.webhook:
+                        raise ValueError()
+                    await interaction.message.edit(view=components)
+                    return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
+                except:
+                    try:
+                        deleted = await self.bot.bridge.delete_copies(msg_id)
+                        await interaction.message.edit(view=components)
+                        return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
+                    except:
+                        traceback.print_exc()
+                        await msg_orig.edit(content=f'Something went wrong.')
+            elif interaction.data["custom_id"].startswith('rpreview_'):
+                btns = ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red, label='Delete message',
+                        custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                        custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=True
+                    )
+                )
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                embed = interaction.message.embeds[0]
+                embed.color = 0x00ff00
+                author = f'@{interaction.user.name}'
+                if not interaction.user.discriminator == '0':
+                    author = f'{interaction.user.name}#{interaction.user.discriminator}'
+                embed.title = f'This report has been reviewed by {author}!'
+                await interaction.response.defer(ephemeral=True, with_message=True)
+                try:
+                    thread = interaction.channel.get_thread(
+                        self.bot.db['report_threads'][str(interaction.message.id)]
+                    )
+                except:
+                    thread = None
+                if thread:
+                    try:
+                        await thread.edit(
+                            name=f'[DONE] {thread.name}',
+                            archived=True
+                        )
+                    except:
+                        try:
+                            await thread.send('This report has been reviewed.')
+                        except:
+                            pass
+                    self.bot.db['report_threads'].pop(str(interaction.message.id))
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                await interaction.message.edit(embed=embed,view=components)
+                await interaction.edit_original_message(content='Marked report as reviewed!')
+            elif interaction.data["custom_id"].startswith('apaccept_') or interaction.data["custom_id"].startswith('apreject_'):
+                btns = ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=(
+                            nextcord.ButtonStyle.gray if interaction.data["custom_id"].startswith('apaccept_')
+                            else nextcord.ButtonStyle.red
+                        ),
+                        label='Reject',
+                        disabled=True
+                    ),
+                    nextcord.ui.Button(
+                        style=(
+                            nextcord.ButtonStyle.gray if interaction.data["custom_id"].startswith('apreject_')
+                            else nextcord.ButtonStyle.green
+                        ),
+                        label='Accept & unban',
+                        disabled=True
+                    )
+                )
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                embed = interaction.message.embeds[0]
+                embed.color = 0x00ff00
+                author = f'@{interaction.user.name}'
+                if not interaction.user.discriminator == '0':
+                    author = f'{interaction.user.name}#{interaction.user.discriminator}'
+                embed.title = (
+                    'This appeal was ' +
+                    ('accepted' if interaction.data["custom_id"].startswith('apaccept_') else 'rejected') +
+                    f' by {author}!'
+                )
+                await interaction.response.defer(ephemeral=True, with_message=True)
+                try:
+                    thread = interaction.channel.get_thread(
+                        self.bot.db['report_threads'][str(interaction.message.id)]
+                    )
+                except:
+                    thread = None
+                if thread:
+                    try:
+                        await thread.edit(
+                            name=f'[DONE] {thread.name}',
+                            archived=True
+                        )
+                    except:
+                        try:
+                            await thread.send('This appeal has been closed.')
+                        except:
+                            pass
+                    self.bot.db['report_threads'].pop(str(interaction.message.id))
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                userid = int(interaction.data["custom_id"][9:])
+                if interaction.data["custom_id"].startswith('apaccept_'):
+                    try:
+                        self.bot.db['banned'].pop(str(userid))
+                        for i in range(len(self.bot.db['modlogs'][f'{userid}'])):
+                            if self.bot.db['modlogs'][f'{userid}'][len(self.bot.db['modlogs'][f'{userid}']) - i - 1][
+                                    'type'] == 1:
+                                self.bot.db['modlogs'][f'{userid}'].pop(
+                                    len(self.bot.db['modlogs'][f'{userid}']) - i - 1)
+                                break
+                        self.bot.db.save_data()
+                    except:
+                        pass
+                    results_embed = nextcord.Embed(
+                        title='Your ban appeal was accepted!',
+                        description=(
+                            'This ban has been removed from your account and will no longer impact your standing.\n'+
+                            'You may now continue chatting!'
+                        ),
+                        color=0x00ff00
+                    )
+                else:
+                    results_embed = nextcord.Embed(
+                        title='Your ban appeal was denied.',
+                        description='You may continue chatting once the current ban expires.',
+                        color=0xff0000
+                    )
+                user = self.bot.get_user(userid)
+                if user:
+                    await user.send(embed=results_embed)
+                await interaction.message.edit(embed=embed,view=components)
+                await interaction.edit_original_message(content='Marked appeal as reviewed!')
+        elif interaction.type == nextcord.InteractionType.modal_submit:
+            if not interaction.data['custom_id']==f'{interaction.user.id}_{interaction.message.id}':
+                # not a report
+                return
+            context = interaction.data['components'][0]['components'][0]['value']
+            if not interaction.data['components'][1]['components'][0]['value'].lower() == interaction.user.name.lower():
+                return
+            if context is None or context == '':
+                context = 'no context given'
             author = f'@{interaction.user.name}'
             if not interaction.user.discriminator == '0':
                 author = f'{interaction.user.name}#{interaction.user.discriminator}'
-            embed.title = f'This report has been reviewed by {author}!'
-            await interaction.response.defer(ephemeral=True)
             try:
-                thread = interaction.channel.get_thread(
-                    self.bot.db['report_threads'][str(interaction.message.id)]
-                )
+                report = self.bot.reports[f'{interaction.user.id}_{interaction.data["custom_id"]}']
             except:
-                thread = None
-            if thread:
-                try:
-                    await thread.edit(
-                        name=f'[DONE] {thread.name}',
-                        archived=True
-                    )
-                except:
-                    try:
-                        await thread.send('This report has been reviewed.')
-                    except:
-                        pass
-                self.bot.db['report_threads'].pop(str(interaction.message.id))
-                self.bot.db.save_data()
-            await interaction.message.edit(embed=embed,components=components)
-            await interaction.edit_original_message(content='Marked thread as reviewed!')
+                return await interaction.response.send_message('Something went wrong while submitting the report.',
+                                                               ephemeral=True)
 
-    @commands.command(hidden=True)
+            await interaction.response.defer(ephemeral=True,with_message=False)
+            cat = report[0]
+            cat2 = report[1]
+            content = report[2]
+            roomname = report[3]
+            msgid = report[4]
+            msgdata = await self.bot.bridge.fetch_message(msgid)
+            userid = int(interaction.data["custom_id"].split('_')[0])
+            if len(content) > 4096:
+                content = content[:-(len(content) - 4096)]
+            embed = nextcord.Embed(
+                title='Message report - content is as follows',
+                description=content,
+                color=0xffbb00,
+                timestamp=datetime.datetime.now(datetime.UTC)
+            )
+            embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
+            embed.add_field(name='Context', value=context, inline=False)
+            embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
+            embed.add_field(name="Message room", value=roomname, inline=False)
+            embed.add_field(name="Message ID", value=str(msgid), inline=False)
+            embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
+            try:
+                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.',
+                                 icon_url=interaction.user.avatar.url)
+            except:
+                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
+            try:
+                user = self.bot.get_user(userid)
+                if not user:
+                    user = self.bot.revolt_client.get_user(userid)
+                sender = f'@{user.name}'
+                if not user.discriminator == '0':
+                    sender = f'{user.name}#{user.discriminator}'
+                try:
+                    embed.set_author(name=sender, icon_url=user.avatar.url)
+                except:
+                    embed.set_author(name=sender)
+            except:
+                embed.set_author(name='[unknown, check sender ID]')
+            guild = self.bot.get_guild(self.bot.config['home_guild'])
+            ch = guild.get_channel(self.bot.config['reports_channel'])
+            btns = ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
+                    disabled=False),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green, label='Mark as reviewed', custom_id=f'rpreview_{msgid}',
+                    disabled=False
+                )
+            )
+            components = ui.MessageComponents()
+            components.add_row(btns)
+            msg: nextcord.Message = await ch.send(
+                f'<@&{self.bot.config["moderator_role"]}>', embed=embed, view=components
+            )
+            try:
+                thread = await msg.create_thread(
+                    name=f'Discussion: #{msgid}',
+                    auto_archive_duration=10080
+                )
+                self.bot.db['report_threads'].update({str(msg.id): thread.id})
+                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+            except:
+                pass
+            self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
+            return await interaction.edit_original_message(
+                content="# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
+                view=None
+            )
+
+    @commands.command(hidden=True,description='Registers commands.')
     async def forcereg(self, ctx, *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
         if 'dereg' in args:
-            await self.bot.register_application_commands(commands=[])
+            await self.bot.delete_application_commands(*self.bot.get_all_application_commands())
             return await ctx.send('gone, reduced to atoms (hopefully)')
-        toreg = []
-        for command in self.bot.commands:
-            if isinstance(command, commands.core.ContextMenuCommand):
-                toreg.append(command)
-        await self.bot.register_application_commands(commands=toreg)
-        return await ctx.send(f'Registered {len(toreg)} commands to bot')
+        await self.bot.sync_application_commands()
+        return await ctx.send(f'Registered commands to bot')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Initializes new UnifierBridge object.')
     async def initbridge(self, ctx, *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -2293,7 +3373,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridge.prs = prs
         await ctx.send('Bridge initialized')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True,description='Sends a message as system.')
     async def system(self, ctx, room):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -2341,19 +3421,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
             ct = time.time()
-            cdt = datetime.utcnow()
+            cdt = datetime.datetime.now(datetime.UTC)
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
 
@@ -2420,7 +3500,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if not int(user) == self.bot.config['owner']:
                         if response['target'][user]==0:
                             self.bot.db['banned'].update({user:0})
-                            self.bot.db.save_data()
+                            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                         else:
                             self.bot.bridge.secbans.update(
                                 {user:round(time.time())+response['target'][user]}
@@ -2436,7 +3516,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         public_reason = response['description']
                         public = True
 
-            embed = discord.Embed(
+            embed = nextcord.Embed(
                 title='Content blocked',
                 description='Your message was blocked. Moderators may be able to see the blocked content.',
                 color=0xff0000
@@ -2447,11 +3527,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             await message.channel.send(embed=embed)
 
-            embed = discord.Embed(
+            embed = nextcord.Embed(
                 title='Content blocked - content is as follows',
-                description=message.content[:-(len(message.content)-2000)] if len(message.content) > 2000 else message.content,
+                description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
                 color=0xff0000,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.datetime.now(datetime.UTC)
             )
 
             for plugin in responses:
@@ -2493,11 +3573,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         pass
                     continue
                 nt = time.time() + banned[user]
-                embed = discord.Embed(
+                embed = nextcord.Embed(
                     title=f'You\'ve been __global restricted__ by @Unifier (system)!',
                     description='Automatic action carried out by security plugins',
                     color=0xffcc00,
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.datetime.now(datetime.UTC)
                 )
                 embed.set_author(
                     name='@Unifier (system)',
@@ -2510,12 +3590,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
                         inline=False
                     )
+                    embed.add_field(name='Did we make a mistake?',
+                                    value=f'If you think we didn\'t make the right call, you can always appeal your ban using `{self.bot.command_prefix}!appeal`.',
+                                    inline=False)
+                    await self.bot.loop.run_in_executor(None,lambda: self.add_modlog(0, user_obj.id, 'Automatic action carried out by security plugins', self.bot.user.id))
                 else:
                     embed.add_field(
                         name='Actions taken',
                         value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{round(nt)}:f>. This will expire <t:{round(nt)}:R>.',
                         inline=False
                     )
+                    embed.add_field(name='Did we make a mistake?',
+                                    value='Unfortunately, this ban cannot be appealed using `u!appeal`. You will need to ask moderators for help.',
+                                    inline=False)
                 try:
                     await user_obj.send(embed=embed)
                 except:
@@ -2553,14 +3640,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 elif parts[0].lower() in list(self.bot.bridge.prs.keys()):
                     multisend = False
 
-        try:
-            pr_roomname = self.bot.config['posts_room']
-        except:
-            pr_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_room_index']]]
-        try:
-            pr_ref_roomname = self.bot.config['posts_ref_room']
-        except:
-            pr_ref_roomname = self.bot.db['rooms'][list(self.bot.db['rooms'].keys())[self.bot.config['pr_ref_room_index']]]
+        pr_roomname = self.bot.config['posts_room']
+        pr_ref_roomname = self.bot.config['posts_ref_room']
         is_pr = roomname == pr_roomname and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
                 self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
@@ -2609,6 +3690,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_bridged=extbridge
                 )
             )
+            if datetime.datetime.now().day != self.bot.bridge.msg_stats_reset:
+                self.bot.bridge.msg_stats = {}
+            try:
+                self.bot.bridge.msg_stats[roomname] += 1
+            except:
+                self.bot.bridge.msg_stats.update({roomname: 1})
             tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord', extbridge=extbridge))
         else:
             parent_id = await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
@@ -2620,7 +3707,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 )))
             else:
                 tasks.append(self.bot.loop.create_task(
-                    self.bot.bridge.send(room=roomname, message=message, platform=platform, extbridge=extbridge)))
+                    self.bot.bridge.send(room=roomname, message=message, platform=platform, extbridge=extbridge)
+                ))
 
         ids = []
         try:
@@ -2650,6 +3738,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     text = text + f'\n{msgid}'
                 await message.channel.send('Mismatch detected.'+text)
 
+        if not message.author.bot and self.bot.config['enable_exp']:
+            _newexp, levelup = await self.bot.bridge.add_exp(message.author.id)
+
+            if levelup:
+                level = self.bot.db['exp'][f'{message.author.id}']['level']
+                embed = nextcord.Embed(
+                    title=f'Level {level-1} => __Level {level}__',
+                    color=self.bot.colors.blurple
+                )
+                embed.set_author(
+                    name=(
+                        f'@{message.author.global_name if message.author.global_name else message.author.name} leveled'+
+                        ' up!'
+                    ),
+                    icon_url=message.author.avatar.url if message.author.avatar else None
+                )
+                await message.channel.send(embed=embed)
+
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
         if before.content == after.content:
@@ -2671,14 +3777,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.author.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
             if f'{message.guild.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.guild.id}']
                 if ct >= banuntil and not banuntil == 0:
                     self.bot.db['banned'].pop(f'{message.guild.id}')
-                    self.bot.db.save_data()
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 else:
                     return
 
@@ -2746,14 +3852,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     banuntil = gbans[f'{message.author.id}']
                     if ct >= banuntil and not banuntil == 0:
                         self.bot.db['banned'].pop(f'{message.author.id}')
-                        self.bot.db.save_data()
+                        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                     else:
                         return
                 if f'{message.guild.id}' in list(gbans.keys()):
                     banuntil = gbans[f'{message.guild.id}']
                     if ct >= banuntil and not banuntil == 0:
                         self.bot.db['banned'].pop(f'{message.guild.id}')
-                        self.bot.db.save_data()
+                        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                     else:
                         return
 
@@ -2851,7 +3957,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             if len(message.content) == 0:
                 content = '[no content]'
-            embed = discord.Embed(title=f'Message deleted from `{roomname}`', description=content)
+            embed = nextcord.Embed(title=f'Message deleted from `{roomname}`', description=content)
             embed.add_field(name='Embeds', value=f'{len(message.embeds)} embeds, {len(message.attachments)} files',
                             inline=False)
             embed.add_field(name='IDs', value=f'MSG: {message.id}\nSVR: {message.guild.id}\nUSR: {message.author.id}',
@@ -2891,7 +3997,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if emoji.is_unicode_emoji():
             emoji = emoji.name
         else:
-            emoji = f'<:{emoji.name}:{emoji.id}>'
+            emoji = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
 
         await msg.add_reaction(emoji, event.user_id)
 
@@ -2909,7 +4015,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if emoji.is_unicode_emoji():
             emoji = emoji.name
         else:
-            emoji = f'<:{emoji.name}:{emoji.id}>'
+            emoji = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
 
         await msg.remove_reaction(emoji, event.user_id)
 

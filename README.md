@@ -42,7 +42,7 @@ Server moderators can also block members and servers from bridging messages to t
 - **Plugins support**: Anyone can always code and install plugins for Unifier to extend its functionality. If you need help
   making your own plugin, you can always use our [template](https://github.com/UnifierHQ/unifier-plugin).
 - **Database-free**: No need to get a database up and running. Everything is stored locally on the same system you use to run 
-Unifier, so the performance is not impacted by slow 10k+ ping database servers.
+  Unifier, so things are easier to set up and your data is more portable.
 - **External bridge support**: Unifier supports external bridge services like
   [matrix-t2bot](https://github.com/t2bot/matrix-appservice-discord), so you can connect platforms beyond what we can cover and
   avoid reconfiguring too much.
@@ -73,10 +73,12 @@ Unifier is licensed under the AGPLv3. If you wish to use its source code, please
 
 ## Acknowledgments
 We want to thank:
-- [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued (it
-  is now re-continued, but for now we'd like to use Novus)
+- [**Nextcord**](https://github.com/nextcord), for continuing the discord.py project as Nextcord when it was discontinued, and also
+  supporting context menu commands in a Cog
+- [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued, which
+  is the library we used to use until we moved to Nextcord
 - [**Rapptz**](https://github.com/Rapptz) and [**discord.py**](https://github.com/Rapptz/discord.py) developers, for creating the
-  discord.py library Novus is based on
+  discord.py library Novus and Nextcord are based on
 - [**Revolt**](https://github.com/revoltchat), for creating revolt.py and an awesome open-source Discord alternative
 - [**shayypy**](https://github.com/shayypy), for creating guilded.py
 
@@ -87,6 +89,7 @@ the `EXTERNAL_LICENSES.txt` file.
 As the project founder and leader, I want to give my special thanks to:
 - [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for joining the team and helping me fix my shitty Python and
   adding a lot of amazing features to Unifier
+- [**Ente Community**](https://github.com/ente-io), for offering me invaluable advice for open sourcing this project
 - **My best friend**, for turning my life around for the better and always supporting me even at my worst
 
 And lastly but *most importantly*, **the late role model of mine I used to know very well**: He's the one that brought me and my 
