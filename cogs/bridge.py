@@ -24,7 +24,7 @@ import revolt
 from nextcord.ext import commands
 import traceback
 import time
-from datetime import datetime
+import datetime
 import random
 import string
 import copy
@@ -287,7 +287,7 @@ class UnifierBridge:
         self.backup_running = False
         self.backup_lock = False
         self.msg_stats = {}
-        self.msg_stats_reset = datetime.now().day
+        self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
 
     def is_raidban(self,userid):
@@ -1722,7 +1722,7 @@ class UnifierBridge:
                 reply=replying,
                 external_bridged=extbridge
             ))
-            if datetime.now().day != self.msg_stats_reset:
+            if datetime.datetime.now().day != self.msg_stats_reset:
                 self.msg_stats = {}
             try:
                 self.msg_stats[room] += 1
@@ -1764,7 +1764,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msgs = []
         prs = {}
         msg_stats = {}
-        msg_stats_reset = datetime.now().day
+        msg_stats_reset = datetime.datetime.now().day
         restored = False
         if hasattr(self.bot, 'bridge'):
             if self.bot.bridge: # Avoid restoring if bridge is None
@@ -3283,7 +3283,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 title='Message report - content is as follows',
                 description=content,
                 color=0xffbb00,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.datetime.now(datetime.UTC)
             )
             embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
             embed.add_field(name='Context', value=context, inline=False)
@@ -3414,7 +3414,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
             ct = time.time()
-            cdt = datetime.utcnow()
+            cdt = datetime.datetime.now(datetime.UTC)
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
@@ -3524,7 +3524,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 title='Content blocked - content is as follows',
                 description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
                 color=0xff0000,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.datetime.now(datetime.UTC)
             )
 
             for plugin in responses:
@@ -3570,7 +3570,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     title=f'You\'ve been __global restricted__ by @Unifier (system)!',
                     description='Automatic action carried out by security plugins',
                     color=0xffcc00,
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.datetime.now(datetime.UTC)
                 )
                 embed.set_author(
                     name='@Unifier (system)',
@@ -3683,7 +3683,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     external_bridged=extbridge
                 )
             )
-            if datetime.now().day != self.bot.bridge.msg_stats_reset:
+            if datetime.datetime.now().day != self.bot.bridge.msg_stats_reset:
                 self.bot.bridge.msg_stats = {}
             try:
                 self.bot.bridge.msg_stats[roomname] += 1
