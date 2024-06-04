@@ -1986,6 +1986,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if index >= len(emojis):
                         break
                     name = emojis[index].name
+                    guild = emojis[index].guild
                     emoji = (
                         f'<a:{name}:{emojis[index].id}>' if emojis[index].animated else f'<:{name}:{emojis[index].id}>'
                     )
@@ -1997,8 +1998,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     )
                     selection.add_option(
                         label=name,
+                        value=name,
                         emoji=emoji,
-                        value=name
+                        description=guild.name
                     )
                 if len(embed.fields)==0:
                     embed.add_field(
@@ -2084,6 +2086,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         if index >= len(emojis):
                             break
                         name = emojis[index].name
+                        guild = emojis[index].guild
                         emoji = (
                             f'<a:{name}:{emojis[index].id}>' if emojis[index].animated else
                             f'<:{name}:{emojis[index].id}>'
@@ -2096,7 +2099,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         selection.add_option(
                             label=name,
                             value=name,
-                            emoji=emoji
+                            emoji=emoji,
+                            description=guild.name
                         )
 
                 embed.description = f'Searching: {query} (**{len(emojis)}** results)'
