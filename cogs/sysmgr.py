@@ -1547,17 +1547,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     f'{self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
                 )
                 embed.description =(
-                    f'# **`u!{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
+                    f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
                 )
                 if len(cmd.aliases) > 0:
                     aliases = []
                     for alias in cmd.aliases:
-                        aliases.append(f'`u!{alias}`')
+                        aliases.append(f'`{self.bot.command_prefix}{alias}`')
                     embed.add_field(
                         name='Aliases',value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
                     )
                 embed.add_field(name='Usage', value=(
-                    f'`u!{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`u!{cmdname}`'), inline=False
+                    f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                 )
                 components.add_rows(
                     ui.ActionRow(
