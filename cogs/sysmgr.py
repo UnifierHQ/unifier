@@ -851,6 +851,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed = discord.Embed(title=':inbox_tray: Checking for upgrades...',
                                   description='Getting latest version from remote')
             msg = await ctx.send(embed=embed)
+            available = []
             try:
                 os.system('rm -rf ' + os.getcwd() + '/update_check')
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
@@ -860,12 +861,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     current = json.load(file)
                 with open('update_check/update.json', 'r') as file:
                     new = json.load(file)
-                release = new['release']
-                version = new['version']
-                update_available = new['release'] > current['release']
-                if force:
-                    update_available = new['release'] >= current['release']
+                if new['release'] > current['release'] or force:
+                    available.append([new['version'], 'Release version', new['release'], False])
+                for legacy in new['legacy']:
+                    if (
+                            legacy['lower'] <= current['release'] <= legacy['upper'] and (
+                            legacy['release'] > (
+                            current['legacy']['release'] if 'legacy' in current.keys() else -1
+                    )
+                    ) or force
+                    ):
+                        available.append([legacy['version'], 'Legacy version', legacy['release'], True])
                 should_reboot = new['reboot'] >= current['release']
+                update_available = len(available) >= 1
             except:
                 embed.title = ':x: Failed to check for updates'
                 embed.description = 'Could not find a valid update.json file on remote'
@@ -877,39 +885,67 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = 'Unifier is up-to-date.'
                 embed.colour = 0x00ff00
                 return await msg.edit(embed=embed)
-            self.logger.info('Upgrade available: ' + current['version'] + ' ==> ' + new['version'])
-            embed.title = ':arrows_counterclockwise: Update available'
-            embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
-            embed.colour = 0xffcc00
-            if should_reboot:
-                embed.set_footer(text='The bot will need to reboot to apply the new update.')
-            row = [
-                discord.ui.Button(style=discord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
-                                  disabled=False),
-                discord.ui.Button(style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
-                                  disabled=False)
-            ]
-            btns = discord.ui.ActionRow(row[0], row[1])
-            components = discord.ui.MessageComponents(btns)
-            await msg.edit(embed=embed, components=components)
+            selected = 0
+            interaction = None
+            while True:
+                release = available[selected][2]
+                version = available[selected][0]
+                legacy = available[selected][3]
+                self.logger.info('Upgrade available: ' + current['version'] + ' ==> ' + new['version'])
+                embed.title = ':arrows_counterclockwise: Update available'
+                embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
+                embed.colour = 0xffcc00
+                if should_reboot:
+                    embed.set_footer(text='The bot will need to reboot to apply the new update.')
+                options = []
+                index = 0
+                for update_option in available:
+                    options.append(discord.ui.SelectOption(
+                        label=update_option[0],
+                        description=update_option[1],
+                        value=f'{index}',
+                        default=index == selected
+                    ))
+                    index += 1
+                selection = discord.ui.SelectMenu(
+                    placeholder='Select version...',
+                    max_values=1,
+                    min_values=1,
+                    custom_id='selection',
+                    disabled=len(available) == 1,
+                    options=options
+                )
+                btns = discord.ui.ActionRow(
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
+                        disabled=False
+                    ),
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
+                        disabled=False
+                    )
+                )
+                components = discord.ui.MessageComponents(
+                    selection,btns
+                )
+                if not interaction:
+                    await msg.edit(embed=embed, view=components)
+                else:
+                    await interaction.response.edit_message(embed=embed, view=components)
 
-            def check(interaction):
-                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+                def check(interaction):
+                    return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
-            try:
-                interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
-            except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
-            if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                try:
+                    interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
+                except:
+                    return await msg.edit(view=None)
+                if interaction.data['custom_id'] == 'reject':
+                    return await interaction.response.edit_message(view=None)
+                elif interaction.data['custom_id'] == 'accept':
+                    break
+                elif interaction.data['custom_id'] == 'selection':
+                    selected = int(interaction.data['values'][0])
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
                 embed.title = 'Backing up...'
@@ -964,17 +1000,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             try:
                 interaction = await self.bot.wait_for("component_interaction", check=check, timeout=60.0)
             except:
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await msg.edit(components=components)
+                return await msg.edit(components=None)
             if interaction.custom_id == 'reject':
-                row[0].disabled = True
-                row[1].disabled = True
-                btns = discord.ui.ActionRow(row[0], row[1])
-                components = discord.ui.MessageComponents(btns)
-                return await interaction.response.edit_message(components=components)
+                return await msg.edit(components=None)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
             embed.title = ':arrow_up: Upgrading Unifier'
             embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
