@@ -930,6 +930,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     discord.ui.Button(
                         style=discord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
                         disabled=False
+                    ),
+                    discord.ui.Button(
+                        style=discord.ButtonStyle.link, label='More info',
+                        url=f'https://github.com/UnifierHQ/unifier/releases/tag/{version}'
                     )
                 )
                 components = discord.ui.MessageComponents(
