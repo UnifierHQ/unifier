@@ -6,13 +6,17 @@ perfect, and there may be vulnerabilities in our code that may impact
 the safety of hosters and users every now and then.
 
 ## Supported Versions
+Versions v1.2.x and newer will receive at least 6 months of bug fixes and
+security updates after being superseded by a newer series. 
+
 Currently, v1.1.x and newer receive security updates. Preceding versions
 have been discontinued and will not be updated any further.
-| Version | Type    | Supported                    |
-| ------- | ------- | ---------------------------- |
-| 1.2.x   | release | :white_check_mark: Supported |
-| 1.1.x   | legacy  | :white_check_mark: Supported |
-| < 1.1   | eol     | :x: Unsupported              |
+| Version | Type    | Supported                    | EoL        |
+| ------- | ------- | ---------------------------- | ---------- |
+| 2.0.x   | release | :white_check_mark: Supported | Not legacy |
+| 1.2.x   | legacy  | :white_check_mark: Supported | 05/12/2024 |
+| 1.1.x   | legacy  | :warning: Nearing EoL        | 05/07/2024 |
+| < 1.1   | eol     | :x: Unsupported              | EoL        |
 
 > [!NOTE]
 > We have decided to extend v1.1.x support while we work on v2.
