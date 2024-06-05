@@ -3695,6 +3695,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 )
             )
             if datetime.datetime.now().day != self.bot.bridge.msg_stats_reset:
+                self.bot.bridge.msg_stats_reset = datetime.datetime.now().day
                 self.bot.bridge.msg_stats = {}
             try:
                 self.bot.bridge.msg_stats[roomname] += 1
