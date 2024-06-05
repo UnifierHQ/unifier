@@ -456,7 +456,7 @@ class UnifierBridge:
         self.bridged.pop(index_tomerge)
 
     async def add_exp(self, user_id):
-        if not self.bot.config['enable_leveling'] or user_id==self.bot.user.id:
+        if not self.bot.config['enable_exp'] or user_id==self.bot.user.id:
             return 0, False
         if not f'{user_id}' in self.bot.db['exp'].keys():
             self.bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
