@@ -99,16 +99,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
         if not hasattr(self.bot,'loaded_plugins'):
             self.bot.loaded_plugins = {}
-            for plugin in os.listdir('plugins'):
-                with open('plugins/' + plugin) as file:
-                    extinfo = json.load(file)
-                    try:
-                        if not 'content_protection' in extinfo['services']:
+            if not self.bot.safemode:
+                for plugin in os.listdir('plugins'):
+                    with open('plugins/' + plugin) as file:
+                        extinfo = json.load(file)
+                        try:
+                            if not 'content_protection' in extinfo['services']:
+                                continue
+                        except:
                             continue
-                    except:
-                        continue
-                script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
-                self.bot.loaded_plugins.update({plugin[:-5]: script})
+                    script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
+                    self.bot.loaded_plugins.update({plugin[:-5]: script})
 
         if not self.bot.ready:
             try:
