@@ -245,7 +245,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send('This room does not exist!')
         if len(emoji) == 0:
             try:
-                self.bot.db['roomemojis'][room].pop()
+                self.bot.db['roomemojis'].pop(room)
             except:
                 return await ctx.send('there was no emoji to begin with...')
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
