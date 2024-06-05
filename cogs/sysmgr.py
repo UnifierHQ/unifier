@@ -862,17 +862,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('update_check/update.json', 'r') as file:
                     new = json.load(file)
                 if new['release'] > current['release'] or force:
-                    available.append([new['version'], 'Release version', new['release'], False])
+                    available.append([new['version'], 'Release version', new['release'], -1])
+                index = 0
                 for legacy in new['legacy']:
                     if (
                             legacy['lower'] <= current['release'] <= legacy['upper'] and (
-                            legacy['release'] > (
-                            current['legacy']['release'] if 'legacy' in current.keys() else -1
-                    )
-                    ) or force
+                                legacy['release'] > (
+                                    current['legacy'] if 'legacy' in current.keys() else -1
+                                )
+                            ) or force
                     ):
-                        available.append([legacy['version'], 'Legacy version', legacy['release'], True])
-                should_reboot = new['reboot'] >= current['release']
+                        available.append([legacy['version'], 'Legacy version', legacy['release'], index])
+                    index += 1
                 update_available = len(available) >= 1
             except:
                 embed.title = ':x: Failed to check for updates'
@@ -890,11 +891,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             while True:
                 release = available[selected][2]
                 version = available[selected][0]
-                legacy = available[selected][3]
+                legacy = available[selected][3] > -1
                 self.logger.info('Upgrade available: ' + current['version'] + ' ==> ' + new['version'])
                 embed.title = ':arrows_counterclockwise: Update available'
                 embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
                 embed.colour = 0xffcc00
+                if legacy:
+                    should_reboot = release >= current['release']
+                else:
+                    should_reboot = release >= (
+                        current['legacy'] if 'legacy' in current.keys() else -1
+                    )
                 if should_reboot:
                     embed.set_footer(text='The bot will need to reboot to apply the new update.')
                 options = []
@@ -907,14 +914,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         default=index == selected
                     ))
                     index += 1
-                selection = discord.ui.SelectMenu(
+                selection = discord.ui.ActionRow(discord.ui.SelectMenu(
                     placeholder='Select version...',
                     max_values=1,
                     min_values=1,
                     custom_id='selection',
                     disabled=len(available) == 1,
                     options=options
-                )
+                ))
                 btns = discord.ui.ActionRow(
                     discord.ui.Button(
                         style=discord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
@@ -929,9 +936,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     selection,btns
                 )
                 if not interaction:
-                    await msg.edit(embed=embed, view=components)
+                    await msg.edit(embed=embed, components=components)
                 else:
-                    await interaction.response.edit_message(embed=embed, view=components)
+                    await interaction.response.edit_message(embed=embed, components=components)
 
                 def check(interaction):
                     return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
@@ -939,9 +946,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 try:
                     interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)
                 except:
-                    return await msg.edit(view=None)
+                    return await msg.edit(components=None)
                 if interaction.data['custom_id'] == 'reject':
-                    return await interaction.response.edit_message(view=None)
+                    return await interaction.response.edit_message(components=None)
                 elif interaction.data['custom_id'] == 'accept':
                     break
                 elif interaction.data['custom_id'] == 'selection':
@@ -1012,7 +1019,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Purging old update files')
                 os.system('rm -rf ' + os.getcwd() + '/update')
                 self.logger.info('Downloading from remote repository...')
-                os.system('git clone --branch ' + new['version'] + ' --single-branch --depth 1 ' + self.bot.config[
+                os.system('git clone --branch ' + version + ' --single-branch --depth 1 ' + self.bot.config[
                     'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update')
                 self.logger.debug('Confirming download...')
                 x = open(os.getcwd() + '/update/plugins/system.json', 'r')
@@ -1062,13 +1069,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 status(os.system('cp ' + os.getcwd() + '/update/requirements.txt ' + os.getcwd() + '/requirements.txt'))
                 self.logger.debug('Installing: ' + os.getcwd() + '/update_check/update.json')
                 if legacy:
-                    with open('update_check/update.json', 'r') as file:
-                        oldver = json.load(file)
-                    oldver['version'] = version
-                    oldver['legacy']['version'] = version
-                    oldver['legacy']['release'] = release
+                    current['version'] = version
+                    current['legacy'] = release
                     with open('plugins/system.json', 'w+') as file:
-                        json.dump(oldver,file)
+                        json.dump(current,file)
                 else:
                     status(os.system('cp ' + os.getcwd() + '/update_check/update.json ' + os.getcwd() + '/plugins/system.json'))
                 for file in os.listdir(os.getcwd() + '/update/cogs'):
