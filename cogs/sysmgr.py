@@ -1249,8 +1249,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         show_admin = False
         show_moderation = False
 
+        system_restricted = [
+            'initbridge'
+        ]
+
         admin_restricted = [
-            'addmod','delmod','make','roomdesc','roomlock','roomrestrict','addrule','delrule'
+            'addmod','removemod','make','roomdesc','roomlock','roomrestrict','addrule','delrule','fullban','appealban',
+            'addexperiment','experimentdesc','removeexperiment','system','trust'
         ]
 
         mod_restricted = [
@@ -1266,6 +1271,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             show_moderation = True
         elif ctx.author.id in self.bot.moderators:
             show_moderation = True
+
+        if show_sysmgr:
+            if 'asadmin' in ctx.message.content:
+                show_sysmgr = False
+            elif 'asmod' in ctx.message.content:
+                show_sysmgr = False
+                show_admin = False
+            elif 'asuser' in ctx.message.content:
+                show_sysmgr = False
+                show_admin = False
+                show_moderation = False
 
         panel = 0
         limit = 20
@@ -1308,10 +1324,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 for x in range(limit):
                     index = (page*limit)+x
-                    if index >= len(extlist):
+                    if index >= len(self.bot.cogs):
                         break
                     cog = self.bot.cogs[list(self.bot.cogs)[index]]
                     ext = list(self.bot.extensions)[index]
+                    if not ext in extlist:
+                        continue
                     if not cog.description:
                         description = 'No description provided'
                     else:
@@ -1402,8 +1420,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for index in range(len(cmds)):
                     cmd = cmds[index-offset]
                     if (
-                            cmd.hidden or cmd.qualified_name in admin_restricted and not show_admin or
-                            cmd.qualified_name in mod_restricted and not show_moderation
+                            cmd.qualified_name in admin_restricted and not show_admin or
+                            cmd.qualified_name in mod_restricted and not show_moderation or
+                            cmd.qualified_name in system_restricted and not show_sysmgr
                     ) and not show_sysmgr or (
                             cogname=='search' and not search_filter(query,cmd)
                     ):
@@ -1634,6 +1653,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 namematch = True
                 descmatch = True
                 match = 0
+
+    @commands.command(hidden=True, description='Registers commands.')
+    async def forcereg(self, ctx, *, args=''):
+        if not ctx.author.id == self.bot.config['owner']:
+            return
+        if 'dereg' in args:
+            await self.bot.delete_application_commands(*self.bot.get_all_application_commands())
+            return await ctx.send('gone, reduced to atoms (hopefully)')
+        await self.bot.sync_application_commands()
+        return await ctx.send(f'Registered commands to bot')
 
 def setup(bot):
     bot.add_cog(SysManager(bot))

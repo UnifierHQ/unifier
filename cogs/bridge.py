@@ -3351,16 +3351,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 view=None
             )
 
-    @commands.command(hidden=True,description='Registers commands.')
-    async def forcereg(self, ctx, *, args=''):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
-        if 'dereg' in args:
-            await self.bot.delete_application_commands(*self.bot.get_all_application_commands())
-            return await ctx.send('gone, reduced to atoms (hopefully)')
-        await self.bot.sync_application_commands()
-        return await ctx.send(f'Registered commands to bot')
-
     @commands.command(hidden=True,description='Initializes new UnifierBridge object.')
     async def initbridge(self, ctx, *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
