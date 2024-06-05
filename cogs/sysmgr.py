@@ -895,6 +895,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 legacy = available[selected][3] > -1
                 embed.title = ':arrows_counterclockwise: Update available'
                 embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
+                embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
                     should_reboot = release >= (current['legacy'] if 'legacy' in current.keys() else -1)
