@@ -892,7 +892,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 release = available[selected][2]
                 version = available[selected][0]
                 legacy = available[selected][3] > -1
-                self.logger.info('Upgrade available: ' + current['version'] + ' ==> ' + new['version'])
                 embed.title = ':arrows_counterclockwise: Update available'
                 embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
                 embed.colour = 0xffcc00
