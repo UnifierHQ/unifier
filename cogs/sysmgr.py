@@ -1033,7 +1033,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements.txt')
                 status(os.system('cp ' + os.getcwd() + '/update/requirements.txt ' + os.getcwd() + '/requirements.txt'))
                 self.logger.debug('Installing: ' + os.getcwd() + '/update_check/update.json')
-                status(os.system('cp ' + os.getcwd() + '/update_check/update.json ' + os.getcwd() + '/plugins/system.json'))
+                if legacy:
+                    with open('update_check/update.json', 'r') as file:
+                        oldver = json.load(file)
+                    oldver['version'] = version
+                    oldver['legacy']['version'] = version
+                    oldver['legacy']['release'] = release
+                    with open('plugins/system.json', 'w+') as file:
+                        json.dump(oldver,file)
+                else:
+                    status(os.system('cp ' + os.getcwd() + '/update_check/update.json ' + os.getcwd() + '/plugins/system.json'))
                 for file in os.listdir(os.getcwd() + '/update/cogs'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/cogs/' + file)
                     status(
