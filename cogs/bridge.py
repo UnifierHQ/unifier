@@ -3943,6 +3943,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         roomname = list(self.bot.db['rooms'].keys())[origin_room]
 
         try:
+            msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+            if not msg.id == message.id:
+                raise ValueError()
+        except:
+            return
+
+        await self.bot.bridge.delete_copies(msg.id)
+
+        try:
             if not self.bot.config['enable_logging']:
                 raise RuntimeError()
             guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -3968,15 +3977,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await ch.send(embed=embed)
         except:
             pass
-
-        try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
-            if not msg.id == message.id:
-                raise ValueError()
-        except:
-            return
-
-        await self.bot.bridge.delete_copies(msg.id)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, event):
