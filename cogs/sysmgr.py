@@ -1012,6 +1012,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.info('Backup complete, requesting final confirmation.')
                 embed.description = '- :inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
             embed.title = ':arrow_up: Start the upgrade?'
+            components = ui.MessageComponents()
+            components.add_row(btns)
             if no_backup:
                 await interaction.response.edit_message(embed=embed, view=components)
             else:
