@@ -874,17 +874,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('update_check/update.json', 'r') as file:
                     new = json.load(file)
                 if new['release'] > current['release'] or force:
-                    available.append([new['version'], 'Release version', new['release'], False])
+                    available.append([new['version'], 'Release version', new['release'], -1])
+                index = 0
                 for legacy in new['legacy']:
                     if (
                             legacy['lower'] <= current['release'] <= legacy['upper'] and (
-                                    legacy['release'] > (
-                                            current['legacy']['release'] if 'legacy' in current.keys() else -1
-                                    )
+                                legacy['release'] > (
+                                    current['legacy'] if 'legacy' in current.keys() else -1
+                                )
                             ) or force
                     ):
-                        available.append([legacy['version'], 'Legacy version', legacy['release'], True])
-                should_reboot = new['reboot'] >= current['release']
+                        available.append([legacy['version'], 'Legacy version', legacy['release'], index])
+                    index += 1
                 update_available = len(available) >= 1
             except:
                 embed.title = ':x: Failed to check for updates'
@@ -902,11 +903,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             while True:
                 release = available[selected][2]
                 version = available[selected][0]
-                legacy = available[selected][3]
-                self.logger.info('Upgrade available: ' + current['version'] + ' ==> ' + new['version'])
+                legacy = available[selected][3] > -1
                 embed.title = ':arrows_counterclockwise: Update available'
                 embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
                 embed.colour = 0xffcc00
+                if legacy:
+                    should_reboot = release >= current['release']
+                else:
+                    should_reboot = release >= (
+                        current['legacy'] if 'legacy' in current.keys() else -1
+                    )
                 if should_reboot:
                     embed.set_footer(text='The bot will need to reboot to apply the new update.')
                 selection = nextcord.ui.StringSelect(
@@ -933,6 +939,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     nextcord.ui.Button(
                         style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
                         disabled=False
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.link, label='More info',
+                        url=f'https://github.com/UnifierHQ/unifier/releases/tag/{version}'
                     )
                 )
                 components = ui.MessageComponents()
@@ -1079,13 +1089,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 status(os.system('cp ' + os.getcwd() + '/update/requirements.txt ' + os.getcwd() + '/requirements.txt'))
                 self.logger.debug('Installing: ' + os.getcwd() + '/update_check/update.json')
                 if legacy:
-                    with open('update_check/update.json', 'r') as file:
-                        oldver = json.load(file)
-                    oldver['version'] = version
-                    oldver['legacy']['version'] = version
-                    oldver['legacy']['release'] = release
+                    current['version'] = version
+                    current['legacy'] = release
                     with open('plugins/system.json', 'w+') as file:
-                        json.dump(oldver,file)
+                        json.dump(current,file)
                 else:
                     status(os.system('cp ' + os.getcwd() + '/update_check/update.json ' + os.getcwd() + '/plugins/system.json'))
                 for file in os.listdir(os.getcwd() + '/update/cogs'):
