@@ -1975,7 +1975,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if interaction:
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.user.global_name or self.bot.user.name} emojis'
+                embed.title = f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis'
                 embed.description = 'Choose an emoji to view its info!'
                 selection = nextcord.ui.StringSelect(
                     max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
@@ -2023,19 +2023,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             style=nextcord.ButtonStyle.blurple,
                             label='Previous',
                             custom_id='prev',
-                            disabled=page <= 0 or selection.disabled
+                            disabled=page <= 0 or selection.disabled,
+                            emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
                             label='Next',
                             custom_id='next',
-                            disabled=page >= maxpage or selection.disabled
+                            disabled=page >= maxpage or selection.disabled,
+                            emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
                             label='Search',
                             custom_id='search',
-                            emoji='\U0001F50D',
+                            emoji=self.bot.ui_emojis.search,
                             disabled=selection.disabled
                         )
                     )
@@ -2054,7 +2056,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         emojis.pop(x - offset)
                         offset += 1
 
-                embed.title = f'{self.bot.user.global_name or self.bot.user.name} emojis / search'
+                embed.title = f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / search'
                 embed.description = 'Choose an emoji to view its info!'
 
                 if len(emojis) == 0:
@@ -2126,19 +2128,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             style=nextcord.ButtonStyle.blurple,
                             label='Previous',
                             custom_id='prev',
-                            disabled=page <= 0
+                            disabled=page <= 0,
+                            emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
                             label='Next',
                             custom_id='next',
-                            disabled=page >= maxpage
+                            disabled=page >= maxpage,
+                            emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
                             label='Search',
                             custom_id='search',
-                            emoji='\U0001F50D'
+                            emoji=self.bot.ui_emojis.search
                         )
                     )
                 ),
@@ -2148,15 +2152,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
+                            emoji=self.bot.ui_emojis.back
                         )
                     )
                 )
             elif panel == 2:
                 emoji_obj = nextcord.utils.get(self.bot.emojis, name=emojiname)
                 embed.title = (
-                    f'{self.bot.user.global_name or self.bot.user.name} emojis / search / {emojiname}'
+                    f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / search / {emojiname}'
                     if was_searching else
-                    f'{self.bot.user.global_name or self.bot.user.name} emojis / {emojiname}'
+                    f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / {emojiname}'
                 )
                 emoji = (
                     f'<a:{emojiname}:{emoji_obj.id}>' if emoji_obj.animated else f'<:{emojiname}:{emoji_obj.id}>'
@@ -2173,6 +2178,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
+                            emoji=self.bot.ui_emojis.back
                         )
                     )
                 )
@@ -2358,7 +2364,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
 
-        embed = nextcord.Embed(title='Reactions',color=self.bot.colors.unifier)
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.emoji} Reactions',color=self.bot.colors.unifier)
 
         index = 0
         page = 0
@@ -2766,25 +2772,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             btns = ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.blurple,
-                    emoji='\U000023EE',
+                    emoji=self.bot.ui_emojis.first,
                     custom_id='first',
                     disabled=page==1
                 ),
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.gray,
-                    emoji='\U000025C0',
+                    emoji=self.bot.ui_emojis.prev,
                     custom_id='prev',
                     disabled=page==1
                 ),
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.gray,
-                    emoji='\U000025B6',
+                    emoji=self.bot.ui_emojis.next,
                     custom_id='next',
                     disabled=page==max_page
                 ),
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.blurple,
-                    emoji='\U000023ED',
+                    emoji=self.bot.ui_emojis.last,
                     custom_id='last',
                     disabled=page==max_page
                 )
@@ -3187,7 +3193,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             else nextcord.ButtonStyle.red
                         ),
                         label='Reject',
-                        disabled=True
+                        disabled=True,
+                        emoji=self.bot.ui_emojis.error
                     ),
                     nextcord.ui.Button(
                         style=(
@@ -3195,7 +3202,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             else nextcord.ButtonStyle.green
                         ),
                         label='Accept & unban',
-                        disabled=True
+                        disabled=True,
+                        emoji=self.bot.ui_emojis.success
                     )
                 )
                 components = ui.MessageComponents()
@@ -3522,7 +3530,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await message.channel.send(embed=embed)
 
             embed = nextcord.Embed(
-                title='Content blocked - content is as follows',
+                title=f'{self.bot.ui_emojis.warning} Content blocked - content is as follows',
                 description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
                 color=0xff0000,
                 timestamp=datetime.datetime.now(datetime.UTC)

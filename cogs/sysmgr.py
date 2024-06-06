@@ -45,6 +45,7 @@ import ast
 import importlib
 import math
 import asyncio
+import discord_emoji
 
 class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
@@ -55,6 +56,41 @@ class Colors: # format: 0xHEXCODE
     red = 0xe74c3c
     blurple = 0x7289da
     gold = 0xd4a62a
+
+class Emojis:
+    def __init__(self, data=None):
+        if not os.path.exists('emojis'):
+            # Upgrader doesn't bring emojis over, so add them manually
+            os.mkdir('emojis')
+            with open('update/emojis/base.json', 'r') as file:
+                base = json.load(file)
+            with open('emojis/base.json', 'w+') as file:
+                json.dump(base, file, indent=2)
+        with open('emojis/base.json', 'r') as file:
+            base = json.load(file)
+
+        if data:
+            for key in base['emojis'].keys():
+                if not key in data['emojis'].keys():
+                    data['emojis'].update({key: data['emojis'][key]})
+        else:
+            data = base
+
+        self.back = data['emojis']['back'][0]
+        self.prev = data['emojis']['prev'][0]
+        self.next = data['emojis']['next'][0]
+        self.first = data['emojis']['first'][0]
+        self.last = data['emojis']['last'][0]
+        self.search = data['emojis']['search'][0]
+        self.command = data['emojis']['command'][0]
+        self.install = data['emojis']['install'][0]
+        self.success = data['emojis']['success'][0]
+        self.warning = data['emojis']['warning'][0]
+        self.error = data['emojis']['error'][0]
+        self.rooms = data['emojis']['rooms'][0]
+        self.emoji = data['emojis']['emoji'][0]
+        self.leaderboard = data['emojis']['leaderboard'][0]
+
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -91,6 +127,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not hasattr(self.bot, 'colors'):
             self.bot.colors = Colors
             self.bot.colors.unifier = ast.literal_eval(f"0x{self.bot.config['main_color']}")
+        if not hasattr(self.bot, 'ui_emojis'):
+            with open('emojis/base.json', 'r') as file:
+                base = json.load(file)
+            if not base['installed']:
+                base.update({'emojis_pre': base['emojis']})
+                for emoji in base['emojis'].keys():
+                    text = base['emojis'][emoji][0]
+                    if text.startswith(':') and text.endswith(':'):
+                        base['emojis'][emoji][0] = discord_emoji.to_unicode(text)
+                base['installed'] = True
+                with open('emojis/base.json', 'w') as file:
+                    json.dump(base, file, indent=2)
+            try:
+                with open('emojis/current.json', 'r') as file:
+                    data = json.load(file)
+                self.bot.ui_emojis = Emojis(data=data)
+            except:
+                self.bot.ui_emojis = Emojis()
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
         if not hasattr(self.bot, 'loglevel'):
@@ -582,7 +636,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
-        embed = nextcord.Embed(title='Downloading extension...', description='Getting extension files from remote')
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
@@ -592,7 +646,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('plugin_install/plugin.json', 'r') as file:
                 new = json.load(file)
             if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
-                embed.title = 'Invalid plugin.json file'
+                embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
                 embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
@@ -600,7 +654,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if new['id']+'.json' in os.listdir('plugins'):
                 with open('plugins/'+new['id']+'.json', 'r') as file:
                     current = json.load(file)
-                embed.title = 'Plugin already installed'
+                embed.title = f'{self.bot.ui_emojis.error} Plugin already installed'
                 embed.description = f'This plugin is already installed!\n\nName: `{current["name"]}`\nVersion: `{current["version"]}`'
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
@@ -621,7 +675,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 vinfo = json.load(file)
 
             if vinfo['release'] < minimum:
-                embed.title = 'Failed to install plugin'
+                embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
                 embed.description = f'Your Unifier does not support this plugin. Release `{minimum}` or later is required.'
                 embed.colour = 0xff0000
                 return await msg.edit(embed=embed)
@@ -633,8 +687,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for util in utilities:
                 if util in os.listdir('utils'):
                     conflicts.append('utils/'+util)
+            if f'{plugin_id}.json' in os.listdir('emojis') and 'emojis' in services:
+                conflicts.append(f'emojis/{plugin_id}.json')
             if len(conflicts) > 1:
-                embed.title = 'Failed to install plugin'
+                embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
                 embed.description = 'Conflicting files were found:\n'
                 for conflict in conflicts:
                     embed.description = embed.description + f'\n`{conflict}`'
@@ -642,12 +698,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
         except:
-            embed.title = 'Failed to install plugin'
+            embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
             embed.description = 'The repository URL or the plugin.json file is invalid.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
             raise
-        embed.title = f'Install `{plugin_id}`?'
+        embed.title = f'{self.bot.ui_emojis.install} Install `{plugin_id}`?'
         embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
         embed.colour = 0xffcc00
 
@@ -665,6 +721,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     'The plugin will be able to modify message content and author information before bridging to '+
                     'other servers.'
                 )
+            elif service=='emojis':
+                text = (
+                    ':joy: **Emojis**\n'+
+                    'The plugin contains an emoji pack which will be installed onto the bot. You can enable the pack '+
+                    f'using `{self.bot.command_prefix}uiemojis {plugin_id}`.'
+                )
+                with open('plugin_install/emoji.json', 'r') as file:
+                    emojipack = json.load(file)
+                emojis = len(emojipack['emojis'].keys())
+                home_guild = self.bot.get_guild(self.bot.config['home_guild'])
+                if emojis > home_guild.emoji_limit - len(home_guild.emojis):
+                    embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
+                    embed.description = f'Your home server does not have enough emoji slots available. {emojis} is required, but you only have {home_guild.emoji_limit - len(home_guild.emojis)}.'
+                    embed.colour = 0xff0000
+                    return await msg.edit(embed=embed)
             else:
                 text = (
                     f':grey_question: `{service}`\n',
@@ -727,6 +798,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+util)
                 status(os.system(
                     'cp ' + os.getcwd() + '/plugin_install/' + util + ' ' + os.getcwd() + '/utils/' + util))
+            if 'emojis' in services:
+                self.logger.info('Installing Emoji Pack')
+                home_guild = self.bot.get_guild(self.bot.config['home_guild'])
+                with open('plugin_install/emoji.json', 'r') as file:
+                    emojipack = json.load(file)
+                for emojiname in list(emojipack['emojis'].keys()):
+                    self.logger.debug(
+                        'Installing: ' + os.getcwd() + '/plugin_install/emojis/' + emojipack['emojis'][emojiname][0])
+                    file = 'plugin_install/emojis/' + emojipack['emojis'][emojiname][0]
+                    emoji = await home_guild.create_custom_emoji(name=emojiname, image=nextcord.File(fp=file))
+                    emojipack['emojis'][
+                        emojiname][0] = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
+                emojipack['installed'] = True
+                with open(f'emojis/{plugin_id}.json', 'w+') as file:
+                    json.dump(emojipack, file, indent=2)
             self.logger.info('Registering plugin')
             status(
                 os.system('cp ' + os.getcwd() + '/plugin_install/plugin.json' + ' ' + os.getcwd() + '/plugins/' + plugin_id + '.json'))
@@ -741,13 +827,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Activating extension: '+modname)
                 self.bot.load_extension(modname)
             self.logger.debug('Installation complete')
-            embed.title = 'Installation successful'
+            embed.title = f'{self.bot.ui_emojis.success} Installation successful'
             embed.description = 'The installation was successful! :partying_face:'
             embed.colour = 0x00ff00
             await msg.edit(embed=embed)
         except:
             self.logger.exception('Install failed')
-            embed.title = 'Installation failed'
+            embed.title = f'{self.bot.ui_emojis.error} Installation failed'
             embed.description = 'The installation failed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
@@ -770,12 +856,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('plugins/' + plugin + '.json') as file:
                 plugin_info = json.load(file)
         except:
-            embed.title = 'Plugin not found'
+            embed.title = f'{self.bot.ui_emojis.error} Plugin not found'
             embed.description = 'The plugin could not be found.'
             embed.colour = 0xff0000
             await ctx.send(embed=embed)
             return
-        embed.title = 'Uninstall plugin `'+plugin_info['id']+'`?'
+        embed.title = f'{self.bot.ui_emojis.install} Uninstall plugin `'+plugin_info['id']+'`?'
         btns = ui.ActionRow(
             nextcord.ui.Button(style=nextcord.ButtonStyle.red, label='Uninstall', custom_id=f'accept', disabled=False),
             nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
@@ -824,13 +910,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await self.preunload(modname)
                     self.bot.unload_extension(modname)
             self.logger.debug('Uninstallation complete')
-            embed.title = 'Uninstallation successful'
+            embed.title = f'{self.bot.ui_emojis.success} Uninstallation successful'
             embed.description = 'The plugin was successfully uninstalled.'
             embed.colour = 0x00ff00
             await msg.edit(embed=embed)
         except:
             self.logger.exception('Uninstall failed')
-            embed.title = 'Uninstallation failed'
+            embed.title = f'{self.bot.ui_emojis.error} Uninstallation failed'
             embed.description = 'The uninstallation failed.'
             embed.colour = 0xff0000
             await msg.edit(embed=embed)
@@ -859,7 +945,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if plugin=='system':
             embed = nextcord.Embed(
-                title=':inbox_tray: Checking for upgrades...',
+                title=f'{self.bot.ui_emojis.install} Checking for upgrades...',
                 description='Getting latest version from remote'
             )
             msg = await ctx.send(embed=embed)
@@ -888,13 +974,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 update_available = len(available) >= 1
             except:
-                embed.title = ':x: Failed to check for updates'
+                embed.title = f'{self.bot.ui_emojis.error} Failed to check for updates'
                 embed.description = 'Could not find a valid update.json file on remote'
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
                 raise
             if not update_available:
-                embed.title = ':white_check_mark: No updates available'
+                embed.title = f'{self.bot.ui_emojis.success} No updates available'
                 embed.description = 'Unifier is up-to-date.'
                 embed.colour = 0x00ff00
                 return await msg.edit(embed=embed)
@@ -904,7 +990,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 release = available[selected][2]
                 version = available[selected][0]
                 legacy = available[selected][3] > -1
-                embed.title = ':arrows_counterclockwise: Update available'
+                embed.title = f'{self.bot.ui_emojis.install} Update available'
                 embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
                 embed.remove_footer()
                 embed.colour = 0xffcc00
@@ -968,7 +1054,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     selected = int(interaction.data['values'][0])
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
-                embed.title = 'Backing up...'
+                embed.title = f'{self.bot.ui_emojis.install} Backing up...'
                 embed.description = 'Your data is being backed up.'
                 await interaction.response.edit_message(embed=embed, view=None)
             try:
@@ -1004,7 +1090,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.description = '- :x: Your files **COULD NOT BE BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
                 else:
                     self.logger.error('Backup failed, abort upgrade.')
-                    embed.title = 'Backup failed'
+                    embed.title = f'{self.bot.ui_emojis.error} Backup failed'
                     embed.description = 'Unifier could not create a backup. The upgrade has been aborted.'
                     embed.colour = 0xff0000
                     await msg.edit(embed=embed)
@@ -1012,7 +1098,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             else:
                 self.logger.info('Backup complete, requesting final confirmation.')
                 embed.description = '- :inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
-            embed.title = ':arrow_up: Start the upgrade?'
+            embed.title = f'{self.bot.ui_emojis.install} Start the upgrade?'
             components = ui.MessageComponents()
             components.add_row(btns)
             if no_backup:
@@ -1034,7 +1120,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components.add_row(btns)
                 return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
-            embed.title = ':arrow_up: Upgrading Unifier'
+            embed.title = f'{self.bot.ui_emojis.install} Upgrading Unifier'
             embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
             await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
@@ -1050,7 +1136,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Download confirmed, proceeding with upgrade')
             except:
                 self.logger.exception('Download failed, no rollback required')
-                embed.title = 'Upgrade failed'
+                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
                 embed.description = 'Could not download updates. No rollback is required.'
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
@@ -1077,7 +1163,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     status(os.system('python3 -m pip install ' + ' '.join(newdeps)))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
-                embed.title = ':x: Upgrade failed'
+                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
                 embed.description = 'Could not install dependencies. No rollback is required.'
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
@@ -1124,7 +1210,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if should_reboot:
                     self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')
-                    embed.title = ':white_check_mark: Restart to apply upgrade'
+                    embed.title = f'{self.bot.ui_emojis.success} Restart to apply upgrade'
                     embed.description = f'The upgrade was successful. Please reboot the bot.'
                     embed.colour = 0x00ff00
                     await msg.edit(embed=embed)
@@ -1137,13 +1223,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         await self.preunload(cog)
                         self.bot.reload_extension(cog)
                     self.logger.info('Upgrade complete')
-                    embed.title = ':white_check_mark: Upgrade successful'
+                    embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
                     embed.description = 'The upgrade was successful! :partying_face:'
                     embed.colour = 0x00ff00
                     await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed, attempting rollback')
-                embed.title = ':x: Upgrade failed'
+                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
+                embed.colour = 0xff0000
                 try:
                     self.logger.debug('Reverting: ' + os.getcwd() + '/unifier.py')
                     status(os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py'))
@@ -1160,7 +1247,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.info('Rollback success')
                     embed.description = 'The upgrade failed, and all files have been rolled back.'
                 except:
-                    embed.colour = 0xff0000
                     self.logger.exception('Rollback failed')
                     self.logger.critical(
                         'The rollback failed. Visit https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier/manual-rollback for recovery steps.')
@@ -1168,13 +1254,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
         else:
-            embed = nextcord.Embed(title='Downloading extension...', description='Getting extension files from remote')
+            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
 
             try:
                 with open('plugins/'+plugin+'.json') as file:
                     plugin_info = json.load(file)
             except:
-                embed.title = 'Plugin not found'
+                embed.title = f'{self.bot.ui_emojis.error} Plugin not found'
                 embed.description = 'The plugin could not be found.'
                 if plugin=='force':
                     embed.description = embed.description + f'\n\n**Hint**: If you\'re trying to force upgrade, run `{self.bot.command_prefix}upgrade system force`'
@@ -1191,13 +1277,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
                 if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
-                    embed.title = 'Invalid plugin.json file'
+                    embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
                     embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
                     embed.colour = 0xff0000
                     await msg.edit(embed=embed)
                     return
                 if new['release'] <= plugin_info['release'] and not force:
-                    embed.title = 'Plugin up to date'
+                    embed.title = f'{self.bot.ui_emojis.success} Plugin up to date'
                     embed.description = f'This plugin is already up to date!'
                     embed.colour = 0x00ff00
                     await msg.edit(embed=embed)
@@ -1208,13 +1294,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 version = new['version']
                 modules = new['modules']
                 utilities = new['utils']
+                services = new['services'] if 'services' in new.keys() else []
             except:
-                embed.title = 'Failed to update plugin'
+                embed.title = f'{self.bot.ui_emojis.error} Failed to update plugin'
                 embed.description = 'The repository URL or the plugin.json file is invalid.'
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
                 raise
-            embed.title = f'Update `{plugin_id}`?'
+            embed.title = f'{self.bot.ui_emojis.install} Update `{plugin_id}`?'
             embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
             embed.colour = 0xffcc00
             btns = ui.ActionRow(
@@ -1271,6 +1358,55 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + util)
                     status(os.system(
                         'cp ' + os.getcwd() + '/plugin_install/' + util + ' ' + os.getcwd() + '/utils/' + util))
+                if 'emojis' in services:
+                    self.logger.info('Uninstalling previous Emoji Pack')
+                    home_guild = self.bot.get_guild(self.bot.config['home_guild'])
+                    with open(f'emojis/{plugin_id}.json', 'r') as file:
+                        oldemojipack = json.load(file)
+                    with open('plugin_install/emoji.json', 'r') as file:
+                        emojipack = json.load(file)
+                    toreplace = []
+                    for emojiname in oldemojipack['emojis']:
+                        oldversion = oldemojipack['emojis'][emojiname][1]
+                        ignore_replace = False
+                        try:
+                            newversion = emojipack['emojis'][emojiname][1]
+                        except:
+                            ignore_replace = True
+                            newversion = oldversion + 1
+                        if oldversion < newversion:
+                            emoji = oldemojipack['emojis'][emojiname][0]
+                            if (emoji.startswith('<:') or emoji.startswith('<a:')) and emoji.endswith('>'):
+                                emoji_id = int(emoji.split(':')[2].replace('>',''))
+                                self.logger.debug(f'Removing: {emoji_id}')
+                                for emoji_obj in home_guild.emojis:
+                                    if emoji_obj.id==emoji_id:
+                                        await emoji_obj.delete()
+                            if not ignore_replace:
+                                toreplace.append(emojiname)
+
+                    self.logger.info('Installing new Emoji Pack')
+                    home_guild = self.bot.get_guild(self.bot.config['home_guild'])
+                    for emojiname in emojipack['emojis']:
+                        if emojiname in toreplace or not emojiname in oldemojipack['emojis'].keys():
+                            self.logger.debug(
+                                'Installing: ' + os.getcwd() + '/plugin_install/emojis/' + emojipack['emojis'][emojiname][0])
+                            file = 'plugin_install/emojis/' + emojipack['emojis'][emojiname][0]
+                            emoji = await home_guild.create_custom_emoji(name=emojiname, image=nextcord.File(fp=file))
+                            emojipack['emojis'][
+                                emojiname][0] = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
+                        else:
+                            emojipack['emojis'][emojiname][0] = oldemojipack['emojis'][emojiname][0]
+                    emojipack['installed'] = True
+                    with open(f'emojis/{plugin_id}.json', 'w+') as file:
+                        json.dump(emojipack, file, indent=2)
+                    with open(f'emojis/current.json', 'r') as file:
+                        currentdata = json.load(file)
+                    if currentdata['id']==plugin_id:
+                        emojipack.update({'id': plugin_id})
+                        with open(f'emojis/current.json', 'w+') as file:
+                            json.dump(emojipack, file, indent=2)
+                        self.bot.ui_emojis = Emojis(data=emojipack)
                 self.logger.info('Registering plugin')
                 status(
                     os.system(
@@ -1288,17 +1424,39 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         await self.preunload(modname)
                         self.bot.reload_extension(modname)
                 self.logger.debug('Upgrade complete')
-                embed.title = 'Upgrade successful'
+                embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
                 embed.description = 'The upgrade was successful! :partying_face:'
                 embed.colour = 0x00ff00
                 await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed')
-                embed.title = 'Upgrade failed'
+                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
                 embed.description = 'The upgrade failed.'
                 embed.colour = 0xff0000
                 await msg.edit(embed=embed)
                 return
+
+    @commands.command(description='Activates an emoji pack. Activating the "base" emoji pack resets emojis back to vanilla.')
+    async def uiemojis(self, ctx, *, emojipack):
+        if not ctx.author.id == self.bot.config['owner']:
+            return
+
+        emojipack = emojipack.lower()
+        if emojipack=='base':
+            self.bot.ui_emojis = Emojis()
+            await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack reset to default.')
+        else:
+            try:
+                with open(f'emojis/{emojipack}.json', 'r') as file:
+                    data = json.load(file)
+                data.update({'id':emojipack})
+                with open(f'emojis/current.json', 'w+') as file:
+                    json.dump(data, file, indent=2)
+                self.bot.ui_emojis = Emojis(data=data)
+                await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack {emojipack} activated.')
+            except:
+                self.logger.exception('An error occurred!')
+                await ctx.send(f'{self.bot.ui_emojis.error} Could not activate emoji pack.')
 
     @commands.command(description='Shows this command.')
     async def help(self,ctx):
@@ -1307,7 +1465,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         show_moderation = False
 
         system_restricted = [
-            'initbridge'
+            'initbridge', 'uiemojis'
         ]
 
         admin_restricted = [
@@ -1367,7 +1525,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if interaction:
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.user.global_name or self.bot.user.name} help'
+                embed.title = f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help'
                 embed.description = 'Choose an extension to get started!'
                 selection = nextcord.ui.StringSelect(
                     max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
@@ -1435,19 +1593,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             style=nextcord.ButtonStyle.blurple,
                             label='Previous',
                             custom_id='prev',
-                            disabled=page <= 0
+                            disabled=page <= 0,
+                            emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
                             label='Next',
                             custom_id='next',
-                            disabled=page >= maxpage
+                            disabled=page >= maxpage,
+                            emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
                             label='Search',
                             custom_id='search',
-                            emoji='\U0001F50D'
+                            emoji=self.bot.ui_emojis.search
                         )
                     )
                 )
@@ -1487,8 +1647,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         offset += 1
 
                 embed.title = (
-                    f'{self.bot.user.global_name or self.bot.user.name} help / {cogname}' if not cogname == '' else
-                    f'{self.bot.user.global_name or self.bot.user.name} help / all'
+                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cogname}' if not cogname == '' else
+                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / all'
                 )
                 embed.description = 'Choose a command to view its info!'
 
@@ -1561,19 +1721,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             style=nextcord.ButtonStyle.blurple,
                             label='Previous',
                             custom_id='prev',
-                            disabled=page <= 0
+                            disabled=page <= 0,
+                            emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
                             label='Next',
                             custom_id='next',
-                            disabled=page >= maxpage
+                            disabled=page >= maxpage,
+                            emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
                             label='Search',
                             custom_id='search',
-                            emoji='\U0001F50D'
+                            emoji=self.bot.ui_emojis.search
                         )
                     )
                 )
@@ -1613,14 +1775,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
+                            emoji=self.bot.ui_emojis.back
                         )
                     )
                 )
             elif panel==2:
                 cmd = self.bot.get_command(cmdname)
                 embed.title = (
-                    f'{self.bot.user.global_name or self.bot.user.name} help / {cogname} / {cmdname}' if not cogname=='' else
-                    f'{self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
+                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cogname} / {cmdname}' if not cogname=='' else
+                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
                 )
                 embed.description =(
                     f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
@@ -1641,6 +1804,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
+                            emoji=self.bot.ui_emojis.back
                         )
                     )
                 )

@@ -389,19 +389,19 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     raise ValueError()
                 await resp_msg.edit(view=components)
                 return await interaction.edit_original_message(
-                    content='Deleted message (parent deleted, copies will follow)'
+                    content=f'{self.bot.ui_emojis.success} Deleted message (parent deleted, copies will follow)'
                 )
             except:
                 try:
                     deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
                     await resp_msg.edit(view=components)
                     return await interaction.edit_original_message(
-                        content=f'Deleted message ({deleted} copies deleted)'
+                        content=f'{self.bot.ui_emojis.success} Deleted message ({deleted} copies deleted)'
                     )
                 except:
                     traceback.print_exc()
                     return await interaction.edit_original_message(
-                        content='Something went wrong.'
+                        content=f'{self.bot.ui_emojis.error} Something went wrong.'
                     )
 
     @commands.command(hidden=True,description='Blocks a user from using Unifier.')
@@ -420,37 +420,37 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send('Invalid user!')
 
         if target==ctx.author.id:
-            return await ctx.send('You cannot ban yourself :thinking:')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot ban yourself :thinking:')
 
         if target==self.bot.config['owner']:
-            return await ctx.send('You cannot ban the owner :thinking:')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot ban the owner :thinking:')
 
         if target in self.bot.db['fullbanned']:
             self.bot.db['fullbanned'].remove(target)
-            await ctx.send('User has been unbanned from the bot.')
+            await ctx.send(f'{self.bot.ui_emojis.success} User has been unbanned from the bot.')
         else:
             self.bot.db['fullbanned'].append(target)
-            await ctx.send('User has been banned from the bot.')
+            await ctx.send(f'{self.bot.ui_emojis.success} User has been banned from the bot.')
 
     @commands.command(aliases=['unban'],description='Unblocks a user or server from bridging messages to your server.')
     async def unrestrict(self,ctx,target):
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members):
-            return await ctx.send('You cannot unrestrict members/servers.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot unrestrict members/servers.')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
             userid = target
             if not len(target) == 26:
-                return await ctx.send('Invalid user/server!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user/server!')
         banlist = []
         if f'{ctx.guild.id}' in list(self.bot.db['blocked'].keys()):
             banlist = self.bot.db['blocked'][f'{ctx.guild.id}']
         if not userid in banlist:
-            return await ctx.send('User/server not banned!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} User/server not banned!')
         self.bot.db['blocked'][f'{ctx.guild.id}'].remove(userid)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('User/server can now forward messages to this channel!')
+        await ctx.send(f'{self.bot.ui_emojis.success} User/server can now forward messages to this channel!')
 
     @commands.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
     async def globalunban(self,ctx,*,target):
@@ -459,20 +459,20 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id and not override_st:
-                return await ctx.send('You can\'t unban yourself :thinking:')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You can\'t unban yourself :thinking:')
         except:
             userid = target
             if not len(target) == 26:
-                return await ctx.send('Invalid user/server!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user/server!')
         banlist = self.bot.db['banned']
         if not f'{userid}' in list(banlist.keys()):
             if f'{userid}' in list(self.bot.bridge.secbans.keys()):
                 self.bot.bridge.secbans.pop(f'{userid}')
-                return await ctx.send('unbanned, nice')
+                return await ctx.send(f'{self.bot.ui_emojis.success} User has been unbanned.')
             return await ctx.send('User/server not banned!')
         self.bot.db['banned'].pop(f'{userid}')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('unbanned, nice')
+        await ctx.send(f'{self.bot.ui_emojis.success} User has been unbanned.')
 
     @commands.command(description='Bans a user from appealing their ban.')
     async def appealban(self,ctx,*,target):
@@ -481,15 +481,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id and not override_st:
-                return await ctx.send('You can\'t ban yourself :thinking:')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You can\'t ban yourself :thinking:')
         except:
             userid = target
         if userid in self.bot.db['appealban']:
             self.bot.db['appealban'].remove(userid)
-            await ctx.send('User can now appeal bans.')
+            await ctx.send(f'{self.bot.ui_emojis.success} User can now appeal bans.')
         else:
             self.bot.db['appealban'].append(userid)
-            await ctx.send('User can no longer appeal bans.')
+            await ctx.send(f'{self.bot.ui_emojis.success} User can no longer appeal bans.')
         self.bot.db.save_data()
 
     @commands.command(description='Appeals your ban, if you have one.')
@@ -498,7 +498,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         banned = False
 
         if ctx.guild:
-            return await ctx.send('You can only appeal your ban in DMs.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You can only appeal your ban in DMs.')
 
         if f'{ctx.author.id}' in list(gbans.keys()):
             ct = time.time()
@@ -511,16 +511,16 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     banned = True
 
         if not banned:
-            return await ctx.send('You don\'t have an active ban!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have an active ban!')
 
         if ctx.author.id in self.bot.db['appealban']:
-            return await ctx.send('You cannot appeal this ban, contact staff for more info.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot appeal this ban, contact staff for more info.')
 
         actions, _ = self.get_modlogs(ctx.author.id)
 
         if len(actions['bans'])==0:
             return await ctx.send(
-                'You\'re currently banned, but we couldn\'t find the ban reason. Contact moderators directly to appeal.'
+                f'{self.bot.ui_emojis.error} You\'re currently banned, but we couldn\'t find the ban reason. Contact moderators directly to appeal.'
             )
 
         ban = actions['bans'][len(actions['bans'])-1]
@@ -544,7 +544,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 )
             )
         )
-        msg = await ctx.send('Please confirm that this is the ban you\'re appealing.',embed=embed,view=components)
+        msg = await ctx.send(f'{self.bot.ui_emojis.warning} Please confirm that this is the ban you\'re appealing.',embed=embed,view=components)
 
         def check(interaction):
             return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
@@ -596,11 +596,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         btns = ui.ActionRow(
             nextcord.ui.Button(
                 style=nextcord.ButtonStyle.red, label='Reject', custom_id=f'apreject_{ctx.author.id}',
-                disabled=False
+                disabled=False, emoji=self.bot.ui_emojis.error
             ),
             nextcord.ui.Button(
                 style=nextcord.ButtonStyle.green, label='Accept & unban', custom_id=f'apaccept_{ctx.author.id}',
-                disabled=False
+                disabled=False, emoji=self.bot.ui_emojis.success
             )
         )
         components = ui.MessageComponents()
@@ -619,7 +619,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             pass
         return await interaction.response.send_message(
             (
-                "# :white_check_mark: Your appeal was submitted!\nWe\'ll get back to you once the moderators have"+
+                f"# {self.bot.ui_emojis.success} Your appeal was submitted!\nWe\'ll get back to you once the moderators have"+
                 " agreed on a decision. Please be patient and respectful towards moderators while they review your "+
                 "appeal."
             ),
@@ -892,7 +892,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             data = self.bot.db['rooms'][room]
         except:
-            return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of all rooms.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         text = ''
         for guild_id in data:
             try:
@@ -903,7 +903,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 text = f'- {name} (`{guild_id}`)'
             else:
                 text = f'{text}\n- {name} (`{guild_id}`)'
-        embed = nextcord.Embed(title=f'Servers connected to `{room}`',description=text)
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`',description=text)
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True,description='Warns a user.')
@@ -923,10 +923,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 try:
                     rtt_msg = await self.bot.bridge.fetch_message(msg.id)
                 except:
-                    return await ctx.send('Could not find message in cache!')
+                    return await ctx.send(f'{self.bot.ui_emojis.error} Could not find message in cache!')
                 rtt_msg_content = msg.content
             else:
-                return await ctx.send('Could not find message in cache!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Could not find message in cache!')
         if rtt_msg:
             reason = target
             target = str(rtt_msg.author_id)
@@ -936,18 +936,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 reason = parts[1]
                 target = parts[0]
             else:
-                return await ctx.send('You need to have a reason to warn this user.')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You need to have a reason to warn this user.')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id and not override_st:
-                return await ctx.send('You can\'t warn yourself :thinking:')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You can\'t warn yourself :thinking:')
         except:
             userid = target
             if not len(userid)==26:
-                return await ctx.send('Invalid user/server!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user/server!')
         if userid in self.bot.moderators and not ctx.author.id==self.bot.config['owner']:
             if not userid == ctx.author.id or not override_st:
-                return await ctx.send('You cannot punish other moderators!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot punish other moderators!')
         if userid==self.bot.user.id:
             return await ctx.send('are you fr')
         if ctx.author.discriminator=='0':
@@ -973,9 +973,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 user = self.bot.revolt_client.get_user(userid)
                 await user.send(
                     f'## {embed.title}\n{embed.description}\n\n**Actions taken**\n{embed.fields[0].value}')
-                return await ctx.send('User has been warned and notified.')
+                return await ctx.send(f'{self.bot.ui_emojis.success} User has been warned and notified.')
             except:
-                return await ctx.send('Invalid user! (servers can\'t be warned, warn their staff instead')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user! (servers can\'t be warned, warn their staff instead')
         if user.bot:
             return await ctx.send('...why would you want to warn a bot?')
         await self.bot.loop.run_in_executor(None, lambda: self.add_modlog(0,user.id,reason,ctx.author.id))
@@ -1002,13 +1002,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             await user.send(embed=embed)
             resp_msg = await ctx.send(
-                'User has been warned and notified.',
+                f'{self.bot.ui_emojis.success} User has been warned and notified.',
                 embed=log_embed,
                 reference=ctx.message,
                 view=components if rtt_msg else None
             )
         except:
-            resp_msg = await ctx.send('User has DMs with bot disabled. Warning will be logged.',embed=log_embed,view=components)
+            resp_msg = await ctx.send(f'{self.bot.ui_emojis.success} User has DMs with bot disabled. Warning will be logged.',embed=log_embed,view=components)
 
         if not rtt_msg:
             return
@@ -1065,19 +1065,19 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     raise ValueError()
                 await resp_msg.edit(view=components)
                 return await interaction.edit_original_message(
-                    content='Deleted message (parent deleted, copies will follow)'
+                    content=f'{self.bot.ui_emojis.success} Deleted message (parent deleted, copies will follow)'
                 )
             except:
                 try:
                     deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
                     await resp_msg.edit(view=components)
                     return await interaction.edit_original_message(
-                        content=f'Deleted message ({deleted} copies deleted)'
+                        content=f'{self.bot.ui_emojis.success} Deleted message ({deleted} copies deleted)'
                     )
                 except:
                     traceback.print_exc()
                     return await interaction.edit_original_message(
-                        content='Something went wrong.'
+                        content=f'{self.bot.ui_emojis.error} Something went wrong.'
                     )
 
     @commands.command(hidden=True,description='Deletes a logged warning.')
@@ -1087,7 +1087,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             index = int(index) - 1
         except:
-            return await ctx.send('Invalid index!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Invalid index!')
         if index < 0:
             return await ctx.send('what.')
         target = self.bot.get_user(int(target.replace('<@','',1).replace('!','',1).replace('>','',1)))
@@ -1095,7 +1095,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             actions, _ = self.get_modlogs(target.id)
             warn = actions['warns'][index]
         except:
-            return await ctx.send('Could not find action!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Could not find action!')
         embed = nextcord.Embed(title='Warning deleted',description=warn['reason'],color=0xffcc00)
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         searched = 0
@@ -1108,9 +1108,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     break
                 searched += 1
         if deleted:
-            await ctx.send('Warning was deleted!', embed=embed)
+            await ctx.send(f'{self.bot.ui_emojis.success} Warning was deleted!', embed=embed)
         else:
-            await ctx.send('Could not find warning - maybe the index was too high?')
+            await ctx.send(f'{self.bot.ui_emojis.error} Could not find warning - maybe the index was too high?')
 
     @commands.command(hidden=True,description='Deletes a logged ban. Does not unban the user.')
     async def delban(self, ctx, target, index):
@@ -1127,7 +1127,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             actions, _ = self.get_modlogs(target.id)
             ban = actions['bans'][index]
         except:
-            return await ctx.send('Could not find action!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Could not find action!')
         embed = nextcord.Embed(title='Ban deleted', description=ban['reason'], color=0xff0000)
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         embed.set_footer(text='WARNING: This does NOT unban the user.')
@@ -1141,9 +1141,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     break
                 searched += 1
         if deleted:
-            await ctx.send('Ban was deleted!', embed=embed)
+            await ctx.send(f'{self.bot.ui_emojis.success} Ban was deleted!', embed=embed)
         else:
-            await ctx.send('Could not find ban - maybe the index was too high?')
+            await ctx.send(f'{self.bot.ui_emojis.error} Could not find ban - maybe the index was too high?')
 
     @commands.command(hidden=True,description="Changes a given user's nickname.")
     async def anick(self, ctx, target, *, nickname=''):
@@ -1158,7 +1158,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             if len(target)==26:
                 userid = target
             else:
-                return await ctx.send("Invalid user mention.")
+                return await ctx.send(f"{self.bot.ui_emojis.error} Invalid user mention.")
 
         # Update or remove the nickname in the database
         if len(nickname) == 0:
@@ -1169,7 +1169,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         # Save changes to the database
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-        await ctx.send('Nickname updated.')
+        await ctx.send(f'{self.bot.ui_emojis.success} Nickname updated.')
 
     @commands.command(hidden=True,description='Locks Unifier Bridge down.')
     async def bridgelock(self,ctx):
@@ -1177,10 +1177,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not ctx.author.id in self.bot.moderators:
             return
         if not hasattr(self.bot, 'bridge'):
-            return await ctx.send('Bridge already locked down.')
-        embed = nextcord.Embed(title='Lock bridge down?',
-                              description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
-                              color=0xffcc00)
+            return await ctx.send(f'{self.bot.ui_emojis.error} Bridge already locked down.')
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Lock bridge down?',
+                               description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
+                               color=0xffcc00)
         components = ui.MessageComponents()
         components.add_row(
             ui.ActionRow(
@@ -1262,7 +1262,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.bot.unload_extension('cogs.bridge')
         self.logger.info("Bridge disabled")
         self.logger.info("Lockdown complete")
-        embed.title = 'LOCKDOWN COMPLETED'
+        embed.title = f'{self.bot.ui_emojis.warning} LOCKDOWN COMPLETED'
         embed.description = 'Bridge has been locked down.'
         embed.colour = 0xff0000
         await msg.edit(embed=embed)
@@ -1274,7 +1274,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         try:
             self.bot.load_extension('cogs.bridge')
         except:
-            return await ctx.send('Bridge already online.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Bridge already online.')
         try:
             await self.bot.bridge.restore()
             self.logger.info('Restored ' + str(len(self.bot.bridge.bridged)) + ' messages')
@@ -1292,7 +1292,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except Exception as e:
                 if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
                     traceback.print_exc()
-        await ctx.send('Lockdown removed')
+        await ctx.send(f'{self.bot.ui_emojis.success} Lockdown removed')
 
 def setup(bot):
     bot.add_cog(Moderation(bot))

@@ -25,6 +25,7 @@ from utils import log, ui
 import threading
 import math
 import emoji as pymoji
+import discord_emoji
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
@@ -337,18 +338,18 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(aliases=['link','connect','federate','bridge'],description='Connects the channel to a given room.')
     async def bind(self,ctx,*,room=''):
         if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
-            return await ctx.send('You don\'t have the necessary permissions.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have the necessary permissions.')
         room = room.lower()
         if self.is_room_restricted(room,self.bot.db) and not self.is_user_admin(ctx.author.id):
-            return await ctx.send('Only admins can bind channels to restricted rooms.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Only admins can bind channels to restricted rooms.')
         if room=='' or not room: # Added "not room" as a failback
             room = 'main'
-            await ctx.send('**No room was given, defaulting to main**')
+            await ctx.send(f'{self.bot.ui_emojis.warning} No room was given, defaulting to main')
         try:
             data = self.bot.db['rooms'][room]
         except:
-            return await ctx.send(f'This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a list of rooms.')
-        embed = nextcord.Embed(title='Ensuring channel is not connected...',description='This may take a while.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Ensuring channel is not connected...',description='This may take a while.')
         msg = await ctx.send(embed=embed)
         hooks = await ctx.channel.webhooks()
         for roomname in list(self.bot.db['rooms'].keys()):
@@ -356,7 +357,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
             for hook in hooks:
                 if hook.id == hook_id:
-                    embed.title = 'Channel already linked!'
+                    embed.title = f'{self.bot.ui_emojis.error} Channel already linked!'
                     embed.colour = 0xff0000
                     embed.description = f'This channel is already linked to `{roomname}`!\nRun `{self.bot.command_prefix}unbind {roomname}` to unbind from it.'
                     return await msg.edit(embed=embed)
@@ -380,7 +381,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     index += 1
             text = f'{text}\n\nPlease display these rules somewhere accessible.'
             embed = nextcord.Embed(
-                title='Please agree to the room rules first:',
+                title=f'{self.bot.ui_emojis.rooms} Please agree to the room rules first:',
                 description=text,
                 color=self.bot.colors.unifier
             )
@@ -426,26 +427,26 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data.update({f'{ctx.guild.id}':guild})
             self.bot.db['rooms'][room] = data
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send('# :white_check_mark: Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
+            await ctx.send(f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
             try:
                 await msg.pin()
             except:
                 pass
         except:
-            await ctx.send('Something went wrong - check my permissions.')
+            await ctx.send(f'{self.bot.ui_emojis.error} Something went wrong - check my permissions.')
             raise
 
     @commands.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
     async def unbind(self,ctx,*,room=''):
         if room=='':
-            return await ctx.send('You must specify the room to unbind from.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You must specify the room to unbind from.')
         room = room.lower()
         if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
-            return await ctx.send('You don\'t have the necessary permissions.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have the necessary permissions.')
         try:
             data = self.bot.db['rooms'][room]
         except:
-            return await ctx.send('This isn\'t a valid room. Try `main`, `pr`, `prcomments`, or `liveries` instead.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         try:
             try:
                 hooks = await ctx.guild.webhooks()
@@ -462,9 +463,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data.pop(f'{ctx.guild.id}')
             self.bot.db['rooms'][room] = data
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send('# :white_check_mark: Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
+            await ctx.send(f'# {self.bot.ui_emojis.success} Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
         except:
-            await ctx.send('Something went wrong - check my permissions.')
+            await ctx.send(f'{self.bot.ui_emojis.error} Something went wrong - check my permissions.')
             raise
 
     @commands.command(description='Displays room rules for the specified room.')
@@ -476,55 +477,55 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             room = 'main'
 
         if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send(f'This room doesn\'t exist! Run `{self.bot.command_prefix}rooms` to get a full list.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         
         index = 0
         text = ''
         if room in list(self.bot.db['rules'].keys()):
             rules = self.bot.db['rules'][room]
             if len(rules)==0:
-                return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
+                return await ctx.send(f'{self.bot.ui_emojis.error} The admins haven\'t added rules yet. Though, make sure to always use common sense.')
         else:
-            return await ctx.send('The room creator hasn\'t added rules yet. For now, follow `main` room rules.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} The admins haven\'t added rules yet. Though, make sure to always use common sense.')
         for rule in rules:
             if text=='':
                 text = f'1. {rule}'
             else:
                 text = f'{text}\n{index}. {rule}'
             index += 1
-        embed = nextcord.Embed(title='Room rules',description=text,color=self.bot.colors.unifier)
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.rooms} Room rules',description=text,color=self.bot.colors.unifier)
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True,description="Adds a rule to a given room.")
     async def addrule(self,ctx,room,*,rule):
         if not self.is_user_admin(ctx.author.id):
-            return await ctx.send('Only admins can modify rules!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Only admins can modify rules!')
         room = room.lower()
         if not room in list(self.bot.db['rules'].keys()):
-            return await ctx.send('This room does not exist!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         if len(self.bot.db['rules'][room]) >= 25:
-            return await ctx.send('You can only have up to 25 rules in a room!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You can only have up to 25 rules in a room!')
         self.bot.db['rules'][room].append(rule)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('Added rule!')
+        await ctx.send(f'{self.bot.ui_emojis.success} Added rule!')
 
     @commands.command(hidden=True,description="Removes a given rule from a given room.")
     async def delrule(self,ctx,room,*,rule):
         if not self.is_user_admin(ctx.author.id):
-            return await ctx.send('Only admins can modify rules!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Only admins can modify rules!')
         room = room.lower()
         try:
             rule = int(rule)
             if rule <= 0:
                 raise ValueError()
         except:
-            return await ctx.send('Rule must be a number higher than 0.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Rule must be a number higher than 0.')
         if not room in list(self.bot.db['rules'].keys()):
-            return await ctx.send('This room does not exist!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         self.bot.db['rules'][room].pop(rule-1)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('Removed rule!')
+        await ctx.send(f'{self.bot.ui_emojis.success} Removed rule!')
 
     @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
     async def addbridge(self,ctx,*,userid):
@@ -536,11 +537,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if not user or userid==self.bot.user.id:
                 raise ValueError()
             if userid in self.bot.db['external_bridge']:
-                return await ctx.send('This user is already in the whitelist!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} This user is already in the whitelist!')
         except:
-            return await ctx.send('Invalid user!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user!')
         embed = nextcord.Embed(
-            title=f'Allow @{user.name} to bridge?',
+            title=f'{self.bot.ui_emojis.warning} Allow @{user.name} to bridge?',
             description='This will allow messages sent via webhooks created by this user to be bridged through Unifier.',
             color=0xffcc00
         )
@@ -565,7 +566,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return
         self.bot.db['external_bridge'].append(userid)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        return await ctx.send('# :white_check_mark: Linked bridge to Unifier network!\nThis user\'s webhooks can now bridge messages through Unifier!')
+        return await ctx.send(f'# {self.bot.ui_emojis.success} Linked bridge to Unifier network!\nThis user\'s webhooks can now bridge messages through Unifier!')
 
     @commands.command(hidden=True,description='Prevents given user\'s webhooks from being bridged.')
     async def delbridge(self, ctx, *, userid):
@@ -577,11 +578,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if not user:
                 raise ValueError()
             if not userid in self.bot.db['external_bridge']:
-                return await ctx.send('This user isn\'t in the whitelist!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} This user isn\'t in the whitelist!')
         except:
-            return await ctx.send('Invalid user!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user!')
         embed = nextcord.Embed(
-            title=f'Remove @{user.name} from bridge?',
+            title=f'{self.bot.ui_emojis.warning} Remove @{user.name} from bridge?',
             description='This will stop this user\'s webhooks from bridging messages.',
             color=0xffcc00
         )
@@ -607,7 +608,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['external_bridge'].remove(userid)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         return await ctx.send(
-            '# :white_check_mark: Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
+            f'# {self.bot.ui_emojis.success} Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
 
     @commands.command(description='Shows a list of rooms.')
     async def rooms(self,ctx):
@@ -651,7 +652,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 if interaction:
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.user.global_name or self.bot.user.name} rooms'
+                embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms'
                 embed.description = 'Choose a room to view its info!'
                 selection = nextcord.ui.StringSelect(
                     max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
@@ -705,19 +706,21 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             style=nextcord.ButtonStyle.blurple,
                             label='Previous',
                             custom_id='prev',
-                            disabled=page <= 0 or selection.disabled
+                            disabled=page <= 0 or selection.disabled,
+                            emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
                             label='Next',
                             custom_id='next',
-                            disabled=page >= maxpage or selection.disabled
+                            disabled=page >= maxpage or selection.disabled,
+                            emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
                             label='Search',
                             custom_id='search',
-                            emoji='\U0001F50D',
+                            emoji=self.bot.ui_emojis.search,
                             disabled=selection.disabled
                         )
                     )
@@ -753,7 +756,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         roomlist.pop(x - offset)
                         offset += 1
 
-                embed.title = f'{self.bot.user.global_name or self.bot.user.name} rooms / search'
+                embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search'
                 embed.description = 'Choose a room to view its info!'
 
                 if len(roomlist) == 0:
@@ -829,19 +832,21 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             style=nextcord.ButtonStyle.blurple,
                             label='Previous',
                             custom_id='prev',
-                            disabled=page <= 0
+                            disabled=page <= 0,
+                            emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
                             label='Next',
                             custom_id='next',
-                            disabled=page >= maxpage
+                            disabled=page >= maxpage,
+                            emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
                             label='Search',
                             custom_id='search',
-                            emoji='\U0001F50D'
+                            emoji=self.bot.ui_emojis.search
                         )
                     )
                 )
@@ -880,14 +885,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
+                            emoji=self.bot.ui_emojis.back
                         )
                     )
                 )
             elif panel == 2:
                 embed.title = (
-                    f'{self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname}'
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname}'
                     if was_searching else
-                    f'{self.bot.user.global_name or self.bot.user.name} rooms / {roomname}'
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname}'
                 )
                 description = (
                     self.bot.db['descriptions'][roomname]
@@ -918,14 +924,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
+                            emoji=self.bot.ui_emojis.back
                         )
                     )
                 )
             elif panel==3:
                 embed.title = (
-                    f'{self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname} / rules'
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname} / rules'
                     if was_searching else
-                    f'{self.bot.user.global_name or self.bot.user.name} rooms / {roomname} / rules'
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname} / rules'
                 )
                 index = 0
                 text = ''
@@ -951,6 +958,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             style=nextcord.ButtonStyle.gray,
                             label='Back',
                             custom_id='back',
+                            emoji=self.bot.ui_emojis.back
                         )
                     )
                 )
@@ -1020,13 +1028,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(description='Enables or disables usage of server emojis as Global Emojis.')
     async def toggle_emoji(self,ctx):
         if not ctx.author.guild_permissions.manage_guild:
-            return await ctx.send('You don\'t have the necessary permissions.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have the necessary permissions.')
         if ctx.guild.id in self.bot.bridged_emojis:
             self.bot.bridged_emojis.remove(ctx.guild.id)
-            await ctx.send('All members can now no longer use your emojis!')
+            await ctx.send(f'{self.bot.ui_emojis.success} All members can now no longer use your emojis!')
         else:
             self.bot.bridged_emojis.append(ctx.guild.id)
-            await ctx.send('All members can now use your emojis!')
+            await ctx.send(f'{self.bot.ui_emojis.success} All members can now use your emojis!')
         self.bot.db['emojis'] = self.bot.bridged_emojis
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
@@ -1081,7 +1089,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             embed.set_author(name=author,icon_url=avurl)
             embed.set_thumbnail(url=avurl)
         except:
-            return await ctx.send("Invalid URL!")
+            return await ctx.send(f"{self.bot.ui_emojis.error} Invalid URL!")
         if url=='remove':
             if not f'{ctx.author.id}' in list(self.bot.db['avatars'].keys()):
                 return await ctx.send('You don\'t have a custom avatar!')
@@ -1126,7 +1134,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await msg.edit(view=components)
             self.bot.db['avatars'].update({f'{ctx.author.id}':url})
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            return await interaction.response.send_message('Avatar successfully added!')
+            return await interaction.response.send_message(f'{self.bot.ui_emojis.success} Avatar successfully added!')
 
 def setup(bot):
     bot.add_cog(Config(bot))

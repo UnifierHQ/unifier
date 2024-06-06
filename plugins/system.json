@@ -2,8 +2,8 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v2.0.0-patch",
-  "release": 50,
+  "version": "v2.0.1",
+  "release": 51,
   "minimum": 0,
   "shutdown": false,
   "modules": [
