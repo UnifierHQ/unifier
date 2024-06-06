@@ -1032,7 +1032,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
                 )
                 components = ui.MessageComponents()
-                components.add_rows(btns)
+                components.add_rows(ui.ActionRow(selection),btns)
                 if not interaction:
                     await msg.edit(embed=embed, view=components)
                 else:
