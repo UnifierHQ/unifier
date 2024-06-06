@@ -863,7 +863,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('update_check/update.json', 'r') as file:
                     new = json.load(file)
                 if new['release'] > current['release'] or force:
-                    available.append([new['version'], 'Release version', new['release'], -1])
+                    available.append([new['version'], 'Release version', new['release'], -1, new['reboot']])
                 index = 0
                 for legacy in new['legacy']:
                     if (
@@ -873,7 +873,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 )
                             ) or force
                     ):
-                        available.append([legacy['version'], 'Legacy version', legacy['release'], index])
+                        available.append([legacy['version'], 'Legacy version', legacy['release'], index, legacy['reboot']])
                     index += 1
                 update_available = len(available) >= 1
             except:
@@ -893,15 +893,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 release = available[selected][2]
                 version = available[selected][0]
                 legacy = available[selected][3] > -1
+                reboot = available[selected][4]
                 embed.title = ':arrows_counterclockwise: Update available'
                 embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
-                    should_reboot = release >= (current['legacy'] if 'legacy' in current.keys() and
-                                                type(current['legacy']) is int else -1)
+                    should_reboot = reboot >= (current['legacy'] if 'legacy' in current.keys() and
+                                               type(current['legacy']) is int else -1)
                 else:
-                    should_reboot = release >= current['release']
+                    should_reboot = reboot >= current['release']
                 if should_reboot:
                     embed.set_footer(text='The bot will need to reboot to apply the new update.')
                 options = []
