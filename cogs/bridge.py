@@ -2734,7 +2734,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg = None
         interaction = None
         embed = nextcord.Embed(
-            title=f'{self.bot.user.global_name or self.bot.user.name} leaderboard',
+            title=f'{self.bot.ui_emojis.leaderboard} {self.bot.user.global_name or self.bot.user.name} leaderboard',
             color=self.bot.colors.unifier
         )
         page = 1
