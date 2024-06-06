@@ -1236,8 +1236,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     status(os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py'))
                     self.logger.debug('Reverting: ' + os.getcwd() + '/data.json')
                     status(os.system('cp ' + os.getcwd() + '/old/data.json ' + os.getcwd() + '/data.json'))
-                    self.logger.debug('Reverting: ' + os.getcwd() + '/update.json')
-                    status(os.system('cp ' + os.getcwd() + '/old/update.json ' + os.getcwd() + '/update.json'))
+                    self.logger.debug('Reverting: ' + os.getcwd() + '/plugins/system.json')
+                    status(os.system('cp ' + os.getcwd() + '/old/plugins/system.json ' + os.getcwd() + '/plugins/system.json'))
                     self.logger.debug('Reverting: ' + os.getcwd() + '/config.json')
                     status(os.system('cp ' + os.getcwd() + '/old/config.json ' + os.getcwd() + '/config.json'))
                     for file in os.listdir(os.getcwd() + '/old/cogs'):
