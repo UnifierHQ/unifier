@@ -967,8 +967,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             legacy['lower'] <= current['release'] <= legacy['upper'] and (
                                 legacy['release'] > (
                                     current['legacy'] if 'legacy' in current.keys() else -1
-                                )
-                            ) or force
+                                ) or force
+                            )
                     ):
                         available.append([legacy['version'], 'Legacy version', legacy['release'], index, legacy['reboot']])
                     index += 1
