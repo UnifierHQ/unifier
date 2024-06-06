@@ -59,13 +59,6 @@ class Colors: # format: 0xHEXCODE
 
 class Emojis:
     def __init__(self, data=None):
-        if not os.path.exists('emojis'):
-            # Upgrader doesn't bring emojis over, so add them manually
-            os.mkdir('emojis')
-            with open('update/emojis/base.json', 'r') as file:
-                base = json.load(file)
-            with open('emojis/base.json', 'w+') as file:
-                json.dump(base, file, indent=2)
         with open('emojis/base.json', 'r') as file:
             base = json.load(file)
 
@@ -128,6 +121,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.colors = Colors
             self.bot.colors.unifier = ast.literal_eval(f"0x{self.bot.config['main_color']}")
         if not hasattr(self.bot, 'ui_emojis'):
+            if not os.path.exists('emojis'):
+                # Upgrader doesn't bring emojis over, so add them manually
+                os.mkdir('emojis')
+                with open('update/emojis/base.json', 'r') as file:
+                    base = json.load(file)
+                with open('emojis/base.json', 'w+') as file:
+                    json.dump(base, file, indent=2)
             with open('emojis/base.json', 'r') as file:
                 base = json.load(file)
             if not base['installed']:
