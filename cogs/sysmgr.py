@@ -995,11 +995,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
-                    should_reboot = release >= (current['legacy'] if 'legacy' in current.keys() else -1)
+                    should_reboot = release >= (current['legacy'] if 'legacy' in current.keys() and
+                                                type(current['legacy']) is int else -1)
                 else:
-                    should_reboot = release >= (
-                        current['legacy'] if 'legacy' in current.keys() else -1
-                    )
+                    should_reboot = release >= current['release']
                 if should_reboot:
                     embed.set_footer(text='The bot will need to reboot to apply the new update.')
                 selection = nextcord.ui.StringSelect(
