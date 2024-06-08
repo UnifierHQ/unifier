@@ -24,6 +24,7 @@ from nextcord.ext import commands
 import traceback
 import ujson as json
 from utils import log, ui
+from utils import restrictions as r
 
 override_st = False
 
@@ -31,6 +32,8 @@ with open('config.json', 'r') as file:
     data = json.load(file)
 
 externals = data["external"]
+
+restrictions = r.Restrictions()
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -89,6 +92,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     def __init__(self,bot):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
+        restrictions.attach_bot(self.bot)
 
     def add_modlog(self, type, user, reason, moderator):
         t = time.time()
@@ -142,10 +146,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         }
 
     @commands.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
+    @commands.has_permissions(ban_members=True)
     async def restrict(self,ctx,*,target):
-        if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
-                ctx.author.guild_permissions.ban_members):
-            return await ctx.send('You cannot restrict members/servers.')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
@@ -170,6 +172,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send('User/server can no longer forward messages to this channel!')
 
     @commands.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
+    @restrictions.moderator()
     async def globalban(self, ctx, target, duration=None, *, reason=None):
         if not ctx.author.id in self.bot.moderators:
             return
@@ -405,6 +408,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
 
     @commands.command(hidden=True,description='Blocks a user from using Unifier.')
+    @restrictions.owner()
     async def fullban(self,ctx,target):
         if not ctx.author.id in self.bot.admins:
             return
@@ -433,10 +437,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             await ctx.send(f'{self.bot.ui_emojis.success} User has been banned from the bot.')
 
     @commands.command(aliases=['unban'],description='Unblocks a user or server from bridging messages to your server.')
+    @commands.has_permissions(ban_members=True)
     async def unrestrict(self,ctx,target):
-        if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
-                ctx.author.guild_permissions.ban_members):
-            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot unrestrict members/servers.')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
@@ -453,6 +455,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send(f'{self.bot.ui_emojis.success} User/server can now forward messages to this channel!')
 
     @commands.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
+    @restrictions.moderator()
     async def globalunban(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
@@ -475,6 +478,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send(f'{self.bot.ui_emojis.success} User has been unbanned.')
 
     @commands.command(description='Bans a user from appealing their ban.')
+    @restrictions.admin()
     async def appealban(self,ctx,*,target):
         if not ctx.author.id in self.bot.admins:
             return
@@ -907,9 +911,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True,description='Warns a user.')
+    @restrictions.moderator()
     async def warn(self,ctx,*,target):
-        if not ctx.author.id in self.bot.moderators:
-            return
         rtt_msg = None
         rtt_msg_content = ''
         if ctx.message.reference:
@@ -1081,9 +1084,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     )
 
     @commands.command(hidden=True,description='Deletes a logged warning.')
+    @restrictions.moderator()
     async def delwarn(self,ctx,target,index):
-        if not ctx.author.id in self.bot.moderators:
-            return
         try:
             index = int(index) - 1
         except:
@@ -1113,9 +1115,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             await ctx.send(f'{self.bot.ui_emojis.error} Could not find warning - maybe the index was too high?')
 
     @commands.command(hidden=True,description='Deletes a logged ban. Does not unban the user.')
+    @restrictions.moderator()
     async def delban(self, ctx, target, index):
-        if not ctx.author.id in self.bot.moderators:
-            return
         try:
             index = int(index) - 1
         except:
@@ -1146,12 +1147,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             await ctx.send(f'{self.bot.ui_emojis.error} Could not find ban - maybe the index was too high?')
 
     @commands.command(hidden=True,description="Changes a given user's nickname.")
+    @restrictions.moderator()
     async def anick(self, ctx, target, *, nickname=''):
-        # Check if the user is allowed to run the command
-        if not ctx.author.id in self.bot.moderators:
-            return
-
-        # Extract user ID from the target mention
         try:
             userid = int(target.replace('<@', '').replace('!', '').replace('>', ''))
         except ValueError:
@@ -1172,10 +1169,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send(f'{self.bot.ui_emojis.success} Nickname updated.')
 
     @commands.command(hidden=True,description='Locks Unifier Bridge down.')
+    @restrictions.moderator()
     async def bridgelock(self,ctx):
-        # Check if the user is allowed to run the command
-        if not ctx.author.id in self.bot.moderators:
-            return
         if not hasattr(self.bot, 'bridge'):
             return await ctx.send(f'{self.bot.ui_emojis.error} Bridge already locked down.')
         embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Lock bridge down?',
@@ -1268,6 +1263,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await msg.edit(embed=embed)
 
     @commands.command(hidden=True,description='Removes Unifier Bridge lockdown.')
+    @restrictions.admin()
     async def bridgeunlock(self,ctx):
         if not ctx.author.id in self.bot.admins:
             return
@@ -1293,6 +1289,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
                     traceback.print_exc()
         await ctx.send(f'{self.bot.ui_emojis.success} Lockdown removed')
+
+    async def cog_command_error(self, ctx, error):
+        await self.bot.exhandler.handle(ctx, error)
 
 def setup(bot):
     bot.add_cog(Moderation(bot))

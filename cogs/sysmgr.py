@@ -32,7 +32,7 @@ from nextcord.ext import commands
 import inspect
 import textwrap
 from contextlib import redirect_stdout
-from utils import log, ui
+from utils import log, ui, restrictions as r
 import logging
 import ujson as json
 import os
@@ -46,6 +46,8 @@ import importlib
 import math
 import asyncio
 import discord_emoji
+
+restrictions = r.Restrictions()
 
 class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
@@ -106,6 +108,46 @@ def status(code):
     if code != 0:
         raise RuntimeError("install failed")
 
+class CommandExceptionHandler:
+    def __init__(self, bot):
+        self.bot = bot
+        self.logger = log.buildlogger(self.bot.package, 'exc_handler', self.bot.loglevel)
+
+    async def handle(self, ctx, error):
+        try:
+            if isinstance(error, commands.MissingRequiredArgument):
+                cmdname = ctx.command.name
+                cmd = self.bot.get_command(cmdname)
+                embed = nextcord.Embed(color=self.bot.colors.unifier)
+                embed.title = (
+                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cmdname}'
+                )
+                embed.description = (
+                    f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
+                )
+                if len(cmd.aliases) > 0:
+                    aliases = []
+                    for alias in cmd.aliases:
+                        aliases.append(f'`{self.bot.command_prefix}{alias}`')
+                    embed.add_field(
+                        name='Aliases', value='\n'.join(aliases) if len(aliases) > 1 else aliases[0], inline=False
+                    )
+                embed.add_field(name='Usage', value=(
+                    f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(
+                        cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
+                                )
+                await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
+            elif isinstance(error, commands.MissingPermissions):
+                await ctx.send(f'{self.bot.ui_emojis.error} {error}')
+            elif isinstance(error, commands.CheckFailure):
+                await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
+            else:
+                self.logger.exception('An error occurred!')
+                await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
+        except:
+            self.logger.exception('An error occurred!')
+            await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
+
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
 
@@ -116,6 +158,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     def __init__(self, bot):
         self.bot = bot
+
+        restrictions.attach_bot(self.bot)
 
         if not hasattr(self.bot, 'colors'):
             self.bot.colors = Colors
@@ -151,6 +195,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.loglevel = logging.DEBUG if self.bot.config['debug'] else logging.INFO
         if not hasattr(self.bot, 'package'):
             self.bot.package = self.bot.config['package']
+
+        self.bot.exhandler = CommandExceptionHandler(self.bot)
 
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
         if not hasattr(self.bot,'loaded_plugins'):
@@ -237,6 +283,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await script.check(self.bot)
 
     @commands.command(aliases=['reload-services'], hidden=True, description="Reloads bot services.")
+    @restrictions.owner()
     async def reload_services(self,ctx,*,services=None):
         if not services:
             plugins = self.bot.loaded_plugins
@@ -271,6 +318,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await ctx.author.send(f'**Fail logs**\n{text}')
 
     @commands.command(hidden=True,description='Evaluates code.')
+    @restrictions.owner()
     async def eval(self, ctx, *, body):
         if ctx.author.id == self.bot.config['owner']:
             env = {
@@ -340,6 +388,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await ctx.send('Only the owner can execute code.')
 
     @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
+    @restrictions.owner()
     async def shutdown(self, ctx):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -372,6 +421,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         sys.exit(0)
 
     @commands.command(hidden=True,description='Lists all installed plugins.')
+    @restrictions.owner()
     async def plugins(self, ctx, *, plugin=None):
         if plugin:
             plugin = plugin.lower()
@@ -444,6 +494,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True, aliases=['cogs'], description='Lists all loaded extensions.')
+    @restrictions.owner()
     async def extensions(self, ctx, *, extension=None):
         if extension:
             extension = extension.lower()
@@ -497,6 +548,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True,description='Reloads an extension.')
+    @restrictions.owner()
     async def reload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -540,6 +592,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await ctx.send('Only the owner can reload extensions.')
 
     @commands.command(hidden=True,description='Loads an extension.')
+    @restrictions.owner()
     async def load(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -580,6 +633,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await ctx.send('Only the owner can load extensions.')
 
     @commands.command(hidden=True,description='Unloads an extension.')
+    @restrictions.owner()
     async def unload(self, ctx, *, extensions):
         if ctx.author.id == self.bot.config['owner']:
             if self.bot.update:
@@ -625,6 +679,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await ctx.send('Only the owner can unload extensions.')
 
     @commands.command(hidden=True,description='Installs a plugin.')
+    @restrictions.owner()
     async def install(self, ctx, url):
         if not ctx.author.id==self.bot.config['owner']:
             return
@@ -840,6 +895,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return
 
     @commands.command(hidden=True,description='Uninstalls a plugin.')
+    @restrictions.owner()
     async def uninstall(self, ctx, plugin):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -923,6 +979,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return
 
     @commands.command(hidden=True,description='Upgrades Unifier or a plugin.')
+    @restrictions.owner()
     async def upgrade(self, ctx, plugin='system', *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -1437,12 +1494,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return
 
     @commands.command(description='Activates an emoji pack. Activating the "base" emoji pack resets emojis back to vanilla.')
+    @restrictions.owner()
     async def uiemojis(self, ctx, *, emojipack):
         if not ctx.author.id == self.bot.config['owner']:
             return
 
         emojipack = emojipack.lower()
         if emojipack=='base':
+            os.remove('emojis/current.json')
             self.bot.ui_emojis = Emojis()
             await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack reset to default.')
         else:
@@ -1450,7 +1509,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open(f'emojis/{emojipack}.json', 'r') as file:
                     data = json.load(file)
                 data.update({'id':emojipack})
-                with open(f'emojis/current.json', 'w+') as file:
+                with open('emojis/current.json', 'w+') as file:
                     json.dump(data, file, indent=2)
                 self.bot.ui_emojis = Emojis(data=data)
                 await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack {emojipack} activated.')
@@ -1460,44 +1519,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @commands.command(description='Shows this command.')
     async def help(self,ctx):
-        show_sysmgr = False
-        show_admin = False
-        show_moderation = False
-
-        system_restricted = [
-            'initbridge', 'uiemojis'
-        ]
-
-        admin_restricted = [
-            'addmod','removemod','make','roomdesc','roomlock','roomrestrict','addrule','delrule','fullban','appealban',
-            'addexperiment','experimentdesc','removeexperiment','system','trust'
-        ]
-
-        mod_restricted = [
-            'globalban','globalunban','warn','delwarn','delban'
-        ]
-
-        if ctx.author.id == self.bot.config['owner']:
-            show_sysmgr = True
-            show_admin = True
-            show_moderation = True
-        elif ctx.author.id in self.bot.admins:
-            show_admin = True
-            show_moderation = True
-        elif ctx.author.id in self.bot.moderators:
-            show_moderation = True
-
-        if show_sysmgr:
-            if 'asadmin' in ctx.message.content:
-                show_sysmgr = False
-            elif 'asmod' in ctx.message.content:
-                show_sysmgr = False
-                show_admin = False
-            elif 'asuser' in ctx.message.content:
-                show_sysmgr = False
-                show_admin = False
-                show_moderation = False
-
         panel = 0
         limit = 20
         page = 0
@@ -1517,10 +1538,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
             if panel==0:
                 extlist = list(self.bot.extensions)
-                if not show_sysmgr:
-                    extlist.remove('cogs.sysmgr')
-                if not show_admin:
-                    extlist.remove('cogs.lockdown')
                 maxpage = math.ceil(len(extlist)/limit)-1
                 if interaction:
                     if page > maxpage:
@@ -1636,13 +1653,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 for index in range(len(cmds)):
                     cmd = cmds[index-offset]
-                    if (
-                            cmd.qualified_name in admin_restricted and not show_admin or
-                            cmd.qualified_name in mod_restricted and not show_moderation or
-                            cmd.qualified_name in system_restricted and not show_sysmgr
-                    ) and not show_sysmgr or (
-                            cogname=='search' and not search_filter(query,cmd)
-                    ):
+                    try:
+                        canrun = await cmd.can_run(ctx)
+                    except:
+                        canrun = False
+                    if not canrun or (cogname=='search' and not search_filter(query,cmd)):
                         cmds.pop(index-offset)
                         offset += 1
 
@@ -1876,6 +1891,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 match = 0
 
     @commands.command(hidden=True, description='Registers commands.')
+    @restrictions.owner()
     async def forcereg(self, ctx, *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -1884,6 +1900,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return await ctx.send('gone, reduced to atoms (hopefully)')
         await self.bot.sync_application_commands()
         return await ctx.send(f'Registered commands to bot')
+
+    @commands.command(hidden=True, description='command check testing')
+    @restrictions.demo_error()
+    async def checktest(self, ctx):
+        return
+
+    async def cog_command_error(self, ctx, error):
+        await self.bot.exhandler.handle(ctx, error)
 
 def setup(bot):
     bot.add_cog(SysManager(bot))

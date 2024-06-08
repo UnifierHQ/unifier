@@ -35,12 +35,13 @@ import ast
 import math
 from io import BytesIO
 import os
-from utils import log, ui
+from utils import log, ui, restrictions as r
 import importlib
 import emoji as pymoji
 import discord_emoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
+restrictions = r.Restrictions()
 
 multisend_logs = []
 plugin_data = {}
@@ -1736,6 +1737,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     Developed by Green and ItsAsheer"""
     def __init__(self, bot):
         self.bot = bot
+        restrictions.attach_bot(self.bot)
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = []
         if not hasattr(self.bot, 'bridged_external'):
@@ -1865,6 +1867,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(aliases=['find'],description='Identifies the origin of a message.')
     async def identify(self, ctx):
+        # use legacy permissions check because check_any is broken
         if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
                 ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
             return
@@ -3360,6 +3363,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
 
     @commands.command(hidden=True,description='Initializes new UnifierBridge object.')
+    @restrictions.owner()
     async def initbridge(self, ctx, *, args=''):
         if not ctx.author.id == self.bot.config['owner']:
             return
@@ -3376,9 +3380,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send('Bridge initialized')
 
     @commands.command(hidden=True,description='Sends a message as system.')
+    @restrictions.owner()
     async def system(self, ctx, room):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
         ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True)
         for platform in self.bot.config['external']:
@@ -4021,6 +4024,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             emoji = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
 
         await msg.remove_reaction(emoji, event.user_id)
+
+    async def cog_command_error(self, ctx, error):
+        await self.bot.exhandler.handle(ctx, error)
 
 def setup(bot):
     bot.add_cog(Bridge(bot))

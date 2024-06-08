@@ -18,7 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-from utils import log, ui
+from utils import log, ui, restrictions as r
+
+restrictions = r.Restrictions()
 
 class Lockdown(commands.Cog, name=':lock: Lockdown'):
     """An emergency extension that unloads literally everything.
@@ -26,14 +28,14 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
     Developed by Green and ItsAsheer"""
     def __init__(self,bot):
         self.bot = bot
+        restrictions.attach_bot(self.bot)
         if not hasattr(self.bot, "locked"):
             self.bot.locked = False
         self.logger = log.buildlogger(self.bot.package,'admin',self.bot.loglevel)
 
     @commands.command(hidden=True,aliases=['globalkill'],description='Locks the entire bot down.')
+    @restrictions.owner()
     async def lockdown(self,ctx):
-        if not ctx.author.id==self.bot.config['owner']:
-            return
         if self.bot.locked:
             return await ctx.send('Bot is already locked down.')
         embed = nextcord.Embed(
