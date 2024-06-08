@@ -227,13 +227,16 @@ async def on_ready():
     else:
         locked = False
     if not locked:
+        should_abort = False
         try:
             bot.load_extension("cogs.sysmgr")
             bot.pid = os.getpid()
             bot.load_extension("cogs.lockdown")
         except:
-            logger.error('An error occurred!')
+            logger.exception('An error occurred!')
             logger.critical('System modules failed to load, aborting boot...')
+            should_abort = True
+        if should_abort:
             sys.exit(1)
         logger.debug('System extensions loaded')
         if hasattr(bot, 'bridge'):
@@ -241,6 +244,8 @@ async def on_ready():
                 if len(bot.bridge.bridged)==0:
                     await bot.bridge.restore()
                     logger.info(f'Restored {len(bot.bridge.bridged)} messages')
+            except FileNotFoundError:
+                logger.warning('Cache backup file could not be found, skipping restore.')
             except:
                 logger.exception('An error occurred!')
                 logger.warning('Message restore failed')
@@ -278,4 +283,14 @@ async def on_message(message):
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
 
-bot.run(os.environ.get('TOKEN'))
+try:
+    bot.run(os.environ.get('TOKEN'))
+except SystemExit as e:
+    try:
+        code = int(f'{e}')
+    except:
+        code = 'unknown'
+    if code==0 or code==130:
+        logger.info(f'Exiting with code {code}')
+    else:
+        logger.critical(f'Exiting with code {code}')
