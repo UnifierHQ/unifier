@@ -71,6 +71,9 @@ guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#
 ## License
 Unifier is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before doing so.
 
+## Support
+Need support? We're always available at our [Discord server](https://discord.gg/a4KpNcARzK).
+
 ## Acknowledgments
 We want to thank:
 - [**Nextcord**](https://github.com/nextcord), for continuing the discord.py project as Nextcord when it was discontinued, and also
