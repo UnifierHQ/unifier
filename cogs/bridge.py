@@ -291,6 +291,19 @@ class UnifierBridge:
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
 
+    async def optimize(self):
+        """Optimizes data to avoid having to fetch webhooks.
+        This decreases latency incuded by message bridging prep."""
+        for room in self.bot.db['rooms']:
+            for guild in self.bot.db['rooms'][room]:
+                if len(self.bot.db['rooms'][room][guild])==1:
+                    try:
+                        hook = await self.bot.fetch_webhook(self.bot.db['rooms'][room][guild][0])
+                    except:
+                        continue
+                    self.bot.db['rooms'][room][guild].append(hook.channel_id)
+        self.bot.db.save_data()
+
     def is_raidban(self,userid):
         try:
             ban: UnifierRaidBan = self.raidbans[f'{userid}']
@@ -556,15 +569,9 @@ class UnifierBridge:
                             f'{self.bot.db["rooms"][msg.room][f"{guild.id}"][0]}'
                         ]
                     except:
-                        webhook = None
-                        hooks = await guild.webhooks()
-                        for hook in hooks:
-                            if int(self.bot.db['rooms'][msg.room][key][0]) == hook.id:
-                                webhook = hook
-                                break
-
-                        if not webhook:
-                            # No webhook found
+                        try:
+                            webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room][key][0])
+                        except:
                             continue
                 except:
                     continue
@@ -702,21 +709,10 @@ class UnifierBridge:
                 if not key in list(msgs.keys()):
                     continue
 
-                guild = self.bot.get_guild(int(key))
-                try:
-                    hooks = await guild.webhooks()
-                except:
-                    continue
-                webhook = None
-
                 # Fetch webhook
-                for hook in hooks:
-                    if int(self.bot.db['rooms'][msg.room][key][0])==hook.id:
-                        webhook = hook
-                        break
-
-                if not webhook:
-                    # No webhook found
+                try:
+                    webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room][key][0])
+                except:
                     continue
 
                 try:
@@ -750,6 +746,9 @@ class UnifierBridge:
                     continue
 
         async def edit_guilded(msgs,friendly=False):
+            """Guilded does not support editing via webhooks at the moment.
+            We're just keeping this in case they change this at some point."""
+
             threads = []
             if friendly:
                 text = await make_friendly(content)
@@ -760,21 +759,10 @@ class UnifierBridge:
                 if not key in list(msgs.keys()):
                     continue
 
-                guild = self.bot.guilded_client.get_server(key)
-                try:
-                    hooks = await guild.webhooks()
-                except:
-                    continue
-                webhook = None
-
                 # Fetch webhook
-                for hook in hooks:
-                    if self.bot.db['rooms_guilded'][msg.room][key][0]==hook.id:
-                        webhook = hook
-                        break
-
-                if not webhook:
-                    # No webhook found
+                try:
+                    webhook = await self.bot.guilded_client.fetch_webhook(self.bot.db['rooms_guilded'][msg.room][key][0])
+                except:
                     continue
 
                 try:
@@ -1415,6 +1403,7 @@ class UnifierBridge:
                 try:
                     webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
                 except:
+                    # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
                     hooks = await destguild.webhooks()
                     for hook in hooks:
                         if f'{guild}' in list(self.bot.webhook_cache.keys()):
@@ -2243,22 +2232,48 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not self.bot.config['enable_logging']:
             return await ctx.send('Modping is disabled, contact your instance\'s owner.')
 
-        hooks = await ctx.channel.webhooks()
         found = False
-        room = ''
-        for hook in hooks:
-            for key in self.bot.db['rooms']:
-                if not f'{ctx.guild.id}' in list(self.bot.db['rooms'][key].keys()):
+        room = None
+
+        # Optimized logic
+        for key in self.bot.db['rooms']:
+            data = self.bot.db['rooms'][key]
+            if f'{ctx.guild.id}' in list(data.keys()):
+                guilddata = data[f'{ctx.guild.id}']
+                if len(guilddata) == 1:
                     continue
-                if hook.id in self.bot.db['rooms'][key][f'{ctx.guild.id}']:
-                    found = True
+                if guilddata[1] == ctx.channel.id:
                     room = key
+                    found = True
                     break
-            if found:
-                break
+
+        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
+        if not found:
+            try:
+                hooks = await ctx.channel.webhooks()
+            except:
+                try:
+                    hooks = await ctx.guild.webhooks()
+                except:
+                    return
+
+            for webhook in hooks:
+                index = 0
+                for key in self.bot.db['rooms']:
+                    data = self.bot.db['rooms'][key]
+                    if f'{ctx.guild.id}' in list(data.keys()):
+                        hook_ids = data[f'{ctx.guild.id}']
+                    else:
+                        hook_ids = []
+                    if webhook.id in hook_ids:
+                        found = True
+                        room = list(self.bot.db['rooms'].keys())[index]
+                    index += 1
+                if found:
+                    break
 
         if not found:
-            return await ctx.send('This isn\'t a UniChat room!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a UniChat room!')
 
         hook_id = self.bot.db['rooms'][room][f'{self.bot.config["home_guild"]}'][0]
         guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -2274,19 +2289,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 try:
                     role = self.bot.config["moderator_role"]
                 except:
-                    return await ctx.send('This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
+                    return await ctx.send(f'{self.bot.ui_emojis.error} This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
                 await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
-                return await ctx.send('Moderators called!')
+                return await ctx.send(f'{self.bot.ui_emojis.success} Moderators called!')
 
-        await ctx.send('It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
-
-    @modping.error
-    async def modping_error(self, ctx, error):
-        if isinstance(error, commands.CommandOnCooldown):
-            t = int(error.retry_after)
-            await ctx.send(f'You\'ve recently pinged the moderators, try again in **{t//60}** minutes and **{t%60}** seconds.')
-        else:
-            await ctx.send('Something went wrong pinging moderators. Please contact the developers.')
+        await ctx.send(f'{self.bot.ui_emojis.error} It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
 
     @commands.command(description='Deletes a message.')
     async def delete(self, ctx, *, msg_id=None):
@@ -2961,12 +2968,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         'You\'ve been invited to join as a **Squad Captain**!\nAs a captain, you may:\n'+
                         '- Make submissions for events on your Squad\'s behalf\n'+
                         '- Accept and deny join requests for your Squad\n\n'+
-                        f'To join this squad, run `u!joinsquad {ctx.guild.id}`!'
+                        f'To join this squad, run `{self.bot.command_prefix}joinsquad {ctx.guild.id}`!'
                     )
                 )
                 embed.set_footer(
                     text=(
-                        f'Reminder - you can always run u!ignoresquad {ctx.guild.id} to stop receiving invites from '+
+                        f'Reminder - you can always run {self.bot.command_prefix}ignoresquad {ctx.guild.id} to stop receiving invites from '+
                         'this server\'s Squad.'
                     )
                 )
@@ -3390,6 +3397,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        if message.content.startswith(f'{self.bot.command_prefix}system'):
+            return
         extbridge = False
         hook = None
         idmatch = False
@@ -3445,35 +3454,49 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.id == self.bot.user.id:
             return
 
-        try:
-            hooks = await message.channel.webhooks()
-        except:
-            return
         found = False
-        origin_room = 0
+        roomname = None
 
-        for webhook in hooks:
-            index = 0
-            for key in self.bot.db['rooms']:
-                data = self.bot.db['rooms'][key]
-                if f'{message.guild.id}' in list(data.keys()):
-                    hook_ids = data[f'{message.guild.id}']
-                else:
-                    hook_ids = []
-                if webhook.id in hook_ids:
-                    origin_room = index
+        # Optimized logic
+        for key in self.bot.db['rooms']:
+            data = self.bot.db['rooms'][key]
+            if f'{message.guild.id}' in list(data.keys()):
+                guilddata = data[f'{message.guild.id}']
+                if len(guilddata) == 1:
+                    continue
+                if guilddata[1]==message.channel.id:
+                    roomname = key
                     found = True
-                    if key in self.bot.db['locked'] and not message.author.id in self.bot.admins:
-                        return
                     break
-                index += 1
-            if found:
-                break
+
+        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
+        if not found:
+            try:
+                hooks = await message.channel.webhooks()
+            except:
+                try:
+                    hooks = await message.guild.webhooks()
+                except:
+                    return
+
+            for webhook in hooks:
+                index = 0
+                for key in self.bot.db['rooms']:
+                    data = self.bot.db['rooms'][key]
+                    if f'{message.guild.id}' in list(data.keys()):
+                        hook_ids = data[f'{message.guild.id}']
+                    else:
+                        hook_ids = []
+                    if webhook.id in hook_ids:
+                        found = True
+                        roomname = list(self.bot.db['rooms'].keys())[index]
+                    index += 1
+                if found:
+                    break
 
         if not found:
             return
 
-        roomname = list(self.bot.db['rooms'].keys())[origin_room]
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
             return
 
@@ -3606,7 +3629,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         inline=False
                     )
                     embed.add_field(name='Did we make a mistake?',
-                                    value='Unfortunately, this ban cannot be appealed using `u!appeal`. You will need to ask moderators for help.',
+                                    value=f'Unfortunately, this ban cannot be appealed using `{self.bot.command_prefix}appeal`. You will need to ask moderators for help.',
                                     inline=False)
                 try:
                     await user_obj.send(embed=embed)
@@ -3801,29 +3824,50 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.id == self.bot.user.id:
             return
 
-        hooks = await message.channel.webhooks()
         found = False
-        origin_room = 0 # keeping this in case i decide to log this
+        roomname = None
 
-        for webhook in hooks:
-            index = 0
-            for key in self.bot.db['rooms']:
-                data = self.bot.db['rooms'][key]
-                if f'{message.guild.id}' in list(data.keys()):
-                    hook_ids = data[f'{message.guild.id}']
-                else:
-                    hook_ids = []
-                if webhook.id in hook_ids:
-                    origin_room = index
+        # Optimized logic
+        for key in self.bot.db['rooms']:
+            data = self.bot.db['rooms'][key]
+            if f'{message.guild.id}' in list(data.keys()):
+                guilddata = data[f'{message.guild.id}']
+                if len(guilddata) == 1:
+                    continue
+                if guilddata[1] == message.channel.id:
+                    roomname = key
                     found = True
-                    if key in self.bot.db['locked'] and not message.author.id in self.bot.admins:
-                        return
                     break
-                index += 1
-            if found:
-                break
+
+        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
+        if not found:
+            try:
+                hooks = await message.channel.webhooks()
+            except:
+                try:
+                    hooks = await message.guild.webhooks()
+                except:
+                    return
+
+            for webhook in hooks:
+                index = 0
+                for key in self.bot.db['rooms']:
+                    data = self.bot.db['rooms'][key]
+                    if f'{message.guild.id}' in list(data.keys()):
+                        hook_ids = data[f'{message.guild.id}']
+                    else:
+                        hook_ids = []
+                    if webhook.id in hook_ids:
+                        found = True
+                        roomname = list(self.bot.db['rooms'].keys())[index]
+                    index += 1
+                if found:
+                    break
 
         if not found:
+            return
+
+        if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
             return
 
         try:
@@ -3838,7 +3882,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.Cog.listener()
     async def on_raw_message_edit(self,payload):
         if payload.cached_message:
-            # on_message_edit should handle this
+            # on_message_edit should handle this, as it's already firing
             return
         else:
             ch = self.bot.get_guild(payload.guild_id).get_channel(payload.channel_id)
@@ -3876,29 +3920,47 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if message.author.id == self.bot.user.id:
                 return
 
-            hooks = await message.channel.webhooks()
             found = False
-            origin_room = 0  # keeping this in case i decide to log this
+            roomname = None
 
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
-                    if f'{message.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{message.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        origin_room = index
+            # Optimized logic
+            for key in self.bot.db['rooms']:
+                data = self.bot.db['rooms'][key]
+                if f'{message.guild.id}' in list(data.keys()):
+                    guilddata = data[f'{message.guild.id}']
+                    if len(guilddata) == 1:
+                        continue
+                    if guilddata[1] == message.channel.id:
+                        roomname = key
                         found = True
-                        if key in self.bot.db['locked'] and not message.author.id in self.bot.admins:
-                            return
                         break
-                    index += 1
-                if found:
-                    break
+
+            # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
+            if not found:
+                try:
+                    hooks = await message.channel.webhooks()
+                except:
+                    return
+
+                for webhook in hooks:
+                    index = 0
+                    for key in self.bot.db['rooms']:
+                        data = self.bot.db['rooms'][key]
+                        if f'{message.guild.id}' in list(data.keys()):
+                            hook_ids = data[f'{message.guild.id}']
+                        else:
+                            hook_ids = []
+                        if webhook.id in hook_ids:
+                            found = True
+                            roomname = list(self.bot.db['rooms'].keys())[index]
+                        index += 1
+                    if found:
+                        break
 
             if not found:
+                return
+
+            if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
                 return
 
             try:
@@ -3924,34 +3986,51 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.id == self.bot.user.id:
             return
 
-        try:
-            hooks = await message.channel.webhooks()
-        except:
-            hooks = await message.guild.webhooks()
-
         found = False
-        origin_room = 0
+        roomname = None
 
-        for webhook in hooks:
-            index = 0
-            for key in self.bot.db['rooms']:
-                data = self.bot.db['rooms'][key]
-                if f'{message.guild.id}' in list(data.keys()):
-                    hook_ids = data[f'{message.guild.id}']
-                else:
-                    hook_ids = []
-                if webhook.id in hook_ids:
-                    origin_room = index
+        # Optimized logic
+        for key in self.bot.db['rooms']:
+            data = self.bot.db['rooms'][key]
+            if f'{message.guild.id}' in list(data.keys()):
+                guilddata = data[f'{message.guild.id}']
+                if len(guilddata) == 1:
+                    continue
+                if guilddata[1] == message.channel.id:
+                    roomname = key
                     found = True
                     break
-                index += 1
-            if found:
-                break
+
+        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
+        if not found:
+            try:
+                hooks = await message.channel.webhooks()
+            except:
+                try:
+                    hooks = await message.guild.webhooks()
+                except:
+                    return
+
+            for webhook in hooks:
+                index = 0
+                for key in self.bot.db['rooms']:
+                    data = self.bot.db['rooms'][key]
+                    if f'{message.guild.id}' in list(data.keys()):
+                        hook_ids = data[f'{message.guild.id}']
+                    else:
+                        hook_ids = []
+                    if webhook.id in hook_ids:
+                        found = True
+                        roomname = list(self.bot.db['rooms'].keys())[index]
+                    index += 1
+                if found:
+                    break
 
         if not found:
             return
 
-        roomname = list(self.bot.db['rooms'].keys())[origin_room]
+        if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
+            return
 
         try:
             msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)

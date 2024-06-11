@@ -219,6 +219,10 @@ async def periodicping():
 
 @bot.event
 async def on_ready():
+    if len(bot.extensions) > 0:
+        # Prevent duplicate extension load
+        return
+
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     logger.info('Loading Unifier extensions...')
     bot.remove_command('help')
@@ -241,6 +245,8 @@ async def on_ready():
         logger.debug('System extensions loaded')
         if hasattr(bot, 'bridge'):
             try:
+                logger.debug('Optimizing room data, this may take a while...')
+                await bot.bridge.optimize()
                 if len(bot.bridge.bridged)==0:
                     await bot.bridge.restore()
                     logger.info(f'Restored {len(bot.bridge.bridged)} messages')

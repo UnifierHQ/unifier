@@ -22,52 +22,10 @@ import ujson as json
 import traceback
 import re
 from utils import log, ui, restrictions as r
-import threading
 import math
 import emoji as pymoji
 
 restrictions = r.Restrictions()
-
-class AutoSaveDict(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.file_path = 'data.json'
-        
-        # Ensure necessary keys exist
-        self.update({'rules':{},'rooms':{},'rooms_revolt':{},'rooms_guilded':{},'emojis':[],'nicknames':{},
-                     'descriptions':{},'restricted':[],'locked':[],'blocked':{},'banned':{},'moderators':[],
-                     'avatars':{},'experiments':{},'experiments_info':{},'colors':{}, 'external_bridge':[],
-                     'modlogs':{},'spybot':[],'trusted':[],'report_threads':{},'fullbanned':[],'exp':{},
-                     'squads':{},'squads_joined':{},'squads_optout':{},'appealban':[], 'roomemojis': {}})
-        self.threads = []
-
-        # Load data
-        self.load_data()
-
-    def load_data(self):
-        try:
-            with open(self.file_path, 'r') as file:
-                data = json.load(file)
-            self.update(data)
-        except FileNotFoundError:
-            pass  # If the file is not found, initialize an empty dictionary
-
-    def save(self):
-        with open(self.file_path, 'w') as file:
-            json.dump(self, file, indent=4)
-        return
-
-    def cleanup(self):
-        for thread in self.threads:
-            thread.join()
-        count = len(self.threads)
-        self.threads.clear()
-        return count
-
-    def save_data(self):
-        thread = threading.Thread(target=self.save)
-        thread.start()
-        self.threads.append(thread)
 
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
@@ -75,8 +33,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     Developed by Green and ItsAsheer"""
     def __init__(self,bot):
         self.bot = bot
-        if not hasattr(bot, 'db'):
-            self.bot.db = AutoSaveDict({})
         if not hasattr(self.bot, 'bridged_emojis'):
             if not 'emojis' in list(self.bot.db.keys()):
                 self.bot.db.update({'emojis':[]})
@@ -416,7 +372,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
         data = self.bot.db['rooms'][room]
-        guild = [webhook.id]
+        guild = [webhook.id, ctx.channel.id]
         data.update({f'{ctx.guild.id}':guild})
         self.bot.db['rooms'][room] = data
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())

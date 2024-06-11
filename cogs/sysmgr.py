@@ -18,10 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # WARNING: EDITING THIS FILE MAY BE DANGEROUS!!!
 #
-# System Manager (sysmgr.py) contains certain admin commands, which if
-# used maliciously, may damage your Unifier instance, or even your
-# system! These commands are only to be used by the instance owner, and
-# NOT anyone else.
+# System Manager (sysmgr.py) contains certain admin commands (such as
+# eval) which, if used maliciously, may damage your Unifier instance,
+# and even your system! These commands are only to be used by the
+# instance owner, and NOT anyone else.
 #
 # We can't stop you from modifying this file (it's licensed under the
 # AGPLv3 license anyway), but we still STRONGLY recommend you DO NOT
@@ -46,6 +46,7 @@ import importlib
 import math
 import asyncio
 import discord_emoji
+import threading
 
 restrictions = r.Restrictions()
 
@@ -85,6 +86,47 @@ class Emojis:
         self.rooms = data['emojis']['rooms'][0]
         self.emoji = data['emojis']['emoji'][0]
         self.leaderboard = data['emojis']['leaderboard'][0]
+
+class AutoSaveDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.file_path = 'data.json'
+
+        # Ensure necessary keys exist
+        self.update({'rules': {}, 'rooms': {}, 'rooms_revolt': {}, 'rooms_guilded': {}, 'emojis': [], 'nicknames': {},
+                     'descriptions': {}, 'restricted': [], 'locked': [], 'blocked': {}, 'banned': {}, 'moderators': [],
+                     'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {}, 'external_bridge': [],
+                     'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {}, 'fullbanned': [], 'exp': {},
+                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {}})
+        self.threads = []
+
+        # Load data
+        self.load_data()
+
+    def load_data(self):
+        try:
+            with open(self.file_path, 'r') as file:
+                data = json.load(file)
+            self.update(data)
+        except FileNotFoundError:
+            pass  # If the file is not found, initialize an empty dictionary
+
+    def save(self):
+        with open(self.file_path, 'w') as file:
+            json.dump(self, file, indent=4)
+        return
+
+    def cleanup(self):
+        for thread in self.threads:
+            thread.join()
+        count = len(self.threads)
+        self.threads.clear()
+        return count
+
+    def save_data(self):
+        thread = threading.Thread(target=self.save)
+        thread.start()
+        self.threads.append(thread)
 
 
 def cleanup_code(content):
@@ -141,6 +183,9 @@ class CommandExceptionHandler:
                 await ctx.send(f'{self.bot.ui_emojis.error} {error}')
             elif isinstance(error, commands.CheckFailure):
                 await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
+            elif isinstance(error, commands.CommandOnCooldown):
+                t = int(error.retry_after)
+                await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')
             else:
                 self.logger.exception('An error occurred!')
                 await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
@@ -158,6 +203,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     def __init__(self, bot):
         self.bot = bot
+        if not hasattr(bot, 'db'):
+            self.bot.db = AutoSaveDict({})
 
         restrictions.attach_bot(self.bot)
 
@@ -1493,7 +1540,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
 
-    @commands.command(description='Activates an emoji pack. Activating the "base" emoji pack resets emojis back to vanilla.')
+    @commands.command(
+        description='Activates an emoji pack. Activating the "base" emoji pack resets emojis back to vanilla.',
+        aliases=['emojipack']
+    )
     @restrictions.owner()
     async def uiemojis(self, ctx, *, emojipack):
         if not ctx.author.id == self.bot.config['owner']:
@@ -1530,6 +1580,25 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         query = ''
         msg = None
         interaction = None
+
+        # Command overrides - these commands will be shown regardless of permissions.
+        # Useful if cooldowns cause checks to fail
+        overrides = {
+            'admin': [],
+            'mod': [],
+            'user': ['modping']
+        }
+
+        overrides['mod'] += overrides['user']
+        overrides['admin'] += overrides['mod']
+
+        permissions = 'user'
+        if ctx.author.id in self.bot.moderators:
+            permissions = 'mod'
+        elif ctx.author.id in self.bot.admins:
+            permissions = 'admin'
+        elif ctx.author.id == self.bot.config['owner']:
+            permissions = 'owner'
 
         while True:
             embed = nextcord.Embed(color=self.bot.colors.unifier)
@@ -1653,10 +1722,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 for index in range(len(cmds)):
                     cmd = cmds[index-offset]
-                    try:
-                        canrun = await cmd.can_run(ctx)
-                    except:
-                        canrun = False
+                    if permissions=='owner':
+                        canrun = True
+                    else:
+                        try:
+                            canrun = await cmd.can_run(ctx)
+                        except:
+                            canrun = False or cmd.qualified_name in overrides[permissions]
                     if not canrun or (cogname=='search' and not search_filter(query,cmd)):
                         cmds.pop(index-offset)
                         offset += 1
