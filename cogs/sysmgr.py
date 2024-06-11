@@ -183,6 +183,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(aliases=['reload-services'], hidden=True)
     async def reload_services(self,ctx,*,services=None):
         """Reloads bot services."""
+        if not ctx.author.id == self.bot.config['owner']:
+            return
         if not services:
             plugins = self.bot.loaded_plugins
         else:
