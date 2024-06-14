@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # modify this, unless you're ABSOLUTELY SURE of what you're doing.
 
 import nextcord
-from nextcord.ext import commands
+from nextcord.ext import commands, tasks
 import inspect
 import textwrap
 from contextlib import redirect_stdout
@@ -39,7 +39,6 @@ import os
 import sys
 import traceback
 import io
-import base64
 import re
 import ast
 import importlib
@@ -47,6 +46,15 @@ import math
 import asyncio
 import discord_emoji
 import threading
+import hashlib
+import orjson
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Cipher import AES
+from Crypto import Random as CryptoRandom
+from Crypto.Util.Padding import pad, unpad
+import base64
+import random
+import requests
 
 restrictions = r.Restrictions()
 
@@ -91,6 +99,7 @@ class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.file_path = 'data.json'
+        self.__save_lock = False
 
         # Ensure necessary keys exist
         self.update({'rules': {}, 'rooms': {}, 'rooms_revolt': {}, 'rooms_guilded': {}, 'emojis': [], 'nicknames': {},
@@ -103,6 +112,16 @@ class AutoSaveDict(dict):
         # Load data
         self.load_data()
 
+    @property
+    def save_lock(self):
+        return self.__save_lock
+
+    @save_lock.setter
+    def save_lock(self, save_lock):
+        if self.__save_lock:
+            raise RuntimeError('already locked')
+        self.__save_lock = save_lock
+
     def load_data(self):
         try:
             with open(self.file_path, 'r') as file:
@@ -112,6 +131,8 @@ class AutoSaveDict(dict):
             pass  # If the file is not found, initialize an empty dictionary
 
     def save(self):
+        if self.__save_lock:
+            return
         with open(self.file_path, 'w') as file:
             json.dump(self, file, indent=4)
         return
@@ -124,6 +145,8 @@ class AutoSaveDict(dict):
         return count
 
     def save_data(self):
+        if self.__save_lock:
+            return
         thread = threading.Thread(target=self.save)
         thread.start()
         self.threads.append(thread)
@@ -203,7 +226,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     def __init__(self, bot):
         self.bot = bot
-        if not hasattr(bot, 'db'):
+        if not hasattr(self.bot, 'db'):
             self.bot.db = AutoSaveDict({})
 
         restrictions.attach_bot(self.bot)
@@ -293,6 +316,195 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
             self.bot.ready = True
+
+        if not hasattr(self.bot, 'status_rotation_task'):
+            self.bot.status_rotation_task = self.changestatus
+            if not self.bot.status_rotation_task .is_running() and self.bot.config['enable_rotating_status']:
+                self.bot.status_rotation_task.start()
+        if not hasattr(self.bot, 'antisleep_task'):
+            self.bot.antisleep_task = self.periodicping
+            self.bot.antisleep_task.change_interval(seconds=round(self.bot.config['ping']))
+            if not self.bot.antisleep_task.is_running() and round(self.bot.config['ping']) > 0:
+                self.bot.antisleep_task.start()
+                self.logger.debug(f'Pinging servers every {round(self.bot.config["ping"])} seconds')
+        if not hasattr(self.bot, 'backup_local_task'):
+            self.bot.backup_local_task = self.periodic_backup
+            self.bot.backup_local_task.change_interval(seconds=round(
+                self.bot.config['periodic_backup_local']
+                if 'periodic_backup_local' in self.bot.config.keys() else
+                self.bot.config['periodic_backup']
+            ))
+            if not self.bot.backup_local_task.is_running() and round(
+                    self.bot.config['periodic_backup_local']
+                    if 'periodic_backup_local' in self.bot.config.keys() else
+                    self.bot.config['periodic_backup']
+            ) > 0:
+                self.bot.backup_local_task.start()
+                self.logger.debug(f'Backing up messages every {round(self.bot.config["ping"])} seconds')
+        if not hasattr(self.bot, 'backup_cloud_task'):
+            self.bot.backup_cloud_task = self.periodic_backup_cloud
+            self.bot.backup_cloud_task.change_interval(seconds=round(
+                self.bot.config['periodic_backup_cloud']
+            ))
+            if not self.bot.backup_cloud_task.is_running() and round(self.bot.config['periodic_backup_cloud']) > 0:
+                self.bot.backup_cloud_task.start()
+                self.logger.debug(f'Backing up data to cloud every {round(self.bot.config["ping"])} seconds')
+
+    def encrypt_string(self, hash_string):
+        sha_signature = \
+            hashlib.sha256(hash_string.encode()).hexdigest()
+        return sha_signature
+
+    async def encrypt(self, encoded, password, salt):
+        iv = ''
+        __key = await self.bot.loop.run_in_executor(None, lambda: PBKDF2(password, salt, dkLen=32))
+
+        iv = CryptoRandom.get_random_bytes(16)
+        __cipher = AES.new(__key, AES.MODE_CBC, iv=iv)
+        result = await self.bot.loop.run_in_executor(None, lambda: __cipher.encrypt(pad(encoded, AES.block_size)))
+        del __key
+        del __cipher
+        return result, base64.b64encode(iv).decode('ascii')
+
+    async def decrypt(self, encrypted, password, salt, iv_string):
+        iv = base64.b64decode(iv_string)
+        __key = await self.bot.loop.run_in_executor(None, lambda: PBKDF2(password, salt, dkLen=32))
+        __cipher = AES.new(__key, AES.MODE_CBC, iv=iv)
+        result = await self.bot.loop.run_in_executor(None, lambda: unpad(__cipher.decrypt(encrypted), AES.block_size))
+        del __key
+        del __cipher
+        return result
+
+    async def download(self):
+        endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
+        __apikey = os.environ.get('API_KEY')
+        __headers = {
+            'Accept': 'application/json',
+            'Authorization': f"Bearer {__apikey}"
+        }
+        try:
+            __salt = self.bot.config['cloud_backup_salt']
+            __pass = os.environ.get('ENCRYPTION_PASSWORD')
+        except:
+            return
+        resp = await self.bot.loop.run_in_executor(
+            None, lambda: requests.get(endpoint + '/api/v1/restore', headers=__headers)
+        )
+        data = resp.json()
+        config_restored = await self.decrypt(
+            base64.b64decode(data['config']), __pass, __salt, data['iv'][0]
+        )
+        data_restored = await self.decrypt(
+            base64.b64decode(data['data']), __pass, __salt, data['iv'][1]
+        )
+        return config_restored.decode("utf-8"), data_restored.decode("utf-8")
+
+    async def check_backup(self):
+        endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
+        __apikey = os.environ.get('API_KEY')
+        __headers = {
+            'Accept': 'application/json',
+            'Authorization': f"Bearer {__apikey}"
+        }
+
+        resp = await self.bot.loop.run_in_executor(
+            None, lambda: requests.get(endpoint + '/api/v1/info', headers=__headers)
+        )
+
+        if not resp.status_code == 200:
+            if resp.status_code == 404:
+                return None
+            raise RuntimeError(f'connected to server but server returned {resp.status_code}')
+
+        return resp.json()
+
+    @tasks.loop(seconds=300)
+    async def changestatus(self):
+        status_messages = [
+            "with the ban hammer",
+            "with fire",
+            "with the API",
+            "hide and seek",
+            "with code",
+            "in debug mode",
+            "in a parallel universe",
+            "with commands",
+            "a game of chess",
+            "with electrons",
+            "with the matrix",
+            "with cookies",
+            "with the metaverse",
+            "with emojis",
+            "with Nevira",
+            "with green.",
+            "with ItsAsheer",
+            "webhooks",
+        ]
+        new_stat = random.choice(status_messages)
+        if new_stat == "webhooks":
+            await self.bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.watching, name=new_stat))
+        else:
+            await self.bot.change_presence(activity=nextcord.Game(name=new_stat))
+
+    @tasks.loop()
+    async def periodic_backup(self):
+        try:
+            tasks = [self.bot.loop.create_task(self.bot.bridge.backup(limit=10000))]
+            await asyncio.wait(tasks)
+        except:
+            self.logger.exception('Backup failed')
+
+    @tasks.loop()
+    async def periodic_backup_cloud(self):
+        endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
+        __apikey = os.environ.get('API_KEY')
+        __headers = {
+            'Accept': 'application/json',
+            'Authorization': f"Bearer {__apikey}"
+        }
+        try:
+            __salt = self.bot.config['cloud_backup_salt']
+            __pass = os.environ.get('ENCRYPTION_PASSWORD')
+        except:
+            return
+        try:
+            config_text, config_iv = await self.encrypt(orjson.dumps(self.bot.config), __pass, __salt)
+            data_text, data_iv = await self.encrypt(orjson.dumps(self.bot.db), __pass, __salt)
+        except:
+            self.logger.exception('An error occurred!')
+            self.logger.error('Encryption failed, skipping backup.')
+            return
+        self.logger.debug(f'Encrypted data')
+        try:
+            resp = await self.bot.loop.run_in_executor(
+                None, lambda: requests.post(endpoint + '/api/v1/backup', headers=__headers, json={
+                    'config': base64.b64encode(config_text).decode('ascii'),
+                    'data': base64.b64encode(data_text).decode('ascii'),
+                    'iv': [config_iv, data_iv]
+                })
+            )
+        except requests.exceptions.SSLError:
+            self.logger.exception('An error occurred!')
+            self.logger.error('Connected to server but could not use TLS, disabling backups.')
+            self.bot.backup_cloud_task.stop()
+            return
+        except:
+            self.logger.exception('An error occurred!')
+            self.logger.error('Backup failed')
+            return
+        if resp.status_code == 200:
+            self.logger.debug(f'Request successfully sent to server')
+            return
+        else:
+            self.logger.warning(f'Request successfully sent but server returned {resp.status_code}')
+
+    @tasks.loop()
+    async def periodicping(self):
+        guild = self.bot.guilds[0]
+        try:
+            await self.bot.fetch_channel(guild.text_channels[0].id)
+        except:
+            pass
 
     async def preunload(self, extension):
         """Performs necessary steps before unloading."""
@@ -734,6 +946,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
 
+        if os.name == "nt":
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.error} Can\'t install Plugins',
+                description=('Unifier cannot install Plugins on Windows. Please use an OS with the bash console (Linux'+
+                             '/macOS/etc).'),
+                color=0xff0000
+            )
+            return await ctx.send(embed=embed)
+
         if url.endswith('/'):
             url = url[:-1]
         if not url.endswith('.git'):
@@ -1033,6 +1254,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
+
+        if os.name == "nt":
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.error} Can\'t upgrade Unifier',
+                description=('Unifier cannot upgrade itself on Windows. Please use an OS with the bash console (Linux/'+
+                             'macOS/etc).'),
+                color=0xff0000
+            )
+            return await ctx.send(embed=embed)
 
         args = args.split(' ')
         force = False
@@ -1973,10 +2203,95 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.sync_application_commands()
         return await ctx.send(f'Registered commands to bot')
 
-    @commands.command(hidden=True, description='command check testing')
-    @restrictions.demo_error()
-    async def checktest(self, ctx):
-        return
+    @commands.command(hidden=True, description='Views cloud backup status.')
+    @restrictions.owner()
+    async def cloud(self, ctx):
+        embed = nextcord.Embed(
+            title='Fetching backup...',description='Getting backup information from backup servers'
+        )
+        embed.set_footer(text='All your backups are encrypted in transit and at rest.')
+        rootmsg = await ctx.send(embed=embed)
+        try:
+            response = (await self.check_backup())['data']
+        except:
+            embed.title = f'{self.bot.ui_emojis.error} Failed to fetch backup'
+            embed.description = 'The server did not respond or returned an invalid response.'
+            embed.colour = 0xff0000
+            return await rootmsg.edit(embed=embed)
+        if not response:
+            embed.title = f'{self.bot.ui_emojis.error} No backups'
+            embed.description = 'There\'s no backups yet.'
+            return await rootmsg.edit(embed=embed)
+
+        embed.title = f'Backup info'
+        embed.description = f'Saved at: <t:{response['time']}:F>'
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.blurple,
+                    label='Restore',
+                    custom_id='restore'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+        await rootmsg.edit(embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.user.id==ctx.author.id and interaction.message.id==rootmsg.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await rootmsg.edit(view=None)
+
+        if interaction.data['custom_id']=='cancel':
+            return await interaction.response.edit_message(view=None)
+
+        embed.title = f'{self.bot.ui_emojis.warning} Restore this backup?'
+        embed.description = (
+            '- :arrow_down: config.json and data.json files will be downloaded from the backup server.\n'+
+            '- :wastebasket: Existing config.json and data.json files will be **overwritten**.\n'+
+            '- :warning: You **cannot** undo this operation.'
+        )
+        await interaction.response.edit_message(embed=embed)
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await rootmsg.edit(view=None)
+
+        await interaction.response.edit_message(view=None)
+
+        if interaction.data['custom_id']=='cancel':
+            return
+
+        try:
+            config_restored, data_restored = await self.download()
+
+            # convert to dict so they can be saved indented
+            data_restored = orjson.loads(data_restored)
+            config_restored = orjson.loads(config_restored)
+            with open('data.json','w+') as file:
+                json.dump(data_restored, file, indent=2)
+            with open('config.json','w+') as file:
+                json.dump(config_restored, file, indent=2)
+
+            embed.title = f'{self.bot.ui_emojis.success} Restore completed'
+            embed.description = 'Please reboot the bot for the changes to take effect.'
+            embed.colour = 0x00ff00
+            await rootmsg.edit(embed=embed)
+        except:
+            self.logger.exception('An error occurred!')
+            embed.title = f'{self.bot.ui_emojis.error} Restore failed'
+            embed.description = 'Data could not be restored. Please ensure your encryption password and salt is correct.'
+            embed.colour = 0xff0000
+            await rootmsg.edit(embed=embed)
 
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)

@@ -17,11 +17,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
-from nextcord.ext import commands, tasks
-import random
+from nextcord.ext import commands
 import aiohttp
 import asyncio
-import hashlib
 import ujson as json
 import os
 import sys
@@ -47,6 +45,9 @@ level = logging.DEBUG if data['debug'] else logging.INFO
 package = data['package']
 
 logger = log.buildlogger(package,'core',level)
+
+if os.name == "nt":
+    logger.warning('You are using Windows, which Unifier does not officially support. Some features may be unavailable.')
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
@@ -81,13 +82,14 @@ except:
     with open('update.json', 'r') as file:
         vinfo = json.load(file)
 
-try:
-    incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
-    for incident in incidents:
-        logger.warning('Discord incident: ' + incident['name'])
-        logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
-except:
-    logger.debug('Failed to get Discord status')
+if not data['skip_status_check']:
+    try:
+        incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
+        for incident in incidents:
+            logger.warning('Discord incident: ' + incident['name'])
+            logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
+    except:
+        logger.debug('Failed to get Discord status')
 
 class DiscordBot(commands.Bot):
     """Extension of discord.ext.commands.Bot for bot configuration"""
@@ -168,55 +170,6 @@ print('Version: '+vinfo['version'])
 print('Release '+str(vinfo['release']))
 print()
 
-def encrypt_string(hash_string):
-    sha_signature = \
-        hashlib.sha256(hash_string.encode()).hexdigest()
-    return sha_signature
-
-@tasks.loop(seconds=300)
-async def changestatus():
-    status_messages = [
-        "with the ban hammer",
-        "with fire",
-        "with the API",
-        "hide and seek",
-        "with code",
-        "in debug mode",
-        "in a parallel universe",
-        "with commands",
-        "a game of chess",
-        "with electrons",
-        "with the matrix",
-        "with cookies",
-        "with the metaverse",
-        "with emojis",
-        "with Nevira",
-        "with green.",
-        "with ItsAsheer",
-        "webhooks",
-    ]
-    new_stat = random.choice(status_messages)
-    if new_stat == "webhooks":
-        await bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.watching, name=new_stat))
-    else:
-        await bot.change_presence(activity=nextcord.Game(name=new_stat))
-
-@tasks.loop(seconds=round(data['periodic_backup']))
-async def periodic_backup():
-    try:
-        tasks = [bot.loop.create_task(bot.bridge.backup(limit=10000))]
-        await asyncio.wait(tasks)
-    except:
-        logger.exception('Backup failed')
-
-@tasks.loop(seconds=round(data['ping']))
-async def periodicping():
-    guild = bot.guilds[0]
-    try:
-        await bot.fetch_channel(guild.text_channels[0].id)
-    except:
-        pass
-
 @bot.event
 async def on_ready():
     if len(bot.extensions) > 0:
@@ -247,7 +200,7 @@ async def on_ready():
             try:
                 logger.debug('Optimizing room data, this may take a while...')
                 await bot.bridge.optimize()
-                if len(bot.bridge.bridged)==0:
+                if len(bot.bridge.bridged) == 0:
                     await bot.bridge.restore()
                     logger.info(f'Restored {len(bot.bridge.bridged)} messages')
             except FileNotFoundError:
@@ -255,16 +208,6 @@ async def on_ready():
             except:
                 logger.exception('An error occurred!')
                 logger.warning('Message restore failed')
-        if not changestatus.is_running() and data['enable_rotating_status']:
-            changestatus.start()
-        if not periodicping.is_running() and data['ping'] > 0:
-            periodicping.start()
-            logger.debug(f'Pinging servers every {round(data["ping"])} seconds')
-        elif data['ping'] <= 0:
-            logger.debug(f'Periodic pinging disabled')
-        if not periodic_backup.is_running() and data['periodic_backup'] > 0:
-            periodic_backup.start()
-            logger.debug(f'Backing up messages every {round(data["periodic_backup"])} seconds')
         elif data['periodic_backup'] <= 0:
             logger.debug(f'Periodic backups disabled')
         if data['enable_ctx_commands']:

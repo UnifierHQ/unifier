@@ -13,3 +13,5 @@ ulid-py
 ujson
 emoji
 discord-emoji
+pycryptodome
+orjson
