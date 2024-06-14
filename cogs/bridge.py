@@ -278,7 +278,7 @@ class UnifierBridge:
         self.bot = bot
         self.bridged = []
         self.prs = {}
-        self.webhook_cache = webhook_cache or {}
+        self.webhook_cache = webhook_cache or WebhookCacheStore(self.bot)
         self.restored = False
         self.raidbans = {}
         self.possible_raid = {}
@@ -565,12 +565,13 @@ class UnifierBridge:
                 guild = self.bot.get_guild(int(key))
                 try:
                     try:
-                        webhook = self.bot.webhook_cache[f'{guild.id}'][
+                        webhook = self.bot.bridge.webhook_cache.get_webhook([
                             f'{self.bot.db["rooms"][msg.room][f"{guild.id}"][0]}'
-                        ]
+                        ])
                     except:
                         try:
                             webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room][key][0])
+                            self.bot.bridge.webhook_cache.store_webhook(webhook)
                         except:
                             continue
                 except:
@@ -807,7 +808,6 @@ class UnifierBridge:
         if ignore is None:
             ignore = []
         source = 'discord'
-        pt = time.time()
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
             if not 'cogs.bridge_revolt' in extlist:
@@ -1004,15 +1004,33 @@ class UnifierBridge:
 
         message_ids = {}
         urls = {}
-        limit_notified = False
         trimmed = ''
         replying = False
 
         # Threading
-        thread_sameguild = []
         thread_urls = {}
         threads = []
         tb_v2 = source=='discord'
+        size_total = 0
+        max_files = 0
+
+        # Check attachments size
+        for attachment in message.attachments:
+            if system:
+                break
+            size_total += attachment.size
+            if size_total > 25000000:
+                if source == platform == 'revolt':
+                    await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                               replies=[revolt.MessageReply(message)])
+                elif source == platform == 'guilded':
+                    await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                               reply_to=message)
+                elif source == platform:
+                    await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                               reference=message)
+                break
+            max_files += 1
 
         # Broadcast message
         for guild in list(guilds.keys()):
@@ -1292,74 +1310,66 @@ class UnifierBridge:
                         )
 
             # Attachment processing
-            files = []
-            size_total = 0
+            async def get_files(attachments):
+                files = []
 
-            async def to_file(source_file):
-                if platform=='discord':
-                    if source=='discord':
-                        try:
-                            return await source_file.to_file(use_cached=True, spoiler=source_file.is_spoiler())
-                        except:
+                async def to_file(source_file):
+                    if platform == 'discord':
+                        if source == 'discord':
                             try:
-                                return await source_file.to_file(use_cached=True, spoiler=False)
+                                return await source_file.to_file(use_cached=True, spoiler=source_file.is_spoiler())
                             except:
-                                return await source_file.to_file(use_cached=False, spoiler=False)
-                    elif source=='revolt':
-                        filebytes = await source_file.read()
-                        return nextcord.File(fp=BytesIO(filebytes), filename=source_file.filename)
-                    elif source=='guilded':
-                        tempfile = await source_file.to_file()
-                        return nextcord.File(fp=tempfile.fp, filename=source_file.filename)
-                elif platform=='revolt':
-                    if source=='discord':
-                        f = await source_file.to_file(use_cached=True)
-                        return revolt.File(f.fp.read(), filename=f.filename)
-                    elif source=='guilded':
-                        f = await source_file.to_file()
-                        return revolt.File(f.fp.read(), filename=f.filename)
-                    elif source=='revolt':
-                        filebytes = await source_file.read()
-                        return revolt.File(filebytes, filename=source_file.filename)
-                elif platform=='guilded':
-                    if source=='guilded':
-                        try:
-                            return await source_file.to_file()
-                        except:
-                            return await source_file.to_file()
-                    elif source=='revolt':
-                        filebytes = await source_file.read()
-                        return guilded.File(fp=BytesIO(filebytes), filename=source_file.filename)
-                    elif source=='discord':
-                        tempfile = await source_file.to_file(use_cached=True)
-                        return guilded.File(fp=tempfile.fp, filename=source_file.filename)
+                                try:
+                                    return await source_file.to_file(use_cached=True, spoiler=False)
+                                except:
+                                    return await source_file.to_file(use_cached=False, spoiler=False)
+                        elif source == 'revolt':
+                            filebytes = await source_file.read()
+                            return nextcord.File(fp=BytesIO(filebytes), filename=source_file.filename)
+                        elif source == 'guilded':
+                            tempfile = await source_file.to_file()
+                            return nextcord.File(fp=tempfile.fp, filename=source_file.filename)
+                    elif platform == 'revolt':
+                        if source == 'discord':
+                            f = await source_file.to_file(use_cached=True)
+                            return revolt.File(f.fp.read(), filename=f.filename)
+                        elif source == 'guilded':
+                            f = await source_file.to_file()
+                            return revolt.File(f.fp.read(), filename=f.filename)
+                        elif source == 'revolt':
+                            filebytes = await source_file.read()
+                            return revolt.File(filebytes, filename=source_file.filename)
+                    elif platform == 'guilded':
+                        if source == 'guilded':
+                            try:
+                                return await source_file.to_file()
+                            except:
+                                return await source_file.to_file()
+                        elif source == 'revolt':
+                            filebytes = await source_file.read()
+                            return guilded.File(fp=BytesIO(filebytes), filename=source_file.filename)
+                        elif source == 'discord':
+                            tempfile = await source_file.to_file(use_cached=True)
+                            return guilded.File(fp=tempfile.fp, filename=source_file.filename)
 
-            for attachment in message.attachments:
-                if system:
-                    break
-                if source=='guilded':
-                    if not attachment.file_type.image and not attachment.file_type.video:
-                        continue
-                else:
-                    if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
-                            not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
-                            self.bot.config['safe_filetypes']) or attachment.size > 25000000:
-                        continue
-                size_total += attachment.size
-                if size_total > 25000000:
-                    if not limit_notified:
-                        limit_notified = True
-                        if source==platform=='revolt':
-                            await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                                       replies=[revolt.MessageReply(message)])
-                        elif source==platform=='guilded':
-                            await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                                       reply_to=message)
-                        elif source==platform:
-                            await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                                       reference=message)
-                    break
-                files.append(await to_file(attachment))
+                index = 0
+                for attachment in attachments:
+                    if system:
+                        break
+                    if source == 'guilded':
+                        if not attachment.file_type.image and not attachment.file_type.video:
+                            continue
+                    else:
+                        if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
+                                not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
+                                self.bot.config['safe_filetypes']) or attachment.size > 25000000:
+                            continue
+                    files.append(await to_file(attachment))
+                    index += 1
+                    if index >= max_files:
+                        break
+
+                return files
 
             # Avatar
             try:
@@ -1401,24 +1411,24 @@ class UnifierBridge:
 
                 webhook = None
                 try:
-                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms"][room][guild][0]}']
+                    webhook = self.bot.bridge.webhook_cache.get_webhook(
+                        [f'{self.bot.db["rooms"][room][guild][0]}']
+                    )
                 except:
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
                     hooks = await destguild.webhooks()
+                    self.bot.bridge.webhook_cache.store_webhooks(hooks)
                     for hook in hooks:
-                        if f'{guild}' in list(self.bot.webhook_cache.keys()):
-                            self.bot.webhook_cache[f'{guild}'].update({f'{hook.id}':hook})
-                        else:
-                            self.bot.webhook_cache.update({f'{guild}':{f'{hook.id}': hook}})
                         if hook.id in self.bot.db['rooms'][room][guild]:
                             webhook = hook
                             break
                 if not webhook:
                     continue
 
-                async def tbsend(webhook,url,msg_author_dc,embeds,message,files,mentions,components,sameguild,
-                                 thread_sameguild,destguild):
+                async def tbsend(webhook,url,msg_author_dc,embeds,message,mentions,components,sameguild,
+                                 destguild):
                     try:
+                        files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  view=(
@@ -1434,11 +1444,12 @@ class UnifierBridge:
                     return tbresult
 
                 if tb_v2:
-                    threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,files,
-                                                              mentions,components,sameguild,thread_sameguild,
+                    threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,
+                                                              mentions,components,sameguild,
                                                               destguild)))
                 else:
                     try:
+                        files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=message.content, files=files, allowed_mentions=mentions,
                                                  view=(
@@ -1446,10 +1457,7 @@ class UnifierBridge:
                                                  ), wait=True)
                     except:
                         continue
-                    if sameguild:
-                        thread_sameguild = [msg.id]
-                    else:
-                        message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
+                    message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
             elif platform=='revolt':
                 try:
@@ -1508,6 +1516,7 @@ class UnifierBridge:
                 except:
                     persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
                 try:
+                    files = await get_files(message.attachments)
                     msg = await ch.send(
                         content=message.content, embeds=message.embeds, attachments=files, replies=replies,
                         masquerade=persona
@@ -1518,14 +1527,11 @@ class UnifierBridge:
                 message_ids.update({destguild.id:[ch.id,msg.id]})
             elif platform=='guilded':
                 try:
-                    webhook = self.bot.webhook_cache[f'{guild}'][f'{self.bot.db["rooms_guilded"][room][guild][0]}']
+                    webhook = self.bot.bridge.webhook_cache.get_webhook([f'{self.bot.db["rooms_guilded"][room][guild][0]}'])
                 except:
                     try:
                         webhook = await destguild.fetch_webhook(self.bot.db["rooms_guilded"][room][guild][0])
-                        if f'{guild}' in list(self.bot.webhook_cache.keys()):
-                            self.bot.webhook_cache[f'{guild}'].update({f'{webhook.id}':webhook})
-                        else:
-                            self.bot.webhook_cache.update({f'{guild}':{f'{webhook.id}':webhook}})
+                        self.bot.bridge.webhook_cache.store_webhook(webhook)
                     except:
                         continue
 
@@ -1607,7 +1613,8 @@ class UnifierBridge:
                 if len(msg_author) > 25:
                     msg_author_gd = msg_author[:-(len(msg_author) - 25)]
 
-                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, files, sameguild, destguild):
+                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, sameguild, destguild):
+                    files = await get_files(message.attachments)
                     try:
                         msg = await webhook.send(avatar_url=url,
                                                  username=msg_author_gd.encode("ascii", errors="ignore").decode(),
@@ -1624,17 +1631,15 @@ class UnifierBridge:
 
                 if tb_v2:
                     threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
-                                                              files, sameguild, destguild)))
+                                                              sameguild, destguild)))
                 else:
                     try:
+                        files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
                                                  embeds=embeds,content=replytext+message.content,files=files)
                     except:
                         continue
-                    if sameguild:
-                        thread_sameguild = [msg.id]
-                    else:
-                        message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
+                    message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':msg.share_url})
 
         # Update cache
@@ -1720,6 +1725,42 @@ class UnifierBridge:
                 self.msg_stats.update({room: 1})
         return parent_id
 
+class WebhookCacheStore:
+    def __init__(self, bot):
+        self.bot = bot
+        self.__webhooks = {}
+
+    def store_webhook(self, webhook: nextcord.Webhook or guilded.Webhook):
+        if not webhook.guild.id in self.__webhooks.keys():
+            self.__webhooks.update({webhook.guild.id: {webhook.id: webhook}})
+        self.__webhooks[webhook.guild.id].update({webhook.id: webhook})
+        return len(self.__webhooks[webhook.guild.id])
+
+    def store_webhooks(self, webhooks: list):
+        for webhook in webhooks:
+            if not webhook.guild.id in self.__webhooks.keys():
+                self.__webhooks.update({webhook.guild.id: {webhook.id: webhook}})
+            self.__webhooks[webhook.guild.id].update({webhook.id: webhook})
+        return len(self.__webhooks)
+
+    def get_webhooks(self, guild: int or str):
+        if len(self.__webhooks[guild].values())==0:
+            return None
+        return list(self.__webhooks[guild].values())
+
+    def get_webhook(self, webhook: int or str):
+        for guild in self.__webhooks.keys():
+            if webhook in self.__webhooks[guild].keys():
+                return self.__webhooks[guild][webhook]
+        return None
+
+    def clear(self, guild: int or str = None):
+        if not guild:
+            self.__webhooks = {}
+        else:
+            self.__webhooks[guild] = {}
+        return
+
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
 
@@ -1733,7 +1774,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridged_external = {}
         if not hasattr(self.bot, 'bridged_obe'):
             # OBE = Owned By External
-            # Message wasn't sent from nextcord.
+            # Message wasn't sent from Discord.
             self.bot.bridged_obe = {}
         if not hasattr(self.bot, 'bridged_urls'):
             self.bot.bridged_urls = {}
@@ -1749,8 +1790,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.notified = []
         if not hasattr(self.bot, 'reports'):
             self.bot.reports = {}
-        if not hasattr(self.bot, 'webhook_cache'):
-            self.bot.webhook_cache = {}
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
         msgs = []
         prs = {}
