@@ -7,7 +7,8 @@ the safety of hosters and users every now and then.
 
 ## Supported Versions
 Versions v1.2.x and newer will receive at least 6 months of bug fixes and
-security updates after being superseded by a newer series. 
+security updates after being superseded by a newer series. All EoL dates
+are in dd/mm/yyyy format.
 
 Currently, v1.1.x and newer receive security updates. Preceding versions
 have been discontinued and will not be updated any further.
