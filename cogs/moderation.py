@@ -587,13 +587,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         menu = 0
         page = 0
         is_self = False
-        orig_id = int(target.replace('<@','',1).replace('>','',1).replace('!','',1))
         if target:
+            orig_id = int(target.replace('<@', '', 1).replace('>', '', 1).replace('!', '', 1))
             try:
                 target = self.bot.get_user(int(target.replace('<@','',1).replace('>','',1).replace('!','',1)))
             except:
                 return await ctx.send('Invalid target!')
         else:
+            orig_id = ctx.author.id
             target = ctx.author
             is_self = True
         if target:
