@@ -1420,7 +1420,6 @@ class UnifierBridge:
                         f'{self.bot.db["rooms"][room][guild][0]}'
                     )
                 except:
-                    self.logger.exception('failed')
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
                     hooks = await destguild.webhooks()
                     self.bot.bridge.webhook_cache.store_webhooks(hooks)
