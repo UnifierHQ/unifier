@@ -356,7 +356,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         return sha_signature
 
     async def encrypt(self, encoded, password, salt):
-        iv = ''
         __key = await self.bot.loop.run_in_executor(None, lambda: PBKDF2(password, salt, dkLen=32))
 
         iv = CryptoRandom.get_random_bytes(16)
@@ -1877,8 +1876,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     name = cog.qualified_name
                     parts = name.split(' ')
                     offset = 0
-                    for x in range(len(parts)):
-                        index = x - offset
+                    for i in range(len(parts)):
+                        index = i - offset
                         if len(parts)==1:
                             break
                         if parts[index].startswith(':') and parts[index].endswith(':'):
