@@ -18,8 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-from utils import log
+from utils import log, restrictions as r
 from enum import Enum
+
+restrictions = r.Restrictions()
 
 class UserRole(Enum):
     OWNER = "the instance\'s **owner**"
@@ -29,7 +31,11 @@ class UserRole(Enum):
     BANNED = "**BANNED**"
     USER = "a **user**"
 
-class Badge(commands.Cog):
+class Badge(commands.Cog, name=':medal: Badge'):
+    """Badge contains commands that show you your role in Unifier.
+
+    Developed by Green and ItsAsheer"""
+
     def __init__(self, bot):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'badge', self.bot.loglevel)
@@ -43,6 +49,7 @@ class Badge(commands.Cog):
             UserRole.BANNED: nextcord.Color.red(),
             UserRole.USER: nextcord.Color.blurple()
         }
+        restrictions.attach_bot(self.bot)
 
     @commands.command()
     async def badge(self, ctx, *, user=None):
@@ -68,11 +75,9 @@ class Badge(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,aliases=[],description='Verifies a user.')
-    async def trust(self, ctx, action, user: nextcord.User):
-        if ctx.author.id not in self.bot.admins:
-            return await ctx.send("You don't have permission to use this command.")
-
+    @commands.command(hidden=True,aliases=['trust'],description='Verifies a user.')
+    @restrictions.admin()
+    async def verify(self, ctx, action, user: nextcord.User):
         action = action.lower()
         if action not in ['add', 'remove']:
             return await ctx.send("Invalid action. Please use 'add' or 'remove'.")
