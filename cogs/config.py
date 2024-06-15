@@ -51,9 +51,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         restrictions.attach_bot(self.bot)
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
 
-    def is_user_admin(self,id):
+    def is_user_admin(self,user_id):
         try:
-            if id in self.bot.config['admin_ids']:
+            if user_id in self.bot.config['admin_ids']:
                 return True
             else:
                 return False
@@ -177,33 +177,33 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def roomdesc(self,ctx,room,*,desc=''):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send('This room does not exist!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
         if len(desc)==0:
             try:
                 self.bot.db['descriptions'][room].pop()
             except:
-                return await ctx.send('there was no description to begin with...')
+                return await ctx.send(f'{self.bot.ui_emojis.error} There is no description to reset for this room.')
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            return await ctx.send('Description removed.')
+            return await ctx.send(f'{self.bot.ui_emojis.success} Description removed.')
         self.bot.db['descriptions'].update({room:desc})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('Updated description!')
+        await ctx.send(f'{self.bot.ui_emojis.success} Updated description!')
 
     @commands.command(hidden=True, description='Sets room emoji.')
     @restrictions.admin()
     async def roomemoji(self, ctx, room, *, emoji=''):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send('This room does not exist!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
         if len(emoji) == 0:
             try:
                 self.bot.db['roomemojis'].pop(room)
             except:
-                return await ctx.send('there was no emoji to begin with...')
+                return await ctx.send(f'{self.bot.ui_emojis.error} There is no emoji to reset for this room.')
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            return await ctx.send('Emoji removed.')
+            return await ctx.send(f'{self.bot.ui_emojis.success} Emoji removed.')
         if not pymoji.is_emoji(emoji):
-            return await ctx.send('This is not a valid emoji.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid emoji.')
         self.bot.db['roomemojis'].update({room: emoji})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Updated emoji!')
@@ -216,13 +216,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def roomrestrict(self,ctx,room):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send('This room does not exist!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
         if room in self.bot.db['restricted']:
             self.bot.db['restricted'].remove(room)
-            await ctx.send(f'Unrestricted `{room}`!')
+            await ctx.send(f'{self.bot.ui_emojis.success} Unrestricted `{room}`!')
         else:
             self.bot.db['restricted'].append(room)
-            await ctx.send(f'Restricted `{room}`!')
+            await ctx.send(f'{self.bot.ui_emojis.success} Restricted `{room}`!')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(
@@ -233,13 +233,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def roomlock(self,ctx,room):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send('This room does not exist!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
         if room in self.bot.db['locked']:
             self.bot.db['locked'].remove(room)
-            await ctx.send(f'Unlocked `{room}`!')
+            await ctx.send(f'{self.bot.ui_emojis.success} Unlocked `{room}`!')
         else:
             self.bot.db['locked'].append(room)
-            await ctx.send(f'Locked `{room}`!')
+            await ctx.send(f'{self.bot.ui_emojis.success} Locked `{room}`!')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(
@@ -248,28 +248,28 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def experiments(self,ctx,action='',experiment=''):
         if action.lower()=='enroll' or action.lower()=='add':
             if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
-                return await ctx.send('You don\'t have the necessary permissions.')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have the necessary permissions.')
             if not experiment in list(self.bot.db['experiments'].keys()):
-                return await ctx.send('This experiment doesn\'t exist!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} This experiment doesn\'t exist!')
             if ctx.guild.id in self.bot.db['experiments'][experiment]:
-                return await ctx.send('Your server is already a part of this experiment!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Your server is already a part of this experiment!')
             self.bot.db['experiments'][experiment].append(ctx.guild.id)
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            return await ctx.send('Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
+            return await ctx.send(f'{self.bot.ui_emojis.success} Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         elif action.lower()=='unenroll' or action.lower()=='remove':
             if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
-                return await ctx.send('You don\'t have the necessary permissions.')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have the necessary permissions.')
             if not experiment in list(self.bot.db['experiments'].keys()):
-                return await ctx.send('This experiment doesn\'t exist!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} This experiment doesn\'t exist!')
             if not ctx.guild.id in self.bot.db['experiments'][experiment]:
-                return await ctx.send('Your server is not a part of this experiment!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Your server is not a part of this experiment!')
             self.bot.db['experiments'][experiment].remove(ctx.guild.id)
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            return await ctx.send('Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
+            return await ctx.send(f'{self.bot.ui_emojis.success} Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
         else:
             embed = nextcord.Embed(title=':test_tube: Experiments',
-                                  description=f'Help us test Unifier\'s experimental features! Run `{self.bot.command_prefix}experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
-                                  color=0x0000ff)
+                                   description=f'Help us test Unifier\'s experimental features! Run `{self.bot.command_prefix}experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
+                                   color=0x0000ff)
             for experiment in self.bot.db['experiments']:
                 name = self.bot.db['experiments_info'][experiment]['name'] + f" (`{experiment}`"
                 description = self.bot.db['experiments_info'][experiment]['description']
@@ -336,13 +336,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             color=self.bot.colors.unifier
         )
         embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
-        ButtonStyle = nextcord.ButtonStyle
         btns = ui.ActionRow(
             nextcord.ui.Button(
-                style=ButtonStyle.green, label='Accept and bind', custom_id=f'accept',disabled=False
+                style=nextcord.ButtonStyle.green, label='Accept and bind', custom_id=f'accept',disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.red, label='No thanks', custom_id=f'reject',disabled=False
+                style=nextcord.ButtonStyle.red, label='No thanks', custom_id=f'reject',disabled=False
             )
         )
         components = ui.MessageComponents()
@@ -692,7 +691,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 offset = 0
                 for x in range(len(roomlist)):
                     room = roomlist[x - offset]
-                    if (not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
+                    if (
+                            not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
                             not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db)
                     ) and not show_restricted or not search_filter(query,room):
                         roomlist.pop(x - offset)
