@@ -245,6 +245,57 @@ class UnifierBridge:
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
 
+    def add_modlog(self, action_type, user, reason, moderator):
+        t = time.time()
+        try:
+            self.bot.db['modlogs'][f'{user}'].append({
+                'type': action_type,
+                'reason': reason,
+                'time': t,
+                'mod': moderator
+            })
+        except:
+            self.bot.db['modlogs'].update({
+                f'{user}': [{
+                    'type': action_type,
+                    'reason': reason,
+                    'time': t,
+                    'mod': moderator
+                }]
+            })
+        self.bot.db.save_data()
+
+    def get_modlogs(self, user):
+        t = time.time()
+
+        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
+            return {
+                'warns': [],
+                'bans': []
+            }, {
+                'warns': [],
+                'bans': []
+            }
+
+        actions = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
+        }
+        actions_recent = {
+            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
+            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
+        }
+
+        return actions, actions_recent
+
+    def get_modlogs_count(self, user):
+        actions, actions_recent = self.get_modlogs(user)
+        return {
+            'warns': len(actions['warns']), 'bans': len(actions['bans'])
+        }, {
+            'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
+        }
+
     async def optimize(self):
         """Optimizes data to avoid having to fetch webhooks.
         This decreases latency incuded by message bridging prep."""
@@ -1366,9 +1417,10 @@ class UnifierBridge:
                 webhook = None
                 try:
                     webhook = self.bot.bridge.webhook_cache.get_webhook(
-                        [f'{self.bot.db["rooms"][room][guild][0]}']
+                        f'{self.bot.db["rooms"][room][guild][0]}'
                     )
                 except:
+                    self.logger.exception('failed')
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
                     hooks = await destguild.webhooks()
                     self.bot.bridge.webhook_cache.store_webhooks(hooks)
@@ -1698,15 +1750,23 @@ class WebhookCacheStore:
         return len(self.__webhooks)
 
     def get_webhooks(self, guild: int or str):
+        try:
+            guild = int(guild)
+        except:
+            pass
         if len(self.__webhooks[guild].values())==0:
-            return None
+            raise ValueError('no webhooks')
         return list(self.__webhooks[guild].values())
 
     def get_webhook(self, webhook: int or str):
+        try:
+            webhook = int(webhook)
+        except:
+            pass
         for guild in self.__webhooks.keys():
             if webhook in self.__webhooks[guild].keys():
                 return self.__webhooks[guild][webhook]
-        return None
+        raise ValueError('invalid webhook')
 
     def clear(self, guild: int or str = None):
         if not guild:
@@ -1751,6 +1811,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg_stats = {}
         msg_stats_reset = datetime.datetime.now().day
         restored = False
+        webhook_cache = None
         if hasattr(self.bot, 'bridge'):
             if self.bot.bridge: # Avoid restoring if bridge is None
                 msgs = self.bot.bridge.bridged
@@ -1758,6 +1819,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 restored = self.bot.bridge.restored
                 msg_stats = self.bot.bridge.msg_stats
                 msg_stats_reset = self.bot.bridge.msg_stats_reset
+                webhook_cache = self.bot.bridge.webhook_cache
                 del self.bot.bridge
         self.bot.bridge = UnifierBridge(self.bot,self.logger)
         self.bot.bridge.bridged = msgs
@@ -1765,57 +1827,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.restored = restored
         self.bot.bridge.msg_stats = msg_stats
         self.bot.bridge.msg_stats_reset = msg_stats_reset
-
-    def add_modlog(self, action_type, user, reason, moderator):
-        t = time.time()
-        try:
-            self.bot.db['modlogs'][f'{user}'].append({
-                'type': action_type,
-                'reason': reason,
-                'time': t,
-                'mod': moderator
-            })
-        except:
-            self.bot.db['modlogs'].update({
-                f'{user}': [{
-                    'type': action_type,
-                    'reason': reason,
-                    'time': t,
-                    'mod': moderator
-                }]
-            })
-        self.bot.db.save_data()
-
-    def get_modlogs(self, user):
-        t = time.time()
-
-        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
-            return {
-                'warns': [],
-                'bans': []
-            }, {
-                'warns': [],
-                'bans': []
-            }
-
-        actions = {
-            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
-            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
-        }
-        actions_recent = {
-            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
-            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
-        }
-
-        return actions, actions_recent
-
-    def get_modlogs_count(self, user):
-        actions, actions_recent = self.get_modlogs(user)
-        return {
-            'warns': len(actions['warns']), 'bans': len(actions['bans'])
-        }, {
-            'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
-        }
+        if webhook_cache:
+            self.bot.bridge.webhook_cache = webhook_cache
 
     @commands.command(aliases=['colour'],description='Sets Revolt color.')
     async def color(self,ctx,*,color=''):
@@ -3613,7 +3626,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     embed.add_field(name='Did we make a mistake?',
                                     value=f'If you think we didn\'t make the right call, you can always appeal your ban using `{self.bot.command_prefix}!appeal`.',
                                     inline=False)
-                    await self.bot.loop.run_in_executor(None,lambda: self.add_modlog(0, user_obj.id, 'Automatic action carried out by security plugins', self.bot.user.id))
+                    await self.bot.loop.run_in_executor(None,lambda: self.bot.bridge.add_modlog(0, user_obj.id, 'Automatic action carried out by security plugins', self.bot.user.id))
                 else:
                     embed.add_field(
                         name='Actions taken',
