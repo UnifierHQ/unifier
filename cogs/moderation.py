@@ -1043,7 +1043,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send(f'{self.bot.ui_emojis.error} Invalid index!')
         if index < 0:
             return await ctx.send('what.')
-        target = self.bot.get_user(int(target.replace('<@','',1).replace('!','',1).replace('>','',1)))
+        try:
+            target = self.bot.get_user(int(target.replace('<@','',1).replace('!','',1).replace('>','',1)))
+        except:
+            return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user!')
         try:
             actions, _ = self.bot.bridge.get_modlogs(target.id)
             warn = actions['warns'][index]
@@ -1074,7 +1077,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('Invalid index!')
         if index < 0:
             return await ctx.send('what.')
-        target = self.bot.get_user(int(target.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1)))
+        try:
+            target = self.bot.get_user(int(target.replace('<@', '', 1).replace('!', '', 1).replace('>', '', 1)))
+        except:
+            return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user!')
         try:
             actions, _ = self.bot.bridge.get_modlogs(target.id)
             ban = actions['bans'][index]
