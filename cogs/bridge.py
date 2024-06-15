@@ -102,52 +102,6 @@ class ExternalReference:
 class SelfDeleteException(Exception):
     pass
 
-class UnifierTranslator:
-    def __init__(self,bot):
-        self.bot = bot
-
-    def identify(self,message: nextcord.Message or revolt.Message or guilded.Message):
-        source = 'discord'
-        extlist = list(self.bot.extensions)
-        if type(message) is revolt.Message:
-            if not 'cogs.bridge_revolt' in extlist:
-                raise RuntimeError('Revolt Support not initialized')
-            source = 'revolt'
-        if type(message) is guilded.ChatMessage:
-            if not 'cogs.bridge_guilded' in extlist:
-                raise RuntimeError('Guilded Support not initialized')
-            source = 'guilded'
-
-        if message.webhook_id:
-            return 'webhook'
-
-        if len(message.embeds) > 0 and source=='discord':
-            for embed in message.embeds:
-                if not embed.type=='rich':
-                    continue
-                if (embed.footer.text.startswith('Message ID: ') and
-                        embed.fields[0].value.startswith('\U0001F4CCSent From: ') and
-                        embed.fields[0].value.endswith('[Bot-Invite](https://discord.com/api/oauth2/authorize?client_id=1051199485168066610&permissions=8&scope=bot%20applications.commands)')):
-                    return 'embed_silly'
-
-    def translate(self,message: nextcord.Message or revolt.Message or guilded.Message):
-        source = 'discord'
-        extlist = list(self.bot.extensions)
-        if type(message) is revolt.Message:
-            if not 'cogs.bridge_revolt' in extlist:
-                raise RuntimeError('Revolt Support not initialized')
-            source = 'revolt'
-        if type(message) is guilded.ChatMessage:
-            if not 'cogs.bridge_guilded' in extlist:
-                raise RuntimeError('Guilded Support not initialized')
-            source = 'guilded'
-
-        msgtype = self.identify(message)
-        if msgtype=='embed_silly':
-            translated = {
-                'author': message.embed
-            }
-
 class UnifierMessage:
     def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                  external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False, reactions=None,
@@ -861,7 +815,7 @@ class UnifierBridge:
         if temp_pr_ref and message.content.startswith('[') and source==platform=='discord' and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
                 self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
-            ):
+        ):
             pr_id = None
             components = message.content.replace('[','',1).split(']')
             if len(components) >= 2:
@@ -1811,11 +1765,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.msg_stats = msg_stats
         self.bot.bridge.msg_stats_reset = msg_stats_reset
 
-    def add_modlog(self, type, user, reason, moderator):
+    def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
             self.bot.db['modlogs'][f'{user}'].append({
-                'type': type,
+                'type': action_type,
                 'reason': reason,
                 'time': t,
                 'mod': moderator
@@ -1823,7 +1777,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             self.bot.db['modlogs'].update({
                 f'{user}': [{
-                    'type': type,
+                    'type': action_type,
                     'reason': reason,
                     'time': t,
                     'mod': moderator
@@ -2600,58 +2554,57 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         userid = msgdata.author_id
         content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
 
-        ButtonStyle = nextcord.ButtonStyle
         btns = ui.ActionRow(
-            nextcord.ui.Button(style=ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False
             )
         )
         btns_abuse = ui.ActionRow(
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False
             )
         )
         btns_explicit = ui.ActionRow(
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4', disabled=False
             ),
             nextcord.ui.Button(
-                style=ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False
+                style=nextcord.ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False
             )
         )
         btns2 = ui.ActionRow(
-            nextcord.ui.Button(style=ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
         )
         components = ui.MessageComponents()
         components.add_rows(btns, btns2)
@@ -3474,7 +3427,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
             ct = time.time()
-            cdt = datetime.datetime.now(datetime.UTC)
             if f'{message.author.id}' in list(gbans.keys()):
                 banuntil = gbans[f'{message.author.id}']
                 if ct >= banuntil and not banuntil == 0:
