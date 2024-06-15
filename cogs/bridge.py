@@ -1719,6 +1719,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
 
     Developed by Green and ItsAsheer"""
+
     def __init__(self, bot):
         self.bot = bot
         restrictions.attach_bot(self.bot)

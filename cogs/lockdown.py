@@ -26,6 +26,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
     """An emergency extension that unloads literally everything.
 
     Developed by Green and ItsAsheer"""
+
     def __init__(self,bot):
         self.bot = bot
         restrictions.attach_bot(self.bot)

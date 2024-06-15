@@ -89,6 +89,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     """Moderation allows server moderators and instance moderators to punish bad actors.
 
     Developed by Green and ItsAsheer"""
+
     def __init__(self,bot):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
