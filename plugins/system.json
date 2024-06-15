@@ -10,7 +10,6 @@
     "config.py",
     "bridge.py",
     "moderation.py",
-    "uptime.py",
     "badge.py"
   ],
   "utils": [

@@ -55,6 +55,8 @@ from Crypto.Util.Padding import pad, unpad
 import base64
 import random
 import requests
+import time
+import datetime
 
 restrictions = r.Restrictions()
 
@@ -282,6 +284,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             continue
                     script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
                     self.bot.loaded_plugins.update({plugin[:-5]: script})
+        if not hasattr(self.bot, "ut_total"):
+            self.bot.ut_total = round(time.time())
+        if not hasattr(self.bot, "disconnects"):
+            self.bot.disconnects = 0
 
         if not self.bot.ready:
             try:
@@ -417,6 +423,41 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         return resp.json()
 
+    async def preunload(self, extension):
+        """Performs necessary steps before unloading."""
+        info = None
+        plugin_name = None
+        if extension.startswith('cogs.'):
+            extension = extension.replace('cogs.','',1)
+        for plugin in os.listdir('plugins'):
+            if extension + '.json' == plugin:
+                plugin_name = plugin[:-5]
+                try:
+                    with open('plugins/' + plugin) as file:
+                        info = json.load(file)
+                except:
+                    continue
+                break
+            else:
+                try:
+                    with open('plugins/' + plugin) as file:
+                        info = json.load(file)
+                except:
+                    continue
+                if extension + '.py' in info['modules']:
+                    plugin_name = plugin[:-5]
+                    break
+        if not plugin_name:
+            return
+        if plugin_name == 'system':
+            return
+        if not info:
+            raise ValueError('Invalid plugin')
+        if not info['shutdown']:
+            return
+        script = importlib.import_module('utils.' + plugin_name + '_check')
+        await script.check(self.bot)
+
     @tasks.loop(seconds=300)
     async def changestatus(self):
         status_messages = [
@@ -505,40 +546,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         except:
             pass
 
-    async def preunload(self, extension):
-        """Performs necessary steps before unloading."""
-        info = None
-        plugin_name = None
-        if extension.startswith('cogs.'):
-            extension = extension.replace('cogs.','',1)
-        for plugin in os.listdir('plugins'):
-            if extension + '.json' == plugin:
-                plugin_name = plugin[:-5]
-                try:
-                    with open('plugins/' + plugin) as file:
-                        info = json.load(file)
-                except:
-                    continue
-                break
-            else:
-                try:
-                    with open('plugins/' + plugin) as file:
-                        info = json.load(file)
-                except:
-                    continue
-                if extension + '.py' in info['modules']:
-                    plugin_name = plugin[:-5]
-                    break
-        if not plugin_name:
-            return
-        if plugin_name == 'system':
-            return
-        if not info:
-            raise ValueError('Invalid plugin')
-        if not info['shutdown']:
-            return
-        script = importlib.import_module('utils.' + plugin_name + '_check')
-        await script.check(self.bot)
+    @commands.Cog.listener()
+    async def on_disconnect(self):
+        self.bot.disconnects += 1
 
     @commands.command(aliases=['reload-services'], hidden=True, description="Reloads bot services.")
     @restrictions.owner()
@@ -2291,6 +2301,29 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = 'Data could not be restored. Please ensure your encryption password and salt is correct.'
             embed.colour = 0xff0000
             await rootmsg.edit(embed=embed)
+
+    @commands.command(description='Shows bot uptime.')
+    async def uptime(self, ctx):
+        embed = nextcord.Embed(
+            title=f'{self.bot.user.global_name} uptime',
+            description=f'The bot has been up since <t:{self.bot.ut_total}:f>.',
+            color=self.bot.colors.unifier
+        )
+        t = round(time.time()) - self.bot.ut_total
+        td = datetime.timedelta(seconds=t)
+        d = td.days
+        h, m, s = str(td).split(',')[len(str(td).split(',')) - 1].replace(' ', '').split(':')
+        embed.add_field(
+            name='Total uptime',
+            value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
+            inline=False
+        )
+        embed.add_field(
+            name='Disconnects/hr',
+            value=f'{round(self.bot.disconnects / (t / 3600), 2)}',
+            inline=False
+        )
+        await ctx.send(embed=embed)
 
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
