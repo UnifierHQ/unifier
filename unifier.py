@@ -227,7 +227,7 @@ async def on_message(message):
             bot.db.save_data()
         else:
             return
-        
+
     if message.content.lower().startswith(bot.command_prefix) and not message.author.bot:
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
