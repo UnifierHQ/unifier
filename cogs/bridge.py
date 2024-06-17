@@ -2407,7 +2407,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         msg.reactions.keys()
                     )[x + (page * limit)], get_all=True, put_colons=False)
                     if type(name) is list:
-                        name = name[0]
+                        name = name[0] if len(name) > 0 else 'unknown'
                 else:
                     name = emoji.name
                 if not name:
