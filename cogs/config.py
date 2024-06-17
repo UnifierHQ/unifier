@@ -329,7 +329,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 else:
                     text = f'{text}\n{index}. {rule}'
                 index += 1
-        text = f'{text}\n\nPlease display these rules somewhere accessible.'
+        text = f'{text}\n\nPlease display these rules somewhere accessible.\nThis message will be automatically pinned if you accept these rules.'
         embed = nextcord.Embed(
             title=f'{self.bot.ui_emojis.rooms} Please agree to the room rules first:',
             description=text,
