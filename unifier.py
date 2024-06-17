@@ -214,6 +214,8 @@ async def on_ready():
             logger.debug("Registering context commands...")
             await bot.sync_application_commands()
     logger.info('Unifier is ready!')
+    if not bot.ready:
+        bot.ready = True
 
 @bot.event
 async def on_message(message):

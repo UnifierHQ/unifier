@@ -321,7 +321,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             self.logger.debug('Loaded plugin ' + extension)
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
-            self.bot.ready = True
 
         if not hasattr(self.bot, 'status_rotation_task'):
             self.bot.status_rotation_task = self.changestatus
@@ -488,6 +487,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @tasks.loop()
     async def periodic_backup(self):
+        if not self.bot.ready:
+            return
         try:
             tasks = [self.bot.loop.create_task(self.bot.bridge.backup(limit=10000))]
             await asyncio.wait(tasks)
@@ -496,6 +497,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @tasks.loop()
     async def periodic_backup_cloud(self):
+        if not self.bot.ready:
+            return
         endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
         __apikey = os.environ.get('API_KEY')
         __headers = {
