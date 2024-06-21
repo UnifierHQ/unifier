@@ -69,6 +69,10 @@ class Colors: # format: 0xHEXCODE
     red = 0xe74c3c
     blurple = 0x7289da
     gold = 0xd4a62a
+    error = 0xff838c
+    warning = 0xe4aa54
+    success = 0x11ad79
+    critical = 0xff0000
 
 class Emojis:
     def __init__(self, data=None):
@@ -508,6 +512,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         try:
             __salt = self.bot.config['cloud_backup_salt']
             __pass = os.environ.get('ENCRYPTION_PASSWORD')
+            if not __salt or not __pass:
+                return
         except:
             return
         try:
@@ -963,7 +969,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 title=f'{self.bot.ui_emojis.error} Can\'t install Plugins',
                 description=('Unifier cannot install Plugins on Windows. Please use an OS with the bash console (Linux'+
                              '/macOS/etc).'),
-                color=0xff0000
+                color=self.bot.colors.error
             )
             return await ctx.send(embed=embed)
 
@@ -983,7 +989,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
                 embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
                 embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             if new['id']+'.json' in os.listdir('plugins'):
@@ -991,7 +997,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     current = json.load(file)
                 embed.title = f'{self.bot.ui_emojis.error} Plugin already installed'
                 embed.description = f'This plugin is already installed!\n\nName: `{current["name"]}`\nVersion: `{current["version"]}`'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             plugin_id = new['id']
@@ -1012,7 +1018,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if vinfo['release'] < minimum:
                 embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
                 embed.description = f'Your Unifier does not support this plugin. Release `{minimum}` or later is required.'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
 
             conflicts = []
@@ -1029,13 +1035,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = 'Conflicting files were found:\n'
                 for conflict in conflicts:
                     embed.description = embed.description + f'\n`{conflict}`'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
         except:
             embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
             embed.description = 'The repository URL or the plugin.json file is invalid.'
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
             raise
         embed.title = f'{self.bot.ui_emojis.install} Install `{plugin_id}`?'
@@ -1069,7 +1075,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if emojis > home_guild.emoji_limit - len(home_guild.emojis):
                     embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
                     embed.description = f'Your home server does not have enough emoji slots available. {emojis} is required, but you only have {home_guild.emoji_limit - len(home_guild.emojis)}.'
-                    embed.colour = 0xff0000
+                    embed.colour = self.bot.colors.error
                     return await msg.edit(embed=embed)
             else:
                 text = (
@@ -1164,13 +1170,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.logger.debug('Installation complete')
             embed.title = f'{self.bot.ui_emojis.success} Installation successful'
             embed.description = 'The installation was successful! :partying_face:'
-            embed.colour = 0x00ff00
+            embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
         except:
             self.logger.exception('Install failed')
             embed.title = f'{self.bot.ui_emojis.error} Installation failed'
             embed.description = 'The installation failed.'
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
             return
 
@@ -1194,7 +1200,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         except:
             embed.title = f'{self.bot.ui_emojis.error} Plugin not found'
             embed.description = 'The plugin could not be found.'
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.error
             await ctx.send(embed=embed)
             return
         embed.title = f'{self.bot.ui_emojis.install} Uninstall plugin `'+plugin_info['id']+'`?'
@@ -1248,13 +1254,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.logger.debug('Uninstallation complete')
             embed.title = f'{self.bot.ui_emojis.success} Uninstallation successful'
             embed.description = 'The plugin was successfully uninstalled.'
-            embed.colour = 0x00ff00
+            embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
         except:
             self.logger.exception('Uninstall failed')
             embed.title = f'{self.bot.ui_emojis.error} Uninstallation failed'
             embed.description = 'The uninstallation failed.'
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
             return
 
@@ -1272,7 +1278,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 title=f'{self.bot.ui_emojis.error} Can\'t upgrade Unifier',
                 description=('Unifier cannot upgrade itself on Windows. Please use an OS with the bash console (Linux/'+
                              'macOS/etc).'),
-                color=0xff0000
+                color=self.bot.colors.error
             )
             return await ctx.send(embed=embed)
 
@@ -1322,13 +1328,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 embed.title = f'{self.bot.ui_emojis.error} Failed to check for updates'
                 embed.description = 'Could not find a valid update.json file on remote'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 raise
             if not update_available:
                 embed.title = f'{self.bot.ui_emojis.success} No updates available'
                 embed.description = 'Unifier is up-to-date.'
-                embed.colour = 0x00ff00
+                embed.colour = self.bot.colors.success
                 return await msg.edit(embed=embed)
             selected = 0
             interaction = None
@@ -1438,7 +1444,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.error('Backup failed, abort upgrade.')
                     embed.title = f'{self.bot.ui_emojis.error} Backup failed'
                     embed.description = 'Unifier could not create a backup. The upgrade has been aborted.'
-                    embed.colour = 0xff0000
+                    embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     raise
             else:
@@ -1484,7 +1490,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.exception('Download failed, no rollback required')
                 embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
                 embed.description = 'Could not download updates. No rollback is required.'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             try:
@@ -1511,7 +1517,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.exception('Dependency installation failed, no rollback required')
                 embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
                 embed.description = 'Could not install dependencies. No rollback is required.'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             try:
@@ -1558,7 +1564,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.info('Upgrade complete, reboot required')
                     embed.title = f'{self.bot.ui_emojis.success} Restart to apply upgrade'
                     embed.description = f'The upgrade was successful. Please reboot the bot.'
-                    embed.colour = 0x00ff00
+                    embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                 else:
                     self.logger.info('Restarting extensions')
@@ -1571,12 +1577,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.info('Upgrade complete')
                     embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
                     embed.description = 'The upgrade was successful! :partying_face:'
-                    embed.colour = 0x00ff00
+                    embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed, attempting rollback')
                 embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 try:
                     self.logger.debug('Reverting: ' + os.getcwd() + '/unifier.py')
                     status(os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py'))
@@ -1610,7 +1616,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = 'The plugin could not be found.'
                 if plugin=='force':
                     embed.description = embed.description + f'\n\n**Hint**: If you\'re trying to force upgrade, run `{self.bot.command_prefix}upgrade system force`'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await ctx.send(embed=embed)
                 return
             embed.set_footer(text='Only install plugins from trusted sources!')
@@ -1625,13 +1631,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
                     embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
                     embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
-                    embed.colour = 0xff0000
+                    embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     return
                 if new['release'] <= plugin_info['release'] and not force:
                     embed.title = f'{self.bot.ui_emojis.success} Plugin up to date'
                     embed.description = f'This plugin is already up to date!'
-                    embed.colour = 0x00ff00
+                    embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                     return
                 plugin_id = new['id']
@@ -1644,7 +1650,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 embed.title = f'{self.bot.ui_emojis.error} Failed to update plugin'
                 embed.description = 'The repository URL or the plugin.json file is invalid.'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 raise
             embed.title = f'{self.bot.ui_emojis.install} Update `{plugin_id}`?'
@@ -1772,13 +1778,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Upgrade complete')
                 embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
                 embed.description = 'The upgrade was successful! :partying_face:'
-                embed.colour = 0x00ff00
+                embed.colour = self.bot.colors.success
                 await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed')
                 embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
                 embed.description = 'The upgrade failed.'
-                embed.colour = 0xff0000
+                embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
 
@@ -2228,7 +2234,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         except:
             embed.title = f'{self.bot.ui_emojis.error} Failed to fetch backup'
             embed.description = 'The server did not respond or returned an invalid response.'
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.error
             return await rootmsg.edit(embed=embed)
         if not response:
             embed.title = f'{self.bot.ui_emojis.error} No backups'
@@ -2236,7 +2242,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return await rootmsg.edit(embed=embed)
 
         embed.title = f'Backup info'
-        embed.description = f'Saved at: <t:{response['time']}:F>'
+        embed.description = f'Saved at: <t:{response["time"]}:F>'
         components = ui.MessageComponents()
         components.add_row(
             ui.ActionRow(
@@ -2296,13 +2302,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
             embed.title = f'{self.bot.ui_emojis.success} Restore completed'
             embed.description = 'Please reboot the bot for the changes to take effect.'
-            embed.colour = 0x00ff00
+            embed.colour = self.bot.colors.success
             await rootmsg.edit(embed=embed)
         except:
             self.logger.exception('An error occurred!')
             embed.title = f'{self.bot.ui_emojis.error} Restore failed'
             embed.description = 'Data could not be restored. Please ensure your encryption password and salt is correct.'
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.error
             await rootmsg.edit(embed=embed)
 
     @commands.command(description='Shows bot uptime.')

@@ -269,7 +269,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         else:
             embed = nextcord.Embed(title=':test_tube: Experiments',
                                    description=f'Help us test Unifier\'s experimental features! Run `{self.bot.command_prefix}experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
-                                   color=0x0000ff)
+                                   color=self.bot.colors.blurple)
             for experiment in self.bot.db['experiments']:
                 name = self.bot.db['experiments_info'][experiment]['name'] + f" (`{experiment}`"
                 description = self.bot.db['experiments_info'][experiment]['description']
@@ -309,7 +309,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             for hook in hooks:
                 if hook.id == hook_id:
                     embed.title = f'{self.bot.ui_emojis.error} Channel already linked!'
-                    embed.colour = 0xff0000
+                    embed.colour = self.bot.colors.error
                     embed.description = f'This channel is already linked to `{roomname}`!\nRun `{self.bot.command_prefix}unbind {roomname}` to unbind from it.'
                     return await msg.edit(embed=embed)
         try:
@@ -485,7 +485,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed = nextcord.Embed(
             title=f'{self.bot.ui_emojis.warning} Allow @{user.name} to bridge?',
             description='This will allow messages sent via webhooks created by this user to be bridged through Unifier.',
-            color=0xffcc00
+            color=self.bot.colors.warning
         )
         components = ui.MessageComponents()
         components.add_rows(
@@ -525,7 +525,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         embed = nextcord.Embed(
             title=f'{self.bot.ui_emojis.warning} Remove @{user.name} from bridge?',
             description='This will stop this user\'s webhooks from bridging messages.',
-            color=0xffcc00
+            color=self.bot.colors.warning
         )
         components = ui.MessageComponents()
         components.add_row(

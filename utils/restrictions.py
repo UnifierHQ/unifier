@@ -34,7 +34,7 @@ class Restrictions:
         return commands.check(predicate)
 
     def demo_error(self):
-        """A demo check which will always fail."""
+        """A demo check which will always fail, intended for development use only."""
 
         async def predicate(_ctx: commands.Context):
             return False

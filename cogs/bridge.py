@@ -38,7 +38,6 @@ import os
 from utils import log, ui, restrictions as r
 import importlib
 import emoji as pymoji
-import discord_emoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 restrictions = r.Restrictions()
@@ -994,7 +993,7 @@ class UnifierBridge:
                         author = author[:-1]
                 else:
                     break
-            if message.author.id == self.bot.config['owner']:
+            if message.author.id == self.bot.config['owner'] or message.author.id in self.bot.config['owner_external']:
                 useremoji = '\U0001F451'
             elif message.author.id in self.bot.admins:
                 useremoji = '\U0001F510'
@@ -1040,9 +1039,9 @@ class UnifierBridge:
         # Broadcast message
         for guild in list(guilds.keys()):
             if source=='revolt' or source=='guilded':
-                sameguild = guild == str(message.server.id)
+                sameguild = (guild == str(message.server.id)) if message.server else False
             else:
-                sameguild = guild == str(message.guild.id)
+                sameguild = (guild == str(message.guild.id)) if message.guild else False
 
             try:
                 bans = self.bot.db['blocked'][str(guild)]
@@ -1131,7 +1130,7 @@ class UnifierBridge:
                         components = ui.View()
                         components.add_row(pr_actionrow)
                 if reply_msg:
-                    if message.thread:
+                    if True: # message.thread:
                         # i probably want to research how nextcord threads work first, will come back to this
                         pass
                     if not trimmed:
@@ -1925,20 +1924,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if diff <= 300 and self.bot.latency <= 0.2:
             embed = nextcord.Embed(title='Normal - all is well!',
                                    description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nAll is working normally!',
-                                   color=0x00ff00)
+                                   color=self.bot.colors.success)
         elif diff <= 600 and self.bot.latency <= 0.5:
             embed = nextcord.Embed(title='Fair - could be better.',
                                    description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nNothing\'s wrong, but the latency could be better.',
-                                   color=0xffff00)
+                                   color=self.bot.colors.warning)
         elif diff <= 2000 and self.bot.latency <= 1.0:
             embed = nextcord.Embed(title='SLOW - __**oh no.**__',
                                    description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nBot latency is higher than normal, messages may be slow to arrive.',
-                                   color=0xff0000)
+                                   color=self.bot.colors.error)
         else:
             text = 'what'
             embed = nextcord.Embed(title='**WAY TOO SLOW**',
                                    description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nSomething is DEFINITELY WRONG here. Consider checking [Discord status](https://discordstatus.com) page.',
-                                   color=0xbb00ff)
+                                   color=self.bot.colors.critical)
         await msg.edit(content=text, embed=embed)
 
     @commands.command(description='Shows a list of all global emojis available on the instance.')
@@ -2403,9 +2402,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     index = x + (page * limit)
                 emoji = nextcord.PartialEmoji.from_str(list(msg.reactions.keys())[x + (page * limit)])
                 if emoji.is_unicode_emoji():
-                    name = discord_emoji.to_discord(list(
-                        msg.reactions.keys()
-                    )[x + (page * limit)], get_all=True, put_colons=False)
+                    name = pymoji.demojize(emoji.name, delimiters=('',''))
                     if type(name) is list:
                         name = name[0] if len(name) > 0 else 'unknown'
                 else:
@@ -2693,7 +2690,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed = nextcord.Embed(
             title='Server status',
             description='Your server is not restricted by plugins.',
-            color=0x00ff00
+            color=self.bot.colors.success
         )
         if f'{ctx.guild.id}' in self.bot.bridge.restricted:
             embed.description = 'Your server is currently limited by a plugin.'
@@ -3173,7 +3170,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 components = ui.MessageComponents()
                 components.add_row(btns)
                 embed = interaction.message.embeds[0]
-                embed.color = 0x00ff00
+                embed.color = self.bot.colors.success
                 author = f'@{interaction.user.name}'
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
@@ -3224,7 +3221,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 components = ui.MessageComponents()
                 components.add_row(btns)
                 embed = interaction.message.embeds[0]
-                embed.color = 0x00ff00
+                embed.color = self.bot.colors.success
                 author = f'@{interaction.user.name}'
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
@@ -3272,13 +3269,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             'This ban has been removed from your account and will no longer impact your standing.\n'+
                             'You may now continue chatting!'
                         ),
-                        color=0x00ff00
+                        color=self.bot.colors.success
                     )
                 else:
                     results_embed = nextcord.Embed(
                         title='Your ban appeal was denied.',
                         description='You may continue chatting once the current ban expires.',
-                        color=0xff0000
+                        color=self.bot.colors.error
                     )
                 user = self.bot.get_user(userid)
                 if user:
@@ -3551,7 +3548,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed = nextcord.Embed(
                 title='Content blocked',
                 description='Your message was blocked. Moderators may be able to see the blocked content.',
-                color=0xff0000
+                color=self.bot.colors.error
             )
 
             if public:
@@ -3562,7 +3559,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed = nextcord.Embed(
                 title=f'{self.bot.ui_emojis.warning} Content blocked - content is as follows',
                 description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
-                color=0xff0000,
+                color=self.bot.colors.error,
                 timestamp=datetime.datetime.now(datetime.UTC)
             )
 
@@ -3608,7 +3605,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed = nextcord.Embed(
                     title=f'You\'ve been __global restricted__ by @Unifier (system)!',
                     description='Automatic action carried out by security plugins',
-                    color=0xffcc00,
+                    color=self.bot.colors.warning,
                     timestamp=datetime.datetime.now(datetime.UTC)
                 )
                 embed.set_author(
@@ -3616,7 +3613,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
                 )
                 if banned[user]==0:
-                    embed.colour = 0xff0000
+                    embed.colour = self.bot.colors.critical
                     embed.add_field(
                         name='Actions taken',
                         value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',

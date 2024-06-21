@@ -42,7 +42,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
         embed = nextcord.Embed(
             title='Activate lockdown?',
             description='This will unload ALL EXTENSIONS and lock down the bot until next restart. Continue?',
-            color=0xff0000
+            color=self.bot.colors.error
         )
         btns = ui.ActionRow(
             nextcord.ui.Button(
@@ -77,6 +77,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             return await interaction.response.edit_message(view=components_cancel)
         embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = '- :warning: All functions of the bot will be disabled.\n- :no_entry_sign: Managing extensions will be unavailable.\n- :arrows_counterclockwise: To restore the bot, a reboot is required.'
+        embed.colour = self.bot.colors.critical
         await interaction.response.edit_message(embed=embed)
         try:
             interaction = await self.bot.wait_for("interaction", check=check, timeout=60.0)

@@ -206,7 +206,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             mod = f'@{ctx.author.name}'
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        embed = nextcord.Embed(title=f'You\'ve been __global restricted__ by {mod}!',description=reason,color=0xffcc00,timestamp=datetime.datetime.now(datetime.UTC))
+        embed = nextcord.Embed(
+            title=f'You\'ve been __global restricted__ by {mod}!',
+            description=reason,
+            color=self.bot.colors.error,
+            timestamp=datetime.datetime.now(datetime.UTC)
+        )
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if rtt_msg:
             if len(rtt_msg_content)==0:
@@ -215,7 +220,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 rtt_msg_content = rtt_msg_content[:-(len(rtt_msg_content)-1024)]
             embed.add_field(name='Offending message',value=rtt_msg_content,inline=False)
         if forever:
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.critical
             embed.add_field(name='Actions taken',value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',inline=False)
         else:
             embed.add_field(name='Actions taken',value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{nt}:f>. This will expire <t:{nt}:R>.',inline=False)
@@ -236,7 +241,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         content = ctx.message.content
         ctx.message.content = ''
-        embed = nextcord.Embed(description='A user was recently banned from Unifier!',color=0xff0000)
+        embed = nextcord.Embed(description='A user was recently banned from Unifier!',color=self.bot.colors.error)
         if disclose:
             if not user:
                 embed.set_author(name='@unknown')
@@ -260,7 +265,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.add_modlog(1, user.id, reason, ctx.author.id))
         actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(user.id)
-        log_embed = nextcord.Embed(title='User banned', description=reason, color=0xff0000, timestamp=datetime.datetime.now(datetime.UTC))
+        log_embed = nextcord.Embed(title='User banned', description=reason, color=self.bot.colors.error, timestamp=datetime.datetime.now(datetime.UTC))
         log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
         log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
@@ -480,7 +485,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ban = actions['bans'][len(actions['bans'])-1]
 
         embed = nextcord.Embed(
-            title='Global restriction',description=ban['reason'],color=0xff0000
+            title='Global restriction',description=ban['reason'],color=self.bot.colors.error
         )
         embed.set_author(name=f'@{ctx.author.name}', icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
         components = ui.MessageComponents()
@@ -604,7 +609,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             title='All good!',
             description='You\'re on a clean or good record. Thank you for upholding your Unifier instance\'s rules!\n'+
             '\n:white_check_mark: :white_large_square: :white_large_square: :white_large_square: :white_large_square:',
-            color=0x00ff00)
+            color=self.bot.colors.success)
 
         actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(orig_id)
         actions, _ = self.bot.bridge.get_modlogs(orig_id)
@@ -625,7 +630,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         )
         if f'{orig_id}' in list(gbans.keys()):
             embed.title = "SUSPENDED"
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.error
             embed.description = (
                     'You\'ve been ' + ('permanently' if noexpiry else 'temporarily') + ' suspended from this Unifier '+
                     'instance.\n\n:white_large_square: :white_large_square: :white_large_square: :white_large_square:'+
@@ -640,14 +645,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             )
         elif 5 < judgement <= 10:
             embed.title = "Caution"
-            embed.colour = 0xffcc00
+            embed.colour = self.bot.colors.warning
             embed.description = (
                     'You\'ve broken many rules recently. Moderators may issue stronger punishments.' +
                     '\n\n:white_large_square: :white_large_square: :biohazard: :white_large_square: :white_large_square:'
             )
         elif judgement > 10:
             embed.title = "WARNING"
-            embed.colour = 0xff00dd
+            embed.colour = self.bot.colors.purple
             embed.description = (
                     'You\'ve severely or frequently violated rules. A permanent suspension may be imminent.' +
                     '\n\n:white_large_square: :white_large_square: :white_large_square: :bangbang: :white_large_square:'
@@ -666,13 +671,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     embed.title = 'COMPLETELY SUSPENDED'
                     embed.description = ('This user has been completely suspended from the bot.\n'+
                                          'Unlike global bans, the user may also not interact with any part of the bot.')
-                    embed.colour = 0xff0000
+                    embed.colour = self.bot.colors.critical
                 return await ctx.send(embed=embed)
         elif orig_id in self.bot.db['fullbanned']:
             embed.title = 'COMPLETELY SUSPENDED'
             embed.description = ('This user has been completely suspended from the bot.\n' +
                                  'Unlike global bans, the user may also not interact with any part of the bot.')
-            embed.colour = 0xff0000
+            embed.colour = self.bot.colors.critical
             return await ctx.send(embed=embed)
         msg = None
         interaction = None
@@ -908,7 +913,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             mod = f'@{ctx.author.name}'
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
-        embed = nextcord.Embed(title=f'You\'ve been __warned__ by {mod}!',description=reason,color=0xffff00,timestamp=datetime.datetime.now(datetime.UTC))
+        embed = nextcord.Embed(
+            title=f'You\'ve been __warned__ by {mod}!',
+            description=reason,
+            color=self.bot.colors.warning,
+            timestamp=datetime.datetime.now(datetime.UTC)
+        )
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if rtt_msg:
             if len(rtt_msg_content)==0:
@@ -934,7 +944,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('...why would you want to warn a bot?')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.add_modlog(0,user.id,reason,ctx.author.id))
         actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(user.id)
-        log_embed = nextcord.Embed(title='User warned',description=reason,color=0xffcc00,timestamp=datetime.datetime.now(datetime.UTC))
+        log_embed = nextcord.Embed(
+            title='User warned',
+            description=reason,
+            color=self.bot.colors.warning,
+            timestamp=datetime.datetime.now(datetime.UTC)
+        )
         log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
             name='User modlogs info',
@@ -1052,7 +1067,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             warn = actions['warns'][index]
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} Could not find action!')
-        embed = nextcord.Embed(title='Warning deleted',description=warn['reason'],color=0xffcc00)
+        embed = nextcord.Embed(
+            title='Warning deleted',
+            description=warn['reason'],
+            color=self.bot.colors.warning
+        )
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         searched = 0
         deleted = False
@@ -1086,7 +1105,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             ban = actions['bans'][index]
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} Could not find action!')
-        embed = nextcord.Embed(title='Ban deleted', description=ban['reason'], color=0xff0000)
+        embed = nextcord.Embed(
+            title='Ban deleted',
+            description=ban['reason'],
+            color=self.bot.colors.error
+        )
         embed.set_author(name=f'@{target.name}', icon_url=target.avatar.url if target.avatar else None)
         embed.set_footer(text='WARNING: This does NOT unban the user.')
         searched = 0
@@ -1132,7 +1155,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send(f'{self.bot.ui_emojis.error} Bridge already locked down.')
         embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Lock bridge down?',
                                description='This will shut down Revolt and Guilded clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.',
-                               color=0xffcc00)
+                               color=self.bot.colors.warning)
         components = ui.MessageComponents()
         components.add_row(
             ui.ActionRow(
@@ -1170,7 +1193,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         embed.title = ':warning: FINAL WARNING!!! :warning:'
         embed.description = 'LOCKDOWNS CANNOT BE REVERSED BY NON-ADMINS!\nDo NOT lock down the chat if you don\'t know what you\'re doing!'
-        embed.colour = 0xff0000
+        embed.colour = self.bot.colors.critical
 
         await interaction.response.edit_message(embed=embed)
 
@@ -1216,7 +1239,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.logger.info("Lockdown complete")
         embed.title = f'{self.bot.ui_emojis.warning} LOCKDOWN COMPLETED'
         embed.description = 'Bridge has been locked down.'
-        embed.colour = 0xff0000
         await msg.edit(embed=embed)
 
     @commands.command(hidden=True,description='Removes Unifier Bridge lockdown.')
