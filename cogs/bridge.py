@@ -148,29 +148,33 @@ class UnifierMessage:
 
     async def add_reaction(self, emoji, userid):
         userid = str(userid)
+        platform = 'revolt' if emoji.startswith('<r:') else 'discord'
         if not emoji in list(self.reactions.keys()):
             self.reactions.update({emoji:{}})
         if not userid in list(self.reactions[emoji].keys()):
-            self.reactions[emoji].update({userid:0})
-        self.reactions[emoji][userid] += 1
-        return self.reactions[emoji][userid]
+            self.reactions[emoji].update({userid:[0,platform]})
+        self.reactions[emoji][userid][0] += 1
+        return self.reactions[emoji][userid][0]
 
     async def remove_reaction(self, emoji, userid):
-        userid = str(userid)
-        self.reactions[emoji][userid] -= 1
-        if self.reactions[emoji][userid] <= 0:
+        try:
+            userid = str(userid)
+            self.reactions[emoji][userid][0] -= 1
+        except:
+            return 0
+        if self.reactions[emoji][userid][0] <= 0:
             self.reactions[emoji].pop(userid)
 
             total = 0
             for user in self.reactions[emoji]:
-                total += self.reactions[emoji][user]
+                total += self.reactions[emoji][user][0]
 
             if total==0:
                 self.reactions.pop(emoji)
 
             return 0
         else:
-            return self.reactions[emoji][userid]
+            return self.reactions[emoji][userid][0]
 
     async def fetch_external_url(self, source, guild_id):
         return self.external_urls[source][guild_id]
@@ -2400,18 +2404,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     break
                 if x==0 and index < x + (page * limit) or x==limit-1 and index > x + (page * limit):
                     index = x + (page * limit)
-                emoji = nextcord.PartialEmoji.from_str(list(msg.reactions.keys())[x + (page * limit)])
-                if emoji.is_unicode_emoji():
-                    name = pymoji.demojize(emoji.name, delimiters=('',''))
-                    if type(name) is list:
-                        name = name[0] if len(name) > 0 else 'unknown'
+                platform = 'discord'
+                if list(msg.reactions.keys())[x + (page * limit)].startswith('<r:'):
+                    platform = 'revolt'
+                name = None
+                if platform=='discord':
+                    emoji = nextcord.PartialEmoji.from_str(list(msg.reactions.keys())[x + (page * limit)])
+                    if emoji.is_unicode_emoji():
+                        name = pymoji.demojize(emoji.name, delimiters=('',''))
+                        if type(name) is list:
+                            name = name[0] if len(name) > 0 else 'unknown'
+                    else:
+                        name = emoji.name
                 else:
-                    name = emoji.name
+                    name = list(msg.reactions.keys())[x + (page * limit)].split(':')[1]
                 if not name:
                     name = 'unknown'
                 selection.add_option(
                     label=f':{name}:',
-                    emoji=list(msg.reactions.keys())[x + (page * limit)],
+                    emoji=list(msg.reactions.keys())[x + (page * limit)] if not name=='unknown' and platform=='discord' else None,
                     value=f'{x}',
                     default=x + (page * limit)==index,
                     description=f'{len(msg.reactions[list(msg.reactions.keys())[x + (page * limit)]].keys())} reactions'
@@ -2422,9 +2433,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.description = f'No reactions yet!'
             else:
                 for user in list(msg.reactions[list(msg.reactions.keys())[index]].keys()):
-                    userobj = self.bot.get_user(int(user))
+                    platform = msg.reactions[list(msg.reactions.keys())[index]][user][1]
+                    userobj = None
+                    if platform=='discord':
+                        userobj = self.bot.get_user(int(user))
+                    elif platform=='revolt':
+                        try:
+                            userobj = self.bot.revolt_client.get_user(user)
+                        except:
+                            pass
                     if userobj:
-                        users.append(f'@{userobj.global_name if userobj.global_name else userobj.name}')
+                        if platform=='discord':
+                            users.append(f'@{userobj.global_name if userobj.global_name else userobj.name}')
+                        elif platform=='revolt':
+                            users.append(f'@{userobj.display_name if userobj.display_name else userobj.name}')
                     else:
                         users.append('@[unknown]')
                 embed.description = f'# {list(msg.reactions.keys())[index]}\n' + ('\n'.join(users))
