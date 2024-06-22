@@ -2724,7 +2724,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         if f'{ctx.guild.id}' in self.bot.bridge.restricted:
             embed.description = 'Your server is currently limited by a plugin.'
-            embed.colour = 0xffce00
+            embed.colour = self.bot.colors.warning
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['exp','lvl','experience'], description='Shows you or someone else\'s level and EXP.')
@@ -3343,7 +3343,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed = nextcord.Embed(
                 title='Message report - content is as follows',
                 description=content,
-                color=0xffbb00,
+                color=self.bot.colors.warning,
                 timestamp=datetime.datetime.now(datetime.UTC)
             )
             embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
