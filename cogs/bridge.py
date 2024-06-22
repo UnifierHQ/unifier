@@ -672,45 +672,45 @@ class UnifierBridge:
         results = await asyncio.gather(*threads)
         return sum(results)
 
+    async def make_friendly(self, text, source):
+        components = text.split('<@')
+        offset = 0
+        if text.startswith('<@'):
+            offset = 1
+
+        while offset < len(components):
+            if len(components) == 1 and offset == 0:
+                break
+            try:
+                userid = int(components[offset].split('>', 1)[0])
+            except:
+                userid = components[offset].split('>', 1)[0]
+            try:
+                if source == 'revolt':
+                    user = self.bot.revolt_client.get_user(userid)
+                elif source == 'guilded':
+                    user = self.bot.guilded_client.get_user(userid)
+                else:
+                    user = self.bot.get_user(userid)
+                if not user:
+                    raise ValueError()
+            except:
+                offset += 1
+                continue
+            text = text.replace(f'<@{userid}>', f'@{user.global_name or user.name}').replace(
+                f'<@!{userid}>', f'@{user.global_name or user.name}')
+            offset += 1
+        return text
+
     async def edit(self, message, content):
         msg: UnifierMessage = await self.fetch_message(message)
         threads = []
-
-        async def make_friendly(text):
-            components = text.split('<@')
-            offset = 0
-            if text.startswith('<@'):
-                offset = 1
-
-            while offset < len(components):
-                if len(components) == 1 and offset == 0:
-                    break
-                try:
-                    userid = int(components[offset].split('>', 1)[0])
-                except:
-                    userid = components[offset].split('>', 1)[0]
-                try:
-                    if msg.source=='revolt':
-                        user = self.bot.revolt_client.get_user(userid)
-                    elif msg.source=='guilded':
-                        user = self.bot.guilded_client.get_user(userid)
-                    else:
-                        user = self.bot.get_user(userid)
-                    if not user:
-                        raise ValueError()
-                except:
-                    offset += 1
-                    continue
-                text = text.replace(f'<@{userid}>',f'@{user.global_name or user.name}').replace(
-                    f'<@!{userid}>', f'@{user.global_name or user.name}')
-                offset += 1
-            return text
 
         async def edit_discord(msgs,friendly=False):
             threads = []
 
             if friendly:
-                text = await make_friendly(content)
+                text = await self.make_friendly(content, msg.source)
             else:
                 text = content
 
@@ -738,7 +738,7 @@ class UnifierBridge:
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
                 return
             if friendly:
-                text = await make_friendly(content)
+                text = await self.make_friendly(content, msg.source)
             else:
                 text = content
 
@@ -760,7 +760,7 @@ class UnifierBridge:
 
             threads = []
             if friendly:
-                text = await make_friendly(content)
+                text = await self.make_friendly(content, msg.source)
             else:
                 text = content
 
@@ -1014,6 +1014,12 @@ class UnifierBridge:
                 useremoji = '\U0001F916'
             elif should_dedupe:
                 useremoji = dedupe_emojis[dedupe]
+
+        friendlified = False
+        friendly_content = None
+        if not source == platform:
+            friendlified = True
+            friendly_content = await self.make_friendly(message.content, source)
 
         message_ids = {}
         urls = {}
@@ -1443,8 +1449,8 @@ class UnifierBridge:
                     try:
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=message.content, files=files, allowed_mentions=mentions,
-                                                 view=(
+                                                 content=friendly_content if friendlified else message.content,
+                                                 files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
@@ -1464,8 +1470,8 @@ class UnifierBridge:
                     try:
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=message.content, files=files, allowed_mentions=mentions,
-                                                 view=(
+                                                 content=friendly_content if friendlified else message.content,
+                                                 files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
@@ -1531,8 +1537,8 @@ class UnifierBridge:
                 try:
                     files = await get_files(message.attachments)
                     msg = await ch.send(
-                        content=message.content, embeds=message.embeds, attachments=files, replies=replies,
-                        masquerade=persona
+                        content=friendly_content if friendlified else message.content, embeds=message.embeds,
+                        attachments=files, replies=replies, masquerade=persona
                     )
                 except:
                     continue
@@ -1631,7 +1637,9 @@ class UnifierBridge:
                     try:
                         msg = await webhook.send(avatar_url=url,
                                                  username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                                 embeds=embeds, content=replytext + message.content, files=files)
+                                                 embeds=embeds,
+                                                 content=replytext + (friendly_content if friendlified else message.content),
+                                                 files=files)
                     except:
                         return None
 
@@ -1648,8 +1656,11 @@ class UnifierBridge:
                 else:
                     try:
                         files = await get_files(message.attachments)
-                        msg = await webhook.send(avatar_url=url, username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                                 embeds=embeds,content=replytext+message.content,files=files)
+                        msg = await webhook.send(avatar_url=url,
+                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
+                                                 embeds=embeds,
+                                                 content=replytext+(friendly_content if friendlified else message.content),
+                                                 files=files)
                     except:
                         continue
                     message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
@@ -3429,6 +3440,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        if not type(message.channel) is nextcord.TextChannel:
+            return
         if message.content.startswith(f'{self.bot.command_prefix}system'):
             return
         extbridge = False
