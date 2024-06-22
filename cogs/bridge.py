@@ -1190,13 +1190,13 @@ class UnifierBridge:
                     try:
                         if reply_msg.source=='revolt':
                             user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            author_text = f'@{user.global_name or user.name}'
+                            author_text = f'@{user.display_name or user.name}'
                         elif reply_msg.source=='guilded':
                             user = self.bot.guilded_client.get_user(reply_msg.author_id)
                             author_text = f'@{user.name}'
                         else:
                             user = self.bot.get_user(int(reply_msg.author_id))
-                            author_text = f'@{user.global_name}'
+                            author_text = f'@{user.global_name or user.name}'
                         if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
                             author_text = '@'+self.bot.db['nicknames'][f'{reply_msg.author_id}']
                     except:
