@@ -997,7 +997,12 @@ class UnifierBridge:
                         author = author[:-1]
                 else:
                     break
-            if message.author.id == self.bot.config['owner'] or message.author.id == self.bot.config['owner_external'][source]:
+            if (
+                    message.author.id == self.bot.config['owner'] or (
+                            message.author.id == self.bot.config['owner_external'][source]
+                            if source in self.bot.config['owner_external'].keys() else False
+                    )
+            ):
                 useremoji = '\U0001F451'
             elif message.author.id in self.bot.admins:
                 useremoji = '\U0001F510'
