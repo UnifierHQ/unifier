@@ -146,9 +146,9 @@ class UnifierMessage:
 
         return self.urls[guild_id]
 
-    async def add_reaction(self, emoji, userid):
+    async def add_reaction(self, emoji, userid, platform=None):
         userid = str(userid)
-        platform = 'revolt' if emoji.startswith('<r:') else 'discord'
+        platform = ('revolt' if emoji.startswith('<r:') else 'discord') if not platform else platform
         if not emoji in list(self.reactions.keys()):
             self.reactions.update({emoji:{}})
         if not userid in list(self.reactions[emoji].keys()):
@@ -2407,7 +2407,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 platform = 'discord'
                 if list(msg.reactions.keys())[x + (page * limit)].startswith('<r:'):
                     platform = 'revolt'
-                name = None
                 if platform=='discord':
                     emoji = nextcord.PartialEmoji.from_str(list(msg.reactions.keys())[x + (page * limit)])
                     if emoji.is_unicode_emoji():
@@ -2432,6 +2431,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if len(msg.reactions.keys()) == 0:
                 embed.description = f'No reactions yet!'
             else:
+                platform = 'discord'
                 for user in list(msg.reactions[list(msg.reactions.keys())[index]].keys()):
                     platform = msg.reactions[list(msg.reactions.keys())[index]][user][1]
                     userobj = None
@@ -2446,10 +2446,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         if platform=='discord':
                             users.append(f'@{userobj.global_name if userobj.global_name else userobj.name}')
                         elif platform=='revolt':
-                            users.append(f'@{userobj.display_name if userobj.display_name else userobj.name}')
+                            users.append(f'@{userobj.display_name if userobj.display_name else userobj.name} (Revolt)')
                     else:
                         users.append('@[unknown]')
-                embed.description = f'# {list(msg.reactions.keys())[index]}\n' + ('\n'.join(users))
+                embed.description = (
+                    f'# {list(msg.reactions.keys())[index]}\n' if platform=='discord' else
+                    f'# :{list(msg.reactions.keys())[index].split(':')[1]}:\n'
+                ) + '\n'.join(users)
 
             components = ui.MessageComponents()
             components.add_rows(
