@@ -1151,7 +1151,10 @@ class UnifierBridge:
                     if not trimmed:
                         is_copy = False
                         try:
-                            content = message.reference.cached_message.content
+                            if source=='revolt':
+                                content = message.replies[0].content
+                            else:
+                                content = message.reference.cached_message.content
                         except:
                             if source=='revolt':
                                 msg = await message.channel.fetch_message(message.replies[0].id)
