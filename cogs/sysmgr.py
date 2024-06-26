@@ -1329,8 +1329,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = f'{self.bot.ui_emojis.error} Failed to check for updates'
                 embed.description = 'Could not find a valid update.json file on remote'
                 embed.colour = self.bot.colors.error
-                await msg.edit(embed=embed)
-                raise
+                return await msg.edit(embed=embed)
             if not update_available:
                 embed.title = f'{self.bot.ui_emojis.success} No updates available'
                 embed.description = 'Unifier is up-to-date.'
