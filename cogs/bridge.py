@@ -677,8 +677,9 @@ class UnifierBridge:
         if source=='discord':
             if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
                 try:
+                    emoji_name = text.split(':')[1]
                     emoji_id = int(text.split(':')[2].replace('>','',1))
-                    return f'[emoji](https://cdn.discordapp.com/emojis/{emoji_id}.webp?size=48&quality=lossless)'
+                    return f'[emoji ({emoji_name})](https://cdn.discordapp.com/emojis/{emoji_id}.webp?size=48&quality=lossless)'
                 except:
                     pass
         elif source=='revolt':
