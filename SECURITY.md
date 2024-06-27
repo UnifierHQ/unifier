@@ -12,17 +12,19 @@ are in dd/mm/yyyy format.
 
 Currently, v1.1.x and newer receive security updates. Preceding versions
 have been discontinued and will not be updated any further.
-| Version | Type    | Supported                    | EoL        |
-| ------- | ------- | ---------------------------- | ---------- |
-| 2.0.x   | release | :white_check_mark: Supported | Not legacy |
-| 1.2.x   | legacy  | :white_check_mark: Supported | 05/12/2024 |
-| 1.1.x   | legacy  | :warning: Nearing EoL        | 05/07/2024 |
-| < 1.1   | eol     | :x: Unsupported              | EoL        |
+| Version | Type     | Supported                    | EoL        |
+| ------- | -------- | ---------------------------- | ---------- |
+| 2.0.x   | release  | :white_check_mark: Supported | Not legacy |
+| 1.2.x   | legacy   | :white_check_mark: Supported | 05/12/2024 |
+| 1.1.x   | legacy   | :warning: Nearing EoL        | 05/07/2024 |
+| < 1.1   | eol      | :x: Unsupported              | EoL        |
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.
 - `legacy`: This is an older series that will continue to receive bug
   patches and security updates.
+- `extended`: This is an older series that should have been discontinued
+  but continues to receive updates due to a special circumstance.
 - `eol`: This series is no longer maintained.
 
 ## Reporting a Vulnerability
