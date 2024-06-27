@@ -674,6 +674,26 @@ class UnifierBridge:
         return sum(results)
 
     async def make_friendly(self, text, source):
+        if source=='discord':
+            if (text.startswith('<:') or text.startswith('<a:')) and text.startswith('>'):
+                try:
+                    emoji_id = int(text.split(':')[2].replace('>','',1))
+                    emoji = self.bot.get_emoji(emoji_id)
+                    if emoji:
+                        return f'[emoji]({emoji.url})'
+                except:
+                    pass
+        elif source=='revolt':
+            if text.startswith(':') and text.startswith(':'):
+                try:
+                    emoji_id = text.replace(':','',1)[:-1]
+                    emoji = self.bot.get_emoji(emoji_id)
+                    if emoji:
+                        if not emoji.nsfw:
+                            return f'[emoji](https://autumn.revolt.chat/emojis/{emoji_id}?size=48)'
+                except:
+                    pass
+
         components = text.split('<@')
         offset = 0
         if text.startswith('<@'):
