@@ -299,7 +299,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data = self.bot.db['rooms'][room]
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Ensuring channel is not connected...',description='This may take a while.')
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Ensuring channel is not connected...',
+            description='This may take a while.',
+            color=self.bot.colors.warning
+        )
         msg = await ctx.send(embed=embed)
         hooks = await ctx.channel.webhooks()
         for roomname in list(self.bot.db['rooms'].keys()):
@@ -418,11 +422,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def map(self, ctx):
         channels = []
         channels_enabled = []
+        namelist = []
         embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Checking bindable channels...',
-                               description='This may take a while.')
+                               description='This may take a while.',
+                               color=self.bot.colors.warning)
         msg = await ctx.send(embed=embed)
         hooks = await ctx.guild.webhooks()
-        for channel in ctx.guild.channels:
+        for channel in ctx.guild.text_channels:
             duplicate = False
             for roomname in list(self.bot.db['rooms'].keys()):
                 # Prevent duplicate binding
@@ -431,7 +437,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 except:
                     continue
                 for hook in hooks:
-                    if hook.id == hook_id:
+                    if hook.id == hook_id and hook.channel_id==channel.id:
                         duplicate = True
                         break
             if duplicate:
@@ -439,6 +445,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             roomname = re.sub(r'\W+', '', channel.name).lower()
             if len(roomname) < 3:
                 roomname = str(channel.id)
+            if roomname in namelist:
+                continue
+            namelist.append(roomname)
             try:
                 if len(self.bot.db['rooms'][roomname][f'{ctx.guild.id}']) >= 1:
                     continue
@@ -453,7 +462,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 break
 
         interaction = None
-        msg = None
         while True:
             text = ''
             for channel in channels_enabled:
@@ -467,14 +475,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     text = f'{text}\n#{channel.name} ==> **{roomname}**' + (
                         ' (__New__)' if not roomname in self.bot.db['rooms'].keys() else '')
             embed = nextcord.Embed(
-                title='Map channels',
+                title='{self.bot.ui_emojis.rooms} Map channels',
                 description=f'The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.\n\n{text}',
                 color=self.bot.colors.unifier
             )
 
             view = ui.MessageComponents()
             selection = nextcord.ui.StringSelect(
-                max_values=10,
+                max_values=10 if len(channels) > 10 else len(channels),
                 placeholder='Channels...',
                 custom_id='selection'
             )
