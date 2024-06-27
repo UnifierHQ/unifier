@@ -736,6 +736,32 @@ class UnifierBridge:
                 f'<#!{channelid}>', f'#{channel.name}')
             offset += 1
 
+        components = text.split('<:')
+        offset = 0
+        if text.startswith('<:'):
+            offset = 1
+
+        while offset < len(components):
+            if len(components) == 1 and offset == 0:
+                break
+            emojiname = components[offset].split(':', 1)[0]
+            emojiafter = components[offset].split(':', 1)[1].split('>')[0]+'>'
+            text = text.replace(f'<:{emojiname}{emojiafter}', f':{emojiname}\:')
+            offset += 1
+
+        components = text.split('<a:')
+        offset = 0
+        if text.startswith('<a:'):
+            offset = 1
+
+        while offset < len(components):
+            if len(components) == 1 and offset == 0:
+                break
+            emojiname = components[offset].split(':', 1)[0]
+            emojiafter = components[offset].split(':', 1)[1].split('>')[0] + '>'
+            text = text.replace(f'<a:{emojiname}{emojiafter}', f':{emojiname}\:')
+            offset += 1
+
         return text
 
     async def edit(self, message, content):
