@@ -93,12 +93,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             try:
                 userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
             except:
-                return await ctx.send('Not a valid user!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Not a valid user!')
         user = self.bot.get_user(userid)
         if user==None:
-            return await ctx.send('Not a valid user!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Not a valid user!')
         if userid in self.bot.db['moderators']:
-            return await ctx.send('This user is already a moderator!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This user is already a moderator!')
         if self.is_user_admin(userid) or user.bot:
             return await ctx.send('are you fr')
         self.bot.db['moderators'].append(userid)
@@ -106,7 +106,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         mod = f'{user.name}#{user.discriminator}'
         if user.discriminator=='0':
             mod = f'@{user.name}'
-        await ctx.send(f'**{mod}** is now a moderator!')
+        await ctx.send(f'{self.bot.ui_emojis.success} **{mod}** is now a moderator!')
 
     @commands.command(hidden=True,aliases=['remmod','delmod'],description='Removes a moderator from the instance.')
     @restrictions.admin()
@@ -117,12 +117,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             try:
                 userid = int(userid.replace('<@','',1).replace('!','',1).replace('>','',1))
             except:
-                return await ctx.send('Not a valid user!')
+                return await ctx.send(f'{self.bot.ui_emojis.error} Not a valid user!')
         user = self.bot.get_user(userid)
         if user==None:
-            return await ctx.send('Not a valid user!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Not a valid user!')
         if not userid in self.bot.db['moderators']:
-            return await ctx.send('This user is not a moderator!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This user is not a moderator!')
         if self.is_user_admin(userid):
             return await ctx.send('are you fr')
         self.bot.db['moderators'].remove(userid)
@@ -130,29 +130,29 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         mod = f'{user.name}#{user.discriminator}'
         if user.discriminator=='0':
             mod = f'@{user.name}'
-        await ctx.send(f'**{mod}** is no longer a moderator!')
+        await ctx.send(f'{self.bot.ui_emojis.success} **{mod}** is no longer a moderator!')
 
     @commands.command(hidden=True, aliases=['newroom'],description='Creates a new room.')
     @restrictions.admin()
     async def make(self,ctx,*,room):
         room = room.lower()
         if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
-            return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
         if room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send('This room already exists!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
         self.bot.db['rooms'].update({room:{}})
         self.bot.db['rules'].update({room:[]})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'Created room `{room}`!')
+        await ctx.send(f'{self.bot.ui_emojis.success} Created room `{room}`!')
 
     @commands.command(hidden=True, description='Renames a room.')
     @restrictions.admin()
     async def rename(self, ctx, room, newroom):
         newroom = newroom.lower()
         if not bool(re.match("^[A-Za-z0-9_-]*$", newroom)):
-            return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
+            return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
         if newroom in list(self.bot.db['rooms'].keys()):
-            return await ctx.send('This room already exists!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
         self.bot.db['rooms'].update({newroom: self.bot.db['rooms'][room]})
         self.bot.db['rules'].update({newroom: self.bot.db['rules'][room]})
         self.bot.db['rooms'].pop(room)
@@ -170,7 +170,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.db['rooms_revolt'].update({newroom: self.bot.db['rooms_revolt'][room]})
             self.bot.db['rooms_revolt'].pop(room)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('Room renamed!')
+        await ctx.send(f'{self.bot.ui_emojis.success} Room renamed!')
 
     @commands.command(hidden=True,description='Creates a new experiment.')
     @restrictions.admin()
