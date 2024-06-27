@@ -468,7 +468,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         ' (__New__)' if not roomname in self.bot.db['rooms'].keys() else '')
             embed = nextcord.Embed(
                 title='Map channels',
-                description='The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.',
+                description=f'The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.\n\n{text}',
                 color=self.bot.colors.unifier
             )
 
@@ -541,7 +541,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(
-            f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through the channels. Say hi!')
+            f'# {self.bot.ui_emojis.success} Linked channels to Unifier network!\nYou can now send messages to the Unifier network through the channels. Say hi!')
 
     @commands.command(description='Displays room rules for the specified room.')
     async def rules(self,ctx,*,room=''):
