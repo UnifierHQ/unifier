@@ -15,6 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import traceback
 
 import nextcord
 from nextcord.ext import commands
@@ -36,8 +37,13 @@ if os.name != "nt":
     except:
         pass
 
-with open('config.json', 'r') as file:
-    data = json.load(file)
+try:
+    with open('config.json', 'r') as file:
+        data = json.load(file)
+except:
+    traceback.print_exc()
+    print('\nFailed to load config.json file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
+    sys.exit(1)
 
 env_loaded = load_dotenv()
 
@@ -47,7 +53,7 @@ package = data['package']
 logger = log.buildlogger(package,'core',level)
 
 if os.name == "nt":
-    logger.warning('You are using Windows, which Unifier does not officially support. Some features may be unavailable.')
+    logger.warning('You are using Windows, which Unifier does not officially support. Some features may not work.')
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
