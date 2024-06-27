@@ -475,7 +475,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     text = f'{text}\n#{channel.name} ==> **{roomname}**' + (
                         ' (__New__)' if not roomname in self.bot.db['rooms'].keys() else '')
             embed = nextcord.Embed(
-                title='{self.bot.ui_emojis.rooms} Map channels',
+                title=f'{self.bot.ui_emojis.rooms} Map channels',
                 description=f'The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.\n\n{text}',
                 color=self.bot.colors.unifier
             )
