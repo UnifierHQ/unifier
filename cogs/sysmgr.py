@@ -216,8 +216,58 @@ class CommandExceptionHandler:
                 t = int(error.retry_after)
                 await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')
             else:
+                error_tb = traceback.format_exc()
                 self.logger.exception('An error occurred!')
-                await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
+                view = ui.MessageComponents()
+                if ctx.author.id==self.bot.config['owner']:
+                    view.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                style=nextcord.ButtonStyle.gray,
+                                label='View error'
+                            )
+                        )
+                    )
+                msg = await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.',
+                                     view=view)
+
+                def check(interaction):
+                    return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+
+                if not ctx.author.id == self.bot.config['owner']:
+                    return
+
+                try:
+                    interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+                except:
+                    view = ui.MessageComponents()
+                    view.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                style=nextcord.ButtonStyle.gray,
+                                label='View error',
+                                disabled=True
+                            )
+                        )
+                    )
+                    return await msg.edit(view=view)
+
+                view = ui.MessageComponents()
+                view.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='View error',
+                            disabled=True
+                        )
+                    )
+                )
+                await msg.edit(view=view)
+
+                try:
+                    await interaction.response.send_message(f'```\n{error_tb}```',ephemeral=True)
+                except:
+                    await interaction.response.send_message('Could not send traceback.', ephemeral=True)
         except:
             self.logger.exception('An error occurred!')
             await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
@@ -2332,6 +2382,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             inline=False
         )
         await ctx.send(embed=embed)
+
+    @commands.command(hidden=True, description='A command that intentionally fails.')
+    @restrictions.owner()
+    async def raiseerror(self, ctx):
+        raise RuntimeError('here\'s your error, anything else?')
 
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
