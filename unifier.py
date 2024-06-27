@@ -52,6 +52,17 @@ package = data['package']
 
 logger = log.buildlogger(package,'core',level)
 
+owner_valid = True
+
+try:
+    int(data['owner'])
+except:
+    owner_valid = False
+
+if not owner_valid:
+    logger.critical('Invalid owner user ID in configuration!')
+    sys.exit(1)
+
 if os.name == "nt":
     logger.warning('You are using Windows, which Unifier does not officially support. Some features may not work.')
 
