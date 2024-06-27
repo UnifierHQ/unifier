@@ -2423,7 +2423,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 return
         if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('Your account or your guild is currently **global restricted**.')
+            return await ctx.send('Your account or your guild is currently **global banned**.')
 
         try:
             msg_id = ctx.message.reference.message_id
@@ -2473,7 +2473,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
-            return await interaction.response.send_message('Your account or your guild is currently **global restricted**.', ephemeral=True)
+            return await interaction.response.send_message('Your account or your guild is currently **global banned**.', ephemeral=True)
         msg_id = msg.id
 
         try:
@@ -2620,7 +2620,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
-            return await interaction.response.send_message('Your account or your guild is currently **global restricted**.', ephemeral=True)
+            return await interaction.response.send_message('Your account or your guild is currently **global banned**.', ephemeral=True)
         msg_id = msg.id
 
         try:
@@ -2673,7 +2673,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
-            return await interaction.response.send_message('You or your guild is currently **global restricted**.', ephemeral=True)
+            return await interaction.response.send_message('You or your guild is currently **global banned**.', ephemeral=True)
 
         if not self.bot.config['enable_logging']:
             return await interaction.response.send_message('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
@@ -3728,7 +3728,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     continue
                 nt = time.time() + banned[user]
                 embed = nextcord.Embed(
-                    title=f'You\'ve been __global restricted__ by @Unifier (system)!',
+                    title=f'You\'ve been __banned__ by @Unifier (system)!',
                     description='Automatic action carried out by security plugins',
                     color=self.bot.colors.warning,
                     timestamp=datetime.datetime.now(datetime.UTC)

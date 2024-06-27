@@ -207,7 +207,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             mod = f'{ctx.author.name}#{ctx.author.discriminator}'
         embed = nextcord.Embed(
-            title=f'You\'ve been __global restricted__ by {mod}!',
+            title=f'You\'ve been __banned__ by {mod}!',
             description=reason,
             color=self.bot.colors.error,
             timestamp=datetime.datetime.now(datetime.UTC)
@@ -485,7 +485,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ban = actions['bans'][len(actions['bans'])-1]
 
         embed = nextcord.Embed(
-            title='Global restriction',description=ban['reason'],color=self.bot.colors.error
+            title='Global ban',description=ban['reason'],color=self.bot.colors.error
         )
         embed.set_author(name=f'@{ctx.author.name}', icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
         components = ui.MessageComponents()
