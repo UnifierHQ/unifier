@@ -547,8 +547,7 @@ class UnifierBridge:
     async def delete_parent(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
         if msg.source=='discord':
-            guild = self.bot.get_guild(int(msg.guild_id))
-            ch = guild.get_channel(int(msg.channel_id))
+            ch = self.bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
             await todelete.delete()
         elif msg.source=='guilded':
@@ -705,6 +704,38 @@ class UnifierBridge:
             text = text.replace(f'<@{userid}>', f'@{display_name or user.name}').replace(
                 f'<@!{userid}>', f'@{display_name or user.name}')
             offset += 1
+
+        components = text.split('<#')
+        offset = 0
+        if text.startswith('<#'):
+            offset = 1
+
+        while offset < len(components):
+            if len(components) == 1 and offset == 0:
+                break
+            try:
+                channelid = int(components[offset].split('>', 1)[0])
+            except:
+                channelid = components[offset].split('>', 1)[0]
+            try:
+                if source == 'revolt':
+                    try:
+                        channel = self.bot.revolt_client.get_channel(channelid)
+                    except:
+                        channel = await self.bot.revolt_client.fetch_channel(channelid)
+                elif source == 'guilded':
+                    channel = self.bot.guilded_client.get_channel(channelid)
+                else:
+                    channel = self.bot.get_channel(channelid)
+                if not channel:
+                    raise ValueError()
+            except:
+                offset += 1
+                continue
+            text = text.replace(f'<#{channelid}>', f'#{channel.name}').replace(
+                f'<#!{channelid}>', f'#{channel.name}')
+            offset += 1
+
         return text
 
     async def edit(self, message, content):
@@ -3639,7 +3670,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
 
             try:
-                ch = self.bot.get_guild(self.bot.config['home_guild']).get_channel(self.bot.config['reports_channel'])
+                ch = self.bot.get_channel(self.bot.config['reports_channel'])
                 await ch.send(f'<@&{self.bot.config["moderator_role"]}>',embed=embed)
             except:
                 pass
@@ -3939,7 +3970,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             # on_message_edit should handle this, as it's already firing
             return
         else:
-            ch = self.bot.get_guild(payload.guild_id).get_channel(payload.channel_id)
+            ch = self.bot.get_channel(payload.channel_id)
             message = await ch.fetch_message(payload.message_id)
 
             if message.author.id in self.bot.db['fullbanned']:
@@ -4098,8 +4129,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         try:
             if not self.bot.config['enable_logging']:
                 raise RuntimeError()
-            guild = self.bot.get_guild(self.bot.config['home_guild'])
-            ch = guild.get_channel(self.bot.config['logs_channel'])
+            ch = self.bot.get_channel(self.bot.config['logs_channel'])
 
             content = message.content
 

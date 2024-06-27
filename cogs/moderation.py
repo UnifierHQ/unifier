@@ -550,8 +550,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         )
         embed.set_author(name=f'@{ctx.author.name}',icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
         embed.add_field(name='Original ban reason',value=ban['reason'],inline=False)
-        guild = self.bot.get_guild(self.bot.config['home_guild'])
-        ch = guild.get_channel(self.bot.config['reports_channel'])
+        ch = self.bot.get_channel(self.bot.config['reports_channel'])
         btns = ui.ActionRow(
             nextcord.ui.Button(
                 style=nextcord.ButtonStyle.red, label='Reject', custom_id=f'apreject_{ctx.author.id}',
