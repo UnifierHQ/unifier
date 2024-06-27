@@ -27,6 +27,8 @@ import emoji as pymoji
 
 restrictions = r.Restrictions()
 
+
+# noinspection PyUnresolvedReferences
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
 
@@ -371,10 +373,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if resp.data['custom_id']=='reject':
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
-        data = self.bot.db['rooms'][room]
         guild = [webhook.id, ctx.channel.id]
-        data.update({f'{ctx.guild.id}':guild})
-        self.bot.db['rooms'][room] = data
+        self.bot.db['rooms'][room].update({f'{ctx.guild.id}':guild})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
         try:
@@ -412,6 +412,136 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         except:
             await ctx.send(f'{self.bot.ui_emojis.error} Something went wrong - check my permissions.')
             raise
+
+    @commands.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
+    @restrictions.admin()
+    async def map(self, ctx):
+        channels = []
+        channels_enabled = []
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Checking bindable channels...',
+                               description='This may take a while.')
+        msg = await ctx.send(embed=embed)
+        hooks = await ctx.guild.webhooks()
+        for channel in ctx.guild.channels:
+            duplicate = False
+            for roomname in list(self.bot.db['rooms'].keys()):
+                # Prevent duplicate binding
+                try:
+                    hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
+                except:
+                    continue
+                for hook in hooks:
+                    if hook.id == hook_id:
+                        duplicate = True
+                        break
+            if duplicate:
+                continue
+            roomname = re.sub(r'\W+', '', channel.name).lower()
+            if len(roomname) < 3:
+                roomname = str(channel.id)
+            try:
+                if len(self.bot.db['rooms'][roomname][f'{ctx.guild.id}']) >= 1:
+                    continue
+            except:
+                pass
+            perms = channel.permissions_for(ctx.guild.me)
+            if perms.manage_webhooks and perms.send_messages and perms.read_messages and perms.read_message_history:
+                channels.append(channel)
+                if len(channels_enabled) < 10:
+                    channels_enabled.append(channel)
+            if len(channels) >= 25:
+                break
+
+        interaction = None
+        msg = None
+        while True:
+            text = ''
+            for channel in channels_enabled:
+                roomname = re.sub(r'\W+', '', channel.name).lower()
+                if len(roomname) < 3:
+                    roomname = str(channel.id)
+                if text=='':
+                    text = f'#{channel.name} ==> **{roomname}**' + (
+                        ' (__New__)' if not roomname in self.bot.db['rooms'].keys() else '')
+                else:
+                    text = f'{text}\n#{channel.name} ==> **{roomname}**' + (
+                        ' (__New__)' if not roomname in self.bot.db['rooms'].keys() else '')
+            embed = nextcord.Embed(
+                title='Map channels',
+                description='The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.',
+                color=self.bot.colors.unifier
+            )
+
+            view = ui.MessageComponents()
+            selection = nextcord.ui.StringSelect(
+                max_values=10,
+                placeholder='Channels...',
+                custom_id='selection'
+            )
+
+            for channel in channels:
+                selection.add_option(
+                    label=f'#{channel.name}',
+                    value=str(channel.id),
+                    default=channel in channels_enabled
+                )
+
+            view.add_rows(
+                ui.ActionRow(
+                    selection
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green,
+                        label='Bind',
+                        custom_id='bind'
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red,
+                        label='Cancel',
+                        custom_id='cancel'
+                    )
+                )
+            )
+
+            if interaction:
+                await interaction.response.edit_message(embed=embed, view=view)
+            else:
+                await msg.edit(embed=embed, view=view)
+
+            def check(interaction):
+                return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+                if interaction.data['custom_id']=='cancel':
+                    raise RuntimeError()
+            except:
+                return await msg.edit(view=ui.MessageComponents())
+
+            if interaction.data['custom_id']=='bind':
+                await interaction.response.edit_message(embed=embed, view=ui.MessageComponents())
+                break
+            if interaction.data['custom_id']=='selection':
+                channels_enabled = []
+                for value in interaction.data['values']:
+                    channel = self.bot.get_channel(int(value))
+                    channels_enabled.append(channel)
+
+        for channel in channels_enabled:
+            roomname = re.sub(r'\W+', '', channel.name).lower()
+            if len(roomname) < 3:
+                roomname = str(channel.id)
+            if not roomname in self.bot.db['rooms'].keys():
+                self.bot.db['rooms'].update({roomname: {}})
+                self.bot.db['rules'].update({roomname: []})
+            webhook = await channel.create_webhook(name='Unifier Bridge')
+            guild = [webhook.id, channel.id]
+            self.bot.db['rooms'][roomname].update({f'{ctx.guild.id}': guild})
+
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+        await ctx.send(
+            f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through the channels. Say hi!')
 
     @commands.command(description='Displays room rules for the specified room.')
     async def rules(self,ctx,*,room=''):
