@@ -675,16 +675,16 @@ class UnifierBridge:
 
     async def make_friendly(self, text, source):
         if source=='discord':
-            if (text.startswith('<:') or text.startswith('<a:')) and text.startswith('>'):
+            if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
                 try:
                     emoji_id = int(text.split(':')[2].replace('>','',1))
                     emoji = self.bot.get_emoji(emoji_id)
                     if emoji:
-                        return f'[emoji]({emoji.url})'
+                        return f'[emoji]({emoji.url}?size=48)'
                 except:
                     pass
         elif source=='revolt':
-            if text.startswith(':') and text.startswith(':'):
+            if text.startswith(':') and text.endswith(':'):
                 try:
                     emoji_id = text.replace(':','',1)[:-1]
                     emoji = self.bot.get_emoji(emoji_id)
@@ -766,7 +766,7 @@ class UnifierBridge:
                 break
             emojiname = components[offset].split(':', 1)[0]
             emojiafter = components[offset].split(':', 1)[1].split('>')[0]+'>'
-            text = text.replace(f'<:{emojiname}{emojiafter}', f':{emojiname}\:')
+            text = text.replace(f'<:{emojiname}:{emojiafter}', f':{emojiname}\\:')
             offset += 1
 
         components = text.split('<a:')
@@ -779,7 +779,7 @@ class UnifierBridge:
                 break
             emojiname = components[offset].split(':', 1)[0]
             emojiafter = components[offset].split(':', 1)[1].split('>')[0] + '>'
-            text = text.replace(f'<a:{emojiname}{emojiafter}', f':{emojiname}\:')
+            text = text.replace(f'<a:{emojiname}:{emojiafter}', f':{emojiname}\\:')
             offset += 1
 
         return text
