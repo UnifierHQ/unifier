@@ -101,87 +101,6 @@ class ExternalReference:
 class SelfDeleteException(Exception):
     pass
 
-class UnifierMessage:
-    def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
-                 external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False, reactions=None,
-                 thread=None):
-        self.author_id = author_id
-        self.guild_id = guild_id
-        self.channel_id = channel_id
-        self.id = original
-        self.copies = copies
-        self.external_copies = external_copies
-        self.urls = urls
-        self.external_urls = external_urls or {}
-        self.source = source
-        self.room = room
-        self.webhook = webhook
-        self.prehook = prehook
-        self.reply = reply
-        self.external_bridged = external_bridged,
-        self.thread = thread
-        if not reactions or not type(reactions) is dict:
-            self.reactions = {}
-        else:
-            self.reactions = reactions
-
-    def to_dict(self):
-        return self.__dict__
-
-    async def fetch_id(self, guild_id):
-        if guild_id == self.guild_id:
-            return self.id
-
-        return self.copies[guild_id][1]
-
-    async def fetch_channel(self, guild_id):
-        if guild_id == self.guild_id:
-            return self.channel_id
-
-        return self.copies[guild_id][0]
-
-    async def fetch_url(self, guild_id):
-        if guild_id==self.guild_id:
-            return f'https://discord.com/channels/{self.guild_id}/{self.channel_id}/{self.id}'
-
-        return self.urls[guild_id]
-
-    async def add_reaction(self, emoji, userid, platform=None):
-        userid = str(userid)
-        platform = ('revolt' if emoji.startswith('<r:') else 'discord') if not platform else platform
-        if not emoji in list(self.reactions.keys()):
-            self.reactions.update({emoji:{}})
-        if not userid in list(self.reactions[emoji].keys()):
-            self.reactions[emoji].update({userid:[0,platform]})
-        self.reactions[emoji][userid][0] += 1
-        return self.reactions[emoji][userid][0]
-
-    async def remove_reaction(self, emoji, userid):
-        try:
-            userid = str(userid)
-            self.reactions[emoji][userid][0] -= 1
-        except:
-            return 0
-        if self.reactions[emoji][userid][0] <= 0:
-            self.reactions[emoji].pop(userid)
-
-            total = 0
-            for user in self.reactions[emoji]:
-                total += self.reactions[emoji][user][0]
-
-            if total==0:
-                self.reactions.pop(emoji)
-
-            return 0
-        else:
-            return self.reactions[emoji][userid][0]
-
-    async def fetch_external_url(self, source, guild_id):
-        return self.external_urls[source][guild_id]
-
-    async def fetch_external(self, platform: str, guild_id: str):
-        return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0], self.external_copies[platform][str(guild_id)][1])
-
 class UnifierRaidBan:
     def __init__(self, debug=True, frequency=1):
         self.frequency = frequency # Frequency of content
@@ -247,6 +166,89 @@ class UnifierBridge:
         self.msg_stats = {}
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
+
+    class UnifierMessage:
+        def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
+                     external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
+                     reactions=None,
+                     thread=None):
+            self.author_id = author_id
+            self.guild_id = guild_id
+            self.channel_id = channel_id
+            self.id = original
+            self.copies = copies
+            self.external_copies = external_copies
+            self.urls = urls
+            self.external_urls = external_urls or {}
+            self.source = source
+            self.room = room
+            self.webhook = webhook
+            self.prehook = prehook
+            self.reply = reply
+            self.external_bridged = external_bridged,
+            self.thread = thread
+            if not reactions or not type(reactions) is dict:
+                self.reactions = {}
+            else:
+                self.reactions = reactions
+
+        def to_dict(self):
+            return self.__dict__
+
+        async def fetch_id(self, guild_id):
+            if guild_id == self.guild_id:
+                return self.id
+
+            return self.copies[guild_id][1]
+
+        async def fetch_channel(self, guild_id):
+            if guild_id == self.guild_id:
+                return self.channel_id
+
+            return self.copies[guild_id][0]
+
+        async def fetch_url(self, guild_id):
+            if guild_id == self.guild_id:
+                return f'https://discord.com/channels/{self.guild_id}/{self.channel_id}/{self.id}'
+
+            return self.urls[guild_id]
+
+        async def add_reaction(self, emoji, userid, platform=None):
+            userid = str(userid)
+            platform = ('revolt' if emoji.startswith('<r:') else 'discord') if not platform else platform
+            if not emoji in list(self.reactions.keys()):
+                self.reactions.update({emoji: {}})
+            if not userid in list(self.reactions[emoji].keys()):
+                self.reactions[emoji].update({userid: [0, platform]})
+            self.reactions[emoji][userid][0] += 1
+            return self.reactions[emoji][userid][0]
+
+        async def remove_reaction(self, emoji, userid):
+            try:
+                userid = str(userid)
+                self.reactions[emoji][userid][0] -= 1
+            except:
+                return 0
+            if self.reactions[emoji][userid][0] <= 0:
+                self.reactions[emoji].pop(userid)
+
+                total = 0
+                for user in self.reactions[emoji]:
+                    total += self.reactions[emoji][user][0]
+
+                if total == 0:
+                    self.reactions.pop(emoji)
+
+                return 0
+            else:
+                return self.reactions[emoji][userid][0]
+
+        async def fetch_external_url(self, source, guild_id):
+            return self.external_urls[source][guild_id]
+
+        async def fetch_external(self, platform: str, guild_id: str):
+            return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0],
+                                     self.external_copies[platform][str(guild_id)][1])
 
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
@@ -369,7 +371,7 @@ class UnifierBridge:
                 data = json.load(file)
 
         for x in range(len(data['messages'])):
-            msg = UnifierMessage(
+            msg = UnifierBridge.UnifierMessage(
                 author_id=data['messages'][f'{x}']['author_id'],
                 guild_id=data['messages'][f'{x}']['guild_id'],
                 channel_id=data['messages'][f'{x}']['channel_id'],
@@ -471,7 +473,7 @@ class UnifierBridge:
     async def merge_prehook(self,message_id):
         index = await self.indexof(message_id,prehook=True)
         index_tomerge = await self.indexof(message_id, not_prehook=True)
-        msg_tomerge: UnifierMessage = await self.fetch_message(message_id,not_prehook=True)
+        msg_tomerge: UnifierBridge.UnifierMessage = await self.fetch_message(message_id,not_prehook=True)
         self.bridged[index]['copies'] = self.bridged[index]['copies'] | msg_tomerge.copies
         self.bridged[index]['external_copies'] = self.bridged[index]['external_copies'] | msg_tomerge.external_copies
         self.bridged[index]['urls'] = self.bridged[index]['urls'] | msg_tomerge.urls
@@ -543,7 +545,7 @@ class UnifierBridge:
         return self.dedupe[username].index(userid)-1
 
     async def delete_parent(self, message):
-        msg: UnifierMessage = await self.fetch_message(message)
+        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
         if msg.source=='discord':
             guild = self.bot.get_guild(int(msg.guild_id))
             ch = guild.get_channel(int(msg.channel_id))
@@ -560,7 +562,7 @@ class UnifierBridge:
             await todelete.delete()
 
     async def delete_copies(self, message):
-        msg: UnifierMessage = await self.fetch_message(message)
+        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
         threads = []
 
         async def delete_discord(msgs):
@@ -703,7 +705,7 @@ class UnifierBridge:
         return text
 
     async def edit(self, message, content):
-        msg: UnifierMessage = await self.fetch_message(message)
+        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
         threads = []
 
         async def edit_discord(msgs,friendly=False):
@@ -1729,7 +1731,7 @@ class UnifierBridge:
                     msg_author = hook.user.id
                 except:
                     pass
-            self.bridged.append(UnifierMessage(
+            self.bridged.append(UnifierBridge.UnifierMessage(
                 author_id=msg_author,
                 guild_id=server_id,
                 channel_id=message.channel.id,
@@ -1895,7 +1897,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             return await ctx.send('Invalid message!')
         try:
-            msg_obj: UnifierMessage = await self.bot.bridge.fetch_message(msg.id)
+            msg_obj: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg.id)
         except:
             return await ctx.send('Could not find message in cache!')
         if msg_obj.source=='discord':
@@ -2353,7 +2355,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return await ctx.send('No message!')
 
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
+            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
             return await ctx.send('Could not find message in cache!')
 
@@ -2398,7 +2400,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg_id = msg.id
 
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
+            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
             return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
 
@@ -2545,7 +2547,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg_id = msg.id
 
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
+            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
             return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
 
@@ -3177,7 +3179,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 components.add_row(btns)
 
                 try:
-                    msg: UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
+                    msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
                 except:
                     return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
 
@@ -3751,7 +3753,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             # Multisend
             # Sends Discord message along with other platforms to minimize
             # latency on external platforms.
-            self.bot.bridge.bridged.append(UnifierMessage(
+            self.bot.bridge.bridged.append(UnifierBridge.UnifierMessage(
                     author_id=message.author.id if not extbridge else hook.user.id,
                     guild_id=message.guild.id,
                     channel_id=message.channel.id,
@@ -3772,7 +3774,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 self.bot.bridge.msg_stats[roomname] += 1
             except:
                 self.bot.bridge.msg_stats.update({roomname: 1})
-            tasks.append(self.bot.bridge.send(room=roomname,message=message,platform='discord', extbridge=extbridge))
+            tasks.append(self.bot.loop.create_task(
+                self.bot.bridge.send(room=roomname,message=message,platform='discord', extbridge=extbridge))
+            )
         else:
             parent_id = await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
 
@@ -3918,7 +3922,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(message.id)
             if not str(msg.id)==str(message.id):
                 raise ValueError()
         except:
@@ -4011,7 +4015,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return
 
             try:
-                msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+                msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(message.id)
                 if not str(msg.id) == str(message.id):
                     raise ValueError()
             except:
@@ -4080,7 +4084,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(message.id)
+            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(message.id)
             if not msg.id == message.id:
                 raise ValueError()
         except:
@@ -4118,7 +4122,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, event):
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(event.message_id)
+            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(event.message_id)
         except:
             return
 
@@ -4136,7 +4140,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, event):
         try:
-            msg: UnifierMessage = await self.bot.bridge.fetch_message(event.message_id)
+            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(event.message_id)
         except:
             return
 
