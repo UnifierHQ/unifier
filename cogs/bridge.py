@@ -690,17 +690,20 @@ class UnifierBridge:
             try:
                 if source == 'revolt':
                     user = self.bot.revolt_client.get_user(userid)
+                    display_name = user.display_name
                 elif source == 'guilded':
                     user = self.bot.guilded_client.get_user(userid)
+                    display_name = user.display_name
                 else:
                     user = self.bot.get_user(userid)
+                    display_name = user.global_name
                 if not user:
                     raise ValueError()
             except:
                 offset += 1
                 continue
-            text = text.replace(f'<@{userid}>', f'@{user.global_name or user.name}').replace(
-                f'<@!{userid}>', f'@{user.global_name or user.name}')
+            text = text.replace(f'<@{userid}>', f'@{display_name or user.name}').replace(
+                f'<@!{userid}>', f'@{display_name or user.name}')
             offset += 1
         return text
 
