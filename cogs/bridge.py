@@ -678,9 +678,7 @@ class UnifierBridge:
             if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
                 try:
                     emoji_id = int(text.split(':')[2].replace('>','',1))
-                    emoji = self.bot.get_emoji(emoji_id)
-                    if emoji:
-                        return f'[emoji]({emoji.url}?size=48)'
+                    return f'[emoji](https://cdn.discordapp.com/emojis/{emoji_id}.webp?size=48&quality=lossless)'
                 except:
                     pass
         elif source=='revolt':
