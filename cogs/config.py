@@ -145,6 +145,33 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'Created room `{room}`!')
 
+    @commands.command(hidden=True, description='Renames a room.')
+    @restrictions.admin()
+    async def rename(self, ctx, room, newroom):
+        newroom = newroom.lower()
+        if not bool(re.match("^[A-Za-z0-9_-]*$", newroom)):
+            return await ctx.send('Room names may only contain alphabets, numbers, dashes, and underscores.')
+        if newroom in list(self.bot.db['rooms'].keys()):
+            return await ctx.send('This room already exists!')
+        self.bot.db['rooms'].update({newroom: self.bot.db['rooms'][room]})
+        self.bot.db['rules'].update({newroom: self.bot.db['rules'][room]})
+        self.bot.db['rooms'].pop(room)
+        self.bot.db['rules'].pop(room)
+        if room in self.bot.db['restricted']:
+            self.bot.db['restricted'].remove(room)
+            self.bot.db['restricted'].append(newroom)
+        if room in self.bot.db['locked']:
+            self.bot.db['locked'].remove(room)
+            self.bot.db['locked'].append(newroom)
+        if room in self.bot.db['roomemojis'].keys():
+            self.bot.db['roomemojis'].update({newroom: self.bot.db['roomemojis'][room]})
+            self.bot.db['roomemojis'].pop(room)
+        if room in self.bot.db['rooms_revolt'].keys():
+            self.bot.db['rooms_revolt'].update({newroom: self.bot.db['rooms_revolt'][room]})
+            self.bot.db['rooms_revolt'].pop(room)
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+        await ctx.send('Room renamed!')
+
     @commands.command(hidden=True,description='Creates a new experiment.')
     @restrictions.admin()
     async def addexperiment(self, ctx, experiment, *, experiment_name):
