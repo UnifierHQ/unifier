@@ -673,7 +673,7 @@ class UnifierBridge:
         results = await asyncio.gather(*threads)
         return sum(results)
 
-    async def make_friendly(self, text, source):
+    async def make_friendly(self, text, source, guild):
         if source=='discord':
             if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
                 try:
@@ -687,7 +687,8 @@ class UnifierBridge:
             if text.startswith(':') and text.endswith(':'):
                 try:
                     emoji_id = text.replace(':','',1)[:-1]
-                    emoji = self.bot.get_emoji(emoji_id)
+                    server = self.bot.revolt_client.get_server(guild)
+                    emoji = server.get_emoji(emoji_id)
                     if emoji:
                         if not emoji.nsfw:
                             return f'[emoji](https://autumn.revolt.chat/emojis/{emoji_id}?size=48)'
@@ -792,7 +793,7 @@ class UnifierBridge:
             threads = []
 
             if friendly:
-                text = await self.make_friendly(content, msg.source)
+                text = await self.make_friendly(content, msg.source, msg.guild_id)
             else:
                 text = content
 
@@ -820,7 +821,7 @@ class UnifierBridge:
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
                 return
             if friendly:
-                text = await self.make_friendly(content, msg.source)
+                text = await self.make_friendly(content, msg.source, msg.guild_id)
             else:
                 text = content
 
@@ -842,7 +843,7 @@ class UnifierBridge:
 
             threads = []
             if friendly:
-                text = await self.make_friendly(content, msg.source)
+                text = await self.make_friendly(content, msg.source, msg.guild_id)
             else:
                 text = content
 
@@ -1101,7 +1102,7 @@ class UnifierBridge:
         friendly_content = None
         if not source == platform:
             friendlified = True
-            friendly_content = await self.make_friendly(message.content, source)
+            friendly_content = await self.make_friendly(message.content, source, message.guild_id)
 
         message_ids = {}
         urls = {}
