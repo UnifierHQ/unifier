@@ -1961,51 +1961,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send('Your Revolt messages will now inherit the custom color.')
 
-    @commands.command(aliases=['find'],description='Identifies the origin of a message.')
-    async def identify(self, ctx):
-        # use legacy permissions check because check_any is broken
-        if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
-                ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
-            return
-        try:
-            msg = ctx.message.reference.cached_message
-            if msg == None:
-                msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-        except:
-            return await ctx.send('Invalid message!')
-        try:
-            msg_obj: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg.id)
-        except:
-            return await ctx.send('Could not find message in cache!')
-        if msg_obj.source=='discord':
-            try:
-                username = self.bot.get_user(int(msg_obj.author_id)).name
-            except:
-                username = '[unknown]'
-            try:
-                guildname = self.bot.get_guild(int(msg_obj.guild_id)).name
-            except:
-                guildname = '[unknown]'
-        elif msg_obj.source=='revolt':
-            try:
-                username = self.bot.revolt_client.get_user(msg_obj.author_id).name
-            except:
-                username = '[unknown]'
-            try:
-                guildname = self.bot.revolt_client.get_server(msg_obj.guild_id).name
-            except:
-                guildname = '[unknown]'
-        else:
-            try:
-                username = self.bot.guilded_client.get_user(msg_obj.author_id).name
-            except:
-                username = '[unknown]'
-            try:
-                guildname = self.bot.guilded_client.get_server(msg_obj.guild_id).name
-            except:
-                guildname = '[unknown]'
-        await ctx.send(f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
-
     @commands.command(description='Sets a nickname. An empty provided nickname will reset it.')
     async def nickname(self, ctx, *, nickname=''):
         if len(nickname) > 33:
@@ -2402,56 +2357,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await ctx.send(f'{self.bot.ui_emojis.error} It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
 
-    @commands.command(description='Deletes a message.')
-    async def delete(self, ctx, *, msg_id=None):
-        """Deletes all bridged messages. Does not delete the original."""
-
-        gbans = self.bot.db['banned']
-        ct = time.time()
-        if f'{ctx.author.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.author.id}']
-            if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.author.id}')
-                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            else:
-                return
-        if f'{ctx.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{ctx.guild.id}']
-            if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{ctx.guild.id}')
-                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            else:
-                return
-        if f'{ctx.author.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
-            return await ctx.send('Your account or your guild is currently **global banned**.')
-
-        try:
-            msg_id = ctx.message.reference.message_id
-        except:
-            if not msg_id:
-                return await ctx.send('No message!')
-
-        try:
-            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
-        except:
-            return await ctx.send('Could not find message in cache!')
-
-        if not ctx.author.id == msg.author_id and not ctx.author.id in self.bot.moderators:
-            return await ctx.send('You didn\'t send this message!')
-
-        try:
-            await self.bot.bridge.delete_parent(msg_id)
-            if msg.webhook:
-                raise ValueError()
-            return await ctx.send('Deleted message (parent deleted, copies will follow)')
-        except:
-            try:
-                deleted = await self.bot.bridge.delete_copies(msg_id)
-                return await ctx.send(f'Deleted message ({deleted} copies deleted)')
-            except:
-                traceback.print_exc()
-                await ctx.send('Something went wrong.')
-
     @nextcord.message_command(name='View reactions')
     async def reactions_ctx(self, interaction, msg: nextcord.Message):
         if interaction.user.id in self.bot.db['fullbanned']:
@@ -2598,59 +2503,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 page += 1
             elif interaction_resp.data['custom_id'] == 'prev':
                 page -= 1
-
-    @nextcord.message_command(name='Delete message')
-    async def delete_ctx(self, interaction, msg: nextcord.Message):
-        if interaction.user.id in self.bot.db['fullbanned']:
-            return
-        gbans = self.bot.db['banned']
-        ct = time.time()
-        if f'{interaction.user.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{interaction.user.id}']
-            if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{interaction.user.id}')
-                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            else:
-                return
-        if f'{interaction.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{interaction.guild.id}']
-            if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{interaction.guild.id}')
-                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            else:
-                return
-        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
-            return await interaction.response.send_message('Your account or your guild is currently **global banned**.', ephemeral=True)
-        msg_id = msg.id
-
-        try:
-            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
-        except:
-            return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
-
-        if not interaction.user.id == msg.author_id and not interaction.user.id in self.bot.moderators:
-            return await interaction.response.send_message('You didn\'t send this message!',ephemeral=True)
-
-        await interaction.response.defer(ephemeral=True)
-
-        try:
-            await self.bot.bridge.delete_parent(msg_id)
-            if msg.webhook:
-                raise ValueError()
-            return await interaction.edit_original_message(
-                content='Deleted message (parent deleted, copies will follow)'
-            )
-        except:
-            try:
-                deleted = await self.bot.bridge.delete_copies(msg_id)
-                return await interaction.edit_original_message(
-                    content=f'Deleted message ({deleted} copies deleted)'
-                )
-            except:
-                traceback.print_exc()
-                return await interaction.edit_original_message(
-                    content='Something went wrong.'
-                )
 
     @nextcord.message_command(name='Report message')
     async def report(self, interaction, msg: nextcord.Message):
