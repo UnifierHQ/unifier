@@ -469,7 +469,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         break
             if duplicate:
                 continue
-            roomname = re.sub(r'\W+', '', channel.name).lower()
+            roomname = re.sub(r'[^a-zA-Z0-9_-]', '', channel.name).lower()
             if len(roomname) < 3:
                 roomname = str(channel.id)
             if roomname in namelist:
@@ -492,7 +492,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         while True:
             text = ''
             for channel in channels_enabled:
-                roomname = re.sub(r'\W+', '', channel.name).lower()
+                roomname = re.sub(r'[^a-zA-Z0-9_-]', '', channel.name).lower()
                 if len(roomname) < 3:
                     roomname = str(channel.id)
                 if text=='':
@@ -564,7 +564,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     channels_enabled.append(channel)
 
         for channel in channels_enabled:
-            roomname = re.sub(r'\W+', '', channel.name).lower()
+            roomname = re.sub(r'[^a-zA-Z0-9_-]', '', channel.name).lower()
             if len(roomname) < 3:
                 roomname = str(channel.id)
             if not roomname in self.bot.db['rooms'].keys():
