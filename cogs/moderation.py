@@ -987,7 +987,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         msg_id = msg.id
 
         try:
-            msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
+            msg = await self.bot.bridge.fetch_message(msg_id)
         except:
             return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
 
