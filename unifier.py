@@ -15,7 +15,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import traceback
 
 import nextcord
 from nextcord.ext import commands
@@ -25,9 +24,10 @@ import ujson as json
 import os
 import sys
 import logging
+import requests
+import traceback
 from utils import log
 from dotenv import load_dotenv
-import requests
 from pathlib import Path
 
 if os.name != "nt":
