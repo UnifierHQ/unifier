@@ -20,16 +20,17 @@ import nextcord
 from nextcord.ext import commands
 from utils import log, restrictions as r
 from enum import Enum
+from utils import langmgr
 
 restrictions = r.Restrictions()
 
 class UserRole(Enum):
-    OWNER = "the instance\'s **owner**"
-    ADMIN = "the instance\'s **admin**"
-    MODERATOR = "the instance\'s **moderator**"
-    TRUSTED = "a **verified user**"
-    BANNED = "**BANNED**"
-    USER = "a **user**"
+    OWNER = langmgr.get("badge.role.owner","the instance\'s **owner**")
+    ADMIN = langmgr.get("badge.role.admin","the instance\'s **admin**")
+    MODERATOR = langmgr.get("badge.role.moderator","the instance\'s **moderator**")
+    TRUSTED =langmgr.get("badge.role.verified", "a **verified user**")
+    BANNED = langmgr.get("badge.role.banned","**BANNED**")
+    USER = langmgr.get("badge.role.user","a **user**")
 
 class Badge(commands.Cog, name=':medal: Badge'):
     """Badge contains commands that show you your role in Unifier.
@@ -71,16 +72,16 @@ class Badge(commands.Cog, name=':medal: Badge'):
             icon_url=user.avatar.url if user.avatar else None
         )
         if user_role==UserRole.BANNED:
-            embed.set_footer(text='L bozo')
+            embed.set_footer(text=langmgr.get("badge.role.banned.footer",'L bozo'))
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,aliases=['trust'],description='Verifies a user.')
+    @commands.command(hidden=True,aliases=['trust'],description=langmgr.get("badge.cdm.verify.desc, 'Verifies a user.'))
     @restrictions.admin()
     async def verify(self, ctx, action, user: nextcord.User):
         action = action.lower()
         if action not in ['add', 'remove']:
-            return await ctx.send("Invalid action. Please use 'add' or 'remove'.")
+            return await ctx.send(langmgr.get("badge.cmd.verify.invalid_action", "Invalid action. Please use 'add' or 'remove'."))
 
         if action == 'add':
             if user.id not in self.bot.trusted_group:
