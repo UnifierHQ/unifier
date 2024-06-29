@@ -897,7 +897,11 @@ class UnifierBridge:
 
             try:
                 bans = self.bot.db['blocked'][str(guild)]
-                if message.author.id in bans and not sameguild:
+                if source == 'discord':
+                    guildban = message.guild.id in bans
+                else:
+                    guildban = message.server.id in bans
+                if (message.author.id in bans or guildban) and not sameguild:
                     continue
             except:
                 pass
