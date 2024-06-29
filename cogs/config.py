@@ -18,7 +18,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-import ujson as json
 import traceback
 import re
 from utils import log, ui, restrictions as r
@@ -400,14 +399,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         btns.items[1].disabled = True
         components = ui.MessageComponents()
         components.add_row(btns)
-        await resp.response.edit_message(view=components)
+        await msg.edit(view=components)
+        await resp.response.defer(with_message=True)
         if resp.data['custom_id']=='reject':
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
         guild = [webhook.id, ctx.channel.id]
         self.bot.db['rooms'][room].update({f'{ctx.guild.id}':guild})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
+        await resp.edit_original_message(content=f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
         try:
             await msg.pin()
         except:
@@ -555,7 +555,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 return await msg.edit(view=ui.MessageComponents())
 
             if interaction.data['custom_id']=='bind':
-                await interaction.response.edit_message(embed=embed, view=ui.MessageComponents())
+                await msg.edit(embed=embed, view=ui.MessageComponents())
+                await resp.response.defer(with_message=True)
                 break
             if interaction.data['custom_id']=='selection':
                 channels_enabled = []
@@ -575,8 +576,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.db['rooms'][roomname].update({f'{ctx.guild.id}': guild})
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(
-            f'# {self.bot.ui_emojis.success} Linked channels to Unifier network!\nYou can now send messages to the Unifier network through the channels. Say hi!')
+        await resp.edit_original_message(
+            content=f'# {self.bot.ui_emojis.success} Linked channels to Unifier network!\nYou can now send messages to the Unifier network through the channels. Say hi!')
 
     @commands.command(description='Displays room rules for the specified room.')
     async def rules(self,ctx,*,room=''):
