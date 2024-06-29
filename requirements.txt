@@ -9,7 +9,6 @@ uvloop
 compress_json
 python-dotenv
 requests
-ulid-py
 ujson
 emoji
 discord-emoji
