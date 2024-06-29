@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.15",
+  "version": "v1.1.15-patch",
   "release": 34,
   "reboot": 33,
-  "description": "- Fixes an issue where Posts with attachments of certain filetypes failed to send (#134)"
+  "description": "- Fixed serverside bans not being properly applied to servers"
 }
