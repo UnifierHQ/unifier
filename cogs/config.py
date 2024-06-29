@@ -1144,31 +1144,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['emojis'] = self.bot.bridged_emojis
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-    @commands.command(description='Shows bot info.')
-    async def about(self,ctx):
-        if self.bot.user.id==1187093090415149056:
-            embed = nextcord.Embed(
-                title="Unifier",
-                description="Unify servers, make worthwhile conversations.",
-                color=self.bot.colors.unifier)
-        else:
-            embed = nextcord.Embed(
-                title=self.bot.user.name,
-                description="Powered by Unifier",
-                color=self.bot.colors.unifier
-            )
-        embed.add_field(name="Developers",value="@green.\n@itsasheer",inline=False)
-        if self.bot.user.id == 1187093090415149056:
-            embed.add_field(name="PFP made by",value="@green.\n@thegodlypenguin",inline=False)
-        embed.add_field(name="View source code", value=self.bot.config['repo'], inline=False)
-        try:
-            with open('plugins/system.json') as file:
-                vinfo = json.load(file)
-            embed.set_footer(text="Version "+vinfo['version']+" | Made with \u2764\ufe0f by UnifierHQ")
-        except:
-            embed.set_footer(text="Unknown version | Made with \u2764\ufe0f by UnifierHQ")
-        await ctx.send(embed=embed)
-
     @commands.command(description='Displays or sets custom avatar.')
     async def avatar(self,ctx,*,url=''):
         desc = f'You have no avatar! Run `{self.bot.command_prefix}avatar <url>` or set an avatar in your profile settings.'
