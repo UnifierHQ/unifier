@@ -11,5 +11,6 @@ python-dotenv
 requests
 ujson
 emoji
+discord-emoji
 pycryptodome
 orjson
