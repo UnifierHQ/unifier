@@ -60,6 +60,133 @@ import datetime
 
 restrictions = r.Restrictions()
 
+# Below are attributions to the works we used to build Unifier (including our own).
+# If you've modified Unifier to use more works, please add it here.
+attribution = {
+    'unifier': {
+        'author': 'UnifierHQ',
+        'description': 'A fast and versatile Discord bot connecting servers and platforms',
+        'repo': 'https://github.com/UnifierHQ/unifier',
+        'license': 'AGPLv3',
+        'license_url': 'https://github.com/UnifierHQ/unifier/blob/main/LICENSE.txt'
+    },
+    'nextcord': {
+        'author': 'Nextcord',
+        'description': 'A Python wrapper for the Discord API forked from discord.py',
+        'repo': 'https://github.com/nextcord/nextcord',
+        'license': 'MIT',
+        'license_url': 'https://github.com/nextcord/nextcord/blob/master/LICENSE'
+    },
+    'revolt.py': {
+        'author': 'Revolt',
+        'description': 'Python wrapper for https://revolt.chat',
+        'repo': 'https://github.com/revoltchat/revolt.py',
+        'license': 'MIT',
+        'license_url': 'https://github.com/revoltchat/revolt.py/blob/master/LICENSE'
+    },
+    'guilded.py': {
+        'author': 'shay',
+        'description': 'Asynchronous Guilded API wrapper for Python',
+        'repo': 'https://github.com/shayypy/guilded.py',
+        'license': 'MIT',
+        'license_url': 'https://github.com/shayypy/guilded.py/blob/master/LICENSE'
+    },
+    'aiofiles': {
+        'author': 'Tin Tvrtković',
+        'description': 'File support for asyncio',
+        'repo': 'https://github.com/Tinche/aiofiles',
+        'license': 'Apache-2.0',
+        'license_url': 'https://github.com/Tinche/aiofiles/blob/main/LICENSE'
+    },
+    'py-cpuinfo': {
+        'author': 'Matthew Jones',
+        'description': 'A module for getting CPU info with pure Python',
+        'repo': 'https://github.com/workhorsy/py-cpuinfo',
+        'license': 'MIT',
+        'license_url': 'https://github.com/workhorsy/py-cpuinfo/blob/master/LICENSE'
+    },
+    'tld': {
+        'author': 'Artur Barseghyan',
+        'description': 'Extracts the top level domain (TLD) from the URL given.',
+        'repo': 'https://github.com/barseghyanartur/tld',
+        'license': 'LGPLv2.1',
+        'license_url': 'https://github.com/barseghyanartur/tld/blob/master/LICENSE_LGPL_2.1.txt'
+    },
+    'jellyfish': {
+        'author': 'James Turk',
+        'description': '\U0001FABC a python library for doing approximate and phonetic matching of strings.',
+        'repo': 'https://github.com/jamesturk/jellyfish',
+        'license': 'MIT',
+        'license_url': 'https://github.com/jamesturk/jellyfish/blob/main/LICENSE'
+    },
+    'uvloop': {
+        'author': 'magicstack',
+        'description': 'Ultra fast asyncio event loop.',
+        'repo': 'https://github.com/MagicStack/uvloop',
+        'license': 'MIT',
+        'license_url': 'https://github.com/MagicStack/uvloop/blob/master/LICENSE-MIT'
+    },
+    'compress_json': {
+        'author': 'Luca Cappelletti',
+        'description': 'The missing Python utility to read and write large compressed JSONs.',
+        'repo': 'https://github.com/LucaCappelletti94/compress_json',
+        'license': 'MIT',
+        'license_url': 'https://github.com/LucaCappelletti94/compress_json/blob/master/LICENSE'
+    },
+    'python-dotenv': {
+        'author': 'Saurabh Kumar',
+        'description': (
+            'Reads key-value pairs from a .env file and can set them as environment variables. It helps in developing '+
+            'applications following the 12-factor principles.'
+        ),
+        'repo': 'https://github.com/theskumar/python-dotenv',
+        'license': 'BSD-3-Clause',
+        'license_url': 'https://github.com/theskumar/python-dotenv/blob/master/LICENSE'
+    },
+    'requests': {
+        'author': 'Python Software Foundation',
+        'description': 'A simple, yet elegant, HTTP library.',
+        'repo': 'https://github.com/psf/requests',
+        'license': 'Apache-2.0',
+        'license_url': 'https://github.com/psf/requests/blob/main/LICENSE'
+    },
+    'ultrajson': {
+        'author': 'UltraJSON',
+        'description': 'Ultra fast JSON decoder and encoder written in C with Python bindings',
+        'repo': 'https://github.com/ultrajson/ultrajson',
+        'license': 'Custom',
+        'license_url': 'https://github.com/ultrajson/ultrajson/blob/main/LICENSE.txt'
+    },
+    'emoji': {
+        'author': 'Taehoon Kim',
+        'description': 'emoji terminal output for Python',
+        'repo': 'https://github.com/carpedm20/emoji',
+        'license': 'BSD-3-Clause',
+        'license_url': 'https://github.com/carpedm20/emoji/blob/main/LICENSE.txt'
+    },
+    'discord-emoji': {
+        'author': 'Nanashi.',
+        'description': 'This lib converts discord emoji and unicode emoji.',
+        'repo': 'https://github.com/sevenc-nanashi/discord-emoji',
+        'license': 'MIT',
+        'license_url': 'https://github.com/sevenc-nanashi/discord-emoji/blob/main/LICENSE.txt'
+    },
+    'pycryptodome': {
+        'author': 'Helder Eijs',
+        'description': 'A self-contained cryptographic library for Python',
+        'repo': 'https://github.com/Legrandin/pycryptodome',
+        'license': 'BSD-2-Clause',
+        'license_url': 'https://github.com/Legrandin/pycryptodome/blob/main/LICENSE.rst'
+    },
+    'orjson': {
+        'author': 'ijl',
+        'description': 'Fast, correct Python JSON library supporting dataclasses, datetimes, and numpy',
+        'repo': 'https://github.com/ijl/orjson',
+        'license': 'MIT',
+        'license_url': 'https://github.com/ijl/orjson/blob/master/LICENSE-MIT'
+    }
+}
+
 class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
     unifier = 0xed4545
@@ -272,6 +399,8 @@ class CommandExceptionHandler:
             self.logger.exception('An error occurred!')
             await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
 
+
+# noinspection PyUnresolvedReferences
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
 
@@ -2382,6 +2511,124 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             inline=False
         )
         await ctx.send(embed=embed)
+
+    @commands.command(description='Shows bot info.')
+    async def about(self, ctx):
+        attr_limit = 10
+        page = 0
+        maxpage = math.ceil(len(attribution.keys())/attr_limit)-1
+        show_attr = False
+        interaction = None
+        msg = None
+
+        try:
+            with open('plugins/system.json') as file:
+                vinfo = json.load(file)
+        except:
+            vinfo = None
+
+        while True:
+            if self.bot.user.id == 1187093090415149056:
+                embed = nextcord.Embed(
+                    title="Unifier",
+                    description="Unify servers, make worthwhile conversations.",
+                    color=self.bot.colors.unifier)
+            else:
+                embed = nextcord.Embed(
+                    title=self.bot.user.name,
+                    description="Powered by Unifier",
+                    color=self.bot.colors.unifier
+                )
+            if vinfo:
+                embed.set_footer(text="Version " + vinfo['version'] + " | Made with \u2764\ufe0f by UnifierHQ")
+            else:
+                embed.set_footer(text="Unknown version | Made with \u2764\ufe0f by UnifierHQ")
+
+            if not show_attr:
+                embed.add_field(name="Developers", value="@green.\n@itsasheer", inline=False)
+                if self.bot.user.id == 1187093090415149056:
+                    embed.add_field(name="PFP made by", value="@green.\n@thegodlypenguin", inline=False)
+                embed.add_field(name="View source code", value=self.bot.config['repo'], inline=False)
+                view = ui.MessageComponents()
+                view.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            label='Open source attribution',
+                            style=nextcord.ButtonStyle.gray,
+                            custom_id='attribution'
+                        )
+                    )
+                )
+
+                if not msg:
+                    msg = await ctx.send(embed=embed,view=view)
+                else:
+                    await interaction.response.edit_message(embed=embed, view=view)
+            else:
+                embed.clear_fields()
+                for index in range(
+                        page*attr_limit,
+                        (page+1)*attr_limit if (page+1)*attr_limit < len(attribution.keys()) else len(attribution.keys())
+                ):
+                    attr_data = attribution[list(attribution.keys())[index]]
+                    embed.add_field(
+                        name=f'{list(attribution.keys())[index]} by {attr_data["author"]}',
+                        value=(
+                                  f'{attr_data["description"]}\n[Source code]({attr_data["repo"]}) • '+
+                                  f'[{attr_data["license"]} license]({attr_data["license_url"]})'
+                        ),
+                        inline=False
+                    )
+                view = ui.MessageComponents()
+                view.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0,
+                            emoji=self.bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage,
+                            emoji=self.bot.ui_emojis.next
+                        )
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                            emoji=self.bot.ui_emojis.back
+                        )
+                    )
+                )
+                embed.set_footer(text=f'Page {page+1} of {maxpage+1 if maxpage >= 1 else 1} | '+embed.footer.text)
+                await interaction.response.edit_message(embed=embed, view=view)
+
+            def check(interaction):
+                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            except:
+                return await msg.edit(view=None)
+
+            if interaction.data['custom_id'] == 'attribution':
+                show_attr = True
+            elif interaction.data['custom_id'] == 'back':
+                show_attr = False
+            elif interaction.data['custom_id'] == 'prev':
+                page -= 1
+                if page < 0:
+                    page = 0
+            elif interaction.data['custom_id'] == 'next':
+                page += 1
+                if page > maxpage:
+                    page = maxpage
 
     @commands.command(hidden=True, description='A command that intentionally fails.')
     @restrictions.owner()
