@@ -1,0 +1,22 @@
+{
+  "language": "English",
+  "author": "UnifierHQ",
+  "release": 0,
+  "minimum": 55, 
+  "strings": {
+    "core.test": "Testing",
+
+    
+    
+    "badge.role.owner": "the instance\'s **owner**",
+    "badge.role.admin": "the instance\'s **admin**",
+    "badge.role.moderator": "the instance\'s **moderator**",
+    "badge.role.verified": "a **verified user**",
+    "badge.role.banned": "**BANNED**",
+    "badge.role.banned.footer": "L bozo",
+    "badge.role.user": "a **user**",
+    "badge.cdm.verify.desc": 'Verifies a user.',
+    "badge.cmd.verify.invalid_action", "Invalid action. Please use 'add' or 'remove'.",
+    
+  }
+}
