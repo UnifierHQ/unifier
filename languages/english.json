@@ -32,7 +32,8 @@
         "banned": "Your account or your server is currently **global banned**.",
         "not_found": "Could not find message in cache!",
         "cancel": "Cancelled.",
-        "what": "what"
+        "what": "what",
+        "mod_unexpected": "buddy you're not a global moderator :skull:"
       },
       "moderation": {
         "warning": "Warning",
@@ -524,6 +525,7 @@
       },
       "reactions_ctx": {
         "reactions": "Reactions",
+        "reactions_count": "{count} reactions",
         "no_reactions": "No reactions yet!"
       },
       "report": {
@@ -549,6 +551,7 @@
         "sign_title": "Sign with your username",
         "sign_prompt": "Sign this only if your report is truthful and in good faith.",
         "title": "Report message",
+        "no_context": "no context given",
         "report_title": "Message report - content is as follows",
         "submitted_by": "Submitted by {username} - please do not disclose actions taken against the user.",
         "review": "Mark as reviewed",
@@ -559,6 +562,25 @@
         "success_title": "Your report was submitted!",
         "success_body": "Thanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
         "failed": "Something went wrong while submitting the report."
+      },
+      "serverstatus": {
+        "description": "Shows your server's plugin restriction status.",
+        "title": "Server status",
+        "body_ok": "Your server is not restricted by plugins.",
+        "body_restricted": "Your server is currently limited by a plugin."
+      },
+      "level": {
+        "description": "Shows you or someone else's level and EXP.",
+        "disabled": "Leveling system is disabled on this instance.",
+        "title_self": "Your level",
+        "title_other": "{username}'s level",
+        "level": "Level {level}",
+        "exp": "{exp} EXP",
+        "progress": "{progress}% towards next level"
+      },
+      "leaderboard": {
+        "description": "Shows EXP leaderboard.",
+        "title": "{botname} leaderboard"
       },
       "initbridge": {
         "description": "Initializes new UnifierBridge object.",
@@ -571,9 +593,12 @@
       "bridge": {
         "blocked_title": "Content blocked",
         "blocked_body": "Your message was blocked. Moderators may be able to see the blocked content.",
+        "blocked_report_title": "Content blocked - content is as follows",
         "punished": "Punished user IDs",
+        "involved": "{count} users involved",
         "automated": "This is an automated action performed by a plugin, always double-check before taking action",
         "owner_immunity": "just as a fyi: this would have banned you",
+        "ban_reason": "Automatic action carried out by security plugins",
         "cannot_appeal": "Unfortunately, this ban cannot be appealed using `{prefix}appeal`. You will need to ask moderators for help.",
         "limited_limit": "Your server is currently limited for security. The maximum character limit for now is **{count} characters**.",
         "limited_cooldown": "Your server is currently limited for security. Please wait before sending another message.",
