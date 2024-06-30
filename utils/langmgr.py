@@ -25,6 +25,9 @@ class LanguageManager:
                 self.language = json.load(file)
         self.__loaded = True
 
+    def desc(self, parent):
+        return self.get('description',parent)
+
     def get(self, string, parent: Union[commands.Context, str], default="ERROR: Tell an admin to check console"):
         if not self.__loaded:
             raise RuntimeError('language not loaded, run LanguageManager.load()')
@@ -57,10 +60,21 @@ class LanguageManager:
         if not values:
             values = {}
         if default:
-            string = self.get(string, parent, default)
+            string = self.get(string, parent, default=default)
         else:
             string = self.get(string, parent)
         return string.format(**values)
+
+    def fget(self,
+             string,
+             parent: Union[commands.Context, str],
+             default=None,
+             values: dict = None):
+        """Alias for get_formatted"""
+        if default:
+            return self.get_formatted(string, parent, default=default, values=values)
+        else:
+            return self.get_formatted(string, parent, default, values=values)
 
     def get_selector(self, parent: Union[commands.Context, str]):
         if not self.__loaded:
@@ -88,3 +102,11 @@ class Selector:
 
     def get_formatted(self, string, values):
         return self.parent.get_formatted(string, f"{self.extname}.{self.cmdname}", values=values)
+
+    def fget(self, string, values):
+        """Alias for get_formatted"""
+        return self.parent.get_formatted(string, f"{self.extname}.{self.cmdname}", values=values)
+
+def placeholder():
+    # placeholder class so IDE doesn't complain
+    return LanguageManager(None)
