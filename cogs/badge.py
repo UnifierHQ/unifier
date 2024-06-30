@@ -76,7 +76,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,aliases=['trust'],description=langmgr.get("badge.cdm.verify.desc, 'Verifies a user.'))
+    @commands.command(hidden=True,aliases=['trust'],description=langmgr.get("badge.cdm.verify.desc", 'Verifies a user.'))
     @restrictions.admin()
     async def verify(self, ctx, action, user: nextcord.User):
         action = action.lower()

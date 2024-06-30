@@ -148,6 +148,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.admin()
     async def rename(self, ctx, room, newroom):
         newroom = newroom.lower()
+        if not room.lower() in list(self.bot.db['rooms'].keys()):
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
         if not bool(re.match("^[A-Za-z0-9_-]*$", newroom)):
             return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
         if newroom in list(self.bot.db['rooms'].keys()):
@@ -247,11 +249,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
         if room in self.bot.db['restricted']:
             self.bot.db['restricted'].remove(room)
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} Unrestricted `{room}`!')
         else:
             self.bot.db['restricted'].append(room)
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} Restricted `{room}`!')
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(
         hidden=True,
@@ -319,7 +322,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if self.is_room_restricted(room,self.bot.db) and not self.is_user_admin(ctx.author.id):
             return await ctx.send(f'{self.bot.ui_emojis.error} Only admins can bind channels to restricted rooms.')
         if room=='' or not room: # Added "not room" as a failback
-            room = 'main'
+            room = self.bot.config['main_room']
             await ctx.send(f'{self.bot.ui_emojis.warning} No room was given, defaulting to main')
         try:
             data = self.bot.db['rooms'][room]
@@ -415,9 +418,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
     @commands.has_permissions(manage_channels=True)
-    async def unbind(self,ctx,*,room=''):
-        if room=='':
-            return await ctx.send(f'{self.bot.ui_emojis.error} You must specify the room to unbind from.')
+    async def unbind(self,ctx,*,room):
         room = room.lower()
         try:
             data = self.bot.db['rooms'][room]
@@ -427,7 +428,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             try:
                 hooks = await ctx.guild.webhooks()
             except:
-                return await ctx.send('I cannot manage webhooks.')
+                return await ctx.send(f'{self.bot.ui_emojis.error} I cannot manage webhooks.')
             if f'{ctx.guild.id}' in list(data.keys()):
                 hook_ids = data[f'{ctx.guild.id}']
             else:
@@ -1153,7 +1154,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 avurl = self.bot.db['avatars'][f'{ctx.author.id}']
                 desc = f'You have a custom avatar! Run `{self.bot.command_prefix}avatar <url>` to change it, or run `{self.bot.command_prefix}avatar remove` to remove it.'
             else:
-                desc = f'You have a default avatar! Run `{self.bot.command_prefix}avatar <url>` to set a custom one for UniChat.'
+                desc = f'You have a default avatar! Run `{self.bot.command_prefix}avatar <url>` to set a custom one.'
                 avurl = ctx.author.avatar.url
         except:
             avurl = None

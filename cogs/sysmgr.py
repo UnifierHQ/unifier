@@ -776,72 +776,66 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Evaluates code.')
     @restrictions.owner()
     async def eval(self, ctx, *, body):
-        if ctx.author.id == self.bot.config['owner']:
-            env = {
-                'ctx': ctx,
-                'channel': ctx.channel,
-                'author': ctx.author,
-                'guild': ctx.guild,
-                'message': ctx.message,
-                'source': inspect.getsource,
-                'session': self.bot.session,
-                'bot': self.bot
-            }
+        env = {
+            'ctx': ctx,
+            'channel': ctx.channel,
+            'author': ctx.author,
+            'guild': ctx.guild,
+            'message': ctx.message,
+            'source': inspect.getsource,
+            'session': self.bot.session,
+            'bot': self.bot
+        }
 
-            env.update(globals())
+        env.update(globals())
 
-            body = cleanup_code(body)
-            stdout = io.StringIO()
+        body = cleanup_code(body)
+        stdout = io.StringIO()
 
-            to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
+        to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
 
-            try:
-                if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
-                    raise ValueError('Blocked phrase')
-                exec(to_compile, env)
-            except:
-                pass
+        try:
+            if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
+                raise ValueError('Blocked phrase')
+            exec(to_compile, env)
+        except:
+            pass
 
-            try:
-                func = env['func']
-            except Exception as e:
-                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
-                await ctx.author.send(
-                    f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
-                return
-            token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
-            try:
-                with redirect_stdout(stdout):
-                    # ret = await func() to return output
-                    await func()
-            except:
-                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
-                if token_start in value:
-                    return await ctx.author.send('The error contained your bot\'s token, so it was not sent.')
-                await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
-            else:
-                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                if token_start in value:
-                    return await ctx.send('The output contained your bot\'s token, so it was not sent.')
-                if value == '':
-                    pass
-                else:
-                    #  here, cause is if haves value
-                    await ctx.send('```%s```' % value)
+        try:
+            func = env['func']
+        except Exception as e:
+            await ctx.send('An error occurred while executing the code.', reference=ctx.message)
+            await ctx.author.send(
+                f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
+            return
+        token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
+        try:
+            with redirect_stdout(stdout):
+                # ret = await func() to return output
+                await func()
+        except:
+            value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+            await ctx.send('An error occurred while executing the code.', reference=ctx.message)
+            if token_start in value:
+                return await ctx.author.send('The error contained your bot\'s token, so it was not sent.')
+            await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
         else:
-            await ctx.send('Only the owner can execute code.')
+            value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+            if token_start in value:
+                return await ctx.send('The output contained your bot\'s token, so it was not sent.')
+            if value == '':
+                pass
+            else:
+                #  here, cause is if haves value
+                await ctx.send('```%s```' % value)
 
     @eval.error
     async def eval_error(self, ctx, error):
-        if ctx.author.id == self.bot.config['owner']:
-            if isinstance(error, commands.MissingRequiredArgument):
-                await ctx.send('where code :thinking:')
-            else:
-                await ctx.send('Something went horribly wrong.')
-                raise
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send('where code :thinking:')
         else:
-            await ctx.send('Only the owner can execute code.')
+            await ctx.send('Something went horribly wrong.')
+            raise
 
     @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
     @restrictions.owner()
@@ -1006,140 +1000,128 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Reloads an extension.')
     @restrictions.owner()
     async def reload(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        if self.bot.update:
+            return await ctx.send('Plugin management is disabled until restart.')
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Reloading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    if extension == 'lockdown':
-                        raise ValueError('Cannot unload lockdown extension for security purposes.')
-                    await self.preunload(extension)
-                    self.bot.reload_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Reload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send('Reloading extensions...')
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                if extension == 'lockdown':
+                    raise ValueError('Cannot unload lockdown extension for security purposes.')
+                await self.preunload(extension)
+                self.bot.reload_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can reload extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(
+            content=f'Reload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**Fail logs**\n{text}')
 
     @commands.command(hidden=True,description='Loads an extension.')
     @restrictions.owner()
     async def load(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        if self.bot.update:
+            return await ctx.send('Plugin management is disabled until restart.')
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Loading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    self.bot.load_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Load completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send('Loading extensions...')
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                self.bot.load_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can load extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(
+            content=f'Load completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**Fail logs**\n{text}')
 
     @commands.command(hidden=True,description='Unloads an extension.')
     @restrictions.owner()
     async def unload(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        if self.bot.update:
+            return await ctx.send('Plugin management is disabled until restart.')
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Unloading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    if extension == 'sysmgr':
-                        raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
-                    if extension == 'lockdown':
-                        raise ValueError('Cannot unload lockdown extension for security purposes.')
-                    await self.preunload(extension)
-                    self.bot.unload_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Unload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send('Unloading extensions...')
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                if extension == 'sysmgr':
+                    raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
+                if extension == 'lockdown':
+                    raise ValueError('Cannot unload lockdown extension for security purposes.')
+                await self.preunload(extension)
+                self.bot.unload_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can unload extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(
+            content=f'Unload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**Fail logs**\n{text}')
 
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions.owner()
     async def install(self, ctx, url):
-        if not ctx.author.id==self.bot.config['owner']:
-            return
-
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
 
