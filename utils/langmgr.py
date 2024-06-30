@@ -47,5 +47,44 @@ class LanguageManager:
             self.logger.exception('An error occurred!')
             return default
 
+    def get_formatted(self,
+                      string,
+                      parent: Union[commands.Context, str],
+                      default=None,
+                      values: dict = None):
+        if not self.__loaded:
+            raise RuntimeError('language not loaded, run LanguageManager.load()')
+        if not values:
+            values = {}
+        if default:
+            string = self.get(string, parent, default)
+        else:
+            string = self.get(string, parent)
+        return string.format(**values)
 
+    def get_selector(self, parent: Union[commands.Context, str]):
+        if not self.__loaded:
+            raise RuntimeError('language not loaded, run LanguageManager.load()')
+        if isinstance(parent, commands.Context):
+            extlist = list(self.bot.extensions)
+            extname = None
+            cmdname = parent.command.qualified_name
+            for x in range(len(self.bot.cogs)):
+                if self.bot.cogs[x]==parent.cog:
+                    extname = extlist[x]
+                    break
+        else:
+            extname, cmdname = parent.split('.')
+        return Selector(self, extname, cmdname)
 
+class Selector:
+    def __init__(self, parent: LanguageManager, extname, cmdname):
+        self.parent = parent
+        self.extname = extname
+        self.cmdname = cmdname
+
+    def get(self, string):
+        return self.parent.get(string, f"{self.extname}.{self.cmdname}")
+
+    def get_formatted(self, string, values):
+        return self.parent.get_formatted(string, f"{self.extname}.{self.cmdname}", values=values)
