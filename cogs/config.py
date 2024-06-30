@@ -26,8 +26,6 @@ import emoji as pymoji
 
 restrictions = r.Restrictions()
 
-
-# noinspection PyUnresolvedReferences
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
 
@@ -557,7 +555,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
             if interaction.data['custom_id']=='bind':
                 await msg.edit(embed=embed, view=ui.MessageComponents())
-                await resp.response.defer(with_message=True)
+                await interaction.response.defer(with_message=True)
                 break
             if interaction.data['custom_id']=='selection':
                 channels_enabled = []
@@ -577,7 +575,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.db['rooms'][roomname].update({f'{ctx.guild.id}': guild})
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await resp.edit_original_message(
+        await interaction.edit_original_message(
             content=f'# {self.bot.ui_emojis.success} Linked channels to Unifier network!\nYou can now send messages to the Unifier network through the channels. Say hi!')
 
     @commands.command(description='Displays room rules for the specified room.')
