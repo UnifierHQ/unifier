@@ -478,6 +478,8 @@
         "description": "Sets Revolt color.",
         "title": "Your Revolt color",
         "default": "Default",
+        "inherit": "Inherit from role",
+        "invalid": "Invalid hex code!",
         "success_inherit": "Your Revolt messages will now inherit your Discord role color.",
         "success_custom": "Your Revolt messages will now inherit the custom color."
       },
@@ -506,7 +508,8 @@
         "selection_emoji": "Emoji...",
         "noresults_title": "No emojis",
         "noresults_body_search": "There are no emojis matching your search query.",
-        "noresults_body_room": "There's no global emojis here!",
+        "noresults_body_emoji": "There's no global emojis here!",
+        "from": "From:",
         "instructions_title": "How to use",
         "instructions_body": "Type `[emoji: {emojiname}]` in your message to use this emoji!"
       },

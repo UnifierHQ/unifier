@@ -35,12 +35,13 @@ import ast
 import math
 from io import BytesIO
 import os
-from utils import log, ui, restrictions as r
+from utils import log, langmgr, ui, restrictions as r
 import importlib
 import emoji as pymoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 restrictions = r.Restrictions()
+language = langmgr.placeholder()
 
 multisend_logs = []
 plugin_data = {}
@@ -1885,7 +1886,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     Developed by Green and ItsAsheer"""
 
     def __init__(self, bot):
+        global language
         self.bot = bot
+        language = self.bot.langmgr
         restrictions.attach_bot(self.bot)
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = []
@@ -1934,75 +1937,79 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if webhook_cache:
             self.bot.bridge.webhook_cache = webhook_cache
 
-    @commands.command(aliases=['colour'],description='Sets Revolt color.')
+    @commands.command(aliases=['colour'],description=language.desc('bridge.color'))
     async def color(self,ctx,*,color=''):
+        selector = language.get_selector(ctx)
         if color=='':
             try:
                 current_color = self.bot.db['colors'][f'{ctx.author.id}']
                 if current_color=='':
-                    current_color = 'Default'
+                    current_color = selector.get('default')
                     embed_color = self.bot.colors.unifier
                 elif current_color=='inherit':
-                    current_color = 'Inherit from role'
+                    current_color = selector.get('inherit')
                     embed_color = ctx.author.color.value
                 else:
                     embed_color = ast.literal_eval('0x'+current_color)
             except:
                 current_color = 'Default'
                 embed_color = self.bot.colors.unifier
-            embed = nextcord.Embed(title='Your Revolt color',description=current_color,color=embed_color)
+            embed = nextcord.Embed(title=selector.get('title'),description=current_color,color=embed_color)
             await ctx.send(embed=embed)
         elif color=='inherit':
             self.bot.db['colors'].update({f'{ctx.author.id}':'inherit'})
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send('Your Revolt messages will now inherit your Discord role color.')
+            await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_inherit'))
         else:
             try:
                 tuple(int(color.replace('#','',1)[i:i + 2], 16) for i in (0, 2, 4))
             except:
-                return await ctx.send('Invalid hex code!')
+                return await ctx.send(selector.get('invalid'))
             self.bot.db['colors'].update({f'{ctx.author.id}':color})
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send('Your Revolt messages will now inherit the custom color.')
+            await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_custom'))
 
-    @commands.command(description='Sets a nickname. An empty provided nickname will reset it.')
+    @commands.command(description=language.desc('bridge.nickname'))
     async def nickname(self, ctx, *, nickname=''):
+        selector = language.get_selector(ctx)
         if len(nickname) > 33:
-            return await ctx.send('Please keep your nickname within 33 characters.')
+            return await ctx.send(selector.get('exceed'))
         if len(nickname) == 0:
             self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
         else:
             self.bot.db['nicknames'].update({f'{ctx.author.id}': nickname})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('Nickname updated.')
+        await ctx.send(selector.get('success'))
 
-    @commands.command(description='Measures bot latency.')
+    @commands.command(description=language.desc('bridge.ping'))
     async def ping(self, ctx):
+        selector = language.get_selector(ctx)
         t = time.time()
-        msg = await ctx.send('Ping!')
+        msg = await ctx.send(selector.get('ping'))
         diff = round((time.time() - t) * 1000, 1)
-        text = 'Pong! :ping_pong:'
+        text = selector.get('pong')+' :ping_pong:'
         if diff <= 300 and self.bot.latency <= 0.2:
-            embed = nextcord.Embed(title='Normal - all is well!',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nAll is working normally!',
+            embed = nextcord.Embed(title=selector.get('normal_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('normal_body'),
                                    color=self.bot.colors.success)
         elif diff <= 600 and self.bot.latency <= 0.5:
-            embed = nextcord.Embed(title='Fair - could be better.',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nNothing\'s wrong, but the latency could be better.',
+            embed = nextcord.Embed(title=selector.get('fair_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('fair_body'),
                                    color=self.bot.colors.warning)
         elif diff <= 2000 and self.bot.latency <= 1.0:
-            embed = nextcord.Embed(title='SLOW - __**oh no.**__',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nBot latency is higher than normal, messages may be slow to arrive.',
+            embed = nextcord.Embed(title=selector.get('slow_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('slow_body'),
                                    color=self.bot.colors.error)
         else:
-            text = 'what'
-            embed = nextcord.Embed(title='**WAY TOO SLOW**',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nSomething is DEFINITELY WRONG here. Consider checking [Discord status](https://discordstatus.com) page.',
+            text = selector.get('what')
+            embed = nextcord.Embed(title=selector.get('tooslow_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('tooslow_body'),
                                    color=self.bot.colors.critical)
         await msg.edit(content=text, embed=embed)
 
-    @commands.command(description='Shows a list of all global emojis available on the instance.')
+    @commands.command(description=language.desc('bridge.emojis'))
     async def emojis(self,ctx):
+        selector = language.get_selector(ctx)
         panel = 0
         limit = 8
         page = 0
@@ -2033,10 +2040,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if interaction:
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis'
-                embed.description = 'Choose an emoji to view its info!'
+                embed.title = f'{self.bot.ui_emojis.emoji} '+selector.fget("title",values={"botname": self.bot.user.global_name or self.bot.user.name})
+                embed.description = selector.get('body')
                 selection = nextcord.ui.StringSelect(
-                    max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                    max_values=1, min_values=1, custom_id='selection', placeholder=selector.get('selection_emoji')
                 )
 
                 for x in range(limit):
@@ -2062,8 +2069,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     )
                 if len(embed.fields)==0:
                     embed.add_field(
-                        name='No emojis',
-                        value='There\'s no global emojis here!',
+                        name=selector.get('noresults_title'),
+                        value=selector.get('noresults_body_emoji'),
                         inline=False
                     )
                     selection.add_option(
@@ -2079,21 +2086,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
+                            label=language.get('prev','commons.navigation'),
                             custom_id='prev',
                             disabled=page <= 0 or selection.disabled,
                             emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Next',
+                            label=language.get('next','commons.navigation'),
                             custom_id='next',
                             disabled=page >= maxpage or selection.disabled,
                             emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label='Search',
+                            label=language.get('search','commons.navigation'),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search,
                             disabled=selection.disabled
@@ -2115,25 +2122,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         offset += 1
 
                 embed.title = f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / search'
-                embed.description = 'Choose an emoji to view its info!'
+                embed.description = selector.get('body')
 
                 if len(emojis) == 0:
                     maxpage = 0
                     embed.add_field(
-                        name='No emojis',
-                        value='There are no emojis matching your search query.',
+                        name=selector.get('noresults_title'),
+                        value=selector.get('noresults_body_search'),
                         inline=False
                     )
                     selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
+                        max_values=1, min_values=1, custom_id='selection', placeholder=selector.get('selection_emoji'), disabled=True
                     )
                     selection.add_option(
-                        label='No emojis'
+                        label=selector.get('noresults_title')
                     )
                 else:
                     maxpage = math.ceil(len(emojis) / limit) - 1
                     selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                        max_values=1, min_values=1, custom_id='selection', placeholder=selector.get('selection_emoji')
                     )
 
                     emojis = await self.bot.loop.run_in_executor(None, lambda: sorted(
@@ -2163,14 +2170,19 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             description=guild.name
                         )
 
-                embed.description = f'Searching: {query} (**{len(emojis)}** results)'
+                embed.description = language.fget(
+                    'search_results','commons.search',
+                    values={'query': query, 'results': len(emojis)}
+                )
                 maxcount = (page + 1) * limit
                 if maxcount > len(emojis):
                     maxcount = len(emojis)
                 embed.set_footer(
                     text=(
-                            f'Page {page + 1} of {maxpage + 1} | {page * limit + 1}-{maxcount} of {len(emojis)}'+
-                            ' results'
+                        language.fget('page','commons.search',values={'page': page+1, 'maxpage': maxpage+1})
+                        + ' | ' + language.fget('result_count','commons.search',values={
+                            'lower':page*limit+1,'upper':maxcount
+                        })
                     )
                 )
 
@@ -2184,21 +2196,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
+                            label=language.get('prev','commons.navigation'),
                             custom_id='prev',
                             disabled=page <= 0,
                             emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Next',
+                            label=language.get('next','commons.navigation'),
                             custom_id='next',
                             disabled=page >= maxpage,
                             emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label='Search',
+                            label=language.get('search','commons.navigation'),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search
                         )
@@ -2208,7 +2220,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='Back',
+                            label=language.get('back','commons.navigation'),
                             custom_id='back',
                             emoji=self.bot.ui_emojis.back
                         )
@@ -2217,24 +2229,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif panel == 2:
                 emoji_obj = nextcord.utils.get(self.bot.emojis, name=emojiname)
                 embed.title = (
-                    f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / search / {emojiname}'
+                    f'{self.bot.ui_emojis.emoji} '+selector.fget("title",values={"botname": self.bot.user.global_name or self.bot.user.name})+f' / {selector.get("search").lower()} / {emojiname}'
                     if was_searching else
-                    f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / {emojiname}'
+                    f'{self.bot.ui_emojis.emoji} '+selector.fget("title",values={"botname": self.bot.user.global_name or self.bot.user.name})+f' / {emojiname}'
                 )
                 emoji = (
                     f'<a:{emojiname}:{emoji_obj.id}>' if emoji_obj.animated else f'<:{emojiname}:{emoji_obj.id}>'
                 )
-                embed.description = f'# **{emoji} `:{emojiname}:`**\nFrom: {emoji_obj.guild.name}'
+                embed.description = f'# **{emoji} `:{emojiname}:`**\n'+f'{selector.get("from")} {emoji_obj.guild.name}'
                 embed.add_field(
-                    name='How to use',
-                    value=f'Type `[emoji: {emojiname}]` in your message to use this emoji!',
+                    name=selector.get('instructions_title'),
+                    value=selector.fget('instructions_body',values={'emojiname':emojiname}),
                     inline=False
                 )
                 components.add_rows(
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='Back',
+                            label=language.get('back','commons.navigation'),
                             custom_id='back',
                             emoji=self.bot.ui_emojis.back
                         )
@@ -2242,7 +2254,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 )
 
             if panel == 0:
-                embed.set_footer(text=f'Page {page + 1} of {maxpage + 1 if maxpage >= 0 else 1}')
+                embed.set_footer(text=language.get('page','commons.search',values={'page':page+1,'maxpage':maxpage+1 if maxpage >= 0 else 1}))
             if not msg:
                 msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
             else:
@@ -2275,12 +2287,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 elif interaction.data['custom_id'] == 'next':
                     page += 1
                 elif interaction.data['custom_id'] == 'search':
-                    modal = nextcord.ui.Modal(title='Search...', auto_defer=False)
+                    modal = nextcord.ui.Modal(title=language.get('search_title','commons.search'), auto_defer=False)
                     modal.add_item(
                         nextcord.ui.TextInput(
-                            label='Search query',
+                            label=language.get('query','commons.search'),
                             style=nextcord.TextInputStyle.short,
-                            placeholder='Type something...'
+                            placeholder=language.get('query_prompt','commons.search')
                         )
                     )
                     await interaction.response.send_modal(modal)
@@ -2291,12 +2303,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(
         aliases=['modcall'],
-        description='Ping all moderators to the chat! Use only when necessary, or else.'
+        description=language.desc('bridge.modping')
     )
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
+        selector = language.get_selector(ctx)
         if not self.bot.config['enable_logging']:
-            return await ctx.send('Modping is disabled, contact your instance\'s owner.')
+            return await ctx.send(selector.get('disabled'))
 
         found = False
         room = None
@@ -2339,7 +2352,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     break
 
         if not found:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a UniChat room!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}')
 
         hook_id = self.bot.db['rooms'][room][f'{self.bot.config["home_guild"]}'][0]
         guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -2355,11 +2368,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 try:
                     role = self.bot.config["moderator_role"]
                 except:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
-                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
-                return await ctx.send(f'{self.bot.ui_emojis.success} Moderators called!')
+                    return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_moderator")}')
+                await ch.send(f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.author.id})}',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
+                return await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-        await ctx.send(f'{self.bot.ui_emojis.error} It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
+        await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("bad_config")}')
 
     @nextcord.message_command(name='View reactions')
     async def reactions_ctx(self, interaction, msg: nextcord.Message):
