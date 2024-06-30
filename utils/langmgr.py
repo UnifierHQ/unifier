@@ -12,17 +12,24 @@ class LanguageManager:
         self.__loaded = True
 
     def load(self, language=None):
+        with open('languages/english.json', 'r') as file:
+            self.language = json.load(file)
+        new_lang = None
         if not language:
             try:
                 with open('languages/current.json', 'r') as file:
-                    self.language = json.load(file)
+                    new_lang = json.load(file)
             except:
-                os.system('cp languages/english.json languages/current.json')
-                with open('languages/current.json', 'r') as file:
-                    self.language = json.load(file)
+                pass
         else:
             with open('languages/'+language+'.json', 'r') as file:
-                self.language = json.load(file)
+                new_lang = json.load(file)
+        if new_lang:
+            for key in new_lang['strings'].keys():
+                if not key in self.language:
+                    self.language.update({key: {}})
+                for string in new_lang['strings'][key].keys():
+                    self.language[key].update({string: new_lang['strings'][key][string]})
         self.__loaded = True
 
     def desc(self, parent):
