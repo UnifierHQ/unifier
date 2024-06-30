@@ -754,7 +754,7 @@
         "user": "a **user**"
       },
       "badge": {
-        "description" : "Shows your Unifier user badge.",
+        "description": "Shows your Unifier user badge.",
         "body": "{mention} is {role}.",
         "easter_egg": "L bozo"
       },
