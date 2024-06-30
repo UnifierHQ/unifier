@@ -1,5 +1,4 @@
 from nextcord.ext import commands
-import os
 import ujson as json
 from typing import Union
 from utils import log
