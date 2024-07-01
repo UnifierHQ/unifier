@@ -416,10 +416,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         self.bot = bot
         if not hasattr(self.bot, 'db'):
             self.bot.db = AutoSaveDict({})
-        if not hasattr(self.bot, 'langmgr'):
-            self.bot.langmgr = langmgr.LanguageManager(self.bot)
-            self.bot.langmgr.load()
-        language = self.bot.langmgr
 
         restrictions.attach_bot(self.bot)
 
@@ -459,8 +455,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.package = self.bot.config['package']
 
         self.bot.exhandler = CommandExceptionHandler(self.bot)
-
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
+
+        if not hasattr(self.bot, 'langmgr'):
+            self.bot.langmgr = langmgr.LanguageManager(self.bot)
+            self.bot.langmgr.load()
+        language = self.bot.langmgr
         if not hasattr(self.bot,'loaded_plugins'):
             self.bot.loaded_plugins = {}
             if not self.bot.safemode:
