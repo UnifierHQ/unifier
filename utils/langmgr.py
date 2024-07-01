@@ -10,25 +10,29 @@ class LanguageManager:
         self.language_base = {}
         self.language_custom = {}
         self.language_set = 'english'
-        self.logger = log.buildlogger(self.bot.package, 'langmgr', self.bot.loglevel)
+        if bot:
+            self.logger = log.buildlogger(self.bot.package, 'langmgr', self.bot.loglevel)
         self.__loaded = True
 
     def load(self):
         with open('languages/english.json', 'r') as file:
             self.language_base = json.load(file)
-        for language in os.listdir('languages'):
-            if not language.endswith('.json'):
-                continue
-            with open('languages/current.json', 'r') as file:
-                new_lang = json.load(file)
-            self.language_custom.update({language[:-5]: new_lang})
-        self.language_set = self.bot.config['language']
+        if self.bot:
+            for language in os.listdir('languages'):
+                if language=='english.json':
+                    continue
+                if not language.endswith('.json'):
+                    continue
+                with open(f'languages/{language}.json', 'r') as file:
+                    new_lang = json.load(file)
+                self.language_custom.update({language[:-5]: new_lang})
+            self.language_set = self.bot.config['language']
         self.__loaded = True
 
     def desc(self, parent):
         return self.get('description',parent)
 
-    def get(self, string, parent: Union[commands.Context, str], default="ERROR: Tell an admin to check console", language=None):
+    def get(self, string, parent: Union[commands.Context, str], default="[unknown string]", language=None):
         if not self.__loaded:
             raise RuntimeError('language not loaded, run LanguageManager.load()')
         if not language:
@@ -44,7 +48,8 @@ class LanguageManager:
         else:
             extname, cmdname = parent.split('.')
         if not extname:
-            self.logger.error('Invalid extension in context, something is very wrong here')
+            if self.bot:
+                self.logger.error('Invalid extension in context, something is very wrong here')
             return default
         try:
             try:
@@ -55,7 +60,8 @@ class LanguageManager:
             except:
                 return self.language_base['strings'][extname][cmdname][string]
         except:
-            self.logger.exception('An error occurred!')
+            if self.bot:
+                self.logger.exception('An error occurred!')
             return default
 
     def get_formatted(self,
@@ -94,8 +100,8 @@ class LanguageManager:
             extname = None
             cmdname = parent.command.qualified_name
             for x in range(len(self.bot.cogs)):
-                if self.bot.cogs[x]==parent.cog:
-                    extname = extlist[x]
+                if list(self.bot.cogs)[x]==parent.cog.qualified_name:
+                    extname = extlist[x].replace('cogs.','',1)
                     break
             if not userid:
                 userid = parent.author.id
@@ -139,6 +145,6 @@ class Selector:
             string, f"{self.extname}.{self.cmdname}", values=values, language=self.language_set
         )
 
-def placeholder():
-    # placeholder class so IDE doesn't complain
+def partial():
+    # Creates a LanguageManager object without a bot
     return LanguageManager(None)

@@ -41,7 +41,8 @@ import emoji as pymoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 restrictions = r.Restrictions()
-language = langmgr.placeholder()
+language = langmgr.partial()
+language.load()
 
 multisend_logs = []
 plugin_data = {}
@@ -895,7 +896,7 @@ class UnifierBridge:
             return
         if ignore is None:
             ignore = []
-        selector = language.get_selector('bridge.bridge')
+        selector = language.get_selector('bridge.bridge',userid=message.author.id)
         source = 'discord'
         extlist = list(self.bot.extensions)
         if type(message) is revolt.Message:
@@ -2399,7 +2400,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def reactions_ctx(self, interaction, msg: nextcord.Message):
         if interaction.user.id in self.bot.db['fullbanned']:
             return
-        selector = language.get_selector('bridge.reactions_ctx')
+        selector = language.get_selector('bridge.reactions_ctx',userid=interaction.user.id)
         gbans = self.bot.db['banned']
         ct = time.time()
         if f'{interaction.user.id}' in list(gbans.keys()):
@@ -2552,7 +2553,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @nextcord.message_command(name='Report message')
     async def report(self, interaction, msg: nextcord.Message):
-        selector = language.get_selector('bridge.report')
+        selector = language.get_selector('bridge.report',userid=interaction.user.id)
         if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
@@ -3202,7 +3203,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         traceback.print_exc()
                         await interaction.edit_original_message(content=language.get("error","moderation.delete",language=selector.language_set))
             elif interaction.data["custom_id"].startswith('rpreview_'):
-                selector = language.get_selector('moderation.report')
+                selector = language.get_selector('moderation.report',userid=interaction.user.id)
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
                         style=nextcord.ButtonStyle.red, label=language.get("delete","commons.moderation",language=selector.language_set),
@@ -3244,7 +3245,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await interaction.message.edit(embed=embed,view=components)
                 await interaction.edit_original_message(content=selector.get('reviewed'))
             elif interaction.data["custom_id"].startswith('apaccept_') or interaction.data["custom_id"].startswith('apreject_'):
-                selector = language.get_selector('moderation.appeal')
+                selector = language.get_selector('moderation.appeal',userid=interaction.user.id)
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
                         style=(
@@ -3326,7 +3327,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await interaction.message.edit(embed=embed,view=components)
                 await interaction.edit_original_message(content=selector.get('reviewed'))
         elif interaction.type == nextcord.InteractionType.modal_submit:
-            selector = language.get_selector('bridge.report')
+            selector = language.get_selector('bridge.report',userid=interaction.user.id)
             if not interaction.data['custom_id']==f'{interaction.user.id}_{interaction.message.id}':
                 # not a report
                 return
@@ -3442,7 +3443,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        selector = language.get_selector("bridge.bridge")
+        selector = language.get_selector("bridge.bridge",userid=message.author.id)
         if not type(message.channel) is nextcord.TextChannel:
             return
         if message.content.startswith(f'{self.bot.command_prefix}system'):
@@ -4019,7 +4020,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message_delete(self, message):
-        selector = language.get_selector('bridge.bridge')
+        selector = language.get_selector('bridge.bridge',userid=message.author.id)
         gbans = self.bot.db['banned']
 
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:

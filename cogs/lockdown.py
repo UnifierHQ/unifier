@@ -21,7 +21,8 @@ from nextcord.ext import commands
 from utils import log, ui, langmgr, restrictions as r
 
 restrictions = r.Restrictions()
-language = langmgr.placeholder()
+language = langmgr.partial()
+language.load()
 
 class Lockdown(commands.Cog, name=':lock: Lockdown'):
     """An emergency extension that unloads literally everything.

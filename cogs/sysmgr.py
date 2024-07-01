@@ -59,7 +59,8 @@ import time
 import datetime
 
 restrictions = r.Restrictions()
-language = langmgr.placeholder()
+language = langmgr.partial()
+language.load()
 
 # Below are attributions to the works we used to build Unifier (including our own).
 # If you've modified Unifier to use more works, please add it here.

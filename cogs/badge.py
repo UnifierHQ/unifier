@@ -22,16 +22,17 @@ from utils import log, langmgr, restrictions as r
 from enum import Enum
 
 restrictions = r.Restrictions()
-language = langmgr.placeholder()
+language = langmgr.partial()
+language.load()
 
 class UserRole(Enum):
     # let values be None until set by langmgr
-    OWNER = None
-    ADMIN = None
-    MODERATOR = None
-    TRUSTED = None
-    BANNED = None
-    USER = None
+    OWNER = language.get('owner','badge.roles')
+    ADMIN = language.get('admin','badge.roles')
+    MODERATOR = language.get('moderator','badge.roles')
+    TRUSTED = language.get('trusted','badge.roles')
+    BANNED = language.get('banned','badge.roles')
+    USER = language.get('user','badge.roles')
 
 class Badge(commands.Cog, name=':medal: Badge'):
     """Badge contains commands that show you your role in Unifier.
@@ -43,12 +44,6 @@ class Badge(commands.Cog, name=':medal: Badge'):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'badge', self.bot.loglevel)
         language = self.bot.langmgr
-        UserRole.OWNER = self.bot.langmgr.get('owner','badge.roles')
-        UserRole.ADMIN = self.bot.langmgr.get('admin', 'badge.roles')
-        UserRole.MODERATOR = self.bot.langmgr.get('moderator', 'badge.roles')
-        UserRole.TRUSTED = self.bot.langmgr.get('trusted', 'badge.roles')
-        UserRole.BANNED = self.bot.langmgr.get('banned', 'badge.roles')
-        UserRole.USER = self.bot.langmgr.get('user', 'badge.roles')
         self.embed_colors = {
             UserRole.OWNER: (
                 self.bot.colors.greens_hair if self.bot.user.id==1187093090415149056 else self.bot.colors.unifier
