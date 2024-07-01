@@ -90,8 +90,7 @@
         "error": "An error occurred while executing the code.",
         "blocked": "The error contained your bot's token, so it was not sent.",
         "syntaxerror": "If this is a KeyError, it is most likely a SyntaxError.",
-        "nocode": "where code :thinking:",
-        "unexpectederror": "Something went horribly wrong."
+        "nocode": "where code :thinking:"
       },
       "shutdown": {
         "description": "Gracefully shuts the bot down.",
@@ -100,18 +99,18 @@
       },
       "plugins": {
         "description": "Lists all installed plugins.",
-        "name": "Unifier Plugins",
-        "notfound": "Could not find extension!",
+        "title": "Unifier Plugins",
+        "version": "Version {version} (`{release}`)",
         "system_plugin": "\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.",
         "modules": "Modules",
         "utilities": "Utilities"
       },
       "extensions": {
         "description": "Lists all loaded extensions.",
-        "name": "Unifier Extensions",
+        "title": "Unifier Extensions",
         "page": "Page {page}",
         "notfound": "Could not find extension!",
-        "system_plugin": "\n# SYSTEM MODULE\nThis module cannot be unloaded."
+        "system_module": "\n# SYSTEM MODULE\nThis module cannot be unloaded."
       },
       "reload": {
         "description": "Reloads an extension.",
