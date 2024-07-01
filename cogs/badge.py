@@ -18,19 +18,20 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-from utils import log, restrictions as r
+from utils import log, langmgr, restrictions as r
 from enum import Enum
-from utils import langmgr
 
 restrictions = r.Restrictions()
+language = langmgr.placeholder()
 
 class UserRole(Enum):
-    OWNER = langmgr.get("badge.role.owner","the instance\'s **owner**")
-    ADMIN = langmgr.get("badge.role.admin","the instance\'s **admin**")
-    MODERATOR = langmgr.get("badge.role.moderator","the instance\'s **moderator**")
-    TRUSTED =langmgr.get("badge.role.verified", "a **verified user**")
-    BANNED = langmgr.get("badge.role.banned","**BANNED**")
-    USER = langmgr.get("badge.role.user","a **user**")
+    # let values be None until set by langmgr
+    OWNER = None
+    ADMIN = None
+    MODERATOR = None
+    TRUSTED = None
+    BANNED = None
+    USER = None
 
 class Badge(commands.Cog, name=':medal: Badge'):
     """Badge contains commands that show you your role in Unifier.
@@ -38,8 +39,16 @@ class Badge(commands.Cog, name=':medal: Badge'):
     Developed by Green and ItsAsheer"""
 
     def __init__(self, bot):
+        global language
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'badge', self.bot.loglevel)
+        language = self.bot.langmgr
+        UserRole.OWNER = self.bot.langmgr.get('owner','badge.roles')
+        UserRole.ADMIN = self.bot.langmgr.get('admin', 'badge.roles')
+        UserRole.MODERATOR = self.bot.langmgr.get('moderator', 'badge.roles')
+        UserRole.TRUSTED = self.bot.langmgr.get('trusted', 'badge.roles')
+        UserRole.BANNED = self.bot.langmgr.get('banned', 'badge.roles')
+        UserRole.USER = self.bot.langmgr.get('user', 'badge.roles')
         self.embed_colors = {
             UserRole.OWNER: (
                 self.bot.colors.greens_hair if self.bot.user.id==1187093090415149056 else self.bot.colors.unifier
@@ -52,9 +61,9 @@ class Badge(commands.Cog, name=':medal: Badge'):
         }
         restrictions.attach_bot(self.bot)
 
-    @commands.command()
+    @commands.command(description=language.desc('badge.badge'))
     async def badge(self, ctx, *, user=None):
-        """Shows your Unifier user badge."""
+        selector = language.get_selector(ctx)
         if user:
             try:
                 user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
@@ -64,7 +73,9 @@ class Badge(commands.Cog, name=':medal: Badge'):
             user = ctx.author
         user_role = self.get_user_role(user.id)
         embed = nextcord.Embed(
-            description=f"<@{user.id}> is {user_role.value}.",
+            description=selector.fget("easter_egg", values={
+                'mention':f"<@{user.id}>",'role': user_role.value
+            }),
             color=self.embed_colors[user_role]
         )
         embed.set_author(
@@ -72,16 +83,17 @@ class Badge(commands.Cog, name=':medal: Badge'):
             icon_url=user.avatar.url if user.avatar else None
         )
         if user_role==UserRole.BANNED:
-            embed.set_footer(text=langmgr.get("badge.role.banned.footer",'L bozo'))
+            embed.set_footer(text=selector.get("easter_egg"))
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,aliases=['trust'],description=langmgr.get("badge.cdm.verify.desc", 'Verifies a user.'))
+    @commands.command(hidden=True,aliases=['trust'],description=language.desc('badge.verify'))
     @restrictions.admin()
     async def verify(self, ctx, action, user: nextcord.User):
+        selector = language.get_selector(ctx)
         action = action.lower()
         if action not in ['add', 'remove']:
-            return await ctx.send(langmgr.get("badge.cmd.verify.invalid_action", "Invalid action. Please use 'add' or 'remove'."))
+            return await ctx.send(selector.get('invalid_action'))
 
         if action == 'add':
             if user.id not in self.bot.trusted_group:
@@ -96,7 +108,10 @@ class Badge(commands.Cog, name=':medal: Badge'):
         user_role = UserRole.TRUSTED if action == 'add' else UserRole.USER
         embed = nextcord.Embed(
             title="Unifier",
-            description=f"{'Added' if action == 'add' else 'Removed'} user {user.mention} from the trust group.",
+            description=(
+                selector.fget('added',values={'user':user.mention}) if action=='add' else
+                selector.fget('removed',values={'user':user.mention})
+            ),
             color=self.embed_colors[user_role],
         )
         await ctx.send(embed=embed)
