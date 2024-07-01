@@ -32,7 +32,7 @@ from nextcord.ext import commands, tasks
 import inspect
 import textwrap
 from contextlib import redirect_stdout
-from utils import log, ui, restrictions as r
+from utils import log, ui, langmgr, restrictions as r
 import logging
 import ujson as json
 import os
@@ -59,6 +59,7 @@ import time
 import datetime
 
 restrictions = r.Restrictions()
+language = langmgr.placeholder()
 
 # Below are attributions to the works we used to build Unifier (including our own).
 # If you've modified Unifier to use more works, please add it here.
@@ -239,7 +240,8 @@ class AutoSaveDict(dict):
                      'descriptions': {}, 'restricted': [], 'locked': [], 'blocked': {}, 'banned': {}, 'moderators': [],
                      'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {}, 'external_bridge': [],
                      'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {}, 'fullbanned': [], 'exp': {},
-                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {}})
+                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {},
+                     'languages': {}})
         self.threads = []
 
         # Load data
@@ -410,9 +412,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pass
 
     def __init__(self, bot):
+        global language
         self.bot = bot
         if not hasattr(self.bot, 'db'):
             self.bot.db = AutoSaveDict({})
+        if not hasattr(self.bot, 'langmgr'):
+            self.bot.langmgr = langmgr.LanguageManager(self.bot)
+            self.bot.langmgr.load()
+        language = self.bot.langmgr
 
         restrictions.attach_bot(self.bot)
 
