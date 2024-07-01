@@ -116,6 +116,15 @@ class Selector:
         )
         self.userid = userid
 
+    def rawget(self, string, parent: Union[commands.Context, str]):
+        return self.parent.get(string, parent, language=self.language_set)
+
+    def rawget_formatted(self, string, parent: Union[commands.Context, str], values: dict = None):
+        return self.parent.get_formatted(string, parent, language=self.language_set, values=values)
+
+    def rawfget(self, string, parent: Union[commands.Context, str], values: dict = None):
+        return self.parent.get_formatted(string, parent, language=self.language_set, values=values)
+
     def get(self, string):
         return self.parent.get(string, f"{self.extname}.{self.cmdname}", language=self.language_set)
 
