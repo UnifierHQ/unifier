@@ -745,9 +745,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def on_disconnect(self):
         self.bot.disconnects += 1
 
-    @commands.command(aliases=['reload-services'], hidden=True, description="Reloads bot services.")
+    @commands.command(aliases=['reload-services'], hidden=True, description=language.desc('sysmgr.reload_services'))
     @restrictions.owner()
     async def reload_services(self,ctx,*,services=None):
+        selector = language.get_selector(ctx)
         if not services:
             plugins = self.bot.loaded_plugins
         else:
@@ -756,7 +757,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         failed = []
         errors = []
         text = '```diff'
-        msg = await ctx.send('Reloading services...')
+        msg = await ctx.send(selector.get('in_progress'))
         for plugin in plugins:
             try:
                 importlib.reload(self.bot.loaded_plugins[plugin])
@@ -766,23 +767,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 failed.append(plugin)
                 errors.append(e)
                 text = text + f'\n- [FAIL] {plugin}'
-        await msg.edit(
-            content=f'Reload completed (`{len(plugins) - len(failed)}'f'/{len(plugins)}` successful)\n\n{text}```'
-        )
+        await msg.edit(selector.fget(
+            'completed', values={'success': len(plugins)-len(failed), 'total': len(plugins())}
+        ))
         text = ''
         index = 0
         for fail in failed:
             if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
+                text = f'{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+                text = f'\n\n{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**Fail logs**\n{text}')
+            await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
 
-    @commands.command(hidden=True,description='Evaluates code.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.eval'))
     @restrictions.owner()
     async def eval(self, ctx, *, body):
+        selector = language.get_selector(ctx)
         env = {
             'ctx': ctx,
             'channel': ctx.channel,
@@ -811,9 +813,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         try:
             func = env['func']
         except Exception as e:
-            await ctx.send('An error occurred while executing the code.', reference=ctx.message)
+            await ctx.send(selector.get('error'), reference=ctx.message)
             await ctx.author.send(
-                f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
+                f'```py\n{e.__class__.__name__}: {e}\n```\n{selector.get("syntaxerror")}')
             return
         token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
         try:
@@ -822,14 +824,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await func()
         except:
             value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-            await ctx.send('An error occurred while executing the code.', reference=ctx.message)
+            await ctx.send(selector.get('error'), reference=ctx.message)
             if token_start in value:
-                return await ctx.author.send('The error contained your bot\'s token, so it was not sent.')
+                return await ctx.author.send(selector.get('blocked'))
             await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
         else:
             value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
             if token_start in value:
-                return await ctx.send('The output contained your bot\'s token, so it was not sent.')
+                return await ctx.send(selector.get('blocked'))
             if value == '':
                 pass
             else:
@@ -839,16 +841,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @eval.error
     async def eval_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('where code :thinking:')
+            await ctx.send(selector.get('nocode'))
         else:
-            await ctx.send('Something went horribly wrong.')
             raise
 
-    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
+    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
     async def shutdown(self, ctx):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
+        selector = language.get_selector(ctx)
         self.logger.info("Attempting graceful shutdown...")
         self.bot.bridge.backup_lock = True
         try:
@@ -866,10 +866,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.bridge.backup_lock = False
             await self.bot.bridge.backup(limit=10000)
             self.logger.info("Backup complete")
-            await ctx.send('Shutting down...')
+            await ctx.send(selector.get('success'))
         except:
             self.logger.exception("Graceful shutdown failed")
-            await ctx.send('Shutdown failed')
+            await ctx.send(selector.get('failed'))
             return
         self.logger.info("Closing bot session")
         await self.bot.session.close()
@@ -877,9 +877,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.close()
         sys.exit(0)
 
-    @commands.command(hidden=True,description='Lists all installed plugins.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.plugins'))
     @restrictions.owner()
     async def plugins(self, ctx, *, plugin=None):
+        selector = language.get_selector(ctx)
         if plugin:
             plugin = plugin.lower()
         page = 0
@@ -893,7 +894,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
         if not plugin:
             offset = page * 20
-            embed = nextcord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
             text = ''
             if offset > len(pluglist):
                 page = len(pluglist) // 20 - 1
@@ -908,7 +909,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text = f'{text}\n- {pluginfo["name"]} (`{pluginfo["id"]}`)'
             embed.description = text
-            embed.set_footer(text="Page " + str(page + 1))
+            embed.set_footer(text=selector.rawfget(
+                'page', 'sysmgr.extensions', values={'page': page + 1}
+            ))
             return await ctx.send(embed=embed)
         found = False
         index = 0
@@ -921,15 +924,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('plugins/' + plugin + '.json') as file:
                 pluginfo = json.load(file)
         else:
-            return await ctx.send('Could not find extension!')
+            return await ctx.send(selector.rawget('notfound', 'sysmgr.extensions'))
         embed = nextcord.Embed(
             title=pluginfo["name"],
-            description=("Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' +
-                         pluginfo["description"]),
+            description=(selector.fget('version',values={'version':pluginfo['version'],'release':pluginfo['release']})
+                         + '\n\n' + pluginfo["description"]),
             color=self.bot.colors.unifier
         )
         if plugin == 'system':
-            embed.description = embed.description + '\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.'
+            embed.description = embed.description + selector.get('system_plugin')
         try:
             embed.url = str(pluginfo['repository'])[:-4]
         except:
@@ -940,19 +943,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 modtext = '- ' + module
             else:
                 modtext = modtext + '\n- ' + module
-        embed.add_field(name='Modules',value=modtext,inline=False)
+        embed.add_field(name=selector.get('modules'),value=modtext,inline=False)
         modtext = 'None'
         for module in pluginfo['utils']:
             if modtext == 'None':
                 modtext = '- ' + module
             else:
                 modtext = modtext + '\n- ' + module
-        embed.add_field(name='Utilities', value=modtext, inline=False)
+        embed.add_field(name=selector.get('utilities'), value=modtext, inline=False)
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True, aliases=['cogs'], description='Lists all loaded extensions.')
+    @commands.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
     @restrictions.owner()
     async def extensions(self, ctx, *, extension=None):
+        selector = language.get_selector(ctx)
         if extension:
             extension = extension.lower()
         page = 0
@@ -965,7 +969,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             pass
         if not extension:
             offset = page * 20
-            embed = nextcord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
             text = ''
             extlist = list(self.bot.extensions)
             if offset > len(extlist):
@@ -981,7 +985,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text = f'{text}\n- {cog.qualified_name} (`{ext}`)'
             embed.description = text
-            embed.set_footer(text="Page " + str(page + 1))
+            embed.set_footer(text=selector.fget('page',values={'page':page + 1}))
             return await ctx.send(embed=embed)
         found = False
         index = 0
@@ -993,7 +997,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if found:
             ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
         else:
-            return await ctx.send('Could not find extension!')
+            return await ctx.send(selector.get('notfound'))
         embed = nextcord.Embed(
             title=ext_info.qualified_name,
             description=ext_info.description,
@@ -1001,17 +1005,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         )
         if (extension == 'cogs.sysmgr' or extension == 'cogs.lockdown' or
                 extension == 'sysmgr' or extension == 'lockdown'):
-            embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
+            embed.description = embed.description + selector.get('system_module')
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,description='Reloads an extension.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.reload'))
     @restrictions.owner()
     async def reload(self, ctx, *, extensions):
+        selector = language.get_selector(ctx)
         if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+            return await ctx.send(selector.get('disabled'))
 
         extensions = extensions.split(' ')
-        msg = await ctx.send('Reloading extensions...')
+        msg = await ctx.send(selector.get('in_progress'))
         failed = []
         errors = []
         text = ''
@@ -1032,24 +1037,25 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n- [FAIL] {extension}'
                 else:
                     text += f'\n- [FAIL] {extension}'
-        await msg.edit(
-            content=f'Reload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
+        await msg.edit(content=selector.rawfget(
+            'completed', 'sysmgr.reload_services', values={'success': len(plugins)-len(failed), 'total': len(plugins())}
+        ))
         text = ''
         index = 0
         for fail in failed:
             if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
+                text = f'{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
             else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+                text = f'\n\n{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**Fail logs**\n{text}')
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
-    @commands.command(hidden=True,description='Loads an extension.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions.owner()
     async def load(self, ctx, *, extensions):
         if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
         extensions = extensions.split(' ')
         msg = await ctx.send('Loading extensions...')
@@ -1982,8 +1988,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.exception('An error occurred!')
                 await ctx.send(f'{self.bot.ui_emojis.error} Could not activate emoji pack.')
 
-    @commands.command(description='Shows this command.')
+    @commands.command(description=language.desc('sysmgr.help'))
     async def help(self,ctx):
+        selector = language.get_selector(ctx)
         panel = 0
         limit = 20
         page = 0
