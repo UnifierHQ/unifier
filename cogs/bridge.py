@@ -942,11 +942,7 @@ class UnifierBridge:
         elif not platform=='discord':
             raise ValueError("Unsupported platform")
 
-        guilds = self.bot.db['rooms'][room]
-        if platform=='revolt':
-            guilds = self.bot.db['rooms_revolt'][room]
-        elif platform=='guilded':
-            guilds = self.bot.db['rooms_guilded'][room]
+        guilds = self.bot.db['rooms'][room][platform]
 
         is_pr = room == self.bot.config['posts_room'] and (
             self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
@@ -1563,12 +1559,15 @@ class UnifierBridge:
                     hooks = await destguild.webhooks()
                     self.bot.bridge.webhook_cache.store_webhooks(hooks)
                     for hook in hooks:
-                        if hook.id in self.bot.db['rooms'][room][guild]:
+                        if hook.id in self.bot.db['rooms'][room]['discord'][guild]:
                             webhook = hook
                             break
                 if not webhook:
                     continue
 
+                # fun fact: tbsend stands for "threaded bridge send", but we read it
+                # as "turbo send", because it sounds cooler and tbsend is what lets
+                # unifier bridge using webhooks with ultra low latency.
                 async def tbsend(webhook,url,msg_author_dc,embeds,message,mentions,components,sameguild,
                                  destguild):
                     try:
@@ -2363,7 +2362,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{ctx.guild.id}' in list(data.keys()):
                 guilddata = data[f'{ctx.guild.id}']
                 if len(guilddata) == 1:
@@ -2386,7 +2385,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{ctx.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{ctx.guild.id}']
                     else:
@@ -2401,7 +2400,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not found:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}')
 
-        hook_id = self.bot.db['rooms'][room][f'{self.bot.config["home_guild"]}'][0]
+        hook_id = self.bot.db['rooms'][room]['discord'][f'{self.bot.config["home_guild"]}'][0]
         guild = self.bot.get_guild(self.bot.config['home_guild'])
         hooks = await guild.webhooks()
 
@@ -3532,7 +3531,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
                 if len(guilddata) == 1:
@@ -3555,7 +3554,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
                     else:
@@ -3900,7 +3899,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
                 if len(guilddata) == 1:
@@ -3923,7 +3922,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
                     else:
@@ -3996,7 +3995,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             # Optimized logic
             for key in self.bot.db['rooms']:
-                data = self.bot.db['rooms'][key]
+                data = self.bot.db['rooms'][key]['discord']
                 if f'{message.guild.id}' in list(data.keys()):
                     guilddata = data[f'{message.guild.id}']
                     if len(guilddata) == 1:
@@ -4016,7 +4015,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 for webhook in hooks:
                     index = 0
                     for key in self.bot.db['rooms']:
-                        data = self.bot.db['rooms'][key]
+                        data = self.bot.db['rooms'][key]['discord']
                         if f'{message.guild.id}' in list(data.keys()):
                             hook_ids = data[f'{message.guild.id}']
                         else:
@@ -4063,7 +4062,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
                 if len(guilddata) == 1:
@@ -4086,7 +4085,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
                     else:
