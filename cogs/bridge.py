@@ -1552,7 +1552,7 @@ class UnifierBridge:
                 webhook = None
                 try:
                     webhook = self.bot.bridge.webhook_cache.get_webhook(
-                        f'{self.bot.db["rooms"][room][guild][0]}'
+                        f'{self.bot.db["rooms"][room]['discord'][guild][0]}'
                     )
                 except:
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
