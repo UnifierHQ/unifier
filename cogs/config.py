@@ -323,7 +323,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             room = self.bot.config['main_room']
             await ctx.send(f'{self.bot.ui_emojis.warning} No room was given, defaulting to main')
         try:
-            data = self.bot.db['rooms'][room]
+            data = self.bot.db['rooms'][room]['discord']
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         embed = nextcord.Embed(
@@ -336,7 +336,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         for roomname in list(self.bot.db['rooms'].keys()):
             # Prevent duplicate binding
             try:
-                hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
+                hook_id = self.bot.db['rooms'][roomname]['discord'][f'{ctx.guild.id}'][0]
             except:
                 continue
             for hook in hooks:
@@ -406,7 +406,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
         guild = [webhook.id, ctx.channel.id]
-        self.bot.db['rooms'][room].update({f'{ctx.guild.id}':guild})
+        self.bot.db['rooms'][room]['discord'].update({f'{ctx.guild.id}':guild})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await resp.edit_original_message(content=f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
         try:
@@ -419,7 +419,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def unbind(self,ctx,*,room):
         room = room.lower()
         try:
-            data = self.bot.db['rooms'][room]
+            data = self.bot.db['rooms'][room]['discord']
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         try:
@@ -436,7 +436,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     await webhook.delete()
                     break
             data.pop(f'{ctx.guild.id}')
-            self.bot.db['rooms'][room] = data
+            self.bot.db['rooms'][room]['discord'] = data
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'# {self.bot.ui_emojis.success} Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
         except:
@@ -459,7 +459,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             for roomname in list(self.bot.db['rooms'].keys()):
                 # Prevent duplicate binding
                 try:
-                    hook_id = self.bot.db['rooms'][roomname][f'{ctx.guild.id}'][0]
+                    hook_id = self.bot.db['rooms'][roomname]['discord'][f'{ctx.guild.id}'][0]
                 except:
                     continue
                 for hook in hooks:
@@ -475,7 +475,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 continue
             namelist.append(roomname)
             try:
-                if len(self.bot.db['rooms'][roomname][f'{ctx.guild.id}']) >= 1:
+                if len(self.bot.db['rooms'][roomname]['discord'][f'{ctx.guild.id}']) >= 1:
                     continue
             except:
                 pass
@@ -572,7 +572,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 self.bot.db['rules'].update({roomname: []})
             webhook = await channel.create_webhook(name='Unifier Bridge')
             guild = [webhook.id, channel.id]
-            self.bot.db['rooms'][roomname].update({f'{ctx.guild.id}': guild})
+            self.bot.db['rooms'][roomname]['discord'].update({f'{ctx.guild.id}': guild})
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await interaction.edit_original_message(
