@@ -402,8 +402,6 @@ class CommandExceptionHandler:
             self.logger.exception('An error occurred!')
             await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
 
-
-# noinspection PyUnresolvedReferences
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
 
@@ -841,6 +839,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @eval.error
     async def eval_error(self, ctx, error):
+        selector = language.get_selector(ctx)
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(selector.get('nocode'))
         else:
@@ -1039,7 +1038,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text += f'\n- [FAIL] {extension}'
         await msg.edit(content=selector.rawfget(
-            'completed', 'sysmgr.reload_services', values={'success': len(plugins)-len(failed), 'total': len(plugins())}
+            'completed', 'sysmgr.reload_services', values={'success': len(extensions)-len(failed), 'total': len(extensions)}
         ))
         text = ''
         index = 0
@@ -1055,11 +1054,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions.owner()
     async def load(self, ctx, *, extensions):
+        selector = language.get_selector(ctx)
         if self.bot.update:
             return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
         extensions = extensions.split(' ')
-        msg = await ctx.send('Loading extensions...')
+        msg = await ctx.send(selector.get('in_progress'))
         failed = []
         errors = []
         text = ''
@@ -1077,8 +1077,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n- [FAIL] {extension}'
                 else:
                     text += f'\n- [FAIL] {extension}'
-        await msg.edit(
-            content=f'Load completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
+        await msg.edit(content=selector.fget(
+            'completed',
+            values={'success': len(extensions) - len(failed), 'total': len(extensions)}
+        ))
         text = ''
         index = 0
         for fail in failed:
@@ -1088,13 +1090,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**Fail logs**\n{text}')
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
     @commands.command(hidden=True,description='Unloads an extension.')
     @restrictions.owner()
     async def unload(self, ctx, *, extensions):
+        selector = language.get_selector(ctx)
         if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
         extensions = extensions.split(' ')
         msg = await ctx.send('Unloading extensions...')
@@ -1120,8 +1123,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n- [FAIL] {extension}'
                 else:
                     text += f'\n- [FAIL] {extension}'
-        await msg.edit(
-            content=f'Unload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
+        await msg.edit(content=selector.fget(
+            'completed',
+            values={'success': len(extensions) - len(failed), 'total': len(extensions)}
+        ))
         text = ''
         index = 0
         for fail in failed:
@@ -1131,7 +1136,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**Fail logs**\n{text}')
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions.owner()
