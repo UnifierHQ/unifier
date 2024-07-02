@@ -1,5 +1,5 @@
 # Security Policy
-At UnifierHQ, we take user safety very seriously. We constantly try to 
+At UnifierHQ, we take user safety very seriously. We always try to 
 implement features that help minimize or eliminate the effects malicious
 actors can have on our community. However, we understand we are not 
 perfect, and there may be vulnerabilities in our code that may impact 
