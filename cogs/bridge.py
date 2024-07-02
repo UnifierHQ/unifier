@@ -316,6 +316,27 @@ class UnifierBridge:
                     self.bot.db['rooms'][room][guild].append(hook.channel_id)
         self.bot.db.save_data()
 
+    async def convert_1(self):
+        """Converts data structure to be v2.0.7-compatible.
+        Eliminates the need for rooms_revolt and rooms_guilded keys."""
+        if len(self.bot.db['rooms'].keys()) == 0:
+            # conversion is not needed
+            return
+        for room in self.bot.db['rooms']:
+            if 'discord' in self.bot.db['rooms'][room].keys():
+                # conversion is not needed
+                return
+            self.bot.db['rooms'][room] = {'discord': self.bot.db['rooms'][room]}
+            if room in self.bot.db['rooms_revolt'].keys():
+                self.bot.db['rooms'][room].update({'revolt': self.bot.db['rooms_revolt'][room]})
+            if room in self.bot.db['rooms_guilded'].keys():
+                self.bot.db['rooms'][room].update({'guilded': self.bot.db['rooms_guilded'][room]})
+
+        # not sure what to do about the data stored in rooms_revolt key now...
+        # maybe delete the key entirely? or keep it in case conversion went wrong?
+
+        self.bot.db.save_data()
+
     def is_raidban(self,userid):
         try:
             ban: UnifierRaidBan = self.raidbans[f'{userid}']
@@ -518,16 +539,20 @@ class UnifierBridge:
         online = 0
         members = 0
         guilds = 0
-        for guild_id in self.bot.db['rooms'][roomname]:
-            try:
-                guild = self.bot.get_guild(int(guild_id))
-                online += len(list(
-                    filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
-                           guild.members)))
-                members += len(guild.members)
-                guilds += 1
-            except:
-                pass
+        for platform in self.bot.db['rooms'][roomname]:
+            for guild_id in self.bot.db['rooms'][roomname][platform]:
+                try:
+                    if platform=='revolt':
+                        guild = self.bot.revolt_client.get_server(int(guild_id))
+                    else:
+                        guild = self.bot.get_guild(int(guild_id))
+                    online += len(list(
+                        filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
+                               guild.members)))
+                    members += len(guild.members)
+                    guilds += 1
+                except:
+                    pass
         try:
             messages = self.msg_stats[roomname]
         except:
@@ -569,7 +594,7 @@ class UnifierBridge:
         async def delete_discord(msgs):
             count = 0
             threads = []
-            for key in list(self.bot.db['rooms'][msg.room].keys()):
+            for key in list(self.bot.db['rooms'][msg.room]['discord'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
@@ -577,11 +602,11 @@ class UnifierBridge:
                 try:
                     try:
                         webhook = self.bot.bridge.webhook_cache.get_webhook([
-                            f'{self.bot.db["rooms"][msg.room][f"{guild.id}"][0]}'
+                            f'{self.bot.db["rooms"][msg.room]['discord'][f"{guild.id}"][0]}'
                         ])
                     except:
                         try:
-                            webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room][key][0])
+                            webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room]['discord'][key][0])
                             self.bot.bridge.webhook_cache.store_webhook(webhook)
                         except:
                             continue
@@ -604,7 +629,7 @@ class UnifierBridge:
                 return
             count = 0
             threads = []
-            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
+            for key in list(self.bot.db['rooms'][msg.room]['guilded'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
@@ -612,7 +637,7 @@ class UnifierBridge:
 
                 # Fetch webhook
                 try:
-                    webhook = await guild.fetch_webhook(self.bot.db['rooms_guilded'][msg.room][key][0])
+                    webhook = await guild.fetch_webhook(self.bot.db['rooms_guilded'][msg.room]['guilded'][key][0])
                 except:
                     continue
 
@@ -631,7 +656,7 @@ class UnifierBridge:
             if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
                 return
             count = 0
-            for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
+            for key in list(self.bot.db['rooms'][msg.room]['revolt'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
@@ -795,13 +820,13 @@ class UnifierBridge:
             else:
                 text = content
 
-            for key in list(self.bot.db['rooms'][msg.room].keys()):
+            for key in list(self.bot.db['rooms'][msg.room]['discord'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
                 # Fetch webhook
                 try:
-                    webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room][key][0])
+                    webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room]['discord'][key][0])
                 except:
                     continue
 
