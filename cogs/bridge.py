@@ -1153,8 +1153,6 @@ class UnifierBridge:
 
             if platform == 'discord':
                 destguild = self.bot.get_guild(int(guild))
-                if not destguild:
-                    continue
             elif platform == 'revolt':
                 try:
                     destguild = self.bot.revolt_client.get_server(guild)
@@ -1165,6 +1163,9 @@ class UnifierBridge:
                     destguild = self.bot.guilded_client.get_server(guild)
                 except:
                     continue
+
+            if not destguild:
+                continue
 
             if destguild.id in ignore:
                 continue
