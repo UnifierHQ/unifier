@@ -215,6 +215,8 @@ async def on_ready():
         logger.debug('System extensions loaded')
         if hasattr(bot, 'bridge'):
             try:
+                logger.debug('Restructuring room data...')
+                await bot.bridge.convert_1()
                 logger.debug('Optimizing room data, this may take a while...')
                 await bot.bridge.optimize()
                 if len(bot.bridge.bridged) == 0:
@@ -242,6 +244,9 @@ async def on_command_error(_ctx, _command):
 
 @bot.event
 async def on_message(message):
+    if not bot.ready:
+        return
+
     if not message.webhook_id==None:
         # webhook msg
         return

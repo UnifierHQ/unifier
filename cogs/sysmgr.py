@@ -474,7 +474,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
                     self.bot.loaded_plugins.update({plugin[:-5]: script})
         if not hasattr(self.bot,'platforms'):
+            self.bot.platforms_former = {}
             self.bot.platforms = {}
+
+            # This loads the entire plugin script to memory.
+            # Plugins will need to create the platform support object themselves when the
+            # bot is ready on the platform.
             if not self.bot.safemode:
                 for plugin in os.listdir('plugins'):
                     with open('plugins/' + plugin) as file:
@@ -485,7 +490,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         except:
                             continue
                     script = importlib.import_module('utils.' + plugin[:-5] + '_bridge_platform')
-                    self.bot.platforms.update({extinfo['bridge_platform']: script})
+                    self.bot.platforms_former.update({extinfo['bridge_platform']: script})
         if not hasattr(self.bot, "ut_total"):
             self.bot.ut_total = round(time.time())
         if not hasattr(self.bot, "disconnects"):
@@ -1051,7 +1056,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text += f'\n- [FAIL] {extension}'
         await msg.edit(content=selector.rawfget(
-            'completed', 'sysmgr.reload_services', values={'success': len(extensions)-len(failed), 'total': len(extensions)}
+            'completed', 'sysmgr.reload_services', values={
+                'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text
+            }
         ))
         text = ''
         index = 0
@@ -1092,7 +1099,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text += f'\n- [FAIL] {extension}'
         await msg.edit(content=selector.fget(
             'completed',
-            values={'success': len(extensions) - len(failed), 'total': len(extensions)}
+            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
         ))
         text = ''
         index = 0
@@ -1138,7 +1145,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text += f'\n- [FAIL] {extension}'
         await msg.edit(content=selector.fget(
             'completed',
-            values={'success': len(extensions) - len(failed), 'total': len(extensions)}
+            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
         ))
         text = ''
         index = 0

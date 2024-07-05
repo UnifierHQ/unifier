@@ -304,13 +304,13 @@ class UnifierBridge:
         """Optimizes data to avoid having to fetch webhooks.
         This decreases latency incuded by message bridging prep."""
         for room in self.bot.db['rooms']:
-            for guild in self.bot.db['rooms'][room]:
-                if len(self.bot.db['rooms'][room][guild])==1:
+            for guild in self.bot.db['rooms'][room]['discord']:
+                if len(self.bot.db['rooms'][room]['discord'][guild])==1:
                     try:
-                        hook = await self.bot.fetch_webhook(self.bot.db['rooms'][room][guild][0])
+                        hook = await self.bot.fetch_webhook(self.bot.db['rooms'][room]['discord'][guild][0])
                     except:
                         continue
-                    self.bot.db['rooms'][room][guild].append(hook.channel_id)
+                    self.bot.db['rooms'][room]['discord'][guild].append(hook.channel_id)
         self.bot.db.save_data()
 
     async def convert_1(self):
@@ -844,10 +844,13 @@ class UnifierBridge:
             await asyncio.gather(*threads)
 
         async def edit_others(msgs,target,friendly=False):
-            source_support = self.bot.platforms[msg.source]
+            source_support = self.bot.platforms[msg.source] if msg.source != 'discord' else None
             dest_support = self.bot.platforms[target]
             if friendly:
-                text = await source_support.make_friendly(content)
+                if msg.source == 'discord':
+                    text = await self.make_friendly(content, msg.source)
+                else:
+                    text = await source_support.make_friendly(content)
             else:
                 text = content
 
@@ -896,10 +899,13 @@ class UnifierBridge:
             ignore = []
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
 
-        source_support = self.bot.platforms[source]
-        dest_support = self.bot.platforms[platform]
+        source_support = self.bot.platforms[source] if source != 'discord' else None
+        dest_support = self.bot.platforms[platform] if platform != 'discord' else None
 
-        if not platform in self.bot.platforms.keys():
+        if not source in self.bot.platforms.keys() and not source=='discord':
+            raise ValueError('invalid platform')
+
+        if not platform in self.bot.platforms.keys() and not platform=='discord':
             raise ValueError('invalid platform')
 
         guilds = self.bot.db['rooms'][room][platform]
@@ -1109,7 +1115,7 @@ class UnifierBridge:
         if source=='discord':
             attachments = message.attachments
         else:
-            attachments = source_support.attachments
+            attachments = source_support.attachments(message)
         for attachment in attachments:
             if system:
                 break
@@ -1133,9 +1139,12 @@ class UnifierBridge:
             if source=='discord':
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
             else:
-                guild = source_support.server(message)
-                guild_id = source_support.get_id(guild)
-                sameguild = (guild == str(guild_id)) if message.guild else False
+                compare_guild = source_support.server(message)
+                if not compare_guild:
+                    sameguild = False
+                else:
+                    guild_id = source_support.get_id(compare_guild)
+                    sameguild = (guild == str(guild_id))
 
             try:
                 bans = self.bot.db['blocked'][str(guild)]
@@ -1614,7 +1623,11 @@ class UnifierBridge:
                             'color': color
                         },
                         'files': files,
-                        'embeds': dest_support.convert_embeds(source_support.embeds(message.embeds))
+                        'embeds': (
+                            dest_support.convert_embeds(message.embeds) if source=='discord'
+                            else dest_support.convert_embeds(source_support.embeds(message))
+                        ),
+                        'reply': None
                     }
                     if reply:
                         special.update({'reply': reply})
