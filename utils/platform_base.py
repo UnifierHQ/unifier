@@ -68,6 +68,9 @@ class PlatformBase:
         """Returns the member object from a message (i.e. its author)."""
         raise MissingImplementation()
 
+    def attachments(self, message):
+        raise MissingImplementation()
+
     def url(self, message):
         """Returns the URL for a message."""
         raise MissingImplementation()
@@ -104,6 +107,9 @@ class PlatformBase:
         """Returns if the content type can be bridged.
         If allowed_content_types is empty, this will always return True."""
         return len(self.allowed_content_types) == 0 or content_type in self.allowed_content_types
+
+    def convert_embeds(self, embeds):
+        raise MissingImplementation()
 
     def webhook_id(self, message):
         """Returns the webhook ID from a message."""
