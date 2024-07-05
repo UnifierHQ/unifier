@@ -1118,15 +1118,16 @@ class UnifierBridge:
                 break
             size_total += attachment.size
             if size_total > 25000000:
-                if source == platform == 'revolt':
-                    await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                               replies=[revolt.MessageReply(message)])
-                elif source == platform == 'guilded':
-                    await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                               reply_to=message)
-                elif source == platform:
-                    await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                               reference=message)
+                if not self.bot.config['suppress_filesize_warning']:
+                    if source == platform == 'revolt':
+                        await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                                   replies=[revolt.MessageReply(message)])
+                    elif source == platform == 'guilded':
+                        await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                                   reply_to=message)
+                    elif source == platform:
+                        await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                                                   reference=message)
                 break
             max_files += 1
 
