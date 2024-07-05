@@ -240,7 +240,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 pass
 
         content = ctx.message.content
-        ctx.message.content = ''
         embed = nextcord.Embed(description='A user was recently banned from Unifier!',color=self.bot.colors.error)
         if disclose:
             if not user:
@@ -256,9 +255,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ctx.message.embeds = [embed]
         
         if not discreet:
-            await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
+            await self.bot.bridge.send("main", ctx.message, 'discord', system=True, content_override='')
         for platform in externals:
-            await self.bot.bridge.send("main", ctx.message, platform, system=True)
+            await self.bot.bridge.send("main", ctx.message, platform, system=True, content_override='')
 
         ctx.message.embeds = []
         ctx.message.content = content

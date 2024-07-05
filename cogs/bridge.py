@@ -3323,13 +3323,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(hidden=True,description=language.desc("bridge.system"))
     @restrictions.owner()
-    async def system(self, ctx, room):
-        selector = language.get_selector("system")
-        await self.bot.bridge.send(room,ctx.message,'discord',system=True)
+    async def system(self, ctx, room, *, content):
+        selector = language.get_selector(ctx)
+        await self.bot.bridge.send(room,ctx.message,'discord',system=True,content_override=content)
         for platform in self.bot.config['external']:
             await self.bot.bridge.send(
                 room, ctx.message, platform, system=True,
-                content_override=ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1))
+                content_override=content)
         await ctx.send(selector.get("success"))
 
     @commands.Cog.listener()
