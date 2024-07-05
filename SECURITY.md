@@ -6,7 +6,7 @@ perfect, and there may be vulnerabilities in our code that may impact
 the safety of hosters and users every now and then.
 
 ## Supported Versions
-Versions v1.2.x and newer will receive at least 6 months of bug fixes and
+All Unifier release series will receive at least 6 months of bug fixes and
 security updates after being superseded by a newer series. All EoL dates
 are in dd/mm/yyyy format.
 | Version | Type     | Supported                    | EoL        |
