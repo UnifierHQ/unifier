@@ -6,18 +6,14 @@ perfect, and there may be vulnerabilities in our code that may impact
 the safety of hosters and users every now and then.
 
 ## Supported Versions
-Versions v1.2.x and newer will receive at least 6 months of bug fixes and
+All Unifier release series will receive at least 6 months of bug fixes and
 security updates after being superseded by a newer series. All EoL dates
 are in dd/mm/yyyy format.
-
-Currently, v1.1.x and newer receive security updates. Preceding versions
-have been discontinued and will not be updated any further.
 | Version | Type     | Supported                    | EoL        |
 | ------- | -------- | ---------------------------- | ---------- |
 | 2.0.x   | release  | :white_check_mark: Supported | Not legacy |
 | 1.2.x   | legacy   | :white_check_mark: Supported | 05/12/2024 |
-| 1.1.x   | legacy   | :warning: Nearing EoL        | 05/07/2024 |
-| < 1.1   | eol      | :x: Unsupported              | EoL        |
+| < 1.2   | eol      | :x: Unsupported              | EoL        |
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.
@@ -25,7 +21,8 @@ have been discontinued and will not be updated any further.
   patches and security updates.
 - `extended`: This is an older series that should have been discontinued
   but continues to receive updates due to special circumstances.
-- `eol`: This series is no longer maintained.
+- `eol`: This series is no longer maintained. They will not receive any
+  updates.
 
 ## Reporting a Vulnerability
 When you have found a vulnerability, DO NOT open a bug report. These 
