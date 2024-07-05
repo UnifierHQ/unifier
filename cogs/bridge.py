@@ -1130,7 +1130,7 @@ class UnifierBridge:
                                                    reference=message)
                     else:
                         await source_support.send(source_support.channel(message),selector.get('filesize_limit'),
-                                                  reply=message)
+                                                  special={'reply':message})
                 break
             max_files += 1
 
