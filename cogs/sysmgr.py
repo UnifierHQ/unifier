@@ -484,7 +484,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 continue
                         except:
                             continue
-                    script = importlib.import_module('utils.' + plugin[:-5] + '_bridge')
+                    script = importlib.import_module('utils.' + plugin[:-5] + '_bridge_platform')
                     self.bot.platforms.update({extinfo['bridge_platform']: script})
         if not hasattr(self.bot, "ut_total"):
             self.bot.ut_total = round(time.time())
