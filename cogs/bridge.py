@@ -19,8 +19,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import nextcord
 import hashlib
 import asyncio
-import guilded
-import revolt
 from nextcord.ext import commands
 import traceback
 import time
@@ -33,9 +31,8 @@ import compress_json
 import re
 import ast
 import math
-from io import BytesIO
 import os
-from utils import log, langmgr, ui, restrictions as r
+from utils import log, langmgr, ui, platform_base, restrictions as r
 import importlib
 import emoji as pymoji
 
@@ -577,15 +574,14 @@ class UnifierBridge:
             ch = self.bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
             await todelete.delete()
-        elif msg.source=='guilded':
-            guild = self.bot.guilded_client.get_server(msg.guild_id)
-            ch = guild.get_channel(msg.channel_id)
-            todelete = await ch.fetch_message(msg.id)
-            await todelete.delete()
-        elif msg.source=='revolt':
-            ch = await self.bot.revolt_client.fetch_channel(msg.channel_id)
-            todelete = await ch.fetch_message(msg.id)
-            await todelete.delete()
+        else:
+            source_support = self.bot.platforms[msg.source]
+            try:
+                ch = source_support.get_channel(msg.channel_id)
+            except:
+                ch = await source_support.fetch_channel(msg.channel_id)
+            todelete = await source_support.fetch_message(ch,msg.id)
+            await source_support.delete(todelete)
 
     async def delete_copies(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
@@ -623,6 +619,13 @@ class UnifierBridge:
                     pass
             await asyncio.gather(*threads)
             return count
+
+        async def delete_others(msgs, target):
+            count = 0
+            threads = []
+            for key in list(self.bot.db['rooms'][msg.room][target].keys()):
+                if not key in list(msgs.keys()):
+                    continue
 
         async def delete_guilded(msgs):
             if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
@@ -840,66 +843,36 @@ class UnifierBridge:
 
             await asyncio.gather(*threads)
 
-        async def edit_revolt(msgs,friendly=False):
-            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
-                return
+        async def edit_others(msgs,target,friendly=False):
+            source_support = self.bot.platforms[msg.source]
+            dest_support = self.bot.platforms[target]
             if friendly:
-                text = await self.make_friendly(content, msg.source)
+                text = await source_support.make_friendly(content)
             else:
                 text = content
 
-            for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
+            for key in list(self.bot.db['rooms'][msg.room][target].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
                 try:
-                    ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
-                    toedit = await ch.fetch_message(msgs[key][1])
-                    await toedit.edit(content=text)
+                    try:
+                        ch = dest_support.get_channel(msgs[key][0])
+                    except:
+                        ch = await dest_support.fetch_channel(msgs[key][0])
+                    toedit = await dest_support.fetch_message(ch, msgs[key][1])
+                    await dest_support.edit(toedit, text)
                 except:
                     traceback.print_exc()
                     continue
-
-        async def edit_guilded(msgs,friendly=False):
-            """Guilded does not support editing via webhooks at the moment.
-            We're just keeping this in case they change this at some point."""
-
-            threads = []
-            if friendly:
-                text = await self.make_friendly(content, msg.source)
-            else:
-                text = content
-
-            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
-                if not key in list(msgs.keys()):
-                    continue
-
-                # Fetch webhook
-                try:
-                    webhook = await self.bot.guilded_client.fetch_webhook(self.bot.db['rooms_guilded'][msg.room][key][0])
-                except:
-                    continue
-
-                try:
-                    toedit = await webhook.fetch_message(msgs[key][1])
-                    if msg.reply:
-                        text = toedit.content.split('\n',1)[0]+'\n'+text
-                    threads.append(asyncio.create_task(
-                        toedit.edit(content=text)
-                    ))
-                except:
-                    traceback.print_exc()
-                    pass
-
-                await asyncio.gather(*threads)
 
         if msg.source=='discord':
             threads.append(asyncio.create_task(
                 edit_discord(msg.copies)
             ))
-        elif msg.source=='revolt':
+        else:
             threads.append(asyncio.create_task(
-                edit_revolt(msg.copies)
+                edit_others(msg.copies, msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
@@ -907,40 +880,27 @@ class UnifierBridge:
                 threads.append(asyncio.create_task(
                     edit_discord(msg.external_copies['discord'],friendly=True)
                 ))
-            elif platform=='revolt':
+            else:
                 threads.append(asyncio.create_task(
-                    edit_revolt(msg.external_copies['revolt'],friendly=True)
+                    edit_others(msg.external_copies[platform],platform,friendly=True)
                 ))
 
         await asyncio.gather(*threads)
 
-    async def send(self, room: str, message: nextcord.Message or revolt.Message,
+    async def send(self, room: str, message,
                    platform: str = 'discord', system: bool = False,
-                   extbridge=False, id_override=None, ignore=None):
+                   extbridge=False, id_override=None, ignore=None, source='discord'):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
             return
         if ignore is None:
             ignore = []
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
-        source = 'discord'
-        extlist = list(self.bot.extensions)
-        if type(message) is revolt.Message:
-            if not 'cogs.bridge_revolt' in extlist:
-                raise RuntimeError('Revolt Support not initialized')
-            source = 'revolt'
-        if type(message) is guilded.ChatMessage:
-            if not 'cogs.bridge_guilded' in extlist:
-                raise RuntimeError('Guilded Support not initialized')
-            source = 'guilded'
 
-        if platform=='revolt':
-            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
-                return
-        elif platform=='guilded':
-            if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
-                return
-        elif not platform=='discord':
-            raise ValueError("Unsupported platform")
+        source_support = self.bot.platforms[source]
+        dest_support = self.bot.platforms[platform]
+
+        if not platform in self.bot.platforms.keys():
+            raise ValueError('invalid platform')
 
         guilds = self.bot.db['rooms'][room][platform]
 
@@ -1059,26 +1019,30 @@ class UnifierBridge:
                     await message.channel.send(selector.fget('post_id',values={'post_id': pr_id}), reference=message)
                 should_resend = False
         elif is_pr and source == platform:
-            if source == 'revolt':
-                await message.channel.send(selector.fget('post_id',values={'post_id': pr_id}), replies=[revolt.MessageReply(message)])
-            elif source == 'guilded':
-                await message.channel.send(selector.fget('post_id',values={'post_id': pr_id}), reply_to=[message])
+            if not source=='discord':
+                channel = source_support.channel(message)
+                await source_support.send(channel, selector.fget('post_id',values={'post_id': pr_id}), reply=message)
 
         # Username
-        if source == 'revolt':
-            if not message.author.display_name:
-                author = message.author.name
-            else:
-                author = message.author.display_name
-        elif source == 'guilded':
-            author = message.author.name
-        else:
+        if source == 'discord':
             author = message.author.global_name if message.author.global_name else message.author.name
-        if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
-            author = self.bot.db['nicknames'][f'{message.author.id}']
+            if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
+                author = self.bot.db['nicknames'][f'{message.author.id}']
+        else:
+            author_obj = source_support.member(message)
+            author = source_support.display_name(author_obj)
+            if f'{source_support.get_id(author_obj)}' in list(self.bot.db['nicknames'].keys()):
+                author = self.bot.db['nicknames'][f'{source_support.get_id(author_obj)}']
 
         # Get dedupe
-        dedupe = await self.dedupe_name(author, message.author.id)
+        if source == 'discord':
+            author_id = message.author.id
+            is_bot = message.author.bot
+        else:
+            author_id = source_support.get_id(source_support.member(message))
+            is_bot = source_support.is_bot(source_support.member(message))
+
+        dedupe = await self.dedupe_name(author, author_id)
         should_dedupe = dedupe > -1
 
         # Emoji time
@@ -1087,10 +1051,10 @@ class UnifierBridge:
             while True:
                 author_split = [*author]
                 if len(author_split) == 1:
-                    if source == 'guilded':
-                        author = selector.get('moderated')
-                    else:
+                    if source == 'discord':
                         author = message.author.name
+                    else:
+                        author = source_support.user_name(message.author)
                     break
                 if pymoji.is_emoji(author_split[len(author_split)-1]):
                     author_split.pop(len(author_split)-1)
@@ -1100,19 +1064,19 @@ class UnifierBridge:
                 else:
                     break
             if (
-                    message.author.id == self.bot.config['owner'] or (
-                            message.author.id == self.bot.config['owner_external'][source]
+                    author_id == self.bot.config['owner'] or (
+                            author_id == self.bot.config['owner_external'][source]
                             if source in self.bot.config['owner_external'].keys() else False
                     )
             ):
                 useremoji = '\U0001F451'
-            elif message.author.id in self.bot.admins:
+            elif author_id in self.bot.admins:
                 useremoji = '\U0001F510'
-            elif message.author.id in self.bot.moderators:
+            elif author_id in self.bot.moderators:
                 useremoji = '\U0001F6E1'
-            elif message.author.id in self.bot.db['trusted']:
+            elif author_id in self.bot.db['trusted']:
                 useremoji = '\U0001F31F'
-            elif message.author.bot:
+            elif is_bot:
                 useremoji = '\U0001F916'
             elif should_dedupe:
                 useremoji = dedupe_emojis[dedupe]
@@ -1121,7 +1085,13 @@ class UnifierBridge:
         friendly_content = None
         if not source == platform:
             friendlified = True
-            friendly_content = await self.make_friendly(message.content, source)
+            if source=='discord':
+                friendly_content = await self.make_friendly(message.content, source)
+            else:
+                try:
+                    friendly_content = await source_support.make_friendly(message)
+                except platform_base.MissingImplementation:
+                    friendly_content = source_support.content(message)
 
         message_ids = {}
         urls = {}
@@ -1136,69 +1106,77 @@ class UnifierBridge:
         max_files = 0
 
         # Check attachments size
-        for attachment in message.attachments:
+        if source=='discord':
+            attachments = message.attachments
+        else:
+            attachments = source_support.attachments
+        for attachment in attachments:
             if system:
                 break
-            size_total += attachment.size
+            if source=='discord':
+                size_total += attachment.size
+            else:
+                size_total += source_support.attachment_size(attachment)
             if size_total > 25000000:
-                if not self.bot.config['suppress_filesize_warning']:
-                    if source == platform == 'revolt':
-                        await message.channel.send(selector.get('filesize_limit'),
-                                                   replies=[revolt.MessageReply(message)])
-                    elif source == platform == 'guilded':
-                        await message.channel.send(selector.get('filesize_limit'),
-                                                   reply_to=message)
-                    elif source == platform:
+                if not self.bot.config['suppress_filesize_warning'] and source == platform:
+                    if source=='discord':
                         await message.channel.send(selector.get('filesize_limit'),
                                                    reference=message)
+                    else:
+                        await source_support.send(source_support.channel(message),selector.get('filesize_limit'),
+                                                  reply=message)
                 break
             max_files += 1
 
         # Broadcast message
         for guild in list(guilds.keys()):
-            if source=='revolt' or source=='guilded':
-                sameguild = (guild == str(message.server.id)) if message.server else False
-            else:
+            if source=='discord':
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
+            else:
+                guild = source_support.server(message)
+                guild_id = source_support.get_id(guild)
+                sameguild = (guild == str(guild_id)) if message.guild else False
 
             try:
                 bans = self.bot.db['blocked'][str(guild)]
                 if source=='discord':
                     guildban = message.guild.id in bans
                 else:
-                    guildban = message.server.id in bans
-                if (message.author.id in bans or guildban) and not sameguild:
+                    guildban = source_support.server(message) in bans
+                if (author_id in bans or guildban) and not sameguild:
                     continue
             except:
                 pass
 
             # Destination guild object
-            destguild = None
-
             if platform == 'discord':
                 destguild = self.bot.get_guild(int(guild))
                 if not destguild:
                     continue
-            elif platform == 'revolt':
+            else:
                 try:
-                    destguild = self.bot.revolt_client.get_server(guild)
-                except:
-                    continue
-            elif platform == 'guilded':
-                try:
-                    destguild = self.bot.guilded_client.get_server(guild)
+                    destguild = dest_support.get_server(guild)
+                    if not destguild:
+                        continue
                 except:
                     continue
 
-            if destguild.id in ignore:
-                continue
+            if platform == 'discord':
+                if destguild.id in ignore:
+                    continue
+            else:
+                if dest_support.get_id(destguild) in ignore:
+                    continue
 
             if sameguild and not system:
                 if not should_resend or not platform=='discord':
                     if platform=='discord':
                         urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
-                    elif platform=='guilded':
-                        urls.update({f'{message.server.id}': message.share_url})
+                    else:
+                        try:
+                            urls.update({f'{source_support.server(message)}': source_support.url(message)})
+                        except platform_base.MissingImplementation:
+                            pass
                     continue
 
             # Reply processing
@@ -1463,48 +1441,39 @@ class UnifierBridge:
                                     return await source_file.to_file(use_cached=True, spoiler=False)
                                 except:
                                     return await source_file.to_file(use_cached=False, spoiler=False)
-                        elif source == 'revolt':
-                            filebytes = await source_file.read()
-                            return nextcord.File(fp=BytesIO(filebytes), filename=source_file.filename)
-                        elif source == 'guilded':
-                            tempfile = await source_file.to_file()
-                            return nextcord.File(fp=tempfile.fp, filename=source_file.filename)
-                    elif platform == 'revolt':
+                        else:
+                            return await source_support.to_discord_file(source_file)
+                    else:
                         if source == 'discord':
-                            f = await source_file.to_file(use_cached=True)
-                            return revolt.File(f.fp.read(), filename=f.filename)
-                        elif source == 'guilded':
-                            f = await source_file.to_file()
-                            return revolt.File(f.fp.read(), filename=f.filename)
-                        elif source == 'revolt':
-                            filebytes = await source_file.read()
-                            return revolt.File(filebytes, filename=source_file.filename)
-                    elif platform == 'guilded':
-                        if source == 'guilded':
-                            try:
-                                return await source_file.to_file()
-                            except:
-                                return await source_file.to_file()
-                        elif source == 'revolt':
-                            filebytes = await source_file.read()
-                            return guilded.File(fp=BytesIO(filebytes), filename=source_file.filename)
-                        elif source == 'discord':
-                            tempfile = await source_file.to_file(use_cached=True)
-                            return guilded.File(fp=tempfile.fp, filename=source_file.filename)
+                            return await dest_support.to_platform_file(source_file)
+                        else:
+                            # use nextcord.File as a universal file object
+                            return await dest_support.to_platform_file(
+                                await source_support.to_discord_file(source_file)
+                            )
 
                 index = 0
                 for attachment in attachments:
                     if system:
                         break
-                    if source == 'guilded':
-                        if not attachment.file_type.image and not attachment.file_type.video:
-                            continue
-                    else:
+                    if source == 'discord':
                         if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                                 not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
                                 self.bot.config['safe_filetypes']) or attachment.size > 25000000:
                             continue
-                    files.append(await to_file(attachment))
+                    else:
+                        attachment_size = source_support.attachment_size(attachment)
+                        content_type = source_support.attachment_size(attachment)
+                        if (
+                                not 'audio' in content_type and not 'video' in content_type and not 'image' in content.type
+                                and not 'text/plain' in content_type and self.bot.config['safe_filetypes']
+                        ) or attachment_size > 25000000 or not dest_support.attachment_type_allowed(content_type):
+                            continue
+
+                    try:
+                        files.append(await to_file(attachment))
+                    except platform_base.MissingImplementation:
+                        continue
                     index += 1
                     if index >= max_files:
                         break
@@ -1513,10 +1482,13 @@ class UnifierBridge:
 
             # Avatar
             try:
-                if f'{message.author.id}' in self.bot.db['avatars']:
-                    url = self.bot.db['avatars'][f'{message.author.id}']
+                if f'{author_id}' in self.bot.db['avatars']:
+                    url = self.bot.db['avatars'][f'{author_id}']
                 else:
-                    url = message.author.avatar.url
+                    if source == 'discord':
+                        url = message.author.avatar.url
+                    else:
+                        url = source_support.avatar(message.author)
             except:
                 url = None
 
@@ -1529,7 +1501,9 @@ class UnifierBridge:
             # Add system identifier
             msg_author = author
             if system:
-                msg_author = self.bot.user.global_name if self.bot.user.global_name else self.bot.user.name + ' (system)'
+                msg_author = (
+                    self.bot.user.global_name if self.bot.user.global_name else self.bot.user.name
+                )+ ' (system)'
 
             # Send message
             embeds = message.embeds
@@ -1602,193 +1576,63 @@ class UnifierBridge:
                         continue
                     message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
-            elif platform=='revolt':
+            else:
                 try:
-                    ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
+                    ch = dest_support.get_channel(self.bot.db['rooms'][room][platform][guild][0])
                 except:
-                    ch = await self.bot.revolt_client.fetch_channel(self.bot.db['rooms_revolt'][room][guild][0])
+                    ch = await dest_support.fetch_channel(self.bot.db['rooms'][room][platform][guild][0])
 
-                # Processing replies for Revolt here for efficiency
-                replies = []
                 try:
                     if reply_msg:
-                        if reply_msg.source=='revolt':
+                        if reply_msg.source==platform:
                             try:
-                                msg = await ch.fetch_message(await reply_msg.fetch_id(destguild.id))
-                                replies = [revolt.MessageReply(msg)]
+                                msg = await source_support.fetch_message(ch, await reply_msg.fetch_id(destguild.id))
+                                reply = msg
                             except:
-                                pass
+                                reply = None
                         else:
-                            msg_ref = await reply_msg.fetch_external('revolt',destguild.id)
-                            msg = await ch.fetch_message(msg_ref.id)
-                            replies = [revolt.MessageReply(msg)]
-                except:
-                    pass
-
-                rvtcolor = None
-                if str(message.author.id) in list(self.bot.db['colors'].keys()):
-                    color = self.bot.db['colors'][str(message.author.id)]
-                    if color == 'inherit':
-                        if source=='revolt':
-                            try:
-                                color = message.author.roles[len(message.author.roles) - 1].colour.replace('#', '')
-                                rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
-                                rvtcolor = f'rgb{rgbtuple}'
-                            except:
-                                pass
-                        else:
-                            rvtcolor = f'rgb({message.author.color.r},{message.author.color.g},{message.author.color.b})'
+                            msg_ref = await reply_msg.fetch_external(platform, destguild.id)
+                            msg = source_support.fetch_message(ch, msg_ref.id)
+                            reply = msg
                     else:
-                        try:
-                            rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
-                            rvtcolor = f'rgb{rgbtuple}'
-                        except:
-                            pass
-
-                msg_author_rv = msg_author
-                if len(msg_author) > 32:
-                    msg_author_rv = msg_author[:-(len(msg_author)-32)]
-                    if useremoji:
-                        msg_author_rv = msg_author[:-2]
-
-                if useremoji:
-                    msg_author_rv = msg_author_rv + ' ' + useremoji
-
-                try:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
+                        reply = None
                 except:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
+                    reply = None
+
+                color = None
+                if str(author_id) in list(self.bot.db['colors'].keys()):
+                    color = self.bot.db['colors'][str(author_id)]
+                    if color == 'inherit':
+                        roles = source_support.roles(source_support.member(message))
+                        color = source_support.get_hex(roles[len(roles)-1])
                 try:
                     files = await get_files(message.attachments)
-                    msg = await ch.send(
-                        content=friendly_content if friendlified else message.content, embeds=message.embeds,
-                        attachments=files, replies=replies, masquerade=persona
+                    special = {
+                        'bridge': {
+                            'name': msg_author,
+                            'avatar': url,
+                            'color': color
+                        },
+                        'files': files,
+                        'embeds': dest_support.convert_embeds(source_support.embeds(message.embeds))
+                    }
+                    if reply:
+                        special.update({'reply': reply})
+                    msg = await dest_support.send(
+                        ch, friendly_content if friendlified else source_support.content(message), special=special
                     )
                 except:
                     continue
 
-                message_ids.update({destguild.id:[ch.id,msg.id]})
-            elif platform=='guilded':
-                try:
-                    webhook = self.bot.bridge.webhook_cache.get_webhook([f'{self.bot.db["rooms_guilded"][room][guild][0]}'])
-                except:
-                    try:
-                        webhook = await destguild.fetch_webhook(self.bot.db["rooms_guilded"][room][guild][0])
-                        self.bot.bridge.webhook_cache.store_webhook(webhook)
-                    except:
-                        continue
-
-                # Processing replies for Revolt here for efficiency
-                replytext = ''
-
-                if not trimmed and reply_msg:
-                    is_copy = False
-                    try:
-                        content = message.reference.cached_message.content
-                    except:
-                        if source == 'revolt':
-                            msg = await message.channel.fetch_message(message.replies[0].id)
-                        elif source == 'guilded':
-                            msg = await message.channel.fetch_message(message.replied_to[0].id)
-                            if msg.webhook_id:
-                                is_copy = True
-                        else:
-                            msg = await message.channel.fetch_message(message.reference.message_id)
-                        content = msg.content
-                    clean_content = nextcord.utils.remove_markdown(content)
-
-                    if reply_msg.reply and source == 'guilded' and is_copy:
-                        clean_content = clean_content.split('\n', 1)[1]
-
-                    msg_components = clean_content.split('<@')
-                    offset = 0
-                    if clean_content.startswith('<@'):
-                        offset = 1
-
-                    while offset < len(msg_components):
-                        try:
-                            userid = int(msg_components[offset].split('>', 1)[0])
-                        except:
-                            offset += 1
-                            continue
-                        user = self.bot.get_user(userid)
-                        if user:
-                            clean_content = clean_content.replace(f'<@{userid}>',
-                                                                  f'@{user.global_name}').replace(
-                                f'<@!{userid}>', f'@{user.global_name}')
-                        offset += 1
-                    if len(clean_content) > 80:
-                        trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
-                    else:
-                        trimmed = clean_content
-                    trimmed = trimmed.replace('\n', ' ')
-
-                if reply_msg:
-                    author_text = '[unknown]'
-
-                    try:
-                        if reply_msg.source == 'revolt':
-                            user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            if not user.display_name:
-                                author_text = f'@{user.name}'
-                            else:
-                                author_text = f'@{user.display_name}'
-                        elif reply_msg.source == 'guilded':
-                            user = self.bot.guilded_client.get_user(reply_msg.author_id)
-                            author_text = f'@{user.name}'
-                        else:
-                            user = self.bot.get_user(int(reply_msg.author_id))
-                            author_text = f'@{user.global_name}'
-                        if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
-                            author_text = '@' + self.bot.db['nicknames'][f'{reply_msg.author_id}']
-                    except:
-                        pass
-
-                    try:
-                        replytext = f'**[{selector.fget("replying",values={"user": author_text})}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
-                    except:
-                        replytext = f'**{selector.fget("replying",values={"user": "[system]"})}**\n'
-
-                if len(replytext+message.content)==0:
-                    replytext = '[empty message]'
-
-                msg_author_gd = msg_author
-                if len(msg_author) > 25:
-                    msg_author_gd = msg_author[:-(len(msg_author) - 25)]
-
-                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, sameguild, destguild):
-                    files = await get_files(message.attachments)
-                    try:
-                        msg = await webhook.send(avatar_url=url,
-                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                                 embeds=embeds,
-                                                 content=replytext + (friendly_content if friendlified else message.content),
-                                                 files=files)
-                    except:
-                        return None
-
-                    gdresult = [
-                        {f'{destguild.id}': [msg.channel.id, msg.id]},
-                        {f'{destguild.id}': msg.share_url},
-                        [sameguild, msg.id]
+                message_ids.update({
+                    str(dest_support.get_id(destguild)): [
+                        dest_support.get_id(ch),dest_support.get_id(msg)
                     ]
-                    return gdresult
-
-                if tb_v2:
-                    threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
-                                                              sameguild, destguild)))
-                else:
-                    try:
-                        files = await get_files(message.attachments)
-                        msg = await webhook.send(avatar_url=url,
-                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                                 embeds=embeds,
-                                                 content=replytext+(friendly_content if friendlified else message.content),
-                                                 files=files)
-                    except:
-                        continue
-                    message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
-                    urls.update({f'{destguild.id}':msg.share_url})
+                })
+                try:
+                    urls.update({str(dest_support.get_id(destguild)): dest_support.url(msg)})
+                except platform_base.MissingImplementation:
+                    pass
 
         # Update cache
         tbv2_results = []
@@ -1878,7 +1722,7 @@ class WebhookCacheStore:
         self.bot = bot
         self.__webhooks = {}
 
-    def store_webhook(self, webhook: nextcord.Webhook or guilded.Webhook):
+    def store_webhook(self, webhook: nextcord.Webhook):
         if not webhook.guild.id in self.__webhooks.keys():
             self.__webhooks.update({webhook.guild.id: {webhook.id: webhook}})
         self.__webhooks[webhook.guild.id].update({webhook.id: webhook})
