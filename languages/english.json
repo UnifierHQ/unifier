@@ -155,6 +155,8 @@
         "content_protection_desc": "The plugin will be able to analyze messages for malicious content, as well as ban users if necessary. Non-permanent bans are reset on Bridge reload.",
         "content_processing_title": "Content stylizing",
         "content_processing_desc": "The plugin will be able to modify message content and author information before bridging to other servers.",
+        "bridge_platform_title": "Bridge platform support",
+        "bridge_platform_desc": "The plugin will be able to provide native Unifier Bridgesupport for an external platform.",
         "emojis_title": "Emojis",
         "emojis_desc": "The plugin contains an emoji pack which will be installed onto the bot. You can enable the pack using `{prefix}uiemojis {plugin_id}`.",
         "unknown_desc": "This is an unknown service."

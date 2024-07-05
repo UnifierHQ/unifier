@@ -1262,6 +1262,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     'The plugin will be able to modify message content and author information before bridging to '+
                     'other servers.'
                 )
+            elif service=='bridge_platform':
+                text = (
+                    ':handshake: **Bridge platform support**\n'+
+                    'The plugin will be able to provide native Unifier Bridgesupport for an external platform.'
+                )
             elif service=='emojis':
                 text = (
                     ':joy: **Emojis**\n'+
