@@ -1629,7 +1629,8 @@ class UnifierBridge:
                         'bridge': {
                             'name': msg_author,
                             'avatar': url,
-                            'color': color
+                            'color': color,
+                            'emoji': useremoji
                         },
                         'files': files,
                         'embeds': (
