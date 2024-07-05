@@ -480,7 +480,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     with open('plugins/' + plugin) as file:
                         extinfo = json.load(file)
                         try:
-                            if not 'bridge' in extinfo['services']:
+                            if not 'bridge_platform' in extinfo['services']:
                                 continue
                         except:
                             continue
