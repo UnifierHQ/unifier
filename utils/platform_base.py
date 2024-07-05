@@ -123,7 +123,7 @@ class PlatformBase:
         """Fetches the channel from the API."""
         raise MissingImplementation()
 
-    async def make_friendly(self, message):
+    async def make_friendly(self, text):
         """Converts the message so it's friendly with other platforms.
         For example, <@userid> should be converted to @username."""
         raise MissingImplementation()

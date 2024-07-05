@@ -892,7 +892,8 @@ class UnifierBridge:
 
     async def send(self, room: str, message,
                    platform: str = 'discord', system: bool = False,
-                   extbridge=False, id_override=None, ignore=None, source='discord'):
+                   extbridge=False, id_override=None, ignore=None, source='discord',
+                   content_override=None):
         if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
             return
         if ignore is None:
@@ -1087,17 +1088,25 @@ class UnifierBridge:
             elif should_dedupe:
                 useremoji = dedupe_emojis[dedupe]
 
+        if content_override:
+            msg_content = content_override
+        else:
+            if source=='discord':
+                msg_content = message.content
+            else:
+                msg_content = source_support.content(message)
+
         friendlified = False
         friendly_content = None
         if not source == platform:
             friendlified = True
             if source=='discord':
-                friendly_content = await self.make_friendly(message.content, source)
+                friendly_content = await self.make_friendly(msg_content, source)
             else:
                 try:
-                    friendly_content = await source_support.make_friendly(message)
+                    friendly_content = await source_support.make_friendly(msg_content)
                 except platform_base.MissingImplementation:
-                    friendly_content = source_support.content(message)
+                    friendly_content = msg_content
 
         message_ids = {}
         urls = {}
@@ -1556,7 +1565,7 @@ class UnifierBridge:
                     try:
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=friendly_content if friendlified else message.content,
+                                                 content=friendly_content if friendlified else msg_content,
                                                  files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
@@ -1577,7 +1586,7 @@ class UnifierBridge:
                     try:
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=friendly_content if friendlified else message.content,
+                                                 content=friendly_content if friendlified else msg_content,
                                                  files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
@@ -1632,7 +1641,7 @@ class UnifierBridge:
                     if reply:
                         special.update({'reply': reply})
                     msg = await dest_support.send(
-                        ch, friendly_content if friendlified else source_support.content(message), special=special
+                        ch, friendly_content if friendlified else msg_content, special=special
                     )
                 except:
                     continue
@@ -3316,10 +3325,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @restrictions.owner()
     async def system(self, ctx, room):
         selector = language.get_selector("system")
-        ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True)
         for platform in self.bot.config['external']:
-            await self.bot.bridge.send(room, ctx.message, platform, system=True)
+            await self.bot.bridge.send(
+                room, ctx.message, platform, system=True,
+                content_override=ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1))
         await ctx.send(selector.get("success"))
 
     @commands.Cog.listener()
