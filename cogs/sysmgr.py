@@ -667,30 +667,42 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @tasks.loop(seconds=300)
     async def changestatus(self):
         status_messages = [
-            "with the ban hammer",
-            "with fire",
-            "with the API",
-            "hide and seek",
-            "with code",
-            "in debug mode",
-            "in a parallel universe",
-            "with commands",
-            "a game of chess",
-            "with electrons",
-            "with the matrix",
-            "with cookies",
-            "with the metaverse",
-            "with emojis",
-            "with Nevira",
-            "with green.",
-            "with ItsAsheer",
-            "webhooks",
+            ["playing","with the ban hammer"],
+            ["playing","with fire"],
+            ["playing","with the API"],
+            ["playing","hide and seek"],
+            ["listening","my own code"],
+            ["playing","in debug mode"],
+            ["playing","in a parallel universe"],
+            ["playing","with commands"],
+            ["playing","a game of chess"],
+            ["playing","with electrons"],
+            ["watching","the matrix"],
+            ["watching","cookies bake"],
+            ["playing","with the metaverse"],
+            ["playing","with emojis"],
+            ["playing","with Nevira"],
+            ["playing","with green."],
+            ["playing","with ItsAsheer"],
+            ["watching","webhooks"],
+            ["custom","Unifying servers like they're nothing"],
+            ["custom","Made for communities, by communities"]
         ]
         new_stat = random.choice(status_messages)
-        if new_stat == "webhooks":
-            await self.bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.watching, name=new_stat))
-        else:
-            await self.bot.change_presence(activity=nextcord.Game(name=new_stat))
+        if new_stat[0] == "watching":
+            await self.bot.change_presence(activity=nextcord.Activity(
+                type=nextcord.ActivityType.watching, name=new_stat[1]
+            ))
+        elif new_stat[0] == "listening":
+            await self.bot.change_presence(activity=nextcord.Activity(
+                type=nextcord.ActivityType.listening, name=new_stat[1]
+            ))
+        elif new_stat[0] == "playing":
+            await self.bot.change_presence(activity=nextcord.Game(name=new_stat[1]))
+        elif new_stat[0] == "custom":
+            await self.bot.change_presence(activity=nextcord.CustomActivity(
+                name="Custom Status", state=new_stat[1]
+            ))
 
     @tasks.loop()
     async def periodic_backup(self):
