@@ -1173,6 +1173,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions.owner()
     async def install(self, ctx, url):
+        selector = language.get_selector(ctx)
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
 
@@ -1189,7 +1190,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.get("downloading_title")}', description=selector.get("downloading_body"))
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
@@ -1487,14 +1488,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not ctx.author.id == self.bot.config['owner']:
             return
 
+        selector = language.get_selector(ctx)
+
         if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
         if os.name == "nt":
             embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.error} Can\'t upgrade Unifier',
-                description=('Unifier cannot upgrade itself on Windows. Please use an OS with the bash console (Linux/'+
-                             'macOS/etc).'),
+                title=f'{self.bot.ui_emojis.error} {selector.get("windows_title")}',
+                description=selector.get('windows_body'),
                 color=self.bot.colors.error
             )
             return await ctx.send(embed=embed)
@@ -1514,8 +1516,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if plugin=='system':
             embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.install} Checking for upgrades...',
-                description='Getting latest version from remote'
+                title=f'{self.bot.ui_emojis.install} {selector.get("checking_title")}',
+                description=selector.get('checking_body')
             )
             msg = await ctx.send(embed=embed)
             available = []
@@ -1543,13 +1545,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 update_available = len(available) >= 1
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to check for updates'
-                embed.description = 'Could not find a valid update.json file on remote'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("checkfail_title")}'
+                embed.description = selector.get("checkfail_body")
                 embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
             if not update_available:
-                embed.title = f'{self.bot.ui_emojis.success} No updates available'
-                embed.description = 'Unifier is up-to-date.'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("noupdates_title")}'
+                embed.description = selector.get("noupdates_body")
                 embed.colour = self.bot.colors.success
                 return await msg.edit(embed=embed)
             selected = 0
@@ -1559,8 +1561,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 version = available[selected][0]
                 legacy = available[selected][3] > -1
                 reboot = available[selected][4]
-                embed.title = f'{self.bot.ui_emojis.install} Update available'
-                embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
+                embed.title = f'{self.bot.ui_emojis.install} {selector.get("available_title")}'
+                embed.description = selector.fget('available_body',values={
+                    'current_ver':current['version'],'current_rel':current['release'],'new_ver':version,'new_rel':release
+                })
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
@@ -1569,9 +1573,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     should_reboot = reboot >= current['release']
                 if should_reboot:
-                    embed.set_footer(text='The bot will need to reboot to apply the new update.')
+                    embed.set_footer(text=selector.get("reboot_required"))
                 selection = nextcord.ui.StringSelect(
-                    placeholder='Select version...',
+                    placeholder=selector.get("version"),
                     max_values=1,
                     min_values=1,
                     custom_id='selection',
@@ -1588,15 +1592,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
+                        style=nextcord.ButtonStyle.green, label=selector.get("upgrade"), custom_id=f'accept',
                         disabled=False
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
+                        style=nextcord.ButtonStyle.gray, label=selector.rawget('nevermind','sysmgr.install'), custom_id=f'reject',
                         disabled=False
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.link, label='More info',
+                        style=nextcord.ButtonStyle.link, label=selector.get("moreinfo"),
                         url=f'https://github.com/UnifierHQ/unifier/releases/tag/{version}'
                     )
                 )
@@ -1622,8 +1626,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     selected = int(interaction.data['values'][0])
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
-                embed.title = f'{self.bot.ui_emojis.install} Backing up...'
-                embed.description = 'Your data is being backed up.'
+                embed.title = f'{self.bot.ui_emojis.install} {selector.get("backup_title")}'
+                embed.description = selector.get("backup_body")
                 await interaction.response.edit_message(embed=embed, view=None)
             try:
                 if no_backup:
@@ -1652,21 +1656,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 if no_backup:
                     self.logger.warning('Backup skipped, requesting final confirmation.')
-                    embed.description = '- :x: Your files have **NOT BEEN BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
+                    embed.description = f'- :x: {selector.get("skipped_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
                 elif ignore_backup:
                     self.logger.warning('Backup failed, continuing anyways')
-                    embed.description = '- :x: Your files **COULD NOT BE BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
+                    embed.description = f'- :x: {selector.get("failed_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
                 else:
                     self.logger.error('Backup failed, abort upgrade.')
-                    embed.title = f'{self.bot.ui_emojis.error} Backup failed'
-                    embed.description = 'Unifier could not create a backup. The upgrade has been aborted.'
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.get("backupfail_title")}'
+                    embed.description = selector.get("backupfail_body")
                     embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     raise
             else:
                 self.logger.info('Backup complete, requesting final confirmation.')
-                embed.description = '- :inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
-            embed.title = f'{self.bot.ui_emojis.install} Start the upgrade?'
+                embed.description = f'- :inbox_tray: {selector.get("normal_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.get("start")}'
             components = ui.MessageComponents()
             components.add_row(btns)
             if no_backup:
@@ -1688,8 +1692,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components.add_row(btns)
                 return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
-            embed.title = f'{self.bot.ui_emojis.install} Upgrading Unifier'
-            embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.get("upgrading")}'
+            embed.description = f':hourglass_flowing_sand: {selector.get("downloading")}\n:x: {selector.get("installing")}\n:x: {selector.get("reloading")}'
             await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
             try:
@@ -1704,8 +1708,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Download confirmed, proceeding with upgrade')
             except:
                 self.logger.exception('Download failed, no rollback required')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'Could not download updates. No rollback is required.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("download_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
@@ -1731,14 +1735,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     status(os.system('python3 -m pip install ' + ' '.join(newdeps)))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'Could not install dependencies. No rollback is required.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("dependency_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             try:
                 self.logger.info('Installing upgrades')
-                embed.description = ':white_check_mark: Downloading updates\n:hourglass_flowing_sand: Installing updates\n:x: Reloading modules'
+                embed.description = f':white_check_mark: {selector.get("downloading")}\n:hourglass_flowing_sand: {selector.get("installing")}\n:x: {selector.get("reloading")}'
                 await msg.edit(embed=embed)
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/unifier.py')
                 status(os.system('cp ' + os.getcwd() + '/update/unifier.py ' + os.getcwd() + '/unifier.py'))
@@ -1778,26 +1782,26 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if should_reboot:
                     self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')
-                    embed.title = f'{self.bot.ui_emojis.success} Restart to apply upgrade'
-                    embed.description = f'The upgrade was successful. Please reboot the bot.'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("restart_title")}'
+                    embed.description =selector.get("restart_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                 else:
                     self.logger.info('Restarting extensions')
-                    embed.description = ':white_check_mark: Downloading updates\n:white_check_mark: Installing updates\n:hourglass_flowing_sand: Reloading modules'
+                    f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n:hourglass_flowing_sand: {selector.get("reloading")}'
                     await msg.edit(embed=embed)
                     for cog in list(self.bot.extensions):
                         self.logger.debug('Restarting extension: ' + cog)
                         await self.preunload(cog)
                         self.bot.reload_extension(cog)
                     self.logger.info('Upgrade complete')
-                    embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
-                    embed.description = 'The upgrade was successful! :partying_face:'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+                    embed.description = selector.get("success_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed, attempting rollback')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
                 embed.colour = self.bot.colors.error
                 try:
                     self.logger.debug('Reverting: ' + os.getcwd() + '/unifier.py')
@@ -1813,29 +1817,29 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         status(
                             os.system('cp ' + os.getcwd() + '/old/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file))
                     self.logger.info('Rollback success')
-                    embed.description = 'The upgrade failed, and all files have been rolled back.'
+                    embed.description = selector.get("rollback")
                 except:
                     self.logger.exception('Rollback failed')
                     self.logger.critical(
                         'The rollback failed. Visit https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier/manual-rollback for recovery steps.')
-                    embed.description = 'The upgrade failed, and the bot may now be in a crippled state.\nPlease check console logs for more info.'
+                    embed.description = selector.get("rollback_fail")
                 await msg.edit(embed=embed)
                 return
         else:
-            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
+            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.rawget("downloading_title","sysmgr.install")}', description=selector.rawget("downloading_body",'sysmgr.install'))
 
             try:
                 with open('plugins/'+plugin+'.json') as file:
                     plugin_info = json.load(file)
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Plugin not found'
-                embed.description = 'The plugin could not be found.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("notfound_title")}'
+                embed.description = selector.get("notfound_body")
                 if plugin=='force':
-                    embed.description = embed.description + f'\n\n**Hint**: If you\'re trying to force upgrade, run `{self.bot.command_prefix}upgrade system force`'
+                    embed.description = embed.description + selector.fget('hint_force',values={'prefix':self.bot.command_prefix})
                 embed.colour = self.bot.colors.error
                 await ctx.send(embed=embed)
                 return
-            embed.set_footer(text='Only install plugins from trusted sources!')
+            embed.set_footer(text=selector.rawget("trust",'sysmgr.install'))
             msg = await ctx.send(embed=embed)
             url = plugin_info['repository']
             try:
@@ -1845,14 +1849,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
                 if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
-                    embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
-                    embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.rawget("alphanumeric_title","sysmgr.install")}'
+                    embed.description = selector.rawget("alphanumeric_body",'sysmgr.install')
                     embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     return
                 if new['release'] <= plugin_info['release'] and not force:
-                    embed.title = f'{self.bot.ui_emojis.success} Plugin up to date'
-                    embed.description = f'This plugin is already up to date!'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("pnoupdates_title")}'
+                    embed.description = selector.get("pnoupdates_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                     return
@@ -1864,17 +1868,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 utilities = new['utils']
                 services = new['services'] if 'services' in new.keys() else []
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to update plugin'
-                embed.description = 'The repository URL or the plugin.json file is invalid.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("pfailed")}'
+                embed.description = selector.rawget("invalid_repo",'sysmgr.install')
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 raise
-            embed.title = f'{self.bot.ui_emojis.install} Update `{plugin_id}`?'
-            embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.fget("question",values={"plugin":plugin_id})}'
+            embed.description = selector.rawfget('plugin_info','sysmgr.install',values={'name':name,'version':version,'desc':desc})
             embed.colour = 0xffcc00
             btns = ui.ActionRow(
-                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
-                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label=selector.get("upgrade"), custom_id=f'accept', disabled=False),
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=selector.rawfget("nevermind","sysmgr.install"), custom_id=f'reject', disabled=False)
             )
             components = ui.MessageComponents()
             components.add_row(btns)
@@ -1992,14 +1996,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         await self.preunload(modname)
                         self.bot.reload_extension(modname)
                 self.logger.debug('Upgrade complete')
-                embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
-                embed.description = 'The upgrade was successful! :partying_face:'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+                embed.description = selector.get("success_body")
                 embed.colour = self.bot.colors.success
                 await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'The upgrade failed.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("plugin_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
@@ -2010,14 +2014,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     )
     @restrictions.owner()
     async def uiemojis(self, ctx, *, emojipack):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
+        selector = language.get_selector(ctx)
 
         emojipack = emojipack.lower()
         if emojipack=='base':
             os.remove('emojis/current.json')
             self.bot.ui_emojis = Emojis()
-            await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack reset to default.')
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("reset")}')
         else:
             try:
                 with open(f'emojis/{emojipack}.json', 'r') as file:
