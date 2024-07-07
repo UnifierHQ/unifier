@@ -131,7 +131,8 @@
         "description": "Installs a plugin.",
         "windows_title": "Can't install Plugins",
         "windows_body": "Unifier cannot install Plugins on Windows. Please use an OS with the bash console (Linux/macOS/etc).",
-        "downloading": "Downloading extension...",
+        "downloading_title": "Downloading extension...",
+        "downloading_body": "Getting extension files from remote",
         "trust": "Only install plugins from trusted sources!",
         "services": "Services",
         "install": "Install",
@@ -155,8 +156,6 @@
         "content_protection_desc": "The plugin will be able to analyze messages for malicious content, as well as ban users if necessary. Non-permanent bans are reset on Bridge reload.",
         "content_processing_title": "Content stylizing",
         "content_processing_desc": "The plugin will be able to modify message content and author information before bridging to other servers.",
-        "bridge_platform_title": "Bridge platform support",
-        "bridge_platform_desc": "The plugin will be able to provide native Unifier Bridgesupport for an external platform.",
         "emojis_title": "Emojis",
         "emojis_desc": "The plugin contains an emoji pack which will be installed onto the bot. You can enable the pack using `{prefix}uiemojis {plugin_id}`.",
         "unknown_desc": "This is an unknown service."
@@ -192,7 +191,7 @@
         "moreinfo": "More info",
         "backup_title": "Backing up...",
         "backup_body": "Your data is being backed up.",
-        "normal_backup": ":inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`",
+        "normal_backup": "Your files have been backed up to `[Unifier root directory]/old`.",
         "skipped_backup": "Your files have **NOT BEEN BACKED UP**! Data loss or system failures may occur if the upgrade fails!",
         "failed_backup": "Your files **COULD NOT BE BACKED UP**! Data loss or system failures may occur if the upgrade fails!",
         "modification_wipe": "Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.",
@@ -402,7 +401,7 @@
         "success_body": "You can now send messages to the Unifier network through the channels. Say hi!"
       },
       "rules": {
-        "description": "DIsplays room rules for the specified room.",
+        "description": "Displays room rules for the specified room.",
         "no_rules": "The admins haven't added rules yet. Though, make sure to always use common sense.",
         "rules_title": "Room rules"
       },
@@ -417,7 +416,7 @@
         "success": "Removed rule!"
       },
       "addbridge": {
-        "description": "ALlows given user's webhooks to be bridged.",
+        "description": "Allows given user's webhooks to be bridged.",
         "already_exists": "This user is already in the whitelist!",
         "allow_title": "Allow @{username} to bridge?",
         "allow_body": "This will allow messages sent via webhooks created by this user to be bridged through Unifier.",
