@@ -396,7 +396,12 @@
         "map_title": "Map channels",
         "map_body": "The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.",
         "selection_ch": "Channels...",
+        "selectall": "Select all",
+        "selectall_over10": "Select first 10",
+        "deselect": "Deselect all",
         "bind": "Bind",
+        "bind_restricted": "Bind (create as restricted)",
+        "bind_locked": "Bind (create as locked)",
         "success_title": "Linked channels to Unifier network!",
         "success_body": "You can now send messages to the Unifier network through the channels. Say hi!"
       },
