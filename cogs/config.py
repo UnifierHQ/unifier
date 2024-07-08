@@ -488,6 +488,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 break
 
         interaction = None
+        restricted = False
+        locked = False
         while True:
             text = ''
             for channel in channels_enabled:
@@ -543,6 +545,27 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         custom_id='bind'
                     ),
                     nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Bind (create as restricted)',
+                        custom_id='bind_restricted'
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        label='Bind (create as locked)',
+                        custom_id='bind_locked'
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red,
+                        label='Cancel',
+                        custom_id='cancel'
+                    )
+                ) if ctx.author.id in self.bot.admins else ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green,
+                        label='Bind',
+                        custom_id='bind'
+                    ),
+                    nextcord.ui.Button(
                         style=nextcord.ButtonStyle.red,
                         label='Cancel',
                         custom_id='cancel'
@@ -565,9 +588,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             except:
                 return await msg.edit(view=ui.MessageComponents())
 
-            if interaction.data['custom_id']=='bind':
+            if interaction.data['custom_id'].startswith('bind'):
                 await msg.edit(embed=embed, view=ui.MessageComponents())
                 await interaction.response.defer(with_message=True)
+                if 'restricted' in interaction.data['custom_id']:
+                    restricted = True
+                elif 'locked' in interaction.data['custom_id']:
+                    locked = True
                 break
             elif interaction.data['custom_id']=='selection':
                 channels_enabled = []
@@ -590,6 +617,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if not roomname in self.bot.db['rooms'].keys():
                 self.bot.db['rooms'].update({roomname: {}})
                 self.bot.db['rules'].update({roomname: []})
+                if restricted:
+                    self.bot.db['restricted'].append(roomname)
+                elif locked:
+                    self.bot.db['locked'].append(roomname)
             webhook = await channel.create_webhook(name='Unifier Bridge')
             guild = [webhook.id, channel.id]
             self.bot.db['rooms'][roomname]['discord'].update({f'{ctx.guild.id}': guild})
