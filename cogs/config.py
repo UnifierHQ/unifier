@@ -526,6 +526,18 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 ),
                 ui.ActionRow(
                     nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
+                        label='Select first 10' if len(channels) > 10 else 'Select all',
+                        custom_id='selectall'
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
+                        label='Deselect all',
+                        custom_id='deselect'
+                    )
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
                         style=nextcord.ButtonStyle.green,
                         label='Bind',
                         custom_id='bind'
@@ -557,11 +569,19 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 await msg.edit(embed=embed, view=ui.MessageComponents())
                 await interaction.response.defer(with_message=True)
                 break
-            if interaction.data['custom_id']=='selection':
+            elif interaction.data['custom_id']=='selection':
                 channels_enabled = []
                 for value in interaction.data['values']:
                     channel = self.bot.get_channel(int(value))
                     channels_enabled.append(channel)
+            elif interaction.data['custom_id']=='selectall':
+                channels_enabled = []
+                for channel in channels:
+                    channels_enabled.append(channel)
+                    if len(channels_enabled) >= 10:
+                        break
+            elif interaction.data['custom_id'] == 'deselect':
+                channels_enabled = []
 
         for channel in channels_enabled:
             roomname = re.sub(r'[^a-zA-Z0-9_-]', '', channel.name).lower()
@@ -1131,6 +1151,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 namematch = True
                 descmatch = True
                 match = 0
+                page = 0
 
     @commands.command(description='Enables or disables usage of server emojis as Global Emojis.')
     @commands.has_permissions(manage_guild=True)

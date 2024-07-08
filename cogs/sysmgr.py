@@ -2424,6 +2424,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         descmatch = True
             elif interaction.type==nextcord.InteractionType.modal_submit:
                 panel = 1
+                page = 0
                 cogname = 'search'
                 query = interaction.data['components'][0]['components'][0]['value']
                 namematch = True
