@@ -1036,7 +1036,7 @@ class UnifierBridge:
             if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
                 author = self.bot.db['nicknames'][f'{message.author.id}']
         else:
-            author_obj = source_support.member(message)
+            author_obj = source_support.author(message)
             author = source_support.display_name(author_obj)
             if f'{source_support.get_id(author_obj)}' in list(self.bot.db['nicknames'].keys()):
                 author = self.bot.db['nicknames'][f'{source_support.get_id(author_obj)}']
@@ -1046,8 +1046,8 @@ class UnifierBridge:
             author_id = message.author.id
             is_bot = message.author.bot
         else:
-            author_id = source_support.get_id(source_support.member(message))
-            is_bot = source_support.is_bot(source_support.member(message))
+            author_id = source_support.get_id(source_support.author(message))
+            is_bot = source_support.is_bot(source_support.author(message))
 
         dedupe = await self.dedupe_name(author, author_id)
         should_dedupe = dedupe > -1
@@ -1255,27 +1255,24 @@ class UnifierBridge:
                         # i probably want to research how nextcord threads work first, will come back to this
                         pass
                     if not trimmed:
-                        is_copy = False
                         try:
-                            if source=='revolt':
-                                content = message.replies[0].content
-                            else:
+                            if source=='discord':
                                 content = message.reference.cached_message.content
-                        except:
-                            if source=='revolt':
-                                msg = await message.channel.fetch_message(message.replies[0].id)
-                            elif source=='guilded':
-                                msg = await message.channel.fetch_message(message.replied_to[0].id)
-                                if msg.webhook_id:
-                                    is_copy = True
                             else:
+                                msg = source_support.reply(message)
+                                if type(msg) is str or type(msg) is int:
+                                    msg = await source_support.fetch_message(
+                                        source_support.channel(message),msg
+                                    )
+                                content = source_support.content(msg)
+                        except:
+                            if source=='discord':
                                 msg = await message.channel.fetch_message(message.reference.message_id)
+                            else:
+                                raise
                             content = msg.content
+
                         clean_content = nextcord.utils.remove_markdown(content)
-
-                        if reply_msg.reply and source=='guilded' and is_copy:
-                            clean_content = clean_content.split('\n',1)[1]
-
                         msg_components = clean_content.split('<@')
                         offset = 0
                         if clean_content.startswith('<@'):
@@ -1308,15 +1305,12 @@ class UnifierBridge:
                         button_style = nextcord.ButtonStyle.gray
 
                     try:
-                        if reply_msg.source=='revolt':
-                            user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            author_text = f'@{user.display_name or user.name}'
-                        elif reply_msg.source=='guilded':
-                            user = self.bot.guilded_client.get_user(reply_msg.author_id)
-                            author_text = f'@{user.name}'
-                        else:
+                        if reply_msg.source=='discord':
                             user = self.bot.get_user(int(reply_msg.author_id))
                             author_text = f'@{user.global_name or user.name}'
+                        else:
+                            user = source_support.get_user(reply_msg.author_id)
+                            author_text = f'@{source_support.display_name(user)}'
                         if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
                             author_text = '@'+self.bot.db['nicknames'][f'{reply_msg.author_id}']
                     except:
@@ -1324,14 +1318,22 @@ class UnifierBridge:
 
                     # Prevent empty buttons
                     try:
-                        count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
-                    except:
-                        if source == 'revolt':
-                            msg = await message.channel.fetch_message(message.replies[0].id)
-                        elif source == 'guilded':
-                            msg = await message.channel.fetch_message(message.replied_to[0].id)
+                        if source == 'discord':
+                            count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
                         else:
+                            reply_msg_id = source_support.reply(message)
+                            if type(reply_msg_id) is str or type(reply_msg_id) is int:
+                                msg = await source_support.fetch_message(
+                                    source_support.channel(message), reply_msg_id
+                                )
+                            else:
+                                msg = reply_msg_id
+                            count = len(source_support.embeds(msg)) + len(source_support.attachments(msg))
+                    except:
+                        if source == 'discord':
                             msg = await message.channel.fetch_message(message.reference.message_id)
+                        else:
+                            raise
                         count = len(msg.embeds) + len(msg.attachments)
 
                     if len(trimmed)==0:
@@ -1402,27 +1404,26 @@ class UnifierBridge:
                             )
                 elif replying:
                     try:
-                        if source == 'revolt':
-                            authid = message.replies[0].author.id
-                        elif source == 'guilded':
-                            authid = message.replied_to[0].author.id
-                        else:
+                        if source == 'discord':
                             if message.reference.cached_message:
                                 authid = message.reference.cached_message.author.id
                             else:
                                 authmsg = await message.channel.fetch_message(message.reference.message_id)
                                 authid = authmsg.author.id
+                        else:
+                            reply_msg_id = source_support.reply(message)
+                            if type(reply_msg_id) is str or type(reply_msg_id) is int:
+                                authmsg = await source_support.fetch_message(
+                                    source_support.channel(message), reply_msg_id
+                                )
+                            else:
+                                authmsg = reply_msg_id
+                            authid = source_support.get_id(source_support.author(authmsg))
                     except:
                         authid = None
-                    try:
-                        botrvt = authid==self.bot.revolt_client.user.id
-                    except:
-                        botrvt = False
-                    try:
-                        botgld = authid==self.bot.guilded_client.user.id
-                    except:
-                        botgld = False
-                    if authid==self.bot.user.id or botrvt or botgld:
+                    botext = authid == source_support.bot_id()
+
+                    if authid==self.bot.user.id or botext:
                         reply_row = ui.ActionRow(
                             nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
                                                label=selector.fget('replying',values={'user': '[system]'}),
@@ -1621,7 +1622,7 @@ class UnifierBridge:
                 if str(author_id) in list(self.bot.db['colors'].keys()):
                     color = self.bot.db['colors'][str(author_id)]
                     if color == 'inherit':
-                        roles = source_support.roles(source_support.member(message))
+                        roles = source_support.roles(source_support.author(message))
                         color = source_support.get_hex(roles[len(roles)-1])
                 try:
                     files = await get_files(message.attachments)
@@ -1635,7 +1636,11 @@ class UnifierBridge:
                         'files': files,
                         'embeds': (
                             dest_support.convert_embeds(message.embeds) if source=='discord'
-                            else dest_support.convert_embeds(source_support.embeds(message))
+                            else dest_support.convert_embeds(
+                                source_support.convert_embeds_discord(
+                                    source_support.embeds(message)
+                                )
+                            )
                         ),
                         'reply': None
                     }

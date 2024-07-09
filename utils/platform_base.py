@@ -44,6 +44,9 @@ class PlatformBase:
         self.bot = bot
         self.__available = True
 
+    def bot_id(self):
+        raise MissingImplementation()
+
     def get_server(self, server_id):
         """Gets a server from cache."""
         raise MissingImplementation()
@@ -64,8 +67,11 @@ class PlatformBase:
         """Returns the content from a message."""
         raise MissingImplementation()
 
-    def member(self, message):
-        """Returns the member object from a message (i.e. its author)."""
+    def author(self, message):
+        """Returns the author object from a message."""
+        raise MissingImplementation()
+
+    def embeds(self, message):
         raise MissingImplementation()
 
     def attachments(self, message):
@@ -109,6 +115,9 @@ class PlatformBase:
         return len(self.allowed_content_types) == 0 or content_type in self.allowed_content_types
 
     def convert_embeds(self, embeds):
+        raise MissingImplementation()
+
+    def convert_embeds_discord(self, embeds):
         raise MissingImplementation()
 
     def webhook_id(self, message):
