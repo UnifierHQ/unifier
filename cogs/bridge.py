@@ -1624,7 +1624,8 @@ class UnifierBridge:
                     if color == 'inherit':
                         roles = source_support.roles(source_support.author(message))
                         color = source_support.get_hex(roles[len(roles)-1])
-                try:
+
+                async def tbsend(msg_author,url,color,useremoji,reply,content):
                     files = await get_files(message.attachments)
                     special = {
                         'bridge': {
@@ -1647,20 +1648,65 @@ class UnifierBridge:
                     if reply:
                         special.update({'reply': reply})
                     msg = await dest_support.send(
-                        ch, friendly_content if friendlified else msg_content, special=special
+                        ch, content, special=special
                     )
-                except:
-                    continue
-
-                message_ids.update({
-                    str(dest_support.get_id(destguild)): [
-                        dest_support.get_id(ch),dest_support.get_id(msg)
+                    tbresult = [
+                        {f'{dest_support.get_id(destguild)}':
+                             [dest_support.get_id(dest_support.channel(msg)), dest_support.get_id(msg)]
+                        },
+                        None,
+                        [sameguild, dest_support.get_id(msg)]
                     ]
-                })
-                try:
-                    urls.update({str(dest_support.get_id(destguild)): dest_support.url(msg)})
-                except platform_base.MissingImplementation:
-                    pass
+                    try:
+                        tbresult[1] = {
+                            f'{dest_support.get_id(destguild)}': dest_support.url(msg)
+                        }
+                    except platform_base.MissingImplementation:
+                        pass
+                    return tbresult
+
+                if dest_support.enable_tb:
+                    threads.append(asyncio.create_task(tbsend(
+                        msg_author,url,color,useremoji,reply,friendly_content if friendlified else msg_content
+                    )))
+                else:
+                    try:
+                        files = await get_files(message.attachments)
+                        special = {
+                            'bridge': {
+                                'name': msg_author,
+                                'avatar': url,
+                                'color': color,
+                                'emoji': useremoji
+                            },
+                            'files': files,
+                            'embeds': (
+                                dest_support.convert_embeds(message.embeds) if source=='discord'
+                                else dest_support.convert_embeds(
+                                    source_support.convert_embeds_discord(
+                                        source_support.embeds(message)
+                                    )
+                                )
+                            ),
+                            'reply': None
+                        }
+                        if reply:
+                            special.update({'reply': reply})
+                        msg = await dest_support.send(
+                            ch, friendly_content if friendlified else msg_content, special=special
+                        )
+                    except:
+                        continue
+
+                    message_ids.update({
+                        str(dest_support.get_id(destguild)): [
+                            dest_support.get_id(ch),dest_support.get_id(msg)
+                        ]
+                    })
+                    try:
+                        urls.update({str(dest_support.get_id(destguild)): dest_support.url(msg)})
+                    except platform_base.MissingImplementation:
+                        pass
 
         # Update cache
         tbv2_results = []
@@ -1675,7 +1721,8 @@ class UnifierBridge:
                 if not result:
                     continue
                 message_ids.update(result[0])
-                urls.update(result[1])
+                if result[1]:
+                    urls.update(result[1])
                 if result[2][0]:
                     parent_id = result[2][1]
 
