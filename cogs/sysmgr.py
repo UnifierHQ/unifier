@@ -242,7 +242,7 @@ class AutoSaveDict(dict):
                      'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {}, 'external_bridge': [],
                      'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {}, 'fullbanned': [], 'exp': {},
                      'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {},
-                     'languages': {}})
+                     'languages': {}, 'settings': {}})
         self.threads = []
 
         # Load data
@@ -1256,7 +1256,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = 'The repository URL or the plugin.json file is invalid.'
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
-            raise
+            return
         embed.title = f'{self.bot.ui_emojis.install} Install `{plugin_id}`?'
         embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
         embed.colour = 0xffcc00
