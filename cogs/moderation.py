@@ -95,9 +95,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
         restrictions.attach_bot(self.bot)
 
-    @commands.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
+    @commands.command(aliases=['block'],description='Blocks a user or server from bridging messages to your server.')
     @commands.has_permissions(ban_members=True)
-    async def restrict(self,ctx,*,target):
+    async def ban(self,ctx,*,target):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
@@ -390,9 +390,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self.bot.db['fullbanned'].append(target)
             await ctx.send(f'{self.bot.ui_emojis.success} User has been banned from the bot.')
 
-    @commands.command(aliases=['unban'],description='Unblocks a user or server from bridging messages to your server.')
+    @commands.command(aliases=['unblock'],description='Unblocks a user or server from bridging messages to your server.')
     @commands.has_permissions(ban_members=True)
-    async def unrestrict(self,ctx,target):
+    async def unban(self,ctx,target):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
@@ -582,6 +582,25 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             ),
             ephemeral=True
         )
+
+    @commands.command(
+        hidden=True,
+        description='Locks/unlocks a private room. Only moderators and admins will be able to chat in this room when locked.'
+    )
+    @restrictions.moderator()
+    async def lock(self,ctx,room):
+        room = room.lower()
+        if not room in list(self.bot.db['rooms'].keys()):
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+        if not self.bot.db['rooms'][room]['meta']['private']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
+        if self.bot.db['rooms'][room]['meta']['locked']:
+            self.bot.db['rooms'][room]['meta']['locked'] = False
+            await ctx.send(f'{self.bot.ui_emojis.success} Unlocked `{room}`!')
+        else:
+            self.bot.db['rooms'][room]['meta']['locked'] = True
+            await ctx.send(f'{self.bot.ui_emojis.success} Locked `{room}`!')
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(aliases=['account_standing'],description='Shows your instance account standing.')
     async def standing(self,ctx,*,target=None):

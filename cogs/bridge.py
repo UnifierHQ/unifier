@@ -72,7 +72,7 @@ def genid():
 
 def is_room_locked(room, db):
     try:
-        if room in db['locked']:
+        if db['rooms'][room]['meta']['locked']:
             return True
         else:
             return False
@@ -315,20 +315,32 @@ class UnifierBridge:
         self.bot.db.save_data()
 
     async def convert_1(self):
-        """Converts data structure to be v2.0.7-compatible.
-        Eliminates the need for rooms_revolt and rooms_guilded keys."""
-        if len(self.bot.db['rooms'].keys()) == 0:
+        """Converts data structure to be v2.1.0-compatible.
+        Eliminates the need for a lot of unneeded keys."""
+        if not 'rules' in self.bot.db.keys():
             # conversion is not needed
             return
         for room in self.bot.db['rooms']:
-            if 'discord' in self.bot.db['rooms'][room].keys():
-                # conversion is not needed
-                return
-            self.bot.db['rooms'][room] = {'discord': self.bot.db['rooms'][room]}
+            self.bot.db['rooms'][room] = {'meta':{
+                'rules': self.bot.db['rules'][room],
+                'restricted': room in self.bot.db['restricted'],
+                'locked': room in self.bot.db['locked'],
+                'private': False,
+                'emoji': self.bot.db['roomemoji'][room] if room in self.bot.db['roomemoji'].keys() else None,
+                'description': self.bot.db['descriptions'][room] if room in self.bot.db['descriptions'].keys() else None
+            },'discord': self.bot.db['rooms'][room]}
             if room in self.bot.db['rooms_revolt'].keys():
                 self.bot.db['rooms'][room].update({'revolt': self.bot.db['rooms_revolt'][room]})
             if room in self.bot.db['rooms_guilded'].keys():
                 self.bot.db['rooms'][room].update({'guilded': self.bot.db['rooms_guilded'][room]})
+
+        self.bot.db.pop('rooms_revolt')
+        self.bot.db.pop('rooms_guilded')
+        self.bot.db.pop('rules')
+        self.bot.db.pop('restricted')
+        self.bot.db.pop('locked')
+        self.bot.db.pop('roomemoji')
+        self.bot.db.pop('descriptions')
 
         # not sure what to do about the data stored in rooms_revolt key now...
         # maybe delete the key entirely? or keep it in case conversion went wrong?

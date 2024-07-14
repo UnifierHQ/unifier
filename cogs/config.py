@@ -49,6 +49,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.trusted_group = self.bot.db['trusted']
         restrictions.attach_bot(self.bot)
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
+        self.__room_template = {'rules': [], 'restricted': False, 'locked': False, 'private': False, 'emoji': None,
+                                'description': None}
+
+    @property
+    def room_template(self):
+        return self.__room_template
 
     def is_user_admin(self,user_id):
         try:
@@ -57,13 +63,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             else:
                 return False
         except:
-            print(
-                "There was an error in 'is_user_admin(id)', for security reasons permission was resulted into denying!")
+            traceback.print_exc()
             return False
 
     def is_room_restricted(self, room, db):
         try:
-            if room in db['restricted']:
+            if db['rooms'][room]['meta']['restricted']:
                 return True
             else:
                 return False
@@ -73,7 +78,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     def is_room_locked(self, room, db):
         try:
-            if room in db['locked']:
+            if db['rooms'][room]['meta']['locked']:
                 return True
             else:
                 return False
@@ -137,8 +142,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
         if room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
-        self.bot.db['rooms'].update({room:{}})
-        self.bot.db['rules'].update({room:[]})
+        self.bot.db['rooms'].update({room:self.room_template})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Created room `{room}`!')
 
@@ -153,21 +157,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if newroom in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
         self.bot.db['rooms'].update({newroom: self.bot.db['rooms'][room]})
-        self.bot.db['rules'].update({newroom: self.bot.db['rules'][room]})
         self.bot.db['rooms'].pop(room)
-        self.bot.db['rules'].pop(room)
-        if room in self.bot.db['restricted']:
-            self.bot.db['restricted'].remove(room)
-            self.bot.db['restricted'].append(newroom)
-        if room in self.bot.db['locked']:
-            self.bot.db['locked'].remove(room)
-            self.bot.db['locked'].append(newroom)
-        if room in self.bot.db['roomemojis'].keys():
-            self.bot.db['roomemojis'].update({newroom: self.bot.db['roomemojis'][room]})
-            self.bot.db['roomemojis'].pop(room)
-        if room in self.bot.db['rooms_revolt'].keys():
-            self.bot.db['rooms_revolt'].update({newroom: self.bot.db['rooms_revolt'][room]})
-            self.bot.db['rooms_revolt'].pop(room)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Room renamed!')
 
@@ -200,20 +190,57 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'Added description to experiment `{experiment}`!')
 
+    @commands.command(hidden=True, description='Sets room display name.')
+    async def roomdisplay(self, ctx, room, *, name=''):
+        room = room.lower()
+        if not room in list(self.bot.db['rooms'].keys()):
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
+        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
+            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
+            origin_guild = self.bot.get_guild(origin_id)
+            if not origin_guild or not origin_guild.id == ctx.guild.id:
+                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
+                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
+                # pretend like it doesn't exist, since there's no way this server can have access to the room
+                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+            if not ctx.author.guild_permissions.manage_guild:
+                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
+        if len(name) == 0:
+            if not self.bot.db['rooms'][room]['meta']['display_name']:
+                return await ctx.send(f'{self.bot.ui_emojis.error} There is no display name to reset for this room.')
+            self.bot.db['rooms'][room]['meta']['display_name'] = None
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+            return await ctx.send(f'{self.bot.ui_emojis.success} Display name removed.')
+        self.bot.db['rooms'][room]['meta']['display_name'] = name
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+        await ctx.send(f'{self.bot.ui_emojis.success} Updated description!')
+
     @commands.command(hidden=True,description='Sets room description.')
-    @restrictions.admin()
     async def roomdesc(self,ctx,room,*,desc=''):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
+        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
+            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
+            origin_guild = self.bot.get_guild(origin_id)
+            if not origin_guild or not origin_guild.id == ctx.guild.id:
+                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
+                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
+                # pretend like it doesn't exist, since there's no way this server can have access to the room
+                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+            if not ctx.author.guild_permissions.manage_guild:
+                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
         if len(desc)==0:
-            try:
-                self.bot.db['descriptions'][room].pop()
-            except:
+            if not self.bot.db['rooms'][room]['meta']['description']:
                 return await ctx.send(f'{self.bot.ui_emojis.error} There is no description to reset for this room.')
+            self.bot.db['rooms'][room]['meta']['description'] = None
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             return await ctx.send(f'{self.bot.ui_emojis.success} Description removed.')
-        self.bot.db['descriptions'].update({room:desc})
+        self.bot.db['rooms'][room]['meta']['description'] = desc
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Updated description!')
 
@@ -223,34 +250,46 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
+        if self.bot.db['rooms'][room]['meta'][
+            'private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
+            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
+            origin_guild = self.bot.get_guild(origin_id)
+            if not origin_guild or not origin_guild.id == ctx.guild.id:
+                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
+                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
+                # pretend like it doesn't exist, since there's no way this server can have access to the room
+                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+            if not ctx.author.guild_permissions.manage_guild:
+                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
         if len(emoji) == 0:
-            try:
-                self.bot.db['roomemojis'].pop(room)
-            except:
+            if not self.bot.db['rooms'][room]['meta']['emoji']:
                 return await ctx.send(f'{self.bot.ui_emojis.error} There is no emoji to reset for this room.')
+            self.bot.db['rooms'][room]['meta']['emoji'] = None
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             return await ctx.send(f'{self.bot.ui_emojis.success} Emoji removed.')
         if not pymoji.is_emoji(emoji):
             return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid emoji.')
-        self.bot.db['roomemojis'].update({room: emoji})
+        self.bot.db['rooms'][room]['meta']['emoji'] = emoji
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('Updated emoji!')
 
     @commands.command(
         hidden=True,
-        description='Restricts/unrestricts room. Only admins will be able to collect to this room when restricted.'
+        description='Restricts/unrestricts a room. Only admins will be able to collect to this room when restricted.'
     )
     @restrictions.admin()
-    async def roomrestrict(self,ctx,room):
+    async def restrict(self,ctx,room):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-        if room in self.bot.db['restricted']:
-            self.bot.db['restricted'].remove(room)
+        if self.bot.db['rooms'][room]['meta']['restricted']:
+            self.bot.db['rooms'][room]['meta']['restricted'] = False
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} Unrestricted `{room}`!')
         else:
-            self.bot.db['restricted'].append(room)
+            self.bot.db['rooms'][room]['meta']['restricted'] = True
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} Restricted `{room}`!')
 
@@ -258,17 +297,94 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         hidden=True,
         description='Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.'
     )
-    @restrictions.admin()
-    async def roomlock(self,ctx,room):
+    @restrictions.moderator()
+    async def lock(self,ctx,room):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-        if room in self.bot.db['locked']:
-            self.bot.db['locked'].remove(room)
+        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
+        if self.bot.db['rooms'][room]['meta']['locked']:
+            self.bot.db['rooms'][room]['meta']['locked'] = False
             await ctx.send(f'{self.bot.ui_emojis.success} Unlocked `{room}`!')
         else:
-            self.bot.db['locked'].append(room)
+            self.bot.db['rooms'][room]['meta']['locked'] = True
             await ctx.send(f'{self.bot.ui_emojis.success} Locked `{room}`!')
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+
+    @commands.command(description='Disbands a room.')
+    async def disband(self, ctx, room):
+        room = room.lower()
+        if not room in list(self.bot.db['rooms'].keys()):
+            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
+        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
+            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
+            origin_guild = self.bot.get_guild(origin_id)
+            if not origin_guild or not origin_guild.id==ctx.guild.id:
+                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
+                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
+                # pretend like it doesn't exist, since there's no way this server can have access to the room
+                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+            if not ctx.author.guild_permissions.manage_guild:
+                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Disband `{room}`?',
+            description='Once the room is disbanded, it\'s gone forever!',
+            color=self.bot.colors.warning
+        )
+        view = ui.MessageComponents()
+        view.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Disband',
+                    custom_id='disband'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+        msg = await ctx.send(embed=embed, view=view)
+        view.clear_items()
+        view.row_count = 0
+        view.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Disband',
+                    custom_id='disband',
+                    disabled=True
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel',
+                    disabled=True
+                )
+            )
+        )
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+        except:
+            return await msg.edit(view=view)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=view)
+
+        self.bot.db['rooms'].pop(room)
+        embed.title = f'{self.bot.ui_emojis.success} Disbanded `{room}`'
+        embed.description = 'The room was disbanded successfully.'
+        embed.colour = self.bot.colors.success
+        await interaction.response.edit_message(embed=embed,view=None)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(
@@ -312,7 +428,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if len(list(self.bot.db['experiments'].keys()))==0:
                 embed.add_field(name="no experiments? :face_with_raised_eyebrow:",value='There\'s no experiments available yet!',inline=False)
             await ctx.send(embed=embed)
-    
+
     @commands.command(aliases=['link','connect','federate','bridge'],description='Connects the channel to a given room.')
     @commands.has_permissions(manage_channels=True)
     async def bind(self,ctx,*,room=''):
@@ -353,10 +469,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{self.bot.command_prefix}unlink` it then `{self.bot.command_prefix}link` it back.')
         index = 0
         text = ''
-        if len(self.bot.db['rules'][room])==0:
+        if len(self.bot.db['rooms'][room]['meta']['rules'])==0:
             text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `{self.bot.command_prefix}rules {room}`.'
         else:
-            for rule in self.bot.db['rules'][room]:
+            for rule in self.bot.db['rooms'][room]['meta']['rules']:
                 if text=='':
                     text = f'1. {rule}'
                 else:
@@ -406,6 +522,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return
         webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
         guild = [webhook.id, ctx.channel.id]
+        if not 'discord' in self.bot.db['rooms'][room]:
+            self.bot.db['rooms'][room].update({'discord': {}})
         self.bot.db['rooms'][room]['discord'].update({f'{ctx.guild.id}':guild})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await resp.edit_original_message(content=f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
@@ -615,14 +733,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if len(roomname) < 3:
                 roomname = str(channel.id)
             if not roomname in self.bot.db['rooms'].keys():
-                self.bot.db['rooms'].update({roomname: {}})
-                self.bot.db['rules'].update({roomname: []})
+                self.bot.db['rooms'].update({roomname: self.room_template})
                 if restricted:
-                    self.bot.db['restricted'].append(roomname)
+                    self.bot.db['rooms'][roomname]['meta']['restricted'] = True
                 elif locked:
-                    self.bot.db['locked'].append(roomname)
+                    self.bot.db['rooms'][roomname]['meta']['locked'] = True
             webhook = await channel.create_webhook(name='Unifier Bridge')
             guild = [webhook.id, channel.id]
+            if not 'discord' in self.bot.db['rooms'][roomname].keys():
+                self.bot.db['rooms'][roomname].update({'discord': {}})
             self.bot.db['rooms'][roomname]['discord'].update({f'{ctx.guild.id}': guild})
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
@@ -639,11 +758,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
-        
+
         index = 0
         text = ''
-        if room in list(self.bot.db['rules'].keys()):
-            rules = self.bot.db['rules'][room]
+        if room in list(self.bot.db['rooms'].keys()):
+            rules = self.bot.db['rooms'][room]['meta']['rules']
             if len(rules)==0:
                 return await ctx.send(f'{self.bot.ui_emojis.error} The admins haven\'t added rules yet. Though, make sure to always use common sense.')
         else:
@@ -662,11 +781,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.admin()
     async def addrule(self,ctx,room,*,rule):
         room = room.lower()
-        if not room in list(self.bot.db['rules'].keys()):
+        if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
-        if len(self.bot.db['rules'][room]) >= 25:
+        if len(self.bot.db['rooms'][room]['meta']['rules']) >= 25:
             return await ctx.send(f'{self.bot.ui_emojis.error} You can only have up to 25 rules in a room!')
-        self.bot.db['rules'][room].append(rule)
+        self.bot.db['rooms'][room]['meta']['rules'].append(rule)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Added rule!')
 
@@ -680,9 +799,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 raise ValueError()
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} Rule must be a number higher than 0.')
-        if not room in list(self.bot.db['rules'].keys()):
+        if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
-        self.bot.db['rules'][room].pop(rule-1)
+        self.bot.db['rooms'][room]['meta']['rules'].pop(rule-1)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Removed rule!')
 
@@ -820,18 +939,22 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     if index >= len(roomlist):
                         break
                     name = roomlist[index]
+                    display_name = (
+                        self.bot.db['rooms'][name]['meta']['display_name'] if self.bot.db['rooms'][name]['meta']['display_name']
+                        else name
+                    )
                     description = (
-                        self.bot.db['descriptions'][roomlist[index]]
-                        if roomlist[index] in self.bot.db['descriptions'].keys() else 'This room has no description.'
+                        self.bot.db['rooms'][name]['meta']['description']
+                        if self.bot.db['rooms'][name]['meta']['description'] else 'This room has no description.'
                     )
                     emoji = (
                         '\U0001F527' if self.is_room_restricted(roomlist[index],self.bot.db) else
                         '\U0001F512' if self.is_room_locked(roomlist[index],self.bot.db) else
                         '\U0001F310'
-                    ) if not name in self.bot.db['roomemojis'] else self.bot.db['roomemojis'][name]
+                    ) if not self.bot.db['rooms'][name]['meta']['emoji'] else self.bot.db['rooms'][name]['meta']['emoji']
 
                     embed.add_field(
-                        name=f'{emoji} `{name}`',
+                        name=f'{emoji} `{display_name}`',
                         value=description,
                         inline=False
                     )
@@ -889,18 +1012,24 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 def search_filter(query, query_cmd):
                     if match == 0:
                         return (
-                                query.lower() in query_cmd and namematch or
                                 (
-                                        query.lower() in self.bot.db['descriptions'][query_cmd].lower()
-                                        if query_cmd in self.bot.db['descriptions'].keys() else False
+                                        query.lower() in query_cmd or
+                                        query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
+                                ) and namematch or
+                                (
+                                        query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
+                                        if self.bot.db['rooms'][query_cmd]['meta']['description'] else False
                                 ) and descmatch
                         )
                     elif match == 1:
                         return (
-                                ((query.lower() in query_cmd and namematch) or not namematch) and
+                                (((
+                                    query.lower() in query_cmd or
+                                    query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
+                                  ) and namematch) or not namematch) and
                                 ((
-                                    query.lower() in self.bot.db['descriptions'][query_cmd].lower()
-                                    if query_cmd in self.bot.db['descriptions'].keys() else False
+                                    query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
+                                    if self.bot.db['rooms'][query_cmd]['meta']['description'] else False
                                 ) and descmatch or not descmatch)
                         )
 
@@ -946,22 +1075,26 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         if index >= len(roomlist):
                             break
                         room = roomlist[index]
+                        display_name = (
+                            self.bot.db['rooms'][room]['meta']['display_name'] if self.bot.db['rooms'][room]['meta']['display_name']
+                            else room
+                        )
                         emoji = (
                             '\U0001F527' if self.is_room_restricted(roomlist[index], self.bot.db) else
                             '\U0001F512' if self.is_room_locked(roomlist[index], self.bot.db) else
                             '\U0001F310'
-                        ) if not room in self.bot.db['roomemojis'] else self.bot.db['roomemojis'][room]
+                        ) if not self.bot.db['rooms'][room]['meta']['emoji'] else self.bot.db['rooms'][room]['meta']['emoji']
                         roomdesc = (
-                            self.bot.db['descriptions'][room] if room in self.bot.db['descriptions'].keys() else
-                            'This room has no description.'
+                            self.bot.db['rooms'][room]['meta']['description']
+                            if self.bot.db['rooms'][room]['meta']['description'] else 'This room has no description.'
                         )
                         embed.add_field(
-                            name=f'{emoji} `{room}`',
+                            name=f'{emoji} `{display_name}`',
                             value=roomdesc,
                             inline=False
                         )
                         selection.add_option(
-                            label=room,
+                            label=display_name,
                             description=roomdesc if len(roomdesc) <= 100 else roomdesc[:-(len(roomdesc) - 97)] + '...',
                             value=room,
                             emoji=emoji
@@ -1053,16 +1186,20 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     if was_searching else
                     f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname}'
                 )
+                display_name = (
+                    self.bot.db['rooms'][roomname]['meta']['display_name'] if self.bot.db['rooms'][roomname]['meta']['display_name']
+                    else roomname
+                )
                 description = (
-                    self.bot.db['descriptions'][roomname]
-                    if roomname in self.bot.db['descriptions'].keys() else 'This room has no description.'
+                    self.bot.db['rooms'][roomname]['meta']['description']
+                    if self.bot.db['rooms'][roomname]['meta']['description'] else 'This room has no description.'
                 )
                 emoji = (
                     '\U0001F527' if self.is_room_restricted(roomname, self.bot.db) else
                     '\U0001F512' if self.is_room_locked(roomname, self.bot.db) else
                     '\U0001F310'
-                ) if not roomname in self.bot.db['roomemojis'] else self.bot.db['roomemojis'][roomname]
-                embed.description = f'# **{emoji} `{roomname}`**\n{description}'
+                ) if not self.bot.db['rooms'][roomname]['meta']['emoji'] else self.bot.db['rooms'][roomname]['meta']['emoji']
+                embed.description = f'# **{emoji} `{display_name}`**\n{description}'
                 stats = await self.bot.bridge.roomstats(roomname)
                 embed.add_field(name='Statistics',value=(
                     f':homes: {stats["guilds"]} servers\n'+

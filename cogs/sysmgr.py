@@ -237,12 +237,11 @@ class AutoSaveDict(dict):
         self.__save_lock = False
 
         # Ensure necessary keys exist
-        self.update({'rules': {}, 'rooms': {}, 'rooms_revolt': {}, 'rooms_guilded': {}, 'emojis': [], 'nicknames': {},
-                     'descriptions': {}, 'restricted': [], 'locked': [], 'blocked': {}, 'banned': {}, 'moderators': [],
-                     'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {}, 'external_bridge': [],
-                     'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {}, 'fullbanned': [], 'exp': {},
-                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {},
-                     'languages': {}, 'settings': {}})
+        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
+                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
+                     'external_bridge': [], 'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {},
+                     'fullbanned': [], 'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {},
+                     'appealban': [], 'languages': {}, 'settings': {}})
         self.threads = []
 
         # Load data
@@ -1221,6 +1220,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             modules = new['modules']
             utilities = new['utils']
             try:
+                nups_platform = new['bridge_platform']
+                if nups_platform == '':
+                    nups_platform = None
+            except:
+                nups_platform = None
+            try:
                 services = new['services']
             except:
                 services = []
@@ -1280,6 +1285,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     ':handshake: **Bridge platform support**\n'+
                     'The plugin will be able to provide native Unifier Bridgesupport for an external platform.'
                 )
+                if not nups_platform or nups_platform.lower()=='meta':
+                    embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
+                    embed.description = 'The plugin provided an invalid platform name.'
+                    embed.colour = self.bot.colors.error
+                    return await msg.edit(embed=embed)
             elif service=='emojis':
                 text = (
                     ':joy: **Emojis**\n'+
