@@ -1704,9 +1704,9 @@ class UnifierBridge:
                         ch, content, special=special
                     )
                     tbresult = [
-                        {f'{dest_support.get_id(destguild)}':
-                             [dest_support.get_id(dest_support.channel(msg)), dest_support.get_id(msg)]
-                        },
+                        {f'{dest_support.get_id(destguild)}': [
+                            dest_support.get_id(dest_support.channel(msg)), dest_support.get_id(msg)
+                        ]},
                         None,
                         [sameguild, dest_support.get_id(msg)]
                     ]
