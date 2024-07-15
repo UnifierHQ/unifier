@@ -637,67 +637,30 @@ class UnifierBridge:
         async def delete_others(msgs, target):
             count = 0
             threads = []
+            support = self.bot.platforms[target]
             for key in list(self.bot.db['rooms'][msg.room][target].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
-        async def delete_guilded(msgs):
-            if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
-                return
-            count = 0
-            threads = []
-            for key in list(self.bot.db['rooms'][msg.room]['guilded'].keys()):
-                if not key in list(msgs.keys()):
-                    continue
-
-                guild = self.bot.guilded_client.get_server(key)
-
-                # Fetch webhook
-                try:
-                    webhook = await guild.fetch_webhook(self.bot.db['rooms_guilded'][msg.room]['guilded'][key][0])
-                except:
-                    continue
-
+                channel = support.get_channel(msgs[key][0])
+                todelete = await support.fetch_message(channel, msgs[key][1])
                 try:
                     threads.append(asyncio.create_task(
-                        webhook.delete_message(msgs[key][1])
+                        support.delete_message(todelete)
                     ))
                     count += 1
                 except:
-                    # traceback.print_exc()
                     pass
             await asyncio.gather(*threads)
-            return count
-
-        async def delete_revolt(msgs):
-            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
-                return
-            count = 0
-            for key in list(self.bot.db['rooms'][msg.room]['revolt'].keys()):
-                if not key in list(msgs.keys()):
-                    continue
-
-                try:
-                    ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
-                    todelete = await ch.fetch_message(msgs[key][1])
-                    await todelete.delete()
-                    count += 1
-                except:
-                    # traceback.print_exc()
-                    continue
             return count
 
         if msg.source=='discord':
             threads.append(asyncio.create_task(
                 delete_discord(msg.copies)
             ))
-        elif msg.source=='revolt':
+        else:
             threads.append(asyncio.create_task(
-                delete_revolt(msg.copies)
-            ))
-        elif msg.source=='guilded':
-            threads.append(asyncio.create_task(
-                delete_guilded(msg.copies)
+                delete_others(msg.copies,msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
@@ -705,13 +668,9 @@ class UnifierBridge:
                 threads.append(asyncio.create_task(
                     delete_discord(msg.external_copies['discord'])
                 ))
-            elif platform=='revolt':
+            else:
                 threads.append(asyncio.create_task(
-                    delete_revolt(msg.external_copies['revolt'])
-                ))
-            elif platform=='guilded':
-                threads.append(asyncio.create_task(
-                    delete_guilded(msg.external_copies['guilded'])
+                    delete_others(msg.external_copies[msg.source],msg.source)
                 ))
 
         results = await asyncio.gather(*threads)
