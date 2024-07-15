@@ -612,7 +612,7 @@ class UnifierBridge:
                 try:
                     try:
                         webhook = self.bot.bridge.webhook_cache.get_webhook([
-                            f'{self.bot.db["rooms"][msg.room]['discord'][f"{guild.id}"][0]}'
+                            f'{self.bot.db["rooms"][msg.room]["discord"][f"{guild.id}"][0]}'
                         ])
                     except:
                         try:
@@ -1614,7 +1614,7 @@ class UnifierBridge:
                 webhook = None
                 try:
                     webhook = self.bot.bridge.webhook_cache.get_webhook(
-                        f'{self.bot.db["rooms"][room]['discord'][guild][0]}'
+                        f'{self.bot.db["rooms"][room]["discord"][guild][0]}'
                     )
                 except:
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
@@ -3432,7 +3432,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     embed.colour = self.bot.colors.critical
                     embed.add_field(
                         name=language.get('actions_taken','commons.moderation',language=selector.language_set),
-                        value=f'- :zipper_mouth: {language.get('perm_ban','commons.moderation',language=selector.language_set)}\n- :white_check_mark: {language.get('perm_ban_appeal','commons.moderation',language=selector.language_set)}',
+                        value=f'- :zipper_mouth: {language.get("perm_ban","commons.moderation",language=selector.language_set)}\n- :white_check_mark: {language.get("perm_ban_appeal","commons.moderation",language=selector.language_set)}',
                         inline=False
                     )
                     embed.add_field(name=language.get('appeal_title','commons.moderation',language=selector.language_set),
@@ -3442,7 +3442,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 else:
                     embed.add_field(
                         name=language.get('actions_taken','commons.moderation',language=selector.language_set),
-                        value=f'- :warning: {language.get('warned','commons.moderation',language=selector.language_set)}\n- :zipper_mouth: {language.fget('temp_ban','commons.moderation',values={'unix': round(nt)},language=selector.language_set)}',
+                        value=f"- :warning: {language.get('warned','commons.moderation',language=selector.language_set)}\n- :zipper_mouth: {language.fget('temp_ban','commons.moderation',values={'unix': round(nt)},language=selector.language_set)}",
                         inline=False
                     )
                     embed.add_field(name=language.get('appeal_title','commons.moderation',language=selector.language_set),
