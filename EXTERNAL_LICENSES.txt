@@ -2,6 +2,8 @@
 This file contains licensing information for other works we have used to
 build Unifier or/and works that are not licensed under AGPLv3.
 
+You can find the attribution for dependencies by running u!about.
+
 --------
 
 Python logger formatter (CustomFormatter class in utils/log.py)
