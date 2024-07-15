@@ -580,8 +580,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         msg = await ctx.send(embed=embed)
         try:
             os.system('rm -rf ' + os.getcwd() + '/plugin_install')
-            status(os.system(
-                'git clone ' + url + ' ' + os.getcwd() + '/plugin_install'))
+            await self.bot.loop.run_in_executor(None, lambda: status(os.system(
+                'git clone ' + url + ' ' + os.getcwd() + '/plugin_install')))
             with open('plugin_install/plugin.json', 'r') as file:
                 new = json.load(file)
             if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
@@ -707,7 +707,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     newdeps = new['requirements']
                     if len(newdeps) > 0:
                         self.logger.debug('Installing: ' + ' '.join(newdeps))
-                        status(os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps)))
+                        await self.bot.loop.run_in_executor(None, lambda: status(
+                            os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps))
+                        ))
             except:
                 self.logger.exception('Dependency installation failed')
                 raise RuntimeError()
@@ -1027,8 +1029,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Purging old update files')
                 os.system('rm -rf ' + os.getcwd() + '/update')
                 self.logger.info('Downloading from remote repository...')
-                os.system('git clone --branch ' + version + ' --single-branch --depth 1 ' + self.bot.config[
-                    'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update')
+                await self.bot.loop.run_in_executor(None, lambda: os.system(
+                    'git clone --branch ' + version + ' --single-branch --depth 1 ' + self.bot.config[
+                        'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update'
+                ))
                 self.logger.debug('Confirming download...')
                 x = open(os.getcwd() + '/update/plugins/system.json', 'r')
                 x.close()
@@ -1059,7 +1063,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         pass
                 if len(newdeps) > 0:
                     self.logger.debug('Installing: ' + ' '.join(newdeps))
-                    status(os.system('python3 -m pip install ' + ' '.join(newdeps)))
+                    await self.bot.loop.run_in_executor(None, lambda: status(os.system(
+                        'python3 -m pip install ' + ' '.join(newdeps))
+                    ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
                 embed.title = ':x: Upgrade failed'
@@ -1171,8 +1177,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             url = plugin_info['repository']
             try:
                 os.system('rm -rf ' + os.getcwd() + '/plugin_install')
-                status(os.system(
-                    'git clone ' + url + ' ' + os.getcwd() + '/plugin_install'))
+                await self.bot.loop.run_in_executor(None, lambda: status(os.system(
+                    'git clone ' + url + ' ' + os.getcwd() + '/plugin_install')
+                ))
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
                 if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
@@ -1243,7 +1250,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 newdeps.remove(dep)
                         if len(newdeps) > 0:
                             self.logger.debug('Installing: ' + ' '.join(newdeps))
-                            status(os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps)))
+                            await self.bot.loop.run_in_executor(None, lambda: status(os.system(
+                                'python3 -m pip install --no-dependencies ' + ' '.join(newdeps))
+                            ))
                 except:
                     self.logger.exception('Dependency installation failed')
                     raise RuntimeError()
