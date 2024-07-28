@@ -9,11 +9,11 @@ the safety of hosters and users every now and then.
 All Unifier release series will receive at least 6 months of bug fixes and
 security updates after being superseded by a newer series. All EoL dates
 are in dd/mm/yyyy format.
-| Version | Type     | Supported                    | EoL        |
-| ------- | -------- | ---------------------------- | ---------- |
-| 2.0.x   | release  | :white_check_mark: Supported | Not legacy |
-| 1.2.x   | legacy   | :white_check_mark: Supported | 05/12/2024 |
-| < 1.2   | eol      | :x: Unsupported              | EoL        |
+| Version                      | Type     | Supported                    | EoL        |
+| ---------------------------- | -------- | ---------------------------- | ---------- |
+| 2.0.x (`daring-dragonfruit`) | release  | :white_check_mark: Supported | Not legacy |
+| 1.2.x (`cheerful-cranberry`) | legacy   | :white_check_mark: Supported | 05/12/2024 |
+| < 1.2                        | eol      | :x: Unsupported              | EoL        |
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.
