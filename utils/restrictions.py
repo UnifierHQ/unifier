@@ -39,6 +39,14 @@ class Restrictions:
 
         return commands.check(predicate)
 
+    def _get_room(self, room):
+        """Gets a Unifier room.
+        This will be moved to UnifierBridge for a future update."""
+        try:
+            return self.__bot.db['rooms'][room]
+        except:
+            return None
+
     def admin(self):
         async def predicate(ctx: commands.Context):
             return ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
@@ -48,6 +56,30 @@ class Restrictions:
     def moderator(self):
         async def predicate(ctx: commands.Context):
             return ctx.author.id in self.__bot.moderators or ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
+
+        return commands.check(predicate)
+
+    def manage_room(self):
+        async def predicate(ctx: commands.Context):
+            index = 0
+
+            # the below is to be used if we ever make a command
+            # that has the room arg not in position 0
+            # if ctx.command.qualified_name == "name":
+            #     index = 1
+
+            room = ctx.args[index]
+            try:
+                roominfo = self._get_room(room)
+            except:
+                return False
+            if roominfo['private']:
+                return (
+                        ctx.guild.id == roominfo['private_meta']['server'] and
+                        ctx.author.guild_permissions.manage_guild
+                ) or ctx.author.id in self.__bot.moderators
+            else:
+                return ctx.author.id in self.__bot.admins
 
         return commands.check(predicate)
 
