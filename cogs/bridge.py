@@ -151,10 +151,10 @@ class UnifierPossibleRaidEvent:
 
 class UnifierBridge:
     def __init__(self, bot, logger, webhook_cache=None):
-        self.bot = bot
+        self.__bot = bot
         self.bridged = []
         self.prs = {}
-        self.webhook_cache = webhook_cache or WebhookCacheStore(self.bot)
+        self.webhook_cache = webhook_cache or WebhookCacheStore(self.__bot)
         self.restored = False
         self.raidbans = {}
         self.possible_raid = {}
@@ -253,14 +253,14 @@ class UnifierBridge:
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
-            self.bot.db['modlogs'][f'{user}'].append({
+            self.__bot.db['modlogs'][f'{user}'].append({
                 'type': action_type,
                 'reason': reason,
                 'time': t,
                 'mod': moderator
             })
         except:
-            self.bot.db['modlogs'].update({
+            self.__bot.db['modlogs'].update({
                 f'{user}': [{
                     'type': action_type,
                     'reason': reason,
@@ -268,12 +268,12 @@ class UnifierBridge:
                     'mod': moderator
                 }]
             })
-        self.bot.db.save_data()
+        self.__bot.db.save_data()
 
     def get_modlogs(self, user):
         t = time.time()
 
-        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
+        if not f'{user}' in list(self.__bot.db['modlogs'].keys()):
             return {
                 'warns': [],
                 'bans': []
@@ -283,12 +283,12 @@ class UnifierBridge:
             }
 
         actions = {
-            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
-            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
+            'warns': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 0],
+            'bans': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 1]
         }
         actions_recent = {
-            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
-            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
+            'warns': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
+            'bans': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
         }
 
         return actions, actions_recent
@@ -305,7 +305,7 @@ class UnifierBridge:
         """Gets a Unifier room.
         This will be moved to UnifierBridge for a future update."""
         try:
-            return self.bot.db['rooms'][room]
+            return self.__bot.db['rooms'][room]
         except:
             return None
 
@@ -317,7 +317,7 @@ class UnifierBridge:
         support = None
 
         if not platform=='discord':
-            support = self.bot.platforms[platform]
+            support = self.__bot.platforms[platform]
 
         if platform=='discord':
             guild_id = guild.id
@@ -331,7 +331,7 @@ class UnifierBridge:
                 else:
                     user_id = support.get_id(user)
 
-                if not user_id in self.bot.moderators:
+                if not user_id in self.__bot.moderators:
                     raise ValueError('forbidden')
             if not guild_id in roominfo['private_meta']['allowed']:
                 raise ValueError('forbidden')
@@ -340,13 +340,13 @@ class UnifierBridge:
         webhook_id = support.get_id(webhook_or_channel)
 
         if not platform in roominfo.keys():
-            self.bot.db['rooms'][room].update({platform:{}})
+            self.__bot.db['rooms'][room].update({platform:{}})
 
-        if guild_id in self.bot.db['rooms'][room][platform].keys():
+        if guild_id in self.__bot.db['rooms'][room][platform].keys():
             raise ValueError('already joined')
 
-        self.bot.db['rooms'][room][platform].update({guild_id: webhook_id})
-        self.bot.db.save_data()
+        self.__bot.db['rooms'][room][platform].update({guild_id: webhook_id})
+        self.__bot.db.save_data()
 
     async def leave_room(self, guild, room, platform='discord'):
         roominfo = self.get_room(room)
@@ -356,7 +356,7 @@ class UnifierBridge:
         support = None
 
         if not platform == 'discord':
-            support = self.bot.platforms[platform]
+            support = self.__bot.platforms[platform]
 
         if platform == 'discord':
             guild_id = guild.id
@@ -368,57 +368,57 @@ class UnifierBridge:
         if not platform in roominfo.keys():
             raise ValueError('not joined')
 
-        if not guild_id in self.bot.db['rooms'][room][platform].keys():
+        if not guild_id in self.__bot.db['rooms'][room][platform].keys():
             raise ValueError('not joined')
 
-        self.bot.db['rooms'][room][platform].pop(guild_id)
-        self.bot.db.save_data()
+        self.__bot.db['rooms'][room][platform].pop(guild_id)
+        self.__bot.db.save_data()
 
     async def optimize(self):
         """Optimizes data to avoid having to fetch webhooks.
         This decreases latency incuded by message bridging prep."""
-        for room in self.bot.db['rooms']:
-            for guild in self.bot.db['rooms'][room]['discord']:
-                if len(self.bot.db['rooms'][room]['discord'][guild])==1:
+        for room in self.__bot.db['rooms']:
+            for guild in self.__bot.db['rooms'][room]['discord']:
+                if len(self.__bot.db['rooms'][room]['discord'][guild])==1:
                     try:
-                        hook = await self.bot.fetch_webhook(self.bot.db['rooms'][room]['discord'][guild][0])
+                        hook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][room]['discord'][guild][0])
                     except:
                         continue
-                    self.bot.db['rooms'][room]['discord'][guild].append(hook.channel_id)
-        self.bot.db.save_data()
+                    self.__bot.db['rooms'][room]['discord'][guild].append(hook.channel_id)
+        self.__bot.db.save_data()
 
     async def convert_1(self):
         """Converts data structure to be v2.1.0-compatible.
         Eliminates the need for a lot of unneeded keys."""
-        if not 'rules' in self.bot.db.keys():
+        if not 'rules' in self.__bot.db.keys():
             # conversion is not needed
             return
-        for room in self.bot.db['rooms']:
-            self.bot.db['rooms'][room] = {'meta':{
-                'rules': self.bot.db['rules'][room],
-                'restricted': room in self.bot.db['restricted'],
-                'locked': room in self.bot.db['locked'],
+        for room in self.__bot.db['rooms']:
+            self.__bot.db['rooms'][room] = {'meta':{
+                'rules': self.__bot.db['rules'][room],
+                'restricted': room in self.__bot.db['restricted'],
+                'locked': room in self.__bot.db['locked'],
                 'private': False,
-                'emoji': self.bot.db['roomemoji'][room] if room in self.bot.db['roomemoji'].keys() else None,
-                'description': self.bot.db['descriptions'][room] if room in self.bot.db['descriptions'].keys() else None
-            },'discord': self.bot.db['rooms'][room]}
-            if room in self.bot.db['rooms_revolt'].keys():
-                self.bot.db['rooms'][room].update({'revolt': self.bot.db['rooms_revolt'][room]})
-            if room in self.bot.db['rooms_guilded'].keys():
-                self.bot.db['rooms'][room].update({'guilded': self.bot.db['rooms_guilded'][room]})
+                'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
+                'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None
+            },'discord': self.__bot.db['rooms'][room]}
+            if room in self.__bot.db['rooms_revolt'].keys():
+                self.__bot.db['rooms'][room].update({'revolt': self.__bot.db['rooms_revolt'][room]})
+            if room in self.__bot.db['rooms_guilded'].keys():
+                self.__bot.db['rooms'][room].update({'guilded': self.__bot.db['rooms_guilded'][room]})
 
-        self.bot.db.pop('rooms_revolt')
-        self.bot.db.pop('rooms_guilded')
-        self.bot.db.pop('rules')
-        self.bot.db.pop('restricted')
-        self.bot.db.pop('locked')
-        self.bot.db.pop('roomemoji')
-        self.bot.db.pop('descriptions')
+        self.__bot.db.pop('rooms_revolt')
+        self.__bot.db.pop('rooms_guilded')
+        self.__bot.db.pop('rules')
+        self.__bot.db.pop('restricted')
+        self.__bot.db.pop('locked')
+        self.__bot.db.pop('roomemoji')
+        self.__bot.db.pop('descriptions')
 
         # not sure what to do about the data stored in rooms_revolt key now...
         # maybe delete the key entirely? or keep it in case conversion went wrong?
 
-        self.bot.db.save_data()
+        self.__bot.db.save_data()
 
     def is_raidban(self,userid):
         try:
@@ -458,11 +458,11 @@ class UnifierBridge:
             code = self.prs[pr_ids[limit - index - 1]]
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
-        if self.bot.config['compress_cache']:
-            await self.bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
+        if self.__bot.config['compress_cache']:
+            await self.__bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
         else:
             with open(filename, "w+") as file:
-                await self.bot.loop.run_in_executor(None, lambda: json.dump(data, file))
+                await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
         del data
         self.backup_running = False
         return
@@ -470,7 +470,7 @@ class UnifierBridge:
     async def restore(self,filename='bridge.json'):
         if self.restored:
             raise RuntimeError('Already restored from backup')
-        if self.bot.config['compress_cache']:
+        if self.__bot.config['compress_cache']:
             data = compress_json.load(filename+'.lzma')
         else:
             with open(filename, "r") as file:
@@ -504,8 +504,8 @@ class UnifierBridge:
         responses = {}
         unsafe = False
 
-        for plugin in self.bot.loaded_plugins:
-            script = self.bot.loaded_plugins[plugin]
+        for plugin in self.__bot.loaded_plugins:
+            script = self.__bot.loaded_plugins[plugin]
 
             try:
                 data = plugin_data[plugin]
@@ -542,9 +542,9 @@ class UnifierBridge:
         return message
 
     async def find_thread(self,thread_id):
-        for thread in self.bot.db['threads']:
-            if int(thread)==thread_id or int(thread_id) in self.bot.db['threads'][thread].values():
-                return {thread: self.bot.db['threads'][thread]}
+        for thread in self.__bot.db['threads']:
+            if int(thread)==thread_id or int(thread_id) in self.__bot.db['threads'][thread].values():
+                return {thread: self.__bot.db['threads'][thread]}
         return None
 
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
@@ -587,49 +587,49 @@ class UnifierBridge:
         self.bridged.pop(index_tomerge)
 
     async def add_exp(self, user_id):
-        if not self.bot.config['enable_exp'] or user_id==self.bot.user.id:
+        if not self.__bot.config['enable_exp'] or user_id==self.__bot.user.id:
             return 0, False
-        if not f'{user_id}' in self.bot.db['exp'].keys():
-            self.bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
+        if not f'{user_id}' in self.__bot.db['exp'].keys():
+            self.__bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
         t = time.time()
         if f'{user_id}' in level_cooldown.keys():
             if t < level_cooldown[f'{user_id}']:
-                return self.bot.db['exp'][f'{user_id}']['experience'], self.bot.db['exp'][f'{user_id}']['progress'] >= 1
+                return self.__bot.db['exp'][f'{user_id}']['experience'], self.__bot.db['exp'][f'{user_id}']['progress'] >= 1
             else:
-                level_cooldown[f'{user_id}'] = round(time.time()) + self.bot.config['exp_cooldown']
+                level_cooldown[f'{user_id}'] = round(time.time()) + self.__bot.config['exp_cooldown']
         else:
-            level_cooldown.update({f'{user_id}': round(time.time()) + self.bot.config['exp_cooldown']})
-        self.bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
+            level_cooldown.update({f'{user_id}': round(time.time()) + self.__bot.config['exp_cooldown']})
+        self.__bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
         ratio, remaining = await self.progression(user_id)
         if ratio >= 1:
-            self.bot.db['exp'][f'{user_id}']['experience'] = -remaining
-            self.bot.db['exp'][f'{user_id}']['level'] += 1
+            self.__bot.db['exp'][f'{user_id}']['experience'] = -remaining
+            self.__bot.db['exp'][f'{user_id}']['level'] += 1
             newratio, _remaining = await self.progression(user_id)
         else:
             newratio = ratio
-        self.bot.db['exp'][f'{user_id}']['progress'] = newratio
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        return self.bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
+        self.__bot.db['exp'][f'{user_id}']['progress'] = newratio
+        await self.__bot.loop.run_in_executor(None, lambda: self.__bot.db.save_data())
+        return self.__bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
 
     async def progression(self, user_id):
         base = 1000
         rate = 1.4
-        target = base * (rate ** self.bot.db['exp'][f'{user_id}']['level'])
+        target = base * (rate ** self.__bot.db['exp'][f'{user_id}']['level'])
         return (
-            self.bot.db['exp'][f'{user_id}']['experience']/target, target-self.bot.db['exp'][f'{user_id}']['experience']
+            self.__bot.db['exp'][f'{user_id}']['experience']/target, target-self.__bot.db['exp'][f'{user_id}']['experience']
         )
 
     async def roomstats(self, roomname):
         online = 0
         members = 0
         guilds = 0
-        for platform in self.bot.db['rooms'][roomname]:
-            for guild_id in self.bot.db['rooms'][roomname][platform]:
+        for platform in self.__bot.db['rooms'][roomname]:
+            for guild_id in self.__bot.db['rooms'][roomname][platform]:
                 try:
                     if platform=='revolt':
-                        guild = self.bot.revolt_client.get_server(int(guild_id))
+                        guild = self.__bot.revolt_client.get_server(int(guild_id))
                     else:
-                        guild = self.bot.get_guild(int(guild_id))
+                        guild = self.__bot.get_guild(int(guild_id))
                     online += len(list(
                         filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
                                guild.members)))
@@ -658,11 +658,11 @@ class UnifierBridge:
     async def delete_parent(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
         if msg.source=='discord':
-            ch = self.bot.get_channel(int(msg.channel_id))
+            ch = self.__bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
             await todelete.delete()
         else:
-            source_support = self.bot.platforms[msg.source]
+            source_support = self.__bot.platforms[msg.source]
             try:
                 ch = source_support.get_channel(msg.channel_id)
             except:
@@ -677,20 +677,20 @@ class UnifierBridge:
         async def delete_discord(msgs):
             count = 0
             threads = []
-            for key in list(self.bot.db['rooms'][msg.room]['discord'].keys()):
+            for key in list(self.__bot.db['rooms'][msg.room]['discord'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
-                guild = self.bot.get_guild(int(key))
+                guild = self.__bot.get_guild(int(key))
                 try:
                     try:
-                        webhook = self.bot.bridge.webhook_cache.get_webhook([
-                            f'{self.bot.db["rooms"][msg.room]["discord"][f"{guild.id}"][0]}'
+                        webhook = self.__bot.bridge.webhook_cache.get_webhook([
+                            f'{self.__bot.db["rooms"][msg.room]["discord"][f"{guild.id}"][0]}'
                         ])
                     except:
                         try:
-                            webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room]['discord'][key][0])
-                            self.bot.bridge.webhook_cache.store_webhook(webhook)
+                            webhook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][msg.room]['discord'][key][0])
+                            self.__bot.bridge.webhook_cache.store_webhook(webhook)
                         except:
                             continue
                 except:
@@ -710,8 +710,8 @@ class UnifierBridge:
         async def delete_others(msgs, target):
             count = 0
             threads = []
-            support = self.bot.platforms[target]
-            for key in list(self.bot.db['rooms'][msg.room][target].keys()):
+            support = self.__bot.platforms[target]
+            for key in list(self.__bot.db['rooms'][msg.room][target].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
@@ -781,13 +781,13 @@ class UnifierBridge:
                 userid = components[offset].split('>', 1)[0]
             try:
                 if source == 'revolt':
-                    user = self.bot.revolt_client.get_user(userid)
+                    user = self.__bot.revolt_client.get_user(userid)
                     display_name = user.display_name
                 elif source == 'guilded':
-                    user = self.bot.guilded_client.get_user(userid)
+                    user = self.__bot.guilded_client.get_user(userid)
                     display_name = user.display_name
                 else:
-                    user = self.bot.get_user(userid)
+                    user = self.__bot.get_user(userid)
                     display_name = user.global_name
                 if not user:
                     raise ValueError()
@@ -813,13 +813,13 @@ class UnifierBridge:
             try:
                 if source == 'revolt':
                     try:
-                        channel = self.bot.revolt_client.get_channel(channelid)
+                        channel = self.__bot.revolt_client.get_channel(channelid)
                     except:
-                        channel = await self.bot.revolt_client.fetch_channel(channelid)
+                        channel = await self.__bot.revolt_client.fetch_channel(channelid)
                 elif source == 'guilded':
-                    channel = self.bot.guilded_client.get_channel(channelid)
+                    channel = self.__bot.guilded_client.get_channel(channelid)
                 else:
-                    channel = self.bot.get_channel(channelid)
+                    channel = self.__bot.get_channel(channelid)
                 if not channel:
                     raise ValueError()
             except:
@@ -869,13 +869,13 @@ class UnifierBridge:
             else:
                 text = content
 
-            for key in list(self.bot.db['rooms'][msg.room]['discord'].keys()):
+            for key in list(self.__bot.db['rooms'][msg.room]['discord'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
                 # Fetch webhook
                 try:
-                    webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room]['discord'][key][0])
+                    webhook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][msg.room]['discord'][key][0])
                 except:
                     continue
 
@@ -890,8 +890,8 @@ class UnifierBridge:
             await asyncio.gather(*threads)
 
         async def edit_others(msgs,target,friendly=False):
-            source_support = self.bot.platforms[msg.source] if msg.source != 'discord' else None
-            dest_support = self.bot.platforms[target]
+            source_support = self.__bot.platforms[msg.source] if msg.source != 'discord' else None
+            dest_support = self.__bot.platforms[target]
             if friendly:
                 if msg.source == 'discord':
                     text = await self.make_friendly(content, msg.source)
@@ -900,7 +900,7 @@ class UnifierBridge:
             else:
                 text = content
 
-            for key in list(self.bot.db['rooms'][msg.room][target].keys()):
+            for key in list(self.__bot.db['rooms'][msg.room][target].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
@@ -940,26 +940,26 @@ class UnifierBridge:
                    platform: str = 'discord', system: bool = False,
                    extbridge=False, id_override=None, ignore=None, source='discord',
                    content_override=None):
-        if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
+        if is_room_locked(room,self.__bot.db) and not message.author.id in self.__bot.admins:
             return
         if ignore is None:
             ignore = []
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
 
-        source_support = self.bot.platforms[source] if source != 'discord' else None
-        dest_support = self.bot.platforms[platform] if platform != 'discord' else None
+        source_support = self.__bot.platforms[source] if source != 'discord' else None
+        dest_support = self.__bot.platforms[platform] if platform != 'discord' else None
 
-        if not source in self.bot.platforms.keys() and not source=='discord':
+        if not source in self.__bot.platforms.keys() and not source=='discord':
             raise ValueError('invalid platform')
 
-        if not platform in self.bot.platforms.keys() and not platform=='discord':
+        if not platform in self.__bot.platforms.keys() and not platform=='discord':
             raise ValueError('invalid platform')
 
-        guilds = self.bot.db['rooms'][room][platform]
+        guilds = self.__bot.db['rooms'][room][platform]
 
-        is_pr = room == self.bot.config['posts_room'] and (
-            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        is_pr = room == self.__bot.config['posts_room'] and (
+            self.__bot.config['allow_prs'] if 'allow_prs' in list(self.__bot.config.keys()) else False or
+            self.__bot.config['allow_posts'] if 'allow_posts' in list(self.__bot.config.keys()) else False
         )
         is_pr_ref = False
         pr_id = ""
@@ -978,13 +978,13 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        temp_pr_ref = room == self.bot.config['posts_ref_room'] and (
-            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        temp_pr_ref = room == self.__bot.config['posts_ref_room'] and (
+            self.__bot.config['allow_prs'] if 'allow_prs' in list(self.__bot.config.keys()) else False or
+            self.__bot.config['allow_posts'] if 'allow_posts' in list(self.__bot.config.keys()) else False
         )
         if temp_pr_ref and message.content.startswith('[') and source==platform=='discord' and (
-                self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+                self.__bot.config['allow_prs'] if 'allow_prs' in list(self.__bot.config.keys()) else False or
+                self.__bot.config['allow_posts'] if 'allow_posts' in list(self.__bot.config.keys()) else False
         ):
             pr_id = None
             components = message.content.replace('[','',1).split(']')
@@ -1038,8 +1038,8 @@ class UnifierBridge:
 
             for x in range(index):
                 emoji = nextcord.utils.find(
-                    lambda e: e.name == name and not e.id in skip and e.guild_id in self.bot.db['emojis'],
-                    self.bot.emojis)
+                    lambda e: e.name == name and not e.id in skip and e.guild_id in self.__bot.db['emojis'],
+                    self.__bot.emojis)
                 if emoji == None:
                     failed = True
                     break
@@ -1079,13 +1079,13 @@ class UnifierBridge:
         # Username
         if source == 'discord':
             author = message.author.global_name if message.author.global_name else message.author.name
-            if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
-                author = self.bot.db['nicknames'][f'{message.author.id}']
+            if f'{message.author.id}' in list(self.__bot.db['nicknames'].keys()):
+                author = self.__bot.db['nicknames'][f'{message.author.id}']
         else:
             author_obj = source_support.author(message)
             author = source_support.display_name(author_obj)
-            if f'{source_support.get_id(author_obj)}' in list(self.bot.db['nicknames'].keys()):
-                author = self.bot.db['nicknames'][f'{source_support.get_id(author_obj)}']
+            if f'{source_support.get_id(author_obj)}' in list(self.__bot.db['nicknames'].keys()):
+                author = self.__bot.db['nicknames'][f'{source_support.get_id(author_obj)}']
 
         # Get dedupe
         if source == 'discord':
@@ -1100,7 +1100,7 @@ class UnifierBridge:
 
         # Emoji time
         useremoji = None
-        if self.bot.config['enable_emoji_tags'] and not system:
+        if self.__bot.config['enable_emoji_tags'] and not system:
             while True:
                 author_split = [*author]
                 if len(author_split) == 1:
@@ -1117,17 +1117,17 @@ class UnifierBridge:
                 else:
                     break
             if (
-                    author_id == self.bot.config['owner'] or (
-                            author_id == self.bot.config['owner_external'][source]
-                            if source in self.bot.config['owner_external'].keys() else False
+                    author_id == self.__bot.config['owner'] or (
+                            author_id == self.__bot.config['owner_external'][source]
+                            if source in self.__bot.config['owner_external'].keys() else False
                     )
             ):
                 useremoji = '\U0001F451'
-            elif author_id in self.bot.admins:
+            elif author_id in self.__bot.admins:
                 useremoji = '\U0001F510'
-            elif author_id in self.bot.moderators:
+            elif author_id in self.__bot.moderators:
                 useremoji = '\U0001F6E1'
-            elif author_id in self.bot.db['trusted']:
+            elif author_id in self.__bot.db['trusted']:
                 useremoji = '\U0001F31F'
             elif is_bot:
                 useremoji = '\U0001F916'
@@ -1180,7 +1180,7 @@ class UnifierBridge:
             else:
                 size_total += source_support.attachment_size(attachment)
             if size_total > 25000000:
-                if not self.bot.config['suppress_filesize_warning'] and source == platform:
+                if not self.__bot.config['suppress_filesize_warning'] and source == platform:
                     if source=='discord':
                         await message.channel.send(selector.get('filesize_limit'),
                                                    reference=message)
@@ -1193,7 +1193,7 @@ class UnifierBridge:
         # Broadcast message
         for guild in list(guilds.keys()):
             if source=='discord':
-                reply_v2 = not (self.bot.db['settings'][guild]['reply_v2_optout'] if guild in self.bot.db['settings'].keys() else False)
+                reply_v2 = not (self.__bot.db['settings'][guild]['reply_v2_optout'] if guild in self.__bot.db['settings'].keys() else False)
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
             else:
                 reply_v2 = False
@@ -1205,7 +1205,7 @@ class UnifierBridge:
                     sameguild = (guild == str(guild_id))
 
             try:
-                bans = self.bot.db['blocked'][str(guild)]
+                bans = self.__bot.db['blocked'][str(guild)]
                 if source=='discord':
                     guildban = message.guild.id in bans
                 else:
@@ -1217,7 +1217,7 @@ class UnifierBridge:
 
             # Destination guild object
             if platform == 'discord':
-                destguild = self.bot.get_guild(int(guild))
+                destguild = self.__bot.get_guild(int(guild))
                 if not destguild:
                     continue
             else:
@@ -1321,8 +1321,8 @@ class UnifierBridge:
                             content = msg.content
 
                         if source=='discord':
-                            used_reply_v2 = not (self.bot.db['settings'][str(message.reference.guild_id)][
-                                'reply_v2_optout'] if str(message.reference.guild_id) in self.bot.db[
+                            used_reply_v2 = not (self.__bot.db['settings'][str(message.reference.guild_id)][
+                                'reply_v2_optout'] if str(message.reference.guild_id) in self.__bot.db[
                                 'settings'].keys() else False)
                             if reply_msg.reply_v2 and (
                                     str(message.reference.guild_id) in reply_msg.copies.keys() or
@@ -1348,7 +1348,7 @@ class UnifierBridge:
                             except:
                                 offset += 1
                                 continue
-                            user = self.bot.get_user(userid)
+                            user = self.__bot.get_user(userid)
                             if user:
                                 clean_content = clean_content.replace(f'<@{userid}>',
                                                                       f'@{user.global_name}').replace(
@@ -1370,13 +1370,13 @@ class UnifierBridge:
 
                     try:
                         if reply_msg.source=='discord':
-                            user = self.bot.get_user(int(reply_msg.author_id))
+                            user = self.__bot.get_user(int(reply_msg.author_id))
                             author_text = f'@{user.global_name or user.name}'
                         else:
                             user = source_support.get_user(reply_msg.author_id)
                             author_text = f'@{source_support.display_name(user)}'
-                        if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
-                            author_text = '@'+self.bot.db['nicknames'][f'{reply_msg.author_id}']
+                        if f'{reply_msg.author_id}' in list(self.__bot.db['nicknames'].keys()):
+                            author_text = '@'+self.__bot.db['nicknames'][f'{reply_msg.author_id}']
                     except:
                         pass
 
@@ -1516,7 +1516,7 @@ class UnifierBridge:
                         authid = None
                     botext = authid == source_support.bot_id()
 
-                    if authid==self.bot.user.id or botext:
+                    if authid==self.__bot.user.id or botext:
                         reply_row = ui.ActionRow(
                             nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
                                                label=selector.fget('replying',values={'user': '[system]'}),
@@ -1579,14 +1579,14 @@ class UnifierBridge:
                     if source == 'discord':
                         if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                                 not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
-                                self.bot.config['safe_filetypes']) or attachment.size > 25000000:
+                                self.__bot.config['safe_filetypes']) or attachment.size > 25000000:
                             continue
                     else:
                         attachment_size = source_support.attachment_size(attachment)
                         content_type = source_support.attachment_size(attachment)
                         if (
                                 not 'audio' in content_type and not 'video' in content_type and not 'image' in content.type
-                                and not 'text/plain' in content_type and self.bot.config['safe_filetypes']
+                                and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
                         ) or attachment_size > 25000000 or not dest_support.attachment_type_allowed(content_type):
                             continue
 
@@ -1602,8 +1602,8 @@ class UnifierBridge:
 
             # Avatar
             try:
-                if f'{author_id}' in self.bot.db['avatars']:
-                    url = self.bot.db['avatars'][f'{author_id}']
+                if f'{author_id}' in self.__bot.db['avatars']:
+                    url = self.__bot.db['avatars'][f'{author_id}']
                 else:
                     if source == 'discord':
                         url = message.author.avatar.url
@@ -1614,7 +1614,7 @@ class UnifierBridge:
 
             if system:
                 try:
-                    url = self.bot.user.avatar.url
+                    url = self.__bot.user.avatar.url
                 except:
                     url = None
 
@@ -1622,7 +1622,7 @@ class UnifierBridge:
             msg_author = author
             if system:
                 msg_author = (
-                    self.bot.user.global_name if self.bot.user.global_name else self.bot.user.name
+                    self.__bot.user.global_name if self.__bot.user.global_name else self.__bot.user.name
                 )+ ' (system)'
 
             # Send message
@@ -1630,7 +1630,7 @@ class UnifierBridge:
             if not message.author.bot and not system:
                 embeds = []
 
-            if msg_author.lower()==f'{self.bot.user.name} (system)'.lower() and not system:
+            if msg_author.lower()==f'{self.__bot.user.name} (system)'.lower() and not system:
                 msg_author = '[hidden username]'
 
             if platform=='discord':
@@ -1645,15 +1645,15 @@ class UnifierBridge:
 
                 webhook = None
                 try:
-                    webhook = self.bot.bridge.webhook_cache.get_webhook(
-                        f'{self.bot.db["rooms"][room]["discord"][guild][0]}'
+                    webhook = self.__bot.bridge.webhook_cache.get_webhook(
+                        f'{self.__bot.db["rooms"][room]["discord"][guild][0]}'
                     )
                 except:
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
                     hooks = await destguild.webhooks()
-                    self.bot.bridge.webhook_cache.store_webhooks(hooks)
+                    self.__bot.bridge.webhook_cache.store_webhooks(hooks)
                     for hook in hooks:
-                        if hook.id in self.bot.db['rooms'][room]['discord'][guild]:
+                        if hook.id in self.__bot.db['rooms'][room]['discord'][guild]:
                             webhook = hook
                             break
                 if not webhook:
@@ -1723,9 +1723,9 @@ class UnifierBridge:
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
             else:
                 try:
-                    ch = dest_support.get_channel(self.bot.db['rooms'][room][platform][guild][0])
+                    ch = dest_support.get_channel(self.__bot.db['rooms'][room][platform][guild][0])
                 except:
-                    ch = await dest_support.fetch_channel(self.bot.db['rooms'][room][platform][guild][0])
+                    ch = await dest_support.fetch_channel(self.__bot.db['rooms'][room][platform][guild][0])
 
                 try:
                     if reply_msg:
@@ -1745,8 +1745,8 @@ class UnifierBridge:
                     reply = None
 
                 color = None
-                if str(author_id) in list(self.bot.db['colors'].keys()):
-                    color = self.bot.db['colors'][str(author_id)]
+                if str(author_id) in list(self.__bot.db['colors'].keys()):
+                    color = self.__bot.db['colors'][str(author_id)]
                     if color == 'inherit':
                         roles = source_support.roles(source_support.author(message))
                         color = source_support.get_hex(roles[len(roles)-1])
@@ -1859,7 +1859,7 @@ class UnifierBridge:
             self.prs.update({pr_id: parent_id})
 
         if system:
-            msg_author = self.bot.user.id
+            msg_author = self.__bot.user.id
         else:
             msg_author = message.author.id
 
@@ -1892,7 +1892,7 @@ class UnifierBridge:
                 server_id = message.guild.id
             if extbridge:
                 try:
-                    hook = await self.bot.fetch_webhook(message.webhook_id)
+                    hook = await self.__bot.fetch_webhook(message.webhook_id)
                     msg_author = hook.user.id
                 except:
                     pass
@@ -1922,7 +1922,7 @@ class UnifierBridge:
 
 class WebhookCacheStore:
     def __init__(self, bot):
-        self.bot = bot
+        self.__bot = bot
         self.__webhooks = {}
 
     def store_webhook(self, webhook: nextcord.Webhook):
