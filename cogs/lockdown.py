@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as

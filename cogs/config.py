@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -164,6 +164,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(hidden=True,description='Creates a new experiment.')
     @restrictions.admin()
     async def addexperiment(self, ctx, experiment, *, experiment_name):
+        # maybe i should remove this...?
         if experiment in list(self.bot.db['experiments'].keys()):
             return await ctx.send('This experiment already exists!')
         self.bot.db['experiments'].update({experiment: []})
@@ -252,8 +253,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
         if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
             return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
-        if self.bot.db['rooms'][room]['meta'][
-            'private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
+        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
             origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
             origin_guild = self.bot.get_guild(origin_id)
             if not origin_guild or not origin_guild.id == ctx.guild.id:
@@ -284,6 +284,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
+        if self.bot.db['rooms'][room]['meta']['private']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} Private rooms cannot be restricted.')
         if self.bot.db['rooms'][room]['meta']['restricted']:
             self.bot.db['rooms'][room]['meta']['restricted'] = False
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
@@ -437,7 +439,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} Only admins can bind channels to restricted rooms.')
         if room=='' or not room: # Added "not room" as a failback
             room = self.bot.config['main_room']
-            await ctx.send(f'{self.bot.ui_emojis.warning} No room was given, defaulting to main')
+            await ctx.send(f'{self.bot.ui_emojis.warning} No room was given, defaulting to `{room}`.')
         try:
             data = self.bot.db['rooms'][room]['discord']
         except:
