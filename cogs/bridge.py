@@ -301,6 +301,79 @@ class UnifierBridge:
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
+    def get_room(self, room):
+        """Gets a Unifier room.
+        This will be moved to UnifierBridge for a future update."""
+        try:
+            return self.bot.db['rooms'][room]
+        except:
+            return None
+
+    async def join_room(self, guild, room, webhook_or_channel, user=None, platform='discord'):
+        roominfo = self.get_room(room)
+        if not roominfo:
+            raise ValueError('invalid room')
+
+        support = None
+
+        if not platform=='discord':
+            support = self.bot.platforms[platform]
+
+        if platform=='discord':
+            guild_id = guild.id
+        else:
+            guild_id = support.get_id(guild)
+
+        if roominfo['private']:
+            if user:
+                if platform=='discord':
+                    user_id = user.id
+                else:
+                    user_id = support.get_id(user)
+
+                if not user_id in self.bot.moderators:
+                    raise ValueError('forbidden')
+            if not guild_id in roominfo['private_meta']['allowed']:
+                raise ValueError('forbidden')
+
+        guild_id = str(guild_id)
+        webhook_id = support.get_id(webhook_or_channel)
+
+        if not platform in roominfo.keys():
+            self.bot.db['rooms'][room].update({platform:{}})
+
+        if guild_id in self.bot.db['rooms'][room][platform].keys():
+            raise ValueError('already joined')
+
+        self.bot.db['rooms'][room][platform].update({guild_id: webhook_id})
+        self.bot.db.save_data()
+
+    async def leave_room(self, guild, room, platform='discord'):
+        roominfo = self.get_room(room)
+        if not roominfo:
+            raise ValueError('invalid room')
+
+        support = None
+
+        if not platform == 'discord':
+            support = self.bot.platforms[platform]
+
+        if platform == 'discord':
+            guild_id = guild.id
+        else:
+            guild_id = support.get_id(guild)
+
+        guild_id = str(guild_id)
+
+        if not platform in roominfo.keys():
+            raise ValueError('not joined')
+
+        if not guild_id in self.bot.db['rooms'][room][platform].keys():
+            raise ValueError('not joined')
+
+        self.bot.db['rooms'][room][platform].pop(guild_id)
+        self.bot.db.save_data()
+
     async def optimize(self):
         """Optimizes data to avoid having to fetch webhooks.
         This decreases latency incuded by message bridging prep."""

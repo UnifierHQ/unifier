@@ -39,14 +39,6 @@ class Restrictions:
 
         return commands.check(predicate)
 
-    def _get_room(self, room):
-        """Gets a Unifier room.
-        This will be moved to UnifierBridge for a future update."""
-        try:
-            return self.__bot.db['rooms'][room]
-        except:
-            return None
-
     def admin(self):
         async def predicate(ctx: commands.Context):
             return ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
@@ -70,7 +62,7 @@ class Restrictions:
 
             room = ctx.args[index]
             try:
-                roominfo = self._get_room(room)
+                roominfo = self.__bot.bridge.get_room(room)
             except:
                 return False
             if roominfo['private']:
