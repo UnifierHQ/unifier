@@ -23,13 +23,13 @@ class Restrictions:
 
     def admin(self):
         async def predicate(ctx: commands.Context):
-            return ctx.author.id in self.__bot.admins
+            return ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
 
         return commands.check(predicate)
 
     def moderator(self):
         async def predicate(ctx: commands.Context):
-            return ctx.author.id in self.__bot.moderators
+            return ctx.author.id in self.__bot.moderators or ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
 
         return commands.check(predicate)
 
