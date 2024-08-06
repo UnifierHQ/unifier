@@ -166,6 +166,12 @@ class UnifierBridge:
         self.msg_stats = {}
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
+        self.__room_template = {'rules': [], 'restricted': False, 'locked': False, 'private': False, 'emoji': None,
+                                'description': None}
+
+    @property
+    def room_template(self):
+        return self.__room_template
 
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
@@ -250,6 +256,15 @@ class UnifierBridge:
             return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0],
                                      self.external_copies[platform][str(guild_id)][1])
 
+    class RoomForbiddenError(Exception):
+        pass
+
+    class RoomNotFoundError(Exception):
+        pass
+
+    class RoomExistsError(Exception):
+        pass
+
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
@@ -301,7 +316,10 @@ class UnifierBridge:
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
-    def get_room(self, room):
+    def rooms(self) -> list:
+        return list(self.__bot.db['rooms'].keys())
+
+    def get_room(self, room) -> dict or None:
         """Gets a Unifier room.
         This will be moved to UnifierBridge for a future update."""
         try:
@@ -309,10 +327,80 @@ class UnifierBridge:
         except:
             return None
 
-    async def join_room(self, guild, room, webhook_or_channel, user=None, platform='discord'):
+    def can_manage_room(self, room, user) -> bool:
+        roominfo = self.get_room(room)
+        if roominfo['private']:
+            if user:
+                if user.id in self.__bot.moderators:
+                    return True
+            return user.guild.id == roominfo['private_meta']['server'] and user.guild_permissions.manage_guild
+        else:
+            return user.id in self.__bot.admins
+
+    def can_join_room(self, room, user) -> bool:
+        roominfo = self.get_room(room)
+        if roominfo['private']:
+            if user:
+                if user.id in self.__bot.moderators:
+                    return True
+            return (
+                    user.guild.id == roominfo['private_meta']['server'] or
+                    user.guild.id in roominfo['private_meta']['allowed']
+            ) and user.guild_permissions.manage_channels
+        else:
+            return user.guild_permissions.manage_channels
+
+    def update_room(self, room, roominfo):
+        if not room in self.__bot.db['rooms'].keys():
+            raise self.RoomNotFoundError('invalid room')
+
+        self.__bot.db['rooms'][room] = roominfo
+        self.__bot.db.save_data()
+
+    def create_room(self, room) -> dict:
+        if room in self.__bot.db['rooms'].keys():
+            raise self.RoomExistsError('room already exists')
+
+        self.__bot.db['rooms'].update({room: self.__room_template})
+        return self.__room_template
+
+    def delete_room(self, room):
+        if not room in self.__bot.db['rooms'].keys():
+            raise self.RoomNotFoundError('invalid room')
+
+        self.__bot.db['rooms'].pop(room)
+        self.__bot.db.save_data()
+
+    def get_invite(self, invite) -> dict or None:
+        try:
+            return self.__bot.db['invites'][invite]
+        except:
+            return None
+
+    def delete_invite(self, invite):
+        # TODO: Add InviteNotFoundError, like RoomNotFoundError but for invites.
+        self.__bot.db['invites'].pop(invite)
+        self.__bot.db.save_data()
+
+    async def accept_invite(self, user, invite):
+        # TODO: This is incomplete
+        invite = self.get_invite(invite)
+        if not invite:
+            raise ValueError('invalid invite')
+        roominfo = self.get_room(invite['room'])
+        if not roominfo:
+            raise self.RoomNotFoundError('invalid room')
+        if not roominfo['private']:
+            self.__bot.db['invites'].pop(invite)
+            raise RuntimeError('invite leads to a public room, expired')
+
+    async def join_room(self, user, room, webhook_or_channel, platform='discord'):
         roominfo = self.get_room(room)
         if not roominfo:
-            raise ValueError('invalid room')
+            raise self.RoomNotFoundError('invalid room')
+
+        if not self.can_join_room(room, user):
+            raise self.RoomNotFoundError('cannot join room')
 
         support = None
 
@@ -320,9 +408,9 @@ class UnifierBridge:
             support = self.__bot.platforms[platform]
 
         if platform=='discord':
-            guild_id = guild.id
+            guild_id = user.guild.id
         else:
-            guild_id = support.get_id(guild)
+            guild_id = support.get_id(support.server(user))
 
         if roominfo['private']:
             if user:
@@ -399,6 +487,10 @@ class UnifierBridge:
                 'restricted': room in self.__bot.db['restricted'],
                 'locked': room in self.__bot.db['locked'],
                 'private': False,
+                'private_meta': {
+                    'server': None,
+                    'allowed': []
+                },
                 'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
                 'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None
             },'discord': self.__bot.db['rooms'][room]}
@@ -704,7 +796,10 @@ class UnifierBridge:
                 except:
                     # traceback.print_exc()
                     pass
-            await asyncio.gather(*threads)
+            try:
+                await asyncio.gather(*threads)
+            except:
+                pass
             return count
 
         async def delete_others(msgs, target):
@@ -724,7 +819,10 @@ class UnifierBridge:
                     count += 1
                 except:
                     pass
-            await asyncio.gather(*threads)
+            try:
+                await asyncio.gather(*threads)
+            except:
+                pass
             return count
 
         if msg.source=='discord':
