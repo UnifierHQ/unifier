@@ -51,6 +51,23 @@ class Restrictions:
 
         return commands.check(predicate)
 
+    def join_room(self):
+        async def predicate(ctx: commands.Context):
+            index = 0
+
+            # the below is to be used if we ever make a command
+            # that has the room arg not in position 0
+            # if ctx.command.qualified_name == "name":
+            #     index = 1
+
+            room = ctx.args[index]
+            try:
+                return self.__bot.bridge.can_join_room(room,ctx.author)
+            except:
+                return False
+
+        return commands.check(predicate)
+
     def manage_room(self):
         async def predicate(ctx: commands.Context):
             index = 0
@@ -62,16 +79,9 @@ class Restrictions:
 
             room = ctx.args[index]
             try:
-                roominfo = self.__bot.bridge.get_room(room)
+                return self.__bot.bridge.can_manage_room(room,ctx.author)
             except:
                 return False
-            if roominfo['private']:
-                return (
-                        ctx.guild.id == roominfo['private_meta']['server'] and
-                        ctx.author.guild_permissions.manage_guild
-                ) or ctx.author.id in self.__bot.moderators
-            else:
-                return ctx.author.id in self.__bot.admins
 
         return commands.check(predicate)
 
