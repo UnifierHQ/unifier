@@ -59,8 +59,8 @@ class PlatformBase:
         """Returns the channel object from a message."""
         raise MissingImplementation()
 
-    def server(self, message):
-        """Returns the server object from a message."""
+    def server(self, obj):
+        """Returns the server object from an object."""
         raise MissingImplementation()
 
     def content(self, message):
