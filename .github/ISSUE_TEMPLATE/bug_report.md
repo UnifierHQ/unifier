@@ -41,7 +41,7 @@ If applicable, add screenshots to help explain your problem.
 
 **Platform**
 <!--
-Should be Discord/Revolt/Guilded. Any other platforms added to forks are not applicable, as we do not maintain those.
+Should be Discord or Revolt. If the issue happened on a different platform, you may only open a bug report if the bug impacts the bot's ability to bridge messages from/to the platform.
 -->
 
 **Version**
@@ -51,7 +51,7 @@ The version of Unifier, e.g. v1.1.4
 
 **Extensions**
 <!--
-List any extensions such as Upgrader and Revolt Support you're using here, as well as their versions. Base extensions such as Admin and Bridge are excluded.
+List any extensions such as Revolt Support you're using here, as well as their versions. Base extensions such as System Manager and Bridge are excluded.
 -->
 
 **Modified instance**

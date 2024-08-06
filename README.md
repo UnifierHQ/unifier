@@ -1,13 +1,12 @@
 <h1 align=center>
   <img width=64 src=https://github.com/UnifierHQ/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae><br>
 Unifier</h1>
-<p align=center>A sophisticated Discord bot uniting servers and platforms, brought to you by Green and ItsAsheer<br>
+<p align=center>A fast and versatile Discord bot uniting servers and platforms, brought to you by Green and ItsAsheer<br>
 Inspired by matrix-t2bot</p>
 
 ## What is Unifier?
-Unifier is a bot written in Python which allows users to connect their Discord servers together to form one big global chat 
-room. It is also compatible with Revolt and Guilded with support extensions, meaning that it can also be used as a bridge bot 
-to connect servers from different platforms together.
+Unifier is a bot written in Python that allows communities to connect together to form global chat rooms, even across
+multiple platforms. It is made to be fast, versatile, and flexible.
 
 We built Unifier to create a free, safe, and open conversing space, where the things we could talk about are limitless, as 
 long as they are safe topics.
@@ -42,15 +41,17 @@ Server moderators can also block members and servers from bridging messages to t
 - **Plugins support**: Anyone can always code and install plugins for Unifier to extend its functionality. If you need help
   making your own plugin, you can always use our [template](https://github.com/UnifierHQ/unifier-plugin).
 - **Database-free**: No need to get a database up and running. Everything is stored locally on the same system you use to run 
-Unifier, so the performance is not impacted by slow 10k+ ping database servers.
+  Unifier, so things are easier to set up and your data is more portable.
 - **External bridge support**: Unifier supports external bridge services like
   [matrix-t2bot](https://github.com/t2bot/matrix-appservice-discord), so you can connect platforms beyond what we can cover and
   avoid reconfiguring too much.
 
 ## Setup
-> [!IMPORTANT]
-> We're working on an installer, so stay tuned for that!
+### Guided setup
+You can use Installer to install Unifier through a user interface on Discord. You can download Installer
+[here](https://github.com/UnifierHQ/unifier-installer).
 
+### Manual setup
 Please follow our guides on GitBook to set up Unifier.
 
 - [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
@@ -69,12 +70,17 @@ guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#
 ## License
 Unifier is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before doing so.
 
+## Support
+Need support? We're always available at our [Discord server](https://discord.gg/a4KpNcARzK).
+
 ## Acknowledgments
 We want to thank:
-- [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued (it
-  is now re-continued, but for now we'd like to use Novus)
+- [**Nextcord**](https://github.com/nextcord), for continuing the discord.py project as Nextcord when it was discontinued, and also
+  supporting context menu commands in a Cog
+- [**Voxel Fox**](https://github.com/Voxel-Fox-Ltd), for continuing the discord.py project as Novus when it was discontinued, which
+  is the library we used to use until we moved to Nextcord
 - [**Rapptz**](https://github.com/Rapptz) and [**discord.py**](https://github.com/Rapptz/discord.py) developers, for creating the
-  discord.py library Novus is based on
+  discord.py library Novus and Nextcord are based on
 - [**Revolt**](https://github.com/revoltchat), for creating revolt.py and an awesome open-source Discord alternative
 - [**shayypy**](https://github.com/shayypy), for creating guilded.py
 
@@ -85,6 +91,7 @@ the `EXTERNAL_LICENSES.txt` file.
 As the project founder and leader, I want to give my special thanks to:
 - [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for joining the team and helping me fix my shitty Python and
   adding a lot of amazing features to Unifier
+- [**Ente Community**](https://github.com/ente-io), for offering me invaluable advice for open sourcing this project
 - **My best friend**, for turning my life around for the better and always supporting me even at my worst
 
 And lastly but *most importantly*, **the late role model of mine I used to know very well**: He's the one that brought me and my 

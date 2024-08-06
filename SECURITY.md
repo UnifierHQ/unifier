@@ -1,27 +1,28 @@
 # Security Policy
-At UnifierHQ, we take user safety very seriously. We constantly try to 
+At UnifierHQ, we take user safety very seriously. We always try to 
 implement features that help minimize or eliminate the effects malicious
 actors can have on our community. However, we understand we are not 
 perfect, and there may be vulnerabilities in our code that may impact 
 the safety of hosters and users every now and then.
 
 ## Supported Versions
-Currently, v1.1.x and newer receive security updates. Preceding versions
-have been discontinued and will not be updated any further.
-| Version | Type    | Supported                    |
-| ------- | ------- | ---------------------------- |
-| 1.2.x   | release | :white_check_mark: Supported |
-| 1.1.x   | legacy  | :white_check_mark: Supported |
-| < 1.1   | eol     | :x: Unsupported              |
-
-> [!NOTE]
-> We have decided to extend v1.1.x support while we work on v2.
+All Unifier release series will receive at least 6 months of bug fixes and
+security updates after being superseded by a newer series. All EoL dates
+are in dd/mm/yyyy format.
+| Version                      | Type     | Supported                    | EoL        |
+| ---------------------------- | -------- | ---------------------------- | ---------- |
+| 2.0.x (`daring-dragonfruit`) | release  | :white_check_mark: Supported | Not legacy |
+| 1.2.x (`cheerful-cranberry`) | legacy   | :white_check_mark: Supported | 05/12/2024 |
+| < 1.2                        | eol      | :x: Unsupported              | EoL        |
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.
 - `legacy`: This is an older series that will continue to receive bug
   patches and security updates.
-- `eol`: This series is no longer maintained.
+- `extended`: This is an older series that should have been discontinued
+  but continues to receive updates due to special circumstances.
+- `eol`: This series is no longer maintained. They will not receive any
+  updates.
 
 ## Reporting a Vulnerability
 When you have found a vulnerability, DO NOT open a bug report. These 

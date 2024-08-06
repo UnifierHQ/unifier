@@ -16,19 +16,18 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import discord
-from discord.ext import commands, tasks
-import random
+import nextcord
+from nextcord.ext import commands
 import aiohttp
 import asyncio
-import hashlib
-import json
+import ujson as json
 import os
 import sys
 import logging
+import requests
+import traceback
 from utils import log
 from dotenv import load_dotenv
-import requests
 from pathlib import Path
 
 if os.name != "nt":
@@ -38,8 +37,13 @@ if os.name != "nt":
     except:
         pass
 
-with open('config.json', 'r') as file:
-    data = json.load(file)
+try:
+    with open('config.json', 'r') as file:
+        data = json.load(file)
+except:
+    traceback.print_exc()
+    print('\nFailed to load config.json file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
+    sys.exit(1)
 
 env_loaded = load_dotenv()
 
@@ -47,6 +51,20 @@ level = logging.DEBUG if data['debug'] else logging.INFO
 package = data['package']
 
 logger = log.buildlogger(package,'core',level)
+
+owner_valid = True
+
+try:
+    int(data['owner'])
+except:
+    owner_valid = False
+
+if not owner_valid:
+    logger.critical('Invalid owner user ID in configuration!')
+    sys.exit(1)
+
+if os.name == "nt":
+    logger.warning('You are using Windows, which Unifier does not officially support. Some features may not work.')
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
@@ -62,11 +80,6 @@ if not 'repo' in list(data.keys()):
 
 if 'allow_prs' in list(data.keys()) and not 'allow_posts' in list(data.keys()):
     logger.warning('From v1.2.4, allow_prs is deprecated. Use allow_posts instead.')
-
-if ('pr_room_index' in list(data.keys()) and not 'posts_room' in list(data.keys()) or
-        'pr_ref_room_index' in list(data.keys()) and not 'posts_ref_room' in list(data.keys())):
-    logger.warning('From v1.1.13, pr_room_index and pr_ref_room_index are deprecated. Use posts_room and posts_ref_room instead.')
-    logger.critical('WARNING: These keys will become obsolete in the next version!')
 
 if not env_loaded:
     logger.critical('Could not load .env file! More info: https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
@@ -86,13 +99,14 @@ except:
     with open('update.json', 'r') as file:
         vinfo = json.load(file)
 
-try:
-    incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
-    for incident in incidents:
-        logger.warning('Discord incident: ' + incident['name'])
-        logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
-except:
-    logger.debug('Failed to get Discord status')
+if not data['skip_status_check']:
+    try:
+        incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
+        for incident in incidents:
+            logger.warning('Discord incident: ' + incident['name'])
+            logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
+    except:
+        logger.debug('Failed to get Discord status')
 
 class DiscordBot(commands.Bot):
     """Extension of discord.ext.commands.Bot for bot configuration"""
@@ -150,10 +164,13 @@ class DiscordBot(commands.Bot):
         self.__safemode = status
 
 
-bot = DiscordBot(command_prefix=data['prefix'],intents=discord.Intents.all())
+bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
+if data['enable_squads']:
+    logger.warning('Squads have been disabled as they are still incomplete.')
+    data['enable_squads'] = False
 bot.config = data
 bot.safemode = 'safemode' in sys.argv
-mentions = discord.AllowedMentions(everyone=False,roles=False,users=False)
+mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
 if bot.safemode:
     logger.warning('Safemode is enabled. Only system extensions will be loaded.')
@@ -170,105 +187,58 @@ print('Version: '+vinfo['version'])
 print('Release '+str(vinfo['release']))
 print()
 
-def encrypt_string(hash_string):
-    sha_signature = \
-        hashlib.sha256(hash_string.encode()).hexdigest()
-    return sha_signature
-
-@tasks.loop(seconds=300)
-async def changestatus():
-    status_messages = [
-        "with the ban hammer",
-        "with fire",
-        "with the API",
-        "hide and seek",
-        "with code",
-        "in debug mode",
-        "in a parallel universe",
-        "with commands",
-        "a game of chess",
-        "with electrons",
-        "with the matrix",
-        "with cookies",
-        "with the metaverse",
-        "with emojis",
-        "with Nevira",
-        "with green.",
-        "with ItsAsheer",
-        "webhooks",
-    ]
-    new_stat = random.choice(status_messages)
-    if new_stat == "webhooks":
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=new_stat))
-    else:
-        await bot.change_presence(activity=discord.Game(name=new_stat))
-
-@tasks.loop(seconds=round(data['periodic_backup']))
-async def periodic_backup():
-    try:
-        tasks = [bot.loop.create_task(bot.bridge.backup(limit=10000))]
-        await asyncio.wait(tasks)
-    except:
-        logger.exception('Backup failed')
-
-@tasks.loop(seconds=round(data['ping']))
-async def periodicping():
-    guild = bot.guilds[0]
-    try:
-        await bot.fetch_channel(guild.text_channels[0].id)
-    except:
-        pass
-
 @bot.event
 async def on_ready():
+    if len(bot.extensions) > 0:
+        # Prevent duplicate extension load
+        return
+
     bot.session = aiohttp.ClientSession(loop=bot.loop)
     logger.info('Loading Unifier extensions...')
+    bot.remove_command('help')
     if hasattr(bot, 'locked'):
         locked = bot.locked
     else:
         locked = False
     if not locked:
+        should_abort = False
         try:
             bot.load_extension("cogs.sysmgr")
             bot.pid = os.getpid()
             bot.load_extension("cogs.lockdown")
         except:
-            logger.error('An error occurred!')
+            logger.exception('An error occurred!')
             logger.critical('System modules failed to load, aborting boot...')
+            should_abort = True
+        if should_abort:
             sys.exit(1)
         logger.debug('System extensions loaded')
         if hasattr(bot, 'bridge'):
             try:
-                if len(bot.bridge.bridged)==0:
+                logger.debug('Optimizing room data, this may take a while...')
+                await bot.bridge.optimize()
+                if len(bot.bridge.bridged) == 0:
                     await bot.bridge.restore()
                     logger.info(f'Restored {len(bot.bridge.bridged)} messages')
+            except FileNotFoundError:
+                logger.warning('Cache backup file could not be found, skipping restore.')
             except:
                 logger.exception('An error occurred!')
                 logger.warning('Message restore failed')
-        if not changestatus.is_running() and data['enable_rotating_status']:
-            changestatus.start()
-        if not periodicping.is_running() and data['ping'] > 0:
-            periodicping.start()
-            logger.debug(f'Pinging servers every {round(data["ping"])} seconds')
-        elif data['ping'] <= 0:
-            logger.debug(f'Periodic pinging disabled')
-        if not periodic_backup.is_running() and data['periodic_backup'] > 0:
-            periodic_backup.start()
-            logger.debug(f'Backing up messages every {round(data["periodic_backup"])} seconds')
         elif data['periodic_backup'] <= 0:
             logger.debug(f'Periodic backups disabled')
         if data['enable_ctx_commands']:
             logger.debug("Registering context commands...")
-            toreg = []
-            for command in bot.commands:
-                if isinstance(command, commands.core.ContextMenuCommand):
-                    if command.name=='Reaction image':
-                        toreg.insert(0,command)
-                    else:
-                        toreg.append(command)
-            await bot.register_application_commands(commands=toreg)
-            logger.debug(f'Registered {len(toreg)} commands')
+            await bot.sync_application_commands()
     logger.info('Unifier is ready!')
+    if not bot.ready:
+        bot.ready = True
+
+@bot.event
+async def on_command_error(_ctx, _command):
+    # ignore all errors raised outside cog
+    # as core has no commands, all command errors from core can be ignored
+    pass
 
 @bot.event
 async def on_message(message):
@@ -282,9 +252,19 @@ async def on_message(message):
             bot.db.save_data()
         else:
             return
-        
+
     if message.content.lower().startswith(bot.command_prefix) and not message.author.bot:
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
 
-bot.run(os.environ.get('TOKEN'))
+try:
+    bot.run(os.environ.get('TOKEN'))
+except SystemExit as e:
+    try:
+        code = int(f'{e}')
+    except:
+        code = 'unknown'
+    if code==0 or code==130:
+        logger.info(f'Exiting with code {code}')
+    else:
+        logger.critical(f'Exiting with code {code}')

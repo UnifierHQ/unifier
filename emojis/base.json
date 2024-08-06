@@ -1,0 +1,19 @@
+{
+  "installed": false,
+  "emojis": {
+    "back": [":arrow_left:",0],
+    "prev": [":arrow_backward:",0],
+    "next": [":arrow_forward:",0],
+    "first": [":track_previous:",0],
+    "last": [":track_next:",0],
+    "search": [":mag:",0],
+    "command": [":keyboard:",0],
+    "install": [":package:",0],
+    "success": [":white_check_mark:",0],
+    "warning": [":warning:",0],
+    "error": [":x:",0],
+    "rooms": [":speech_balloon:",0],
+    "emoji": [":joy:",0],
+    "leaderboard": [":trophy:",0]
+  }
+}

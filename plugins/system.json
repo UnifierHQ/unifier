@@ -2,15 +2,14 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v1.2.4-patch2",
-  "release": 46,
+  "version": "v2.0.6-patch5",
+  "release": 64,
   "minimum": 0,
   "shutdown": false,
   "modules": [
     "config.py",
     "bridge.py",
     "moderation.py",
-    "uptime.py",
     "badge.py"
   ],
   "utils": [
