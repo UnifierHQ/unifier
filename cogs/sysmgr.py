@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -32,7 +32,7 @@ from nextcord.ext import commands, tasks
 import inspect
 import textwrap
 from contextlib import redirect_stdout
-from utils import log, ui, restrictions as r
+from utils import log, ui, langmgr, restrictions as r
 import logging
 import ujson as json
 import os
@@ -59,6 +59,8 @@ import time
 import datetime
 
 restrictions = r.Restrictions()
+language = langmgr.partial()
+language.load()
 
 # Below are attributions to the works we used to build Unifier (including our own).
 # If you've modified Unifier to use more works, please add it here.
@@ -235,11 +237,11 @@ class AutoSaveDict(dict):
         self.__save_lock = False
 
         # Ensure necessary keys exist
-        self.update({'rules': {}, 'rooms': {}, 'rooms_revolt': {}, 'rooms_guilded': {}, 'emojis': [], 'nicknames': {},
-                     'descriptions': {}, 'restricted': [], 'locked': [], 'blocked': {}, 'banned': {}, 'moderators': [],
-                     'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {}, 'external_bridge': [],
-                     'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {}, 'fullbanned': [], 'exp': {},
-                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {}})
+        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
+                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
+                     'external_bridge': [], 'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {},
+                     'fullbanned': [], 'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {},
+                     'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}})
         self.threads = []
 
         # Load data
@@ -399,8 +401,6 @@ class CommandExceptionHandler:
             self.logger.exception('An error occurred!')
             await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
 
-
-# noinspection PyUnresolvedReferences
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
 
@@ -410,6 +410,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pass
 
     def __init__(self, bot):
+        global language
         self.bot = bot
         if not hasattr(self.bot, 'db'):
             self.bot.db = AutoSaveDict({})
@@ -452,8 +453,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.package = self.bot.config['package']
 
         self.bot.exhandler = CommandExceptionHandler(self.bot)
-
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
+
+        if not hasattr(self.bot, 'langmgr'):
+            self.bot.langmgr = langmgr.LanguageManager(self.bot)
+            self.bot.langmgr.load()
+        language = self.bot.langmgr
         if not hasattr(self.bot,'loaded_plugins'):
             self.bot.loaded_plugins = {}
             if not self.bot.safemode:
@@ -461,12 +466,30 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     with open('plugins/' + plugin) as file:
                         extinfo = json.load(file)
                         try:
-                            if not 'content_protection' in extinfo['services']:
+                            if not 'content_protection' in extinfo['services'] and not 'content_processing' in extinfo['services']:
                                 continue
                         except:
                             continue
                     script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
                     self.bot.loaded_plugins.update({plugin[:-5]: script})
+        if not hasattr(self.bot,'platforms'):
+            self.bot.platforms_former = {}
+            self.bot.platforms = {}
+
+            # This loads the entire plugin script to memory.
+            # Plugins will need to create the platform support object themselves when the
+            # bot is ready on the platform.
+            if not self.bot.safemode:
+                for plugin in os.listdir('plugins'):
+                    with open('plugins/' + plugin) as file:
+                        extinfo = json.load(file)
+                        try:
+                            if not 'bridge_platform' in extinfo['services']:
+                                continue
+                        except:
+                            continue
+                    script = importlib.import_module('utils.' + plugin[:-5] + '_bridge_platform')
+                    self.bot.platforms_former.update({extinfo['bridge_platform']: script})
         if not hasattr(self.bot, "ut_total"):
             self.bot.ut_total = round(time.time())
         if not hasattr(self.bot, "disconnects"):
@@ -643,30 +666,42 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @tasks.loop(seconds=300)
     async def changestatus(self):
         status_messages = [
-            "with the ban hammer",
-            "with fire",
-            "with the API",
-            "hide and seek",
-            "with code",
-            "in debug mode",
-            "in a parallel universe",
-            "with commands",
-            "a game of chess",
-            "with electrons",
-            "with the matrix",
-            "with cookies",
-            "with the metaverse",
-            "with emojis",
-            "with Nevira",
-            "with green.",
-            "with ItsAsheer",
-            "webhooks",
+            ["playing","with the ban hammer"],
+            ["playing","with fire"],
+            ["playing","with the API"],
+            ["playing","hide and seek"],
+            ["listening","my own code"],
+            ["playing","in debug mode"],
+            ["playing","in a parallel universe"],
+            ["playing","with commands"],
+            ["playing","a game of chess"],
+            ["playing","with electrons"],
+            ["watching","the matrix"],
+            ["watching","cookies bake"],
+            ["playing","with the metaverse"],
+            ["playing","with emojis"],
+            ["playing","with Nevira"],
+            ["playing","with green."],
+            ["playing","with ItsAsheer"],
+            ["watching","webhooks"],
+            ["custom","Unifying servers like they're nothing"],
+            ["custom","Made for communities, by communities"]
         ]
         new_stat = random.choice(status_messages)
-        if new_stat == "webhooks":
-            await self.bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.watching, name=new_stat))
-        else:
-            await self.bot.change_presence(activity=nextcord.Game(name=new_stat))
+        if new_stat[0] == "watching":
+            await self.bot.change_presence(activity=nextcord.Activity(
+                type=nextcord.ActivityType.watching, name=new_stat[1]
+            ))
+        elif new_stat[0] == "listening":
+            await self.bot.change_presence(activity=nextcord.Activity(
+                type=nextcord.ActivityType.listening, name=new_stat[1]
+            ))
+        elif new_stat[0] == "playing":
+            await self.bot.change_presence(activity=nextcord.Game(name=new_stat[1]))
+        elif new_stat[0] == "custom":
+            await self.bot.change_presence(activity=nextcord.CustomActivity(
+                name="Custom Status", state=new_stat[1]
+            ))
 
     @tasks.loop()
     async def periodic_backup(self):
@@ -738,9 +773,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def on_disconnect(self):
         self.bot.disconnects += 1
 
-    @commands.command(aliases=['reload-services'], hidden=True, description="Reloads bot services.")
+    @commands.command(aliases=['reload-services'], hidden=True, description=language.desc('sysmgr.reload_services'))
     @restrictions.owner()
     async def reload_services(self,ctx,*,services=None):
+        selector = language.get_selector(ctx)
         if not services:
             plugins = self.bot.loaded_plugins
         else:
@@ -749,7 +785,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         failed = []
         errors = []
         text = '```diff'
-        msg = await ctx.send('Reloading services...')
+        msg = await ctx.send(selector.get('in_progress'))
         for plugin in plugins:
             try:
                 importlib.reload(self.bot.loaded_plugins[plugin])
@@ -759,95 +795,89 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 failed.append(plugin)
                 errors.append(e)
                 text = text + f'\n- [FAIL] {plugin}'
-        await msg.edit(
-            content=f'Reload completed (`{len(plugins) - len(failed)}'f'/{len(plugins)}` successful)\n\n{text}```'
-        )
+        await msg.edit(selector.fget(
+            'completed', values={'success': len(plugins)-len(failed), 'total': len(plugins())}
+        ))
         text = ''
         index = 0
         for fail in failed:
             if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
+                text = f'{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+                text = f'\n\n{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**Fail logs**\n{text}')
+            await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
 
-    @commands.command(hidden=True,description='Evaluates code.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.eval'))
     @restrictions.owner()
     async def eval(self, ctx, *, body):
-        if ctx.author.id == self.bot.config['owner']:
-            env = {
-                'ctx': ctx,
-                'channel': ctx.channel,
-                'author': ctx.author,
-                'guild': ctx.guild,
-                'message': ctx.message,
-                'source': inspect.getsource,
-                'session': self.bot.session,
-                'bot': self.bot
-            }
+        selector = language.get_selector(ctx)
+        env = {
+            'ctx': ctx,
+            'channel': ctx.channel,
+            'author': ctx.author,
+            'guild': ctx.guild,
+            'message': ctx.message,
+            'source': inspect.getsource,
+            'session': self.bot.session,
+            'bot': self.bot
+        }
 
-            env.update(globals())
+        env.update(globals())
 
-            body = cleanup_code(body)
-            stdout = io.StringIO()
+        body = cleanup_code(body)
+        stdout = io.StringIO()
 
-            to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
+        to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
 
-            try:
-                if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
-                    raise ValueError('Blocked phrase')
-                exec(to_compile, env)
-            except:
-                pass
+        try:
+            if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
+                raise ValueError('Blocked phrase')
+            exec(to_compile, env)
+        except:
+            pass
 
-            try:
-                func = env['func']
-            except Exception as e:
-                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
-                await ctx.author.send(
-                    f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
-                return
-            token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
-            try:
-                with redirect_stdout(stdout):
-                    # ret = await func() to return output
-                    await func()
-            except:
-                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
-                if token_start in value:
-                    return await ctx.author.send('The error contained your bot\'s token, so it was not sent.')
-                await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
-            else:
-                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                if token_start in value:
-                    return await ctx.send('The output contained your bot\'s token, so it was not sent.')
-                if value == '':
-                    pass
-                else:
-                    #  here, cause is if haves value
-                    await ctx.send('```%s```' % value)
+        try:
+            func = env['func']
+        except Exception as e:
+            await ctx.send(selector.get('error'), reference=ctx.message)
+            await ctx.author.send(
+                f'```py\n{e.__class__.__name__}: {e}\n```\n{selector.get("syntaxerror")}')
+            return
+        token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
+        try:
+            with redirect_stdout(stdout):
+                # ret = await func() to return output
+                await func()
+        except:
+            value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+            await ctx.send(selector.get('error'), reference=ctx.message)
+            if token_start in value:
+                return await ctx.author.send(selector.get('blocked'))
+            await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
         else:
-            await ctx.send('Only the owner can execute code.')
+            value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+            if token_start in value:
+                return await ctx.send(selector.get('blocked'))
+            if value == '':
+                pass
+            else:
+                #  here, cause is if haves value
+                await ctx.send('```%s```' % value)
 
     @eval.error
     async def eval_error(self, ctx, error):
-        if ctx.author.id == self.bot.config['owner']:
-            if isinstance(error, commands.MissingRequiredArgument):
-                await ctx.send('where code :thinking:')
-            else:
-                await ctx.send('Something went horribly wrong.')
-                raise
+        selector = language.get_selector(ctx)
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(selector.get('nocode'))
         else:
-            await ctx.send('Only the owner can execute code.')
+            raise
 
-    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
+    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
     async def shutdown(self, ctx):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
+        selector = language.get_selector(ctx)
         self.logger.info("Attempting graceful shutdown...")
         self.bot.bridge.backup_lock = True
         try:
@@ -865,10 +895,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.bridge.backup_lock = False
             await self.bot.bridge.backup(limit=10000)
             self.logger.info("Backup complete")
-            await ctx.send('Shutting down...')
+            await ctx.send(selector.get('success'))
         except:
             self.logger.exception("Graceful shutdown failed")
-            await ctx.send('Shutdown failed')
+            await ctx.send(selector.get('failed'))
             return
         self.logger.info("Closing bot session")
         await self.bot.session.close()
@@ -876,9 +906,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.close()
         sys.exit(0)
 
-    @commands.command(hidden=True,description='Lists all installed plugins.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.plugins'))
     @restrictions.owner()
     async def plugins(self, ctx, *, plugin=None):
+        selector = language.get_selector(ctx)
         if plugin:
             plugin = plugin.lower()
         page = 0
@@ -892,7 +923,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
         if not plugin:
             offset = page * 20
-            embed = nextcord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
             text = ''
             if offset > len(pluglist):
                 page = len(pluglist) // 20 - 1
@@ -907,7 +938,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text = f'{text}\n- {pluginfo["name"]} (`{pluginfo["id"]}`)'
             embed.description = text
-            embed.set_footer(text="Page " + str(page + 1))
+            embed.set_footer(text=selector.rawfget(
+                'page', 'sysmgr.extensions', values={'page': page + 1}
+            ))
             return await ctx.send(embed=embed)
         found = False
         index = 0
@@ -920,15 +953,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('plugins/' + plugin + '.json') as file:
                 pluginfo = json.load(file)
         else:
-            return await ctx.send('Could not find extension!')
+            return await ctx.send(selector.rawget('notfound', 'sysmgr.extensions'))
         embed = nextcord.Embed(
             title=pluginfo["name"],
-            description=("Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' +
-                         pluginfo["description"]),
+            description=(selector.fget('version',values={'version':pluginfo['version'],'release':pluginfo['release']})
+                         + '\n\n' + pluginfo["description"]),
             color=self.bot.colors.unifier
         )
         if plugin == 'system':
-            embed.description = embed.description + '\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.'
+            embed.description = embed.description + selector.get('system_plugin')
         try:
             embed.url = str(pluginfo['repository'])[:-4]
         except:
@@ -939,19 +972,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 modtext = '- ' + module
             else:
                 modtext = modtext + '\n- ' + module
-        embed.add_field(name='Modules',value=modtext,inline=False)
+        embed.add_field(name=selector.get('modules'),value=modtext,inline=False)
         modtext = 'None'
         for module in pluginfo['utils']:
             if modtext == 'None':
                 modtext = '- ' + module
             else:
                 modtext = modtext + '\n- ' + module
-        embed.add_field(name='Utilities', value=modtext, inline=False)
+        embed.add_field(name=selector.get('utilities'), value=modtext, inline=False)
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True, aliases=['cogs'], description='Lists all loaded extensions.')
+    @commands.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
     @restrictions.owner()
     async def extensions(self, ctx, *, extension=None):
+        selector = language.get_selector(ctx)
         if extension:
             extension = extension.lower()
         page = 0
@@ -964,7 +998,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             pass
         if not extension:
             offset = page * 20
-            embed = nextcord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
             text = ''
             extlist = list(self.bot.extensions)
             if offset > len(extlist):
@@ -980,7 +1014,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text = f'{text}\n- {cog.qualified_name} (`{ext}`)'
             embed.description = text
-            embed.set_footer(text="Page " + str(page + 1))
+            embed.set_footer(text=selector.fget('page',values={'page':page + 1}))
             return await ctx.send(embed=embed)
         found = False
         index = 0
@@ -992,7 +1026,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if found:
             ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
         else:
-            return await ctx.send('Could not find extension!')
+            return await ctx.send(selector.get('notfound'))
         embed = nextcord.Embed(
             title=ext_info.qualified_name,
             description=ext_info.description,
@@ -1000,146 +1034,145 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         )
         if (extension == 'cogs.sysmgr' or extension == 'cogs.lockdown' or
                 extension == 'sysmgr' or extension == 'lockdown'):
-            embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
+            embed.description = embed.description + selector.get('system_module')
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,description='Reloads an extension.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.reload'))
     @restrictions.owner()
     async def reload(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        selector = language.get_selector(ctx)
+        if self.bot.update:
+            return await ctx.send(selector.get('disabled'))
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Reloading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    if extension == 'lockdown':
-                        raise ValueError('Cannot unload lockdown extension for security purposes.')
-                    await self.preunload(extension)
-                    self.bot.reload_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Reload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send(selector.get('in_progress'))
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                if extension == 'lockdown':
+                    raise ValueError('Cannot unload lockdown extension for security purposes.')
+                await self.preunload(extension)
+                self.bot.reload_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can reload extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(content=selector.rawfget(
+            'completed', 'sysmgr.reload_services', values={
+                'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text
+            }
+        ))
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\n{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
-    @commands.command(hidden=True,description='Loads an extension.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions.owner()
     async def load(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        selector = language.get_selector(ctx)
+        if self.bot.update:
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Loading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    self.bot.load_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Load completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send(selector.get('in_progress'))
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                self.bot.load_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can load extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(content=selector.fget(
+            'completed',
+            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
+        ))
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
     @commands.command(hidden=True,description='Unloads an extension.')
     @restrictions.owner()
     async def unload(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        selector = language.get_selector(ctx)
+        if self.bot.update:
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Unloading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    if extension == 'sysmgr':
-                        raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
-                    if extension == 'lockdown':
-                        raise ValueError('Cannot unload lockdown extension for security purposes.')
-                    await self.preunload(extension)
-                    self.bot.unload_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Unload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send('Unloading extensions...')
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                if extension == 'sysmgr':
+                    raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
+                if extension == 'lockdown':
+                    raise ValueError('Cannot unload lockdown extension for security purposes.')
+                await self.preunload(extension)
+                self.bot.unload_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can unload extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(content=selector.fget(
+            'completed',
+            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
+        ))
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions.owner()
     async def install(self, ctx, url):
-        if not ctx.author.id==self.bot.config['owner']:
-            return
-
+        selector = language.get_selector(ctx)
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
 
@@ -1156,7 +1189,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.get("downloading_title")}', description=selector.get("downloading_body"))
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
@@ -1186,6 +1219,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             minimum = new['minimum']
             modules = new['modules']
             utilities = new['utils']
+            try:
+                nups_platform = new['bridge_platform']
+                if nups_platform == '':
+                    nups_platform = None
+            except:
+                nups_platform = None
             try:
                 services = new['services']
             except:
@@ -1222,7 +1261,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = 'The repository URL or the plugin.json file is invalid.'
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
-            raise
+            return
         embed.title = f'{self.bot.ui_emojis.install} Install `{plugin_id}`?'
         embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
         embed.colour = 0xffcc00
@@ -1241,6 +1280,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     'The plugin will be able to modify message content and author information before bridging to '+
                     'other servers.'
                 )
+            elif service=='bridge_platform':
+                text = (
+                    ':handshake: **Bridge platform support**\n'+
+                    'The plugin will be able to provide native Unifier Bridgesupport for an external platform.'
+                )
+                if not nups_platform or nups_platform.lower()=='meta':
+                    embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
+                    embed.description = 'The plugin provided an invalid platform name.'
+                    embed.colour = self.bot.colors.error
+                    return await msg.edit(embed=embed)
             elif service=='emojis':
                 text = (
                     ':joy: **Emojis**\n'+
@@ -1451,14 +1500,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not ctx.author.id == self.bot.config['owner']:
             return
 
+        selector = language.get_selector(ctx)
+
         if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
         if os.name == "nt":
             embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.error} Can\'t upgrade Unifier',
-                description=('Unifier cannot upgrade itself on Windows. Please use an OS with the bash console (Linux/'+
-                             'macOS/etc).'),
+                title=f'{self.bot.ui_emojis.error} {selector.get("windows_title")}',
+                description=selector.get('windows_body'),
                 color=self.bot.colors.error
             )
             return await ctx.send(embed=embed)
@@ -1478,8 +1528,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if plugin=='system':
             embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.install} Checking for upgrades...',
-                description='Getting latest version from remote'
+                title=f'{self.bot.ui_emojis.install} {selector.get("checking_title")}',
+                description=selector.get('checking_body')
             )
             msg = await ctx.send(embed=embed)
             available = []
@@ -1507,13 +1557,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 update_available = len(available) >= 1
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to check for updates'
-                embed.description = 'Could not find a valid update.json file on remote'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("checkfail_title")}'
+                embed.description = selector.get("checkfail_body")
                 embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
             if not update_available:
-                embed.title = f'{self.bot.ui_emojis.success} No updates available'
-                embed.description = 'Unifier is up-to-date.'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("noupdates_title")}'
+                embed.description = selector.get("noupdates_body")
                 embed.colour = self.bot.colors.success
                 return await msg.edit(embed=embed)
             selected = 0
@@ -1523,8 +1573,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 version = available[selected][0]
                 legacy = available[selected][3] > -1
                 reboot = available[selected][4]
-                embed.title = f'{self.bot.ui_emojis.install} Update available'
-                embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
+                embed.title = f'{self.bot.ui_emojis.install} {selector.get("available_title")}'
+                embed.description = selector.fget('available_body',values={
+                    'current_ver':current['version'],'current_rel':current['release'],'new_ver':version,'new_rel':release
+                })
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
@@ -1533,9 +1585,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     should_reboot = reboot >= current['release']
                 if should_reboot:
-                    embed.set_footer(text='The bot will need to reboot to apply the new update.')
+                    embed.set_footer(text=selector.get("reboot_required"))
                 selection = nextcord.ui.StringSelect(
-                    placeholder='Select version...',
+                    placeholder=selector.get("version"),
                     max_values=1,
                     min_values=1,
                     custom_id='selection',
@@ -1552,15 +1604,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
+                        style=nextcord.ButtonStyle.green, label=selector.get("upgrade"), custom_id=f'accept',
                         disabled=False
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
+                        style=nextcord.ButtonStyle.gray, label=selector.rawget('nevermind','sysmgr.install'), custom_id=f'reject',
                         disabled=False
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.link, label='More info',
+                        style=nextcord.ButtonStyle.link, label=selector.get("moreinfo"),
                         url=f'https://github.com/UnifierHQ/unifier/releases/tag/{version}'
                     )
                 )
@@ -1586,8 +1638,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     selected = int(interaction.data['values'][0])
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
-                embed.title = f'{self.bot.ui_emojis.install} Backing up...'
-                embed.description = 'Your data is being backed up.'
+                embed.title = f'{self.bot.ui_emojis.install} {selector.get("backup_title")}'
+                embed.description = selector.get("backup_body")
                 await interaction.response.edit_message(embed=embed, view=None)
             try:
                 if no_backup:
@@ -1616,21 +1668,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 if no_backup:
                     self.logger.warning('Backup skipped, requesting final confirmation.')
-                    embed.description = '- :x: Your files have **NOT BEEN BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
+                    embed.description = f'- :x: {selector.get("skipped_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
                 elif ignore_backup:
                     self.logger.warning('Backup failed, continuing anyways')
-                    embed.description = '- :x: Your files **COULD NOT BE BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
+                    embed.description = f'- :x: {selector.get("failed_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
                 else:
                     self.logger.error('Backup failed, abort upgrade.')
-                    embed.title = f'{self.bot.ui_emojis.error} Backup failed'
-                    embed.description = 'Unifier could not create a backup. The upgrade has been aborted.'
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.get("backupfail_title")}'
+                    embed.description = selector.get("backupfail_body")
                     embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     raise
             else:
                 self.logger.info('Backup complete, requesting final confirmation.')
-                embed.description = '- :inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
-            embed.title = f'{self.bot.ui_emojis.install} Start the upgrade?'
+                embed.description = f'- :inbox_tray: {selector.get("normal_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.get("start")}'
             components = ui.MessageComponents()
             components.add_row(btns)
             if no_backup:
@@ -1652,8 +1704,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components.add_row(btns)
                 return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
-            embed.title = f'{self.bot.ui_emojis.install} Upgrading Unifier'
-            embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.get("upgrading")}'
+            embed.description = f':hourglass_flowing_sand: {selector.get("downloading")}\n:x: {selector.get("installing")}\n:x: {selector.get("reloading")}'
             await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
             try:
@@ -1670,8 +1722,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Download confirmed, proceeding with upgrade')
             except:
                 self.logger.exception('Download failed, no rollback required')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'Could not download updates. No rollback is required.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("download_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
@@ -1694,19 +1746,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         pass
                 if len(newdeps) > 0:
                     self.logger.debug('Installing: ' + ' '.join(newdeps))
-                    await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                        'python3 -m pip install ' + ' '.join(newdeps))
+                    await self.bot.loop.run_in_executor(None, lambda: status(
+                        os.system('python3 -m pip install ' + ' '.join(newdeps))
                     ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'Could not install dependencies. No rollback is required.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("dependency_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             try:
                 self.logger.info('Installing upgrades')
-                embed.description = ':white_check_mark: Downloading updates\n:hourglass_flowing_sand: Installing updates\n:x: Reloading modules'
+                embed.description = f':white_check_mark: {selector.get("downloading")}\n:hourglass_flowing_sand: {selector.get("installing")}\n:x: {selector.get("reloading")}'
                 await msg.edit(embed=embed)
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/unifier.py')
                 status(os.system('cp ' + os.getcwd() + '/update/unifier.py ' + os.getcwd() + '/unifier.py'))
@@ -1746,26 +1798,26 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if should_reboot:
                     self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')
-                    embed.title = f'{self.bot.ui_emojis.success} Restart to apply upgrade'
-                    embed.description = f'The upgrade was successful. Please reboot the bot.'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("restart_title")}'
+                    embed.description =selector.get("restart_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                 else:
                     self.logger.info('Restarting extensions')
-                    embed.description = ':white_check_mark: Downloading updates\n:white_check_mark: Installing updates\n:hourglass_flowing_sand: Reloading modules'
+                    f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n:hourglass_flowing_sand: {selector.get("reloading")}'
                     await msg.edit(embed=embed)
                     for cog in list(self.bot.extensions):
                         self.logger.debug('Restarting extension: ' + cog)
                         await self.preunload(cog)
                         self.bot.reload_extension(cog)
                     self.logger.info('Upgrade complete')
-                    embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
-                    embed.description = 'The upgrade was successful! :partying_face:'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+                    embed.description = selector.get("success_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed, attempting rollback')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
                 embed.colour = self.bot.colors.error
                 try:
                     self.logger.debug('Reverting: ' + os.getcwd() + '/unifier.py')
@@ -1781,29 +1833,29 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         status(
                             os.system('cp ' + os.getcwd() + '/old/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file))
                     self.logger.info('Rollback success')
-                    embed.description = 'The upgrade failed, and all files have been rolled back.'
+                    embed.description = selector.get("rollback")
                 except:
                     self.logger.exception('Rollback failed')
                     self.logger.critical(
                         'The rollback failed. Visit https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier/manual-rollback for recovery steps.')
-                    embed.description = 'The upgrade failed, and the bot may now be in a crippled state.\nPlease check console logs for more info.'
+                    embed.description = selector.get("rollback_fail")
                 await msg.edit(embed=embed)
                 return
         else:
-            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
+            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.rawget("downloading_title","sysmgr.install")}', description=selector.rawget("downloading_body",'sysmgr.install'))
 
             try:
                 with open('plugins/'+plugin+'.json') as file:
                     plugin_info = json.load(file)
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Plugin not found'
-                embed.description = 'The plugin could not be found.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("notfound_title")}'
+                embed.description = selector.get("notfound_body")
                 if plugin=='force':
-                    embed.description = embed.description + f'\n\n**Hint**: If you\'re trying to force upgrade, run `{self.bot.command_prefix}upgrade system force`'
+                    embed.description = embed.description + selector.fget('hint_force',values={'prefix':self.bot.command_prefix})
                 embed.colour = self.bot.colors.error
                 await ctx.send(embed=embed)
                 return
-            embed.set_footer(text='Only install plugins from trusted sources!')
+            embed.set_footer(text=selector.rawget("trust",'sysmgr.install'))
             msg = await ctx.send(embed=embed)
             url = plugin_info['repository']
             try:
@@ -1813,14 +1865,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
                 if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
-                    embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
-                    embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.rawget("alphanumeric_title","sysmgr.install")}'
+                    embed.description = selector.rawget("alphanumeric_body",'sysmgr.install')
                     embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     return
                 if new['release'] <= plugin_info['release'] and not force:
-                    embed.title = f'{self.bot.ui_emojis.success} Plugin up to date'
-                    embed.description = f'This plugin is already up to date!'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("pnoupdates_title")}'
+                    embed.description = selector.get("pnoupdates_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                     return
@@ -1832,17 +1884,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 utilities = new['utils']
                 services = new['services'] if 'services' in new.keys() else []
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to update plugin'
-                embed.description = 'The repository URL or the plugin.json file is invalid.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("pfailed")}'
+                embed.description = selector.rawget("invalid_repo",'sysmgr.install')
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 raise
-            embed.title = f'{self.bot.ui_emojis.install} Update `{plugin_id}`?'
-            embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.fget("question",values={"plugin":plugin_id})}'
+            embed.description = selector.rawfget('plugin_info','sysmgr.install',values={'name':name,'version':version,'desc':desc})
             embed.colour = 0xffcc00
             btns = ui.ActionRow(
-                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
-                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label=selector.get("upgrade"), custom_id=f'accept', disabled=False),
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=selector.rawfget("nevermind","sysmgr.install"), custom_id=f'reject', disabled=False)
             )
             components = ui.MessageComponents()
             components.add_row(btns)
@@ -1962,14 +2014,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         await self.preunload(modname)
                         self.bot.reload_extension(modname)
                 self.logger.debug('Upgrade complete')
-                embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
-                embed.description = 'The upgrade was successful! :partying_face:'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+                embed.description = selector.get("success_body")
                 embed.colour = self.bot.colors.success
                 await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'The upgrade failed.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("plugin_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
@@ -1980,14 +2032,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     )
     @restrictions.owner()
     async def uiemojis(self, ctx, *, emojipack):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
+        selector = language.get_selector(ctx)
 
         emojipack = emojipack.lower()
         if emojipack=='base':
             os.remove('emojis/current.json')
             self.bot.ui_emojis = Emojis()
-            await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack reset to default.')
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("reset")}')
         else:
             try:
                 with open(f'emojis/{emojipack}.json', 'r') as file:
@@ -2001,8 +2052,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.exception('An error occurred!')
                 await ctx.send(f'{self.bot.ui_emojis.error} Could not activate emoji pack.')
 
-    @commands.command(description='Shows this command.')
+    @commands.command(description=language.desc('sysmgr.help'))
     async def help(self,ctx):
+        selector = language.get_selector(ctx)
         panel = 0
         limit = 20
         page = 0
@@ -2390,6 +2442,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         descmatch = True
             elif interaction.type==nextcord.InteractionType.modal_submit:
                 panel = 1
+                page = 0
                 cogname = 'search'
                 query = interaction.data['components'][0]['components'][0]['value']
                 namematch = True

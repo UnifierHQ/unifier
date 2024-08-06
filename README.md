@@ -20,12 +20,12 @@ all on your messaging app of choice.
 Using threading and optimizations, Unifier has been tested to be able to send up to 33 messages a second through webhooks, so 
 nobody needs to wait to see your messages. Do note that this speed will vary depending on lots of factors.
 
-### Revolt and Guilded support
-With [Revolt](https://github.com/UnifierHQ/unifier-revolt) and [Guilded](https://github.com/UnifierHQ/unifier-guilded) 
-support plugins, you can bring your communities outside of Discord together, or get a break from Discord without losing your 
-community.
+### External platforms support
+With support for external platforms, you can bring your communities outside of Discord together, or get a break from Discord 
+without losing your community. Unifier supports virtually any platform with the help of support Plugins, so the possibilities
+are endless.
 
-Support plugins need to be installed to enable support for these platforms.
+We've written a platform support Plugin for [Revolt](https://github.com/UnifierHQ/unifier-revolt), so give that a try!
 
 ### Moderation commands
 After you assign bot admins, they can assign moderators, who can help moderate the chat and take action against bad actors. 

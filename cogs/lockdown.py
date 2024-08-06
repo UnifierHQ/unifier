@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-from utils import log, ui, restrictions as r
+from utils import log, ui, langmgr, restrictions as r
 
 restrictions = r.Restrictions()
+language = langmgr.partial()
+language.load()
 
 class Lockdown(commands.Cog, name=':lock: Lockdown'):
     """An emergency extension that unloads literally everything.
@@ -28,38 +30,41 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
     Developed by Green and ItsAsheer"""
 
     def __init__(self,bot):
+        global language
         self.bot = bot
+        language = self.bot.langmgr
         restrictions.attach_bot(self.bot)
         if not hasattr(self.bot, "locked"):
             self.bot.locked = False
         self.logger = log.buildlogger(self.bot.package,'admin',self.bot.loglevel)
 
-    @commands.command(hidden=True,aliases=['globalkill'],description='Locks the entire bot down.')
+    @commands.command(hidden=True,aliases=['globalkill'],description=language.desc('lockdown.lockdown'))
     @restrictions.owner()
     async def lockdown(self,ctx):
+        selector = language.get_selector(ctx)
         if self.bot.locked:
-            return await ctx.send('Bot is already locked down.')
+            return await ctx.send(selector.get('already_locked'))
         embed = nextcord.Embed(
-            title='Activate lockdown?',
-            description='This will unload ALL EXTENSIONS and lock down the bot until next restart. Continue?',
+            title=selector.get('warning_title'),
+            description=selector.get('warning_body'),
             color=self.bot.colors.error
         )
         btns = ui.ActionRow(
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=False
+                style=nextcord.ButtonStyle.red, label=selector.get('continue'), custom_id=f'accept', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=False
+                style=nextcord.ButtonStyle.gray, label=language.get('cancel','commons.navigation'), custom_id=f'reject', disabled=False
             )
         )
         components = ui.MessageComponents()
         components.add_row(btns)
         btns2 = ui.ActionRow(
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.red, label='Continue', custom_id=f'accept', disabled=True
+                style=nextcord.ButtonStyle.red, label=selector.get('continue'), custom_id=f'accept', disabled=True
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.gray, label='Cancel', custom_id=f'reject', disabled=True
+                style=nextcord.ButtonStyle.gray, label=language.get('cancel','commons.navigation'), custom_id=f'reject', disabled=True
             )
         )
         components_cancel = ui.MessageComponents()
@@ -75,8 +80,8 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             return await msg.edit(view=components_cancel)
         if interaction.data['custom_id']=='reject':
             return await interaction.response.edit_message(view=components_cancel)
-        embed.title = ':warning: FINAL WARNING!!! :warning:'
-        embed.description = '- :warning: All functions of the bot will be disabled.\n- :no_entry_sign: Managing extensions will be unavailable.\n- :arrows_counterclockwise: To restore the bot, a reboot is required.'
+        embed.title = f':warning: {selector.get("fwarning_title")} :warning:'
+        embed.description = f'- :warning: {selector.get("fwarning_functions")}\n- :no_entry_sign: {selector.get("fwarning_management")}\n- :arrows_counterclockwise: {selector.get("fwarning_reboot")}'
         embed.colour = self.bot.colors.critical
         await interaction.response.edit_message(embed=embed)
         try:
@@ -122,8 +127,8 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
                 self.bot.unload_extension(cog)
         self.logger.info("Lockdown complete")
 
-        embed.title = 'Lockdown activated'
-        embed.description = 'The bot is now in a crippled state. It cannot recover without a reboot.'
+        embed.title = selector.get("success_title")
+        embed.description = selector.get("success_body")
         return await interaction.response.edit_message(embed=embed,view=components_cancel)
 
 def setup(bot):

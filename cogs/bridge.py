@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -19,8 +19,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import nextcord
 import hashlib
 import asyncio
-import guilded
-import revolt
 from nextcord.ext import commands
 import traceback
 import time
@@ -33,14 +31,15 @@ import compress_json
 import re
 import ast
 import math
-from io import BytesIO
 import os
-from utils import log, ui, restrictions as r
+from utils import log, langmgr, ui, platform_base, restrictions as r
 import importlib
 import emoji as pymoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 restrictions = r.Restrictions()
+language = langmgr.partial()
+language.load()
 
 multisend_logs = []
 plugin_data = {}
@@ -57,6 +56,7 @@ dedupe_emojis = [
     '\U00002B1C',
     '\U00002B1B'
 ]
+arrow_unicode = '\U0000250C'
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -72,7 +72,7 @@ def genid():
 
 def is_room_locked(room, db):
     try:
-        if room in db['locked']:
+        if db['rooms'][room]['meta']['locked']:
             return True
         else:
             return False
@@ -151,10 +151,10 @@ class UnifierPossibleRaidEvent:
 
 class UnifierBridge:
     def __init__(self, bot, logger, webhook_cache=None):
-        self.bot = bot
+        self.__bot = bot
         self.bridged = []
         self.prs = {}
-        self.webhook_cache = webhook_cache or WebhookCacheStore(self.bot)
+        self.webhook_cache = webhook_cache or WebhookCacheStore(self.__bot)
         self.restored = False
         self.raidbans = {}
         self.possible_raid = {}
@@ -166,12 +166,17 @@ class UnifierBridge:
         self.msg_stats = {}
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
+        self.__room_template = {'rules': [], 'restricted': False, 'locked': False, 'private': False, 'emoji': None,
+                                'description': None}
+
+    @property
+    def room_template(self):
+        return self.__room_template
 
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                      external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
-                     reactions=None,
-                     thread=None):
+                     reactions=None, thread=None, reply_v2=False):
             self.author_id = author_id
             self.guild_id = guild_id
             self.channel_id = channel_id
@@ -187,6 +192,7 @@ class UnifierBridge:
             self.reply = reply
             self.external_bridged = external_bridged,
             self.thread = thread
+            self.reply_v2 = reply_v2
             if not reactions or not type(reactions) is dict:
                 self.reactions = {}
             else:
@@ -250,17 +256,26 @@ class UnifierBridge:
             return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0],
                                      self.external_copies[platform][str(guild_id)][1])
 
+    class RoomForbiddenError(Exception):
+        pass
+
+    class RoomNotFoundError(Exception):
+        pass
+
+    class RoomExistsError(Exception):
+        pass
+
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
-            self.bot.db['modlogs'][f'{user}'].append({
+            self.__bot.db['modlogs'][f'{user}'].append({
                 'type': action_type,
                 'reason': reason,
                 'time': t,
                 'mod': moderator
             })
         except:
-            self.bot.db['modlogs'].update({
+            self.__bot.db['modlogs'].update({
                 f'{user}': [{
                     'type': action_type,
                     'reason': reason,
@@ -268,12 +283,12 @@ class UnifierBridge:
                     'mod': moderator
                 }]
             })
-        self.bot.db.save_data()
+        self.__bot.db.save_data()
 
     def get_modlogs(self, user):
         t = time.time()
 
-        if not f'{user}' in list(self.bot.db['modlogs'].keys()):
+        if not f'{user}' in list(self.__bot.db['modlogs'].keys()):
             return {
                 'warns': [],
                 'bans': []
@@ -283,12 +298,12 @@ class UnifierBridge:
             }
 
         actions = {
-            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0],
-            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1]
+            'warns': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 0],
+            'bans': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 1]
         }
         actions_recent = {
-            'warns': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
-            'bans': [log for log in self.bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
+            'warns': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 0 and t - log['time'] <= 2592000],
+            'bans': [log for log in self.__bot.db['modlogs'][f'{user}'] if log['type'] == 1 and t - log['time'] <= 2592000]
         }
 
         return actions, actions_recent
@@ -301,18 +316,201 @@ class UnifierBridge:
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
+    def rooms(self) -> list:
+        return list(self.__bot.db['rooms'].keys())
+
+    def get_room(self, room) -> dict or None:
+        """Gets a Unifier room.
+        This will be moved to UnifierBridge for a future update."""
+        try:
+            return self.__bot.db['rooms'][room]
+        except:
+            return None
+
+    def can_manage_room(self, room, user) -> bool:
+        roominfo = self.get_room(room)
+        if roominfo['private']:
+            if user:
+                if user.id in self.__bot.moderators:
+                    return True
+            return user.guild.id == roominfo['private_meta']['server'] and user.guild_permissions.manage_guild
+        else:
+            return user.id in self.__bot.admins
+
+    def can_join_room(self, room, user) -> bool:
+        roominfo = self.get_room(room)
+        if roominfo['private']:
+            if user:
+                if user.id in self.__bot.moderators:
+                    return True
+            return (
+                    user.guild.id == roominfo['private_meta']['server'] or
+                    user.guild.id in roominfo['private_meta']['allowed']
+            ) and user.guild_permissions.manage_channels
+        else:
+            return user.guild_permissions.manage_channels
+
+    def update_room(self, room, roominfo):
+        if not room in self.__bot.db['rooms'].keys():
+            raise self.RoomNotFoundError('invalid room')
+
+        self.__bot.db['rooms'][room] = roominfo
+        self.__bot.db.save_data()
+
+    def create_room(self, room) -> dict:
+        if room in self.__bot.db['rooms'].keys():
+            raise self.RoomExistsError('room already exists')
+
+        self.__bot.db['rooms'].update({room: self.__room_template})
+        return self.__room_template
+
+    def delete_room(self, room):
+        if not room in self.__bot.db['rooms'].keys():
+            raise self.RoomNotFoundError('invalid room')
+
+        self.__bot.db['rooms'].pop(room)
+        self.__bot.db.save_data()
+
+    def get_invite(self, invite) -> dict or None:
+        try:
+            return self.__bot.db['invites'][invite]
+        except:
+            return None
+
+    def delete_invite(self, invite):
+        # TODO: Add InviteNotFoundError, like RoomNotFoundError but for invites.
+        self.__bot.db['invites'].pop(invite)
+        self.__bot.db.save_data()
+
+    async def accept_invite(self, user, invite):
+        # TODO: This is incomplete
+        invite = self.get_invite(invite)
+        if not invite:
+            raise ValueError('invalid invite')
+        roominfo = self.get_room(invite['room'])
+        if not roominfo:
+            raise self.RoomNotFoundError('invalid room')
+        if not roominfo['private']:
+            self.__bot.db['invites'].pop(invite)
+            raise RuntimeError('invite leads to a public room, expired')
+
+    async def join_room(self, user, room, webhook_or_channel, platform='discord'):
+        roominfo = self.get_room(room)
+        if not roominfo:
+            raise self.RoomNotFoundError('invalid room')
+
+        if not self.can_join_room(room, user):
+            raise self.RoomNotFoundError('cannot join room')
+
+        support = None
+
+        if not platform=='discord':
+            support = self.__bot.platforms[platform]
+
+        if platform=='discord':
+            guild_id = user.guild.id
+        else:
+            guild_id = support.get_id(support.server(user))
+
+        if roominfo['private']:
+            if user:
+                if platform=='discord':
+                    user_id = user.id
+                else:
+                    user_id = support.get_id(user)
+
+                if not user_id in self.__bot.moderators:
+                    raise ValueError('forbidden')
+            if not guild_id in roominfo['private_meta']['allowed']:
+                raise ValueError('forbidden')
+
+        guild_id = str(guild_id)
+        webhook_id = support.get_id(webhook_or_channel)
+
+        if not platform in roominfo.keys():
+            self.__bot.db['rooms'][room].update({platform:{}})
+
+        if guild_id in self.__bot.db['rooms'][room][platform].keys():
+            raise ValueError('already joined')
+
+        self.__bot.db['rooms'][room][platform].update({guild_id: webhook_id})
+        self.__bot.db.save_data()
+
+    async def leave_room(self, guild, room, platform='discord'):
+        roominfo = self.get_room(room)
+        if not roominfo:
+            raise ValueError('invalid room')
+
+        support = None
+
+        if not platform == 'discord':
+            support = self.__bot.platforms[platform]
+
+        if platform == 'discord':
+            guild_id = guild.id
+        else:
+            guild_id = support.get_id(guild)
+
+        guild_id = str(guild_id)
+
+        if not platform in roominfo.keys():
+            raise ValueError('not joined')
+
+        if not guild_id in self.__bot.db['rooms'][room][platform].keys():
+            raise ValueError('not joined')
+
+        self.__bot.db['rooms'][room][platform].pop(guild_id)
+        self.__bot.db.save_data()
+
     async def optimize(self):
         """Optimizes data to avoid having to fetch webhooks.
         This decreases latency incuded by message bridging prep."""
-        for room in self.bot.db['rooms']:
-            for guild in self.bot.db['rooms'][room]:
-                if len(self.bot.db['rooms'][room][guild])==1:
+        for room in self.__bot.db['rooms']:
+            for guild in self.__bot.db['rooms'][room]['discord']:
+                if len(self.__bot.db['rooms'][room]['discord'][guild])==1:
                     try:
-                        hook = await self.bot.fetch_webhook(self.bot.db['rooms'][room][guild][0])
+                        hook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][room]['discord'][guild][0])
                     except:
                         continue
-                    self.bot.db['rooms'][room][guild].append(hook.channel_id)
-        self.bot.db.save_data()
+                    self.__bot.db['rooms'][room]['discord'][guild].append(hook.channel_id)
+        self.__bot.db.save_data()
+
+    async def convert_1(self):
+        """Converts data structure to be v2.1.0-compatible.
+        Eliminates the need for a lot of unneeded keys."""
+        if not 'rules' in self.__bot.db.keys():
+            # conversion is not needed
+            return
+        for room in self.__bot.db['rooms']:
+            self.__bot.db['rooms'][room] = {'meta':{
+                'rules': self.__bot.db['rules'][room],
+                'restricted': room in self.__bot.db['restricted'],
+                'locked': room in self.__bot.db['locked'],
+                'private': False,
+                'private_meta': {
+                    'server': None,
+                    'allowed': []
+                },
+                'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
+                'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None
+            },'discord': self.__bot.db['rooms'][room]}
+            if room in self.__bot.db['rooms_revolt'].keys():
+                self.__bot.db['rooms'][room].update({'revolt': self.__bot.db['rooms_revolt'][room]})
+            if room in self.__bot.db['rooms_guilded'].keys():
+                self.__bot.db['rooms'][room].update({'guilded': self.__bot.db['rooms_guilded'][room]})
+
+        self.__bot.db.pop('rooms_revolt')
+        self.__bot.db.pop('rooms_guilded')
+        self.__bot.db.pop('rules')
+        self.__bot.db.pop('restricted')
+        self.__bot.db.pop('locked')
+        self.__bot.db.pop('roomemoji')
+        self.__bot.db.pop('descriptions')
+
+        # not sure what to do about the data stored in rooms_revolt key now...
+        # maybe delete the key entirely? or keep it in case conversion went wrong?
+
+        self.__bot.db.save_data()
 
     def is_raidban(self,userid):
         try:
@@ -352,11 +550,11 @@ class UnifierBridge:
             code = self.prs[pr_ids[limit - index - 1]]
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
-        if self.bot.config['compress_cache']:
-            await self.bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
+        if self.__bot.config['compress_cache']:
+            await self.__bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
         else:
             with open(filename, "w+") as file:
-                await self.bot.loop.run_in_executor(None, lambda: json.dump(data, file))
+                await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
         del data
         self.backup_running = False
         return
@@ -364,7 +562,7 @@ class UnifierBridge:
     async def restore(self,filename='bridge.json'):
         if self.restored:
             raise RuntimeError('Already restored from backup')
-        if self.bot.config['compress_cache']:
+        if self.__bot.config['compress_cache']:
             data = compress_json.load(filename+'.lzma')
         else:
             with open(filename, "r") as file:
@@ -384,7 +582,8 @@ class UnifierBridge:
                 external_urls=data['messages'][f'{x}']['external_urls'],
                 webhook=data['messages'][f'{x}']['webhook'],
                 prehook=data['messages'][f'{x}']['prehook'],
-                reactions=data['messages'][f'{x}']['reactions'] if 'reactions' in list(data['messages'][f'{x}'].keys()) else {}
+                reactions=data['messages'][f'{x}']['reactions'] if 'reactions' in list(data['messages'][f'{x}'].keys()) else {},
+                reply_v2=data['messages'][f'{x}']['reply_v2'] if 'reply_v2' in list(data['messages'][f'{x}'].keys()) else False
             )
             self.bridged.append(msg)
 
@@ -397,8 +596,8 @@ class UnifierBridge:
         responses = {}
         unsafe = False
 
-        for plugin in self.bot.loaded_plugins:
-            script = self.bot.loaded_plugins[plugin]
+        for plugin in self.__bot.loaded_plugins:
+            script = self.__bot.loaded_plugins[plugin]
 
             try:
                 data = plugin_data[plugin]
@@ -435,9 +634,9 @@ class UnifierBridge:
         return message
 
     async def find_thread(self,thread_id):
-        for thread in self.bot.db['threads']:
-            if int(thread)==thread_id or int(thread_id) in self.bot.db['threads'][thread].values():
-                return {thread: self.bot.db['threads'][thread]}
+        for thread in self.__bot.db['threads']:
+            if int(thread)==thread_id or int(thread_id) in self.__bot.db['threads'][thread].values():
+                return {thread: self.__bot.db['threads'][thread]}
         return None
 
     async def fetch_message(self,message_id,prehook=False,not_prehook=False):
@@ -480,52 +679,56 @@ class UnifierBridge:
         self.bridged.pop(index_tomerge)
 
     async def add_exp(self, user_id):
-        if not self.bot.config['enable_exp'] or user_id==self.bot.user.id:
+        if not self.__bot.config['enable_exp'] or user_id==self.__bot.user.id:
             return 0, False
-        if not f'{user_id}' in self.bot.db['exp'].keys():
-            self.bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
+        if not f'{user_id}' in self.__bot.db['exp'].keys():
+            self.__bot.db['exp'].update({f'{user_id}':{'experience':0,'level':1,'progress':0}})
         t = time.time()
         if f'{user_id}' in level_cooldown.keys():
             if t < level_cooldown[f'{user_id}']:
-                return self.bot.db['exp'][f'{user_id}']['experience'], self.bot.db['exp'][f'{user_id}']['progress'] >= 1
+                return self.__bot.db['exp'][f'{user_id}']['experience'], self.__bot.db['exp'][f'{user_id}']['progress'] >= 1
             else:
-                level_cooldown[f'{user_id}'] = round(time.time()) + self.bot.config['exp_cooldown']
+                level_cooldown[f'{user_id}'] = round(time.time()) + self.__bot.config['exp_cooldown']
         else:
-            level_cooldown.update({f'{user_id}': round(time.time()) + self.bot.config['exp_cooldown']})
-        self.bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
+            level_cooldown.update({f'{user_id}': round(time.time()) + self.__bot.config['exp_cooldown']})
+        self.__bot.db['exp'][f'{user_id}']['experience'] += random.randint(80,120)
         ratio, remaining = await self.progression(user_id)
         if ratio >= 1:
-            self.bot.db['exp'][f'{user_id}']['experience'] = -remaining
-            self.bot.db['exp'][f'{user_id}']['level'] += 1
+            self.__bot.db['exp'][f'{user_id}']['experience'] = -remaining
+            self.__bot.db['exp'][f'{user_id}']['level'] += 1
             newratio, _remaining = await self.progression(user_id)
         else:
             newratio = ratio
-        self.bot.db['exp'][f'{user_id}']['progress'] = newratio
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        return self.bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
+        self.__bot.db['exp'][f'{user_id}']['progress'] = newratio
+        await self.__bot.loop.run_in_executor(None, lambda: self.__bot.db.save_data())
+        return self.__bot.db['exp'][f'{user_id}']['experience'], ratio >= 1
 
     async def progression(self, user_id):
         base = 1000
         rate = 1.4
-        target = base * (rate ** self.bot.db['exp'][f'{user_id}']['level'])
+        target = base * (rate ** self.__bot.db['exp'][f'{user_id}']['level'])
         return (
-            self.bot.db['exp'][f'{user_id}']['experience']/target, target-self.bot.db['exp'][f'{user_id}']['experience']
+            self.__bot.db['exp'][f'{user_id}']['experience']/target, target-self.__bot.db['exp'][f'{user_id}']['experience']
         )
 
     async def roomstats(self, roomname):
         online = 0
         members = 0
         guilds = 0
-        for guild_id in self.bot.db['rooms'][roomname]:
-            try:
-                guild = self.bot.get_guild(int(guild_id))
-                online += len(list(
-                    filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
-                           guild.members)))
-                members += len(guild.members)
-                guilds += 1
-            except:
-                pass
+        for platform in self.__bot.db['rooms'][roomname]:
+            for guild_id in self.__bot.db['rooms'][roomname][platform]:
+                try:
+                    if platform=='revolt':
+                        guild = self.__bot.revolt_client.get_server(int(guild_id))
+                    else:
+                        guild = self.__bot.get_guild(int(guild_id))
+                    online += len(list(
+                        filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
+                               guild.members)))
+                    members += len(guild.members)
+                    guilds += 1
+                except:
+                    pass
         try:
             messages = self.msg_stats[roomname]
         except:
@@ -547,18 +750,17 @@ class UnifierBridge:
     async def delete_parent(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
         if msg.source=='discord':
-            ch = self.bot.get_channel(int(msg.channel_id))
+            ch = self.__bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
             await todelete.delete()
-        elif msg.source=='guilded':
-            guild = self.bot.guilded_client.get_server(msg.guild_id)
-            ch = guild.get_channel(msg.channel_id)
-            todelete = await ch.fetch_message(msg.id)
-            await todelete.delete()
-        elif msg.source=='revolt':
-            ch = await self.bot.revolt_client.fetch_channel(msg.channel_id)
-            todelete = await ch.fetch_message(msg.id)
-            await todelete.delete()
+        else:
+            source_support = self.__bot.platforms[msg.source]
+            try:
+                ch = source_support.get_channel(msg.channel_id)
+            except:
+                ch = await source_support.fetch_channel(msg.channel_id)
+            todelete = await source_support.fetch_message(ch,msg.id)
+            await source_support.delete(todelete)
 
     async def delete_copies(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
@@ -567,20 +769,20 @@ class UnifierBridge:
         async def delete_discord(msgs):
             count = 0
             threads = []
-            for key in list(self.bot.db['rooms'][msg.room].keys()):
+            for key in list(self.__bot.db['rooms'][msg.room]['discord'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
-                guild = self.bot.get_guild(int(key))
+                guild = self.__bot.get_guild(int(key))
                 try:
                     try:
-                        webhook = self.bot.bridge.webhook_cache.get_webhook([
-                            f'{self.bot.db["rooms"][msg.room][f"{guild.id}"][0]}'
+                        webhook = self.__bot.bridge.webhook_cache.get_webhook([
+                            f'{self.__bot.db["rooms"][msg.room]["discord"][f"{guild.id}"][0]}'
                         ])
                     except:
                         try:
-                            webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room][key][0])
-                            self.bot.bridge.webhook_cache.store_webhook(webhook)
+                            webhook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][msg.room]['discord'][key][0])
+                            self.__bot.bridge.webhook_cache.store_webhook(webhook)
                         except:
                             continue
                 except:
@@ -594,66 +796,42 @@ class UnifierBridge:
                 except:
                     # traceback.print_exc()
                     pass
-            await asyncio.gather(*threads)
+            try:
+                await asyncio.gather(*threads)
+            except:
+                pass
             return count
 
-        async def delete_guilded(msgs):
-            if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
-                return
+        async def delete_others(msgs, target):
             count = 0
             threads = []
-            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
+            support = self.__bot.platforms[target]
+            for key in list(self.__bot.db['rooms'][msg.room][target].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
-                guild = self.bot.guilded_client.get_server(key)
-
-                # Fetch webhook
-                try:
-                    webhook = await guild.fetch_webhook(self.bot.db['rooms_guilded'][msg.room][key][0])
-                except:
-                    continue
-
+                channel = support.get_channel(msgs[key][0])
+                todelete = await support.fetch_message(channel, msgs[key][1])
                 try:
                     threads.append(asyncio.create_task(
-                        webhook.delete_message(msgs[key][1])
+                        support.delete_message(todelete)
                     ))
                     count += 1
                 except:
-                    # traceback.print_exc()
                     pass
-            await asyncio.gather(*threads)
-            return count
-
-        async def delete_revolt(msgs):
-            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
-                return
-            count = 0
-            for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
-                if not key in list(msgs.keys()):
-                    continue
-
-                try:
-                    ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
-                    todelete = await ch.fetch_message(msgs[key][1])
-                    await todelete.delete()
-                    count += 1
-                except:
-                    # traceback.print_exc()
-                    continue
+            try:
+                await asyncio.gather(*threads)
+            except:
+                pass
             return count
 
         if msg.source=='discord':
             threads.append(asyncio.create_task(
                 delete_discord(msg.copies)
             ))
-        elif msg.source=='revolt':
+        else:
             threads.append(asyncio.create_task(
-                delete_revolt(msg.copies)
-            ))
-        elif msg.source=='guilded':
-            threads.append(asyncio.create_task(
-                delete_guilded(msg.copies)
+                delete_others(msg.copies,msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
@@ -661,13 +839,9 @@ class UnifierBridge:
                 threads.append(asyncio.create_task(
                     delete_discord(msg.external_copies['discord'])
                 ))
-            elif platform=='revolt':
+            else:
                 threads.append(asyncio.create_task(
-                    delete_revolt(msg.external_copies['revolt'])
-                ))
-            elif platform=='guilded':
-                threads.append(asyncio.create_task(
-                    delete_guilded(msg.external_copies['guilded'])
+                    delete_others(msg.external_copies[msg.source],msg.source)
                 ))
 
         results = await asyncio.gather(*threads)
@@ -705,13 +879,13 @@ class UnifierBridge:
                 userid = components[offset].split('>', 1)[0]
             try:
                 if source == 'revolt':
-                    user = self.bot.revolt_client.get_user(userid)
+                    user = self.__bot.revolt_client.get_user(userid)
                     display_name = user.display_name
                 elif source == 'guilded':
-                    user = self.bot.guilded_client.get_user(userid)
+                    user = self.__bot.guilded_client.get_user(userid)
                     display_name = user.display_name
                 else:
-                    user = self.bot.get_user(userid)
+                    user = self.__bot.get_user(userid)
                     display_name = user.global_name
                 if not user:
                     raise ValueError()
@@ -737,13 +911,13 @@ class UnifierBridge:
             try:
                 if source == 'revolt':
                     try:
-                        channel = self.bot.revolt_client.get_channel(channelid)
+                        channel = self.__bot.revolt_client.get_channel(channelid)
                     except:
-                        channel = await self.bot.revolt_client.fetch_channel(channelid)
+                        channel = await self.__bot.revolt_client.fetch_channel(channelid)
                 elif source == 'guilded':
-                    channel = self.bot.guilded_client.get_channel(channelid)
+                    channel = self.__bot.guilded_client.get_channel(channelid)
                 else:
-                    channel = self.bot.get_channel(channelid)
+                    channel = self.__bot.get_channel(channelid)
                 if not channel:
                     raise ValueError()
             except:
@@ -793,13 +967,13 @@ class UnifierBridge:
             else:
                 text = content
 
-            for key in list(self.bot.db['rooms'][msg.room].keys()):
+            for key in list(self.__bot.db['rooms'][msg.room]['discord'].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
                 # Fetch webhook
                 try:
-                    webhook = await self.bot.fetch_webhook(self.bot.db['rooms'][msg.room][key][0])
+                    webhook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][msg.room]['discord'][key][0])
                 except:
                     continue
 
@@ -813,66 +987,39 @@ class UnifierBridge:
 
             await asyncio.gather(*threads)
 
-        async def edit_revolt(msgs,friendly=False):
-            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
-                return
+        async def edit_others(msgs,target,friendly=False):
+            source_support = self.__bot.platforms[msg.source] if msg.source != 'discord' else None
+            dest_support = self.__bot.platforms[target]
             if friendly:
-                text = await self.make_friendly(content, msg.source)
+                if msg.source == 'discord':
+                    text = await self.make_friendly(content, msg.source)
+                else:
+                    text = await source_support.make_friendly(content)
             else:
                 text = content
 
-            for key in list(self.bot.db['rooms_revolt'][msg.room].keys()):
+            for key in list(self.__bot.db['rooms'][msg.room][target].keys()):
                 if not key in list(msgs.keys()):
                     continue
 
                 try:
-                    ch = await self.bot.revolt_client.fetch_channel(msgs[key][0])
-                    toedit = await ch.fetch_message(msgs[key][1])
-                    await toedit.edit(content=text)
+                    try:
+                        ch = dest_support.get_channel(msgs[key][0])
+                    except:
+                        ch = await dest_support.fetch_channel(msgs[key][0])
+                    toedit = await dest_support.fetch_message(ch, msgs[key][1])
+                    await dest_support.edit(toedit, text)
                 except:
                     traceback.print_exc()
                     continue
-
-        async def edit_guilded(msgs,friendly=False):
-            """Guilded does not support editing via webhooks at the moment.
-            We're just keeping this in case they change this at some point."""
-
-            threads = []
-            if friendly:
-                text = await self.make_friendly(content, msg.source)
-            else:
-                text = content
-
-            for key in list(self.bot.db['rooms_guilded'][msg.room].keys()):
-                if not key in list(msgs.keys()):
-                    continue
-
-                # Fetch webhook
-                try:
-                    webhook = await self.bot.guilded_client.fetch_webhook(self.bot.db['rooms_guilded'][msg.room][key][0])
-                except:
-                    continue
-
-                try:
-                    toedit = await webhook.fetch_message(msgs[key][1])
-                    if msg.reply:
-                        text = toedit.content.split('\n',1)[0]+'\n'+text
-                    threads.append(asyncio.create_task(
-                        toedit.edit(content=text)
-                    ))
-                except:
-                    traceback.print_exc()
-                    pass
-
-                await asyncio.gather(*threads)
 
         if msg.source=='discord':
             threads.append(asyncio.create_task(
                 edit_discord(msg.copies)
             ))
-        elif msg.source=='revolt':
+        else:
             threads.append(asyncio.create_task(
-                edit_revolt(msg.copies)
+                edit_others(msg.copies, msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
@@ -880,49 +1027,37 @@ class UnifierBridge:
                 threads.append(asyncio.create_task(
                     edit_discord(msg.external_copies['discord'],friendly=True)
                 ))
-            elif platform=='revolt':
+            else:
                 threads.append(asyncio.create_task(
-                    edit_revolt(msg.external_copies['revolt'],friendly=True)
+                    edit_others(msg.external_copies[platform],platform,friendly=True)
                 ))
 
         await asyncio.gather(*threads)
 
-    async def send(self, room: str, message: nextcord.Message or revolt.Message,
+    async def send(self, room: str, message,
                    platform: str = 'discord', system: bool = False,
-                   extbridge=False, id_override=None, ignore=None):
-        if is_room_locked(room,self.bot.db) and not message.author.id in self.bot.admins:
+                   extbridge=False, id_override=None, ignore=None, source='discord',
+                   content_override=None):
+        if is_room_locked(room,self.__bot.db) and not message.author.id in self.__bot.admins:
             return
         if ignore is None:
             ignore = []
-        source = 'discord'
-        extlist = list(self.bot.extensions)
-        if type(message) is revolt.Message:
-            if not 'cogs.bridge_revolt' in extlist:
-                raise RuntimeError('Revolt Support not initialized')
-            source = 'revolt'
-        if type(message) is guilded.ChatMessage:
-            if not 'cogs.bridge_guilded' in extlist:
-                raise RuntimeError('Guilded Support not initialized')
-            source = 'guilded'
+        selector = language.get_selector('bridge.bridge',userid=message.author.id)
 
-        if platform=='revolt':
-            if not 'cogs.bridge_revolt' in list(self.bot.extensions.keys()):
-                return
-        elif platform=='guilded':
-            if not 'cogs.bridge_guilded' in list(self.bot.extensions.keys()):
-                return
-        elif not platform=='discord':
-            raise ValueError("Unsupported platform")
+        source_support = self.__bot.platforms[source] if source != 'discord' else None
+        dest_support = self.__bot.platforms[platform] if platform != 'discord' else None
 
-        guilds = self.bot.db['rooms'][room]
-        if platform=='revolt':
-            guilds = self.bot.db['rooms_revolt'][room]
-        elif platform=='guilded':
-            guilds = self.bot.db['rooms_guilded'][room]
+        if not source in self.__bot.platforms.keys() and not source=='discord':
+            raise ValueError('invalid platform')
 
-        is_pr = room == self.bot.config['posts_room'] and (
-            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        if not platform in self.__bot.platforms.keys() and not platform=='discord':
+            raise ValueError('invalid platform')
+
+        guilds = self.__bot.db['rooms'][room][platform]
+
+        is_pr = room == self.__bot.config['posts_room'] and (
+            self.__bot.config['allow_prs'] if 'allow_prs' in list(self.__bot.config.keys()) else False or
+            self.__bot.config['allow_posts'] if 'allow_posts' in list(self.__bot.config.keys()) else False
         )
         is_pr_ref = False
         pr_id = ""
@@ -941,13 +1076,13 @@ class UnifierBridge:
                     is_pr = False
 
         # PR ID identification
-        temp_pr_ref = room == self.bot.config['posts_ref_room'] and (
-            self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-            self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+        temp_pr_ref = room == self.__bot.config['posts_ref_room'] and (
+            self.__bot.config['allow_prs'] if 'allow_prs' in list(self.__bot.config.keys()) else False or
+            self.__bot.config['allow_posts'] if 'allow_posts' in list(self.__bot.config.keys()) else False
         )
         if temp_pr_ref and message.content.startswith('[') and source==platform=='discord' and (
-                self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
-                self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
+                self.__bot.config['allow_prs'] if 'allow_prs' in list(self.__bot.config.keys()) else False or
+                self.__bot.config['allow_posts'] if 'allow_posts' in list(self.__bot.config.keys()) else False
         ):
             pr_id = None
             components = message.content.replace('[','',1).split(']')
@@ -1001,8 +1136,8 @@ class UnifierBridge:
 
             for x in range(index):
                 emoji = nextcord.utils.find(
-                    lambda e: e.name == name and not e.id in skip and e.guild_id in self.bot.db['emojis'],
-                    self.bot.emojis)
+                    lambda e: e.name == name and not e.id in skip and e.guild_id in self.__bot.db['emojis'],
+                    self.__bot.emojis)
                 if emoji == None:
                     failed = True
                     break
@@ -1029,45 +1164,48 @@ class UnifierBridge:
         if should_resend:
             if not message.channel.permissions_for(message.guild.me).manage_messages:
                 if emojified or is_pr_ref:
-                    await message.channel.send(
-                        'Parent message could not be deleted. I may be missing the `Manage Messages` permission.')
+                    await message.channel.send(selector.get('delete_fail'))
                     raise SelfDeleteException('Could not delete parent message')
                 elif is_pr:
-                    await message.channel.send(f'Post ID assigned: `{pr_id}`', reference=message)
+                    await message.channel.send(selector.fget('post_id',values={'post_id': pr_id}), reference=message)
                 should_resend = False
         elif is_pr and source == platform:
-            if source == 'revolt':
-                await message.channel.send(f'Post ID assigned: `{pr_id}`', replies=[revolt.MessageReply(message)])
-            elif source == 'guilded':
-                await message.channel.send(f'Post ID assigned: `{pr_id}`', reply_to=[message])
+            if not source=='discord':
+                channel = source_support.channel(message)
+                await source_support.send(channel, selector.fget('post_id',values={'post_id': pr_id}), reply=message)
 
         # Username
-        if source == 'revolt':
-            if not message.author.display_name:
-                author = message.author.name
-            else:
-                author = message.author.display_name
-        elif source == 'guilded':
-            author = message.author.name
-        else:
+        if source == 'discord':
             author = message.author.global_name if message.author.global_name else message.author.name
-        if f'{message.author.id}' in list(self.bot.db['nicknames'].keys()):
-            author = self.bot.db['nicknames'][f'{message.author.id}']
+            if f'{message.author.id}' in list(self.__bot.db['nicknames'].keys()):
+                author = self.__bot.db['nicknames'][f'{message.author.id}']
+        else:
+            author_obj = source_support.author(message)
+            author = source_support.display_name(author_obj)
+            if f'{source_support.get_id(author_obj)}' in list(self.__bot.db['nicknames'].keys()):
+                author = self.__bot.db['nicknames'][f'{source_support.get_id(author_obj)}']
 
         # Get dedupe
-        dedupe = await self.dedupe_name(author, message.author.id)
+        if source == 'discord':
+            author_id = message.author.id
+            is_bot = message.author.bot
+        else:
+            author_id = source_support.get_id(source_support.author(message))
+            is_bot = source_support.is_bot(source_support.author(message))
+
+        dedupe = await self.dedupe_name(author, author_id)
         should_dedupe = dedupe > -1
 
         # Emoji time
         useremoji = None
-        if self.bot.config['enable_emoji_tags'] and not system:
+        if self.__bot.config['enable_emoji_tags'] and not system:
             while True:
                 author_split = [*author]
                 if len(author_split) == 1:
-                    if source == 'guilded':
-                        author = 'Moderated username'
-                    else:
+                    if source == 'discord':
                         author = message.author.name
+                    else:
+                        author = source_support.user_name(message.author)
                     break
                 if pymoji.is_emoji(author_split[len(author_split)-1]):
                     author_split.pop(len(author_split)-1)
@@ -1077,33 +1215,48 @@ class UnifierBridge:
                 else:
                     break
             if (
-                    message.author.id == self.bot.config['owner'] or (
-                            message.author.id == self.bot.config['owner_external'][source]
-                            if source in self.bot.config['owner_external'].keys() else False
+                    author_id == self.__bot.config['owner'] or (
+                            author_id == self.__bot.config['owner_external'][source]
+                            if source in self.__bot.config['owner_external'].keys() else False
                     )
             ):
                 useremoji = '\U0001F451'
-            elif message.author.id in self.bot.admins:
+            elif author_id in self.__bot.admins:
                 useremoji = '\U0001F510'
-            elif message.author.id in self.bot.moderators:
+            elif author_id in self.__bot.moderators:
                 useremoji = '\U0001F6E1'
-            elif message.author.id in self.bot.db['trusted']:
+            elif author_id in self.__bot.db['trusted']:
                 useremoji = '\U0001F31F'
-            elif message.author.bot:
+            elif is_bot:
                 useremoji = '\U0001F916'
             elif should_dedupe:
                 useremoji = dedupe_emojis[dedupe]
+
+        if content_override:
+            msg_content = content_override
+        else:
+            if source=='discord':
+                msg_content = message.content
+            else:
+                msg_content = source_support.content(message)
 
         friendlified = False
         friendly_content = None
         if not source == platform:
             friendlified = True
-            friendly_content = await self.make_friendly(message.content, source)
+            if source=='discord':
+                friendly_content = await self.make_friendly(msg_content, source)
+            else:
+                try:
+                    friendly_content = await source_support.make_friendly(msg_content)
+                except platform_base.MissingImplementation:
+                    friendly_content = msg_content
 
         message_ids = {}
         urls = {}
         trimmed = ''
         replying = False
+        global_reply_v2 = False
 
         # Threading
         thread_urls = {}
@@ -1113,76 +1266,89 @@ class UnifierBridge:
         max_files = 0
 
         # Check attachments size
-        for attachment in message.attachments:
+        if source=='discord':
+            attachments = message.attachments
+        else:
+            attachments = source_support.attachments(message)
+        for attachment in attachments:
             if system:
                 break
-            size_total += attachment.size
+            if source=='discord':
+                size_total += attachment.size
+            else:
+                size_total += source_support.attachment_size(attachment)
             if size_total > 25000000:
-                if not self.bot.config['suppress_filesize_warning']:
-                    if source == platform == 'revolt':
-                        await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                                   replies=[revolt.MessageReply(message)])
-                    elif source == platform == 'guilded':
-                        await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
-                                                   reply_to=message)
-                    elif source == platform:
-                        await message.channel.send('Your files passed the 25MB limit. Some files will not be sent.',
+                if not self.__bot.config['suppress_filesize_warning'] and source == platform:
+                    if source=='discord':
+                        await message.channel.send(selector.get('filesize_limit'),
                                                    reference=message)
+                    else:
+                        await source_support.send(source_support.channel(message),selector.get('filesize_limit'),
+                                                  special={'reply':message})
                 break
             max_files += 1
 
         # Broadcast message
         for guild in list(guilds.keys()):
-            if source=='revolt' or source=='guilded':
-                sameguild = (guild == str(message.server.id)) if message.server else False
-            else:
+            if source=='discord':
+                reply_v2 = not (self.__bot.db['settings'][guild]['reply_v2_optout'] if guild in self.__bot.db['settings'].keys() else False)
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
+            else:
+                reply_v2 = False
+                compare_guild = source_support.server(message)
+                if not compare_guild:
+                    sameguild = False
+                else:
+                    guild_id = source_support.get_id(compare_guild)
+                    sameguild = (guild == str(guild_id))
 
             try:
-                bans = self.bot.db['blocked'][str(guild)]
+                bans = self.__bot.db['blocked'][str(guild)]
                 if source=='discord':
                     guildban = message.guild.id in bans
                 else:
-                    guildban = message.server.id in bans
-                if (message.author.id in bans or guildban) and not sameguild:
+                    guildban = source_support.server(message) in bans
+                if (author_id in bans or guildban) and not sameguild:
                     continue
             except:
                 pass
 
             # Destination guild object
-            destguild = None
+            if platform == 'discord':
+                destguild = self.__bot.get_guild(int(guild))
+                if not destguild:
+                    continue
+            else:
+                try:
+                    destguild = dest_support.get_server(guild)
+                    if not destguild:
+                        continue
+                except:
+                    continue
 
             if platform == 'discord':
-                destguild = self.bot.get_guild(int(guild))
-            elif platform == 'revolt':
-                try:
-                    destguild = self.bot.revolt_client.get_server(guild)
-                except:
+                if destguild.id in ignore:
                     continue
-            elif platform == 'guilded':
-                try:
-                    destguild = self.bot.guilded_client.get_server(guild)
-                except:
+            else:
+                if dest_support.get_id(destguild) in ignore:
                     continue
-
-            if not destguild:
-                continue
-
-            if destguild.id in ignore:
-                continue
 
             if sameguild and not system:
                 if not should_resend or not platform=='discord':
                     if platform=='discord':
                         urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
-                    elif platform=='guilded':
-                        urls.update({f'{message.server.id}': message.share_url})
+                    else:
+                        try:
+                            urls.update({f'{source_support.server(message)}': source_support.url(message)})
+                        except platform_base.MissingImplementation:
+                            pass
                     continue
 
             # Reply processing
             reply_msg = None
             components = None
             pr_actionrow = None
+            replytext = ''
 
             try:
                 if source=='revolt':
@@ -1205,7 +1371,8 @@ class UnifierBridge:
                         button_style = nextcord.ButtonStyle.gray
                     if is_pr:
                         pr_actionrow = ui.ActionRow(
-                            nextcord.ui.Button(style=button_style, label=f'Post ID: {pr_id}',
+                            nextcord.ui.Button(style=button_style,
+                                               label=selector.fget('post_id',values={'post_id': pr_id}),
                                                emoji='\U0001F4AC', disabled=True)
                         )
                     else:
@@ -1218,43 +1385,56 @@ class UnifierBridge:
                         else:
                             try:
                                 pr_actionrow = ui.ActionRow(
-                                    nextcord.ui.Button(style=nextcord.ButtonStyle.url, label=f'Referencing Post #{pr_id}',
+                                    nextcord.ui.Button(style=nextcord.ButtonStyle.url,
+                                                       label=selector.fget('post_reference',values={'post_id': pr_id}),
                                                        emoji='\U0001F517',url=await msg.fetch_url(guild))
                                 )
                             except:
                                 pr_actionrow = ui.ActionRow(
-                                    nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=f'Referencing Post #{pr_id}',
+                                    nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
+                                                       label=selector.fget('post_reference',values={'post_id': pr_id}),
                                                        emoji='\U0001F517', disabled=True)
                                 )
                     if pr_actionrow:
                         components = ui.View()
                         components.add_row(pr_actionrow)
                 if reply_msg:
-                    if True: # message.thread:
-                        # i probably want to research how nextcord threads work first, will come back to this
-                        pass
                     if not trimmed:
-                        is_copy = False
                         try:
-                            if source=='revolt':
-                                content = message.replies[0].content
-                            else:
+                            if source=='discord':
                                 content = message.reference.cached_message.content
-                        except:
-                            if source=='revolt':
-                                msg = await message.channel.fetch_message(message.replies[0].id)
-                            elif source=='guilded':
-                                msg = await message.channel.fetch_message(message.replied_to[0].id)
-                                if msg.webhook_id:
-                                    is_copy = True
                             else:
+                                # for NUPS, plugins process the content, not unifier
+                                msg = source_support.reply(message)
+                                if type(msg) is str or type(msg) is int:
+                                    msg = await source_support.fetch_message(
+                                        source_support.channel(message),msg
+                                    )
+                                content = source_support.content(msg)
+                        except:
+                            if source=='discord':
                                 msg = await message.channel.fetch_message(message.reference.message_id)
+                            else:
+                                raise
                             content = msg.content
+
+                        if source=='discord':
+                            used_reply_v2 = not (self.__bot.db['settings'][str(message.reference.guild_id)][
+                                'reply_v2_optout'] if str(message.reference.guild_id) in self.__bot.db[
+                                'settings'].keys() else False)
+                            if reply_msg.reply_v2 and (
+                                    str(message.reference.guild_id) in reply_msg.copies.keys() or
+                                    reply_msg.webhook
+                            ) and used_reply_v2:
+                                # remove "replying to" text
+                                content_comp = content.split('\n')
+                                if len(content_comp) == 1:
+                                    content = ''
+                                else:
+                                    content_comp.pop(0)
+                                    content = '\n'.join(content_comp)
+
                         clean_content = nextcord.utils.remove_markdown(content)
-
-                        if reply_msg.reply and source=='guilded' and is_copy:
-                            clean_content = clean_content.split('\n',1)[1]
-
                         msg_components = clean_content.split('<@')
                         offset = 0
                         if clean_content.startswith('<@'):
@@ -1266,7 +1446,7 @@ class UnifierBridge:
                             except:
                                 offset += 1
                                 continue
-                            user = self.bot.get_user(userid)
+                            user = self.__bot.get_user(userid)
                             if user:
                                 clean_content = clean_content.replace(f'<@{userid}>',
                                                                       f'@{user.global_name}').replace(
@@ -1287,133 +1467,182 @@ class UnifierBridge:
                         button_style = nextcord.ButtonStyle.gray
 
                     try:
-                        if reply_msg.source=='revolt':
-                            user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            author_text = f'@{user.display_name or user.name}'
-                        elif reply_msg.source=='guilded':
-                            user = self.bot.guilded_client.get_user(reply_msg.author_id)
-                            author_text = f'@{user.name}'
-                        else:
-                            user = self.bot.get_user(int(reply_msg.author_id))
+                        if reply_msg.source=='discord':
+                            user = self.__bot.get_user(int(reply_msg.author_id))
                             author_text = f'@{user.global_name or user.name}'
-                        if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
-                            author_text = '@'+self.bot.db['nicknames'][f'{reply_msg.author_id}']
+                        else:
+                            user = source_support.get_user(reply_msg.author_id)
+                            author_text = f'@{source_support.display_name(user)}'
+                        if f'{reply_msg.author_id}' in list(self.__bot.db['nicknames'].keys()):
+                            author_text = '@'+self.__bot.db['nicknames'][f'{reply_msg.author_id}']
                     except:
                         pass
 
                     # Prevent empty buttons
                     try:
-                        count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
-                    except:
-                        if source == 'revolt':
-                            msg = await message.channel.fetch_message(message.replies[0].id)
-                        elif source == 'guilded':
-                            msg = await message.channel.fetch_message(message.replied_to[0].id)
+                        if source == 'discord':
+                            count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
                         else:
+                            reply_msg_id = source_support.reply(message)
+                            if type(reply_msg_id) is str or type(reply_msg_id) is int:
+                                msg = await source_support.fetch_message(
+                                    source_support.channel(message), reply_msg_id
+                                )
+                            else:
+                                msg = reply_msg_id
+                            count = len(source_support.embeds(msg)) + len(source_support.attachments(msg))
+                    except:
+                        if source == 'discord':
                             msg = await message.channel.fetch_message(message.reference.message_id)
+                        else:
+                            raise
                         count = len(msg.embeds) + len(msg.attachments)
 
                     if len(trimmed)==0:
                         content_btn = nextcord.ui.Button(
                             style=button_style,label=f'x{count}', emoji='\U0001F3DE', disabled=True
                         )
+                        replytext = f'*:park: x{count}*'
                     else:
                         content_btn = nextcord.ui.Button(
                             style=button_style, label=trimmed, disabled=True
                         )
+                        replytext = f'*{trimmed}*'
+
+                    global_reply_v2 = True
 
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
+                        components = ui.View()
                         try:
-                            components = ui.View()
-                            components.add_rows(
-                                pr_actionrow,
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.url, label='Replying to ' + author_text,
-                                        url=await reply_msg.fetch_url(guild)
+                            if not reply_v2:
+                                components.add_rows(
+                                    pr_actionrow,
+                                    ui.ActionRow(
+                                        nextcord.ui.Button(
+                                            style=nextcord.ButtonStyle.url,
+                                            label=selector.fget('replying',values={'user': author_text}),
+                                            url=await reply_msg.fetch_url(guild)
+                                        )
+                                    ),
+                                    ui.ActionRow(
+                                        content_btn
                                     )
-                                ),
-                                ui.ActionRow(
-                                    content_btn
                                 )
+                            else:
+                                components.add_row(
+                                    pr_actionrow
+                                )
+                            replytext = (
+                                f'-# {arrow_unicode} ' +
+                                f'[{selector.fget("replying", values={"user": author_text})}](<{await reply_msg.fetch_url(guild)}>)' +
+                                f' - {replytext}'
                             )
                         except:
-                            components = ui.View()
-                            components.add_rows(
-                                pr_actionrow,
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
+                            if not reply_v2:
+                                components.add_rows(
+                                    pr_actionrow,
+                                    ui.ActionRow(
+                                        nextcord.ui.Button(
+                                            style=nextcord.ButtonStyle.gray,
+                                            label=selector.fget('replying',values={'user': '[unknown]'}),
+                                            disabled=True
+                                        )
                                     )
                                 )
-                            )
+                            else:
+                                components.add_row(
+                                    pr_actionrow
+                                )
+                            replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[unknown"})}\n'
                     else:
                         try:
-                            components = ui.View()
-                            components.add_rows(
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.url, label='Replying to '+author_text,
-                                        url=await reply_msg.fetch_url(guild)
+                            if not reply_v2:
+                                components = ui.View()
+                                components.add_rows(
+                                    ui.ActionRow(
+                                        nextcord.ui.Button(
+                                            style=nextcord.ButtonStyle.url,
+                                            label=selector.fget('replying',values={'user': author_text}),
+                                            url=await reply_msg.fetch_url(guild)
+                                        )
+                                    ),
+                                    ui.ActionRow(
+                                        content_btn
                                     )
-                                ),
-                                ui.ActionRow(
-                                    content_btn
                                 )
+                            replytext = (
+                                f'-# {arrow_unicode} '+
+                                f'[{selector.fget("replying",values={"user": author_text})}](<{await reply_msg.fetch_url(guild)}>)'+
+                                f' - {replytext}\n'
                             )
                         except:
-                            components = ui.View(
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
+                            if not reply_v2:
+                                components = ui.View()
+                                components.add_rows(
+                                    ui.ActionRow(
+                                        nextcord.ui.Button(
+                                            style=nextcord.ButtonStyle.gray,
+                                            label=selector.fget('replying',values={'user': '[unknown]'}),
+                                            disabled=True
+                                        )
+                                    ),
+                                    ui.ActionRow(
+                                        content_btn
                                     )
-                                ),
-                                ui.ActionRow(
-                                    content_btn
                                 )
-                            )
+                            replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[unknown]"})}\n'
                 elif replying:
+                    global_reply_v2 = True
                     try:
-                        if source == 'revolt':
-                            authid = message.replies[0].author.id
-                        elif source == 'guilded':
-                            authid = message.replied_to[0].author.id
-                        else:
+                        if source == 'discord':
                             if message.reference.cached_message:
                                 authid = message.reference.cached_message.author.id
                             else:
                                 authmsg = await message.channel.fetch_message(message.reference.message_id)
                                 authid = authmsg.author.id
+                        else:
+                            reply_msg_id = source_support.reply(message)
+                            if type(reply_msg_id) is str or type(reply_msg_id) is int:
+                                authmsg = await source_support.fetch_message(
+                                    source_support.channel(message), reply_msg_id
+                                )
+                            else:
+                                authmsg = reply_msg_id
+                            authid = source_support.get_id(source_support.author(authmsg))
                     except:
                         authid = None
-                    try:
-                        botrvt = authid==self.bot.revolt_client.user.id
-                    except:
-                        botrvt = False
-                    try:
-                        botgld = authid==self.bot.guilded_client.user.id
-                    except:
-                        botgld = False
-                    if authid==self.bot.user.id or botrvt or botgld:
+                    botext = authid == source_support.bot_id()
+
+                    if authid==self.__bot.user.id or botext:
                         reply_row = ui.ActionRow(
-                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [system]',
+                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
+                                               label=selector.fget('replying',values={'user': '[system]'}),
                                                disabled=True)
                         )
+                        replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[system]"})}\n'
                     else:
                         reply_row = ui.ActionRow(
-                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Replying to [unknown]',
+                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
+                                               label=selector.fget('replying',values={'user': '[unknown]'}),
                                                disabled=True)
                         )
-                    if pr_actionrow:
+                        replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[unknown]"})}\n'
+                    if not reply_v2:
+                        if pr_actionrow:
+                            components = ui.MessageComponents()
+                            components.add_rows(
+                                pr_actionrow,reply_row
+                            )
+                        else:
+                            components = ui.MessageComponents()
+                            components.add_rows(
+                                reply_row
+                            )
+                    elif pr_actionrow:
                         components = ui.MessageComponents()
                         components.add_rows(
-                            pr_actionrow,reply_row
-                        )
-                    else:
-                        components = ui.MessageComponents()
-                        components.add_rows(
-                            reply_row
+                            pr_actionrow
                         )
 
             # Attachment processing
@@ -1430,48 +1659,39 @@ class UnifierBridge:
                                     return await source_file.to_file(use_cached=True, spoiler=False)
                                 except:
                                     return await source_file.to_file(use_cached=False, spoiler=False)
-                        elif source == 'revolt':
-                            filebytes = await source_file.read()
-                            return nextcord.File(fp=BytesIO(filebytes), filename=source_file.filename)
-                        elif source == 'guilded':
-                            tempfile = await source_file.to_file()
-                            return nextcord.File(fp=tempfile.fp, filename=source_file.filename)
-                    elif platform == 'revolt':
+                        else:
+                            return await source_support.to_discord_file(source_file)
+                    else:
                         if source == 'discord':
-                            f = await source_file.to_file(use_cached=True)
-                            return revolt.File(f.fp.read(), filename=f.filename)
-                        elif source == 'guilded':
-                            f = await source_file.to_file()
-                            return revolt.File(f.fp.read(), filename=f.filename)
-                        elif source == 'revolt':
-                            filebytes = await source_file.read()
-                            return revolt.File(filebytes, filename=source_file.filename)
-                    elif platform == 'guilded':
-                        if source == 'guilded':
-                            try:
-                                return await source_file.to_file()
-                            except:
-                                return await source_file.to_file()
-                        elif source == 'revolt':
-                            filebytes = await source_file.read()
-                            return guilded.File(fp=BytesIO(filebytes), filename=source_file.filename)
-                        elif source == 'discord':
-                            tempfile = await source_file.to_file(use_cached=True)
-                            return guilded.File(fp=tempfile.fp, filename=source_file.filename)
+                            return await dest_support.to_platform_file(source_file)
+                        else:
+                            # use nextcord.File as a universal file object
+                            return await dest_support.to_platform_file(
+                                await source_support.to_discord_file(source_file)
+                            )
 
                 index = 0
                 for attachment in attachments:
                     if system:
                         break
-                    if source == 'guilded':
-                        if not attachment.file_type.image and not attachment.file_type.video:
-                            continue
-                    else:
+                    if source == 'discord':
                         if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                                 not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
-                                self.bot.config['safe_filetypes']) or attachment.size > 25000000:
+                                self.__bot.config['safe_filetypes']) or attachment.size > 25000000:
                             continue
-                    files.append(await to_file(attachment))
+                    else:
+                        attachment_size = source_support.attachment_size(attachment)
+                        content_type = source_support.attachment_size(attachment)
+                        if (
+                                not 'audio' in content_type and not 'video' in content_type and not 'image' in content.type
+                                and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
+                        ) or attachment_size > 25000000 or not dest_support.attachment_type_allowed(content_type):
+                            continue
+
+                    try:
+                        files.append(await to_file(attachment))
+                    except platform_base.MissingImplementation:
+                        continue
                     index += 1
                     if index >= max_files:
                         break
@@ -1480,30 +1700,35 @@ class UnifierBridge:
 
             # Avatar
             try:
-                if f'{message.author.id}' in self.bot.db['avatars']:
-                    url = self.bot.db['avatars'][f'{message.author.id}']
+                if f'{author_id}' in self.__bot.db['avatars']:
+                    url = self.__bot.db['avatars'][f'{author_id}']
                 else:
-                    url = message.author.avatar.url
+                    if source == 'discord':
+                        url = message.author.avatar.url
+                    else:
+                        url = source_support.avatar(message.author)
             except:
                 url = None
 
             if system:
                 try:
-                    url = self.bot.user.avatar.url
+                    url = self.__bot.user.avatar.url
                 except:
                     url = None
 
             # Add system identifier
             msg_author = author
             if system:
-                msg_author = self.bot.user.global_name if self.bot.user.global_name else self.bot.user.name + ' (system)'
+                msg_author = (
+                    self.__bot.user.global_name if self.__bot.user.global_name else self.__bot.user.name
+                )+ ' (system)'
 
             # Send message
             embeds = message.embeds
             if not message.author.bot and not system:
                 embeds = []
 
-            if msg_author.lower()==f'{self.bot.user.name} (system)'.lower() and not system:
+            if msg_author.lower()==f'{self.__bot.user.name} (system)'.lower() and not system:
                 msg_author = '[hidden username]'
 
             if platform=='discord':
@@ -1518,26 +1743,41 @@ class UnifierBridge:
 
                 webhook = None
                 try:
-                    webhook = self.bot.bridge.webhook_cache.get_webhook(
-                        f'{self.bot.db["rooms"][room][guild][0]}'
+                    webhook = self.__bot.bridge.webhook_cache.get_webhook(
+                        f'{self.__bot.db["rooms"][room]["discord"][guild][0]}'
                     )
                 except:
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
                     hooks = await destguild.webhooks()
-                    self.bot.bridge.webhook_cache.store_webhooks(hooks)
+                    self.__bot.bridge.webhook_cache.store_webhooks(hooks)
                     for hook in hooks:
-                        if hook.id in self.bot.db['rooms'][room][guild]:
+                        if hook.id in self.__bot.db['rooms'][room]['discord'][guild]:
                             webhook = hook
                             break
                 if not webhook:
                     continue
 
+                # fun fact: tbsend stands for "threaded bridge send", but we read it
+                # as "turbo send", because it sounds cooler and tbsend is what lets
+                # unifier bridge using webhooks with ultra low latency.
                 async def tbsend(webhook,url,msg_author_dc,embeds,message,mentions,components,sameguild,
                                  destguild):
                     try:
+                        tosend_content = replytext+(friendly_content if friendlified else msg_content)
+                        if len(tosend_content) > 2000:
+                            tosend_content = tosend_content[:-(len(tosend_content)-2000)]
+                            if not components:
+                                components = ui.MessageComponents()
+                            components.add_row(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray,label='[Message truncated]',disabled=True
+                                    )
+                                )
+                            )
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=friendly_content if friendlified else message.content,
+                                                 content=tosend_content,
                                                  files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
@@ -1546,7 +1786,8 @@ class UnifierBridge:
                     tbresult = [
                         {f'{destguild.id}': [webhook.channel.id, msg.id]},
                         {f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'},
-                        [sameguild, msg.id]
+                        [sameguild, msg.id],
+                        reply_v2
                     ]
                     return tbresult
 
@@ -1556,9 +1797,21 @@ class UnifierBridge:
                                                               destguild)))
                 else:
                     try:
+                        tosend_content = replytext + (friendly_content if friendlified else msg_content)
+                        if len(tosend_content) > 2000:
+                            tosend_content = tosend_content[:-(len(tosend_content) - 2000)]
+                            if not components:
+                                components = ui.MessageComponents()
+                            components.add_row(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray, label='[Message truncated]', disabled=True
+                                    )
+                                )
+                            )
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=friendly_content if friendlified else message.content,
+                                                 content=tosend_content,
                                                  files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
@@ -1566,193 +1819,118 @@ class UnifierBridge:
                         continue
                     message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
-            elif platform=='revolt':
+            else:
                 try:
-                    ch = destguild.get_channel(self.bot.db['rooms_revolt'][room][guild][0])
+                    ch = dest_support.get_channel(self.__bot.db['rooms'][room][platform][guild][0])
                 except:
-                    ch = await self.bot.revolt_client.fetch_channel(self.bot.db['rooms_revolt'][room][guild][0])
+                    ch = await dest_support.fetch_channel(self.__bot.db['rooms'][room][platform][guild][0])
 
-                # Processing replies for Revolt here for efficiency
-                replies = []
                 try:
                     if reply_msg:
-                        if reply_msg.source=='revolt':
+                        if reply_msg.source==platform:
                             try:
-                                msg = await ch.fetch_message(await reply_msg.fetch_id(destguild.id))
-                                replies = [revolt.MessageReply(msg)]
+                                msg = await source_support.fetch_message(ch, await reply_msg.fetch_id(destguild.id))
+                                reply = msg
                             except:
-                                pass
+                                reply = None
                         else:
-                            msg_ref = await reply_msg.fetch_external('revolt',destguild.id)
-                            msg = await ch.fetch_message(msg_ref.id)
-                            replies = [revolt.MessageReply(msg)]
+                            msg_ref = await reply_msg.fetch_external(platform, destguild.id)
+                            msg = source_support.fetch_message(ch, msg_ref.id)
+                            reply = msg
+                    else:
+                        reply = None
                 except:
-                    pass
+                    reply = None
 
-                rvtcolor = None
-                if str(message.author.id) in list(self.bot.db['colors'].keys()):
-                    color = self.bot.db['colors'][str(message.author.id)]
+                color = None
+                if str(author_id) in list(self.__bot.db['colors'].keys()):
+                    color = self.__bot.db['colors'][str(author_id)]
                     if color == 'inherit':
-                        if source=='revolt':
-                            try:
-                                color = message.author.roles[len(message.author.roles) - 1].colour.replace('#', '')
-                                rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
-                                rvtcolor = f'rgb{rgbtuple}'
-                            except:
-                                pass
-                        else:
-                            rvtcolor = f'rgb({message.author.color.r},{message.author.color.g},{message.author.color.b})'
-                    else:
-                        try:
-                            rgbtuple = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
-                            rvtcolor = f'rgb{rgbtuple}'
-                        except:
-                            pass
+                        roles = source_support.roles(source_support.author(message))
+                        color = source_support.get_hex(roles[len(roles)-1])
 
-                msg_author_rv = msg_author
-                if len(msg_author) > 32:
-                    msg_author_rv = msg_author[:-(len(msg_author)-32)]
-                    if useremoji:
-                        msg_author_rv = msg_author[:-2]
-
-                if useremoji:
-                    msg_author_rv = msg_author_rv + ' ' + useremoji
-
-                try:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
-                except:
-                    persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
-                try:
+                async def tbsend(msg_author,url,color,useremoji,reply,content):
                     files = await get_files(message.attachments)
-                    msg = await ch.send(
-                        content=friendly_content if friendlified else message.content, embeds=message.embeds,
-                        attachments=files, replies=replies, masquerade=persona
+                    special = {
+                        'bridge': {
+                            'name': msg_author,
+                            'avatar': url,
+                            'color': color,
+                            'emoji': useremoji
+                        },
+                        'files': files,
+                        'embeds': (
+                            dest_support.convert_embeds(message.embeds) if source=='discord'
+                            else dest_support.convert_embeds(
+                                source_support.convert_embeds_discord(
+                                    source_support.embeds(message)
+                                )
+                            )
+                        ),
+                        'reply': None
+                    }
+                    if reply:
+                        special.update({'reply': reply})
+                    msg = await dest_support.send(
+                        ch, content, special=special
                     )
-                except:
-                    continue
-
-                message_ids.update({destguild.id:[ch.id,msg.id]})
-            elif platform=='guilded':
-                try:
-                    webhook = self.bot.bridge.webhook_cache.get_webhook([f'{self.bot.db["rooms_guilded"][room][guild][0]}'])
-                except:
-                    try:
-                        webhook = await destguild.fetch_webhook(self.bot.db["rooms_guilded"][room][guild][0])
-                        self.bot.bridge.webhook_cache.store_webhook(webhook)
-                    except:
-                        continue
-
-                # Processing replies for Revolt here for efficiency
-                replytext = ''
-
-                if not trimmed and reply_msg:
-                    is_copy = False
-                    try:
-                        content = message.reference.cached_message.content
-                    except:
-                        if source == 'revolt':
-                            msg = await message.channel.fetch_message(message.replies[0].id)
-                        elif source == 'guilded':
-                            msg = await message.channel.fetch_message(message.replied_to[0].id)
-                            if msg.webhook_id:
-                                is_copy = True
-                        else:
-                            msg = await message.channel.fetch_message(message.reference.message_id)
-                        content = msg.content
-                    clean_content = nextcord.utils.remove_markdown(content)
-
-                    if reply_msg.reply and source == 'guilded' and is_copy:
-                        clean_content = clean_content.split('\n', 1)[1]
-
-                    msg_components = clean_content.split('<@')
-                    offset = 0
-                    if clean_content.startswith('<@'):
-                        offset = 1
-
-                    while offset < len(msg_components):
-                        try:
-                            userid = int(msg_components[offset].split('>', 1)[0])
-                        except:
-                            offset += 1
-                            continue
-                        user = self.bot.get_user(userid)
-                        if user:
-                            clean_content = clean_content.replace(f'<@{userid}>',
-                                                                  f'@{user.global_name}').replace(
-                                f'<@!{userid}>', f'@{user.global_name}')
-                        offset += 1
-                    if len(clean_content) > 80:
-                        trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
-                    else:
-                        trimmed = clean_content
-                    trimmed = trimmed.replace('\n', ' ')
-
-                if reply_msg:
-                    author_text = '[unknown]'
-
-                    try:
-                        if reply_msg.source == 'revolt':
-                            user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            if not user.display_name:
-                                author_text = f'@{user.name}'
-                            else:
-                                author_text = f'@{user.display_name}'
-                        elif reply_msg.source == 'guilded':
-                            user = self.bot.guilded_client.get_user(reply_msg.author_id)
-                            author_text = f'@{user.name}'
-                        else:
-                            user = self.bot.get_user(int(reply_msg.author_id))
-                            author_text = f'@{user.global_name}'
-                        if f'{reply_msg.author_id}' in list(self.bot.db['nicknames'].keys()):
-                            author_text = '@' + self.bot.db['nicknames'][f'{reply_msg.author_id}']
-                    except:
-                        pass
-
-                    try:
-                        replytext = f'**[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
-                    except:
-                        replytext = f'**Replying to [unknown]**\n'
-
-                if len(replytext+message.content)==0:
-                    replytext = '[empty message]'
-
-                msg_author_gd = msg_author
-                if len(msg_author) > 25:
-                    msg_author_gd = msg_author[:-(len(msg_author) - 25)]
-
-                async def tbsend(webhook, url, msg_author_gd, embeds, message, replytext, sameguild, destguild):
-                    files = await get_files(message.attachments)
-                    try:
-                        msg = await webhook.send(avatar_url=url,
-                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                                 embeds=embeds,
-                                                 content=replytext + (friendly_content if friendlified else message.content),
-                                                 files=files)
-                    except:
-                        return None
-
-                    gdresult = [
-                        {f'{destguild.id}': [msg.channel.id, msg.id]},
-                        {f'{destguild.id}': msg.share_url},
-                        [sameguild, msg.id]
+                    tbresult = [
+                        {f'{dest_support.get_id(destguild)}': [
+                            dest_support.get_id(dest_support.channel(msg)), dest_support.get_id(msg)
+                        ]},
+                        None,
+                        [sameguild, dest_support.get_id(msg)]
                     ]
-                    return gdresult
+                    try:
+                        tbresult[1] = {
+                            f'{dest_support.get_id(destguild)}': dest_support.url(msg)
+                        }
+                    except platform_base.MissingImplementation:
+                        pass
+                    return tbresult
 
-                if tb_v2:
-                    threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_gd, embeds, message, replytext,
-                                                              sameguild, destguild)))
+                if dest_support.enable_tb:
+                    threads.append(asyncio.create_task(tbsend(
+                        msg_author,url,color,useremoji,reply,friendly_content if friendlified else msg_content
+                    )))
                 else:
                     try:
                         files = await get_files(message.attachments)
-                        msg = await webhook.send(avatar_url=url,
-                                                 username=msg_author_gd.encode("ascii", errors="ignore").decode(),
-                                                 embeds=embeds,
-                                                 content=replytext+(friendly_content if friendlified else message.content),
-                                                 files=files)
+                        special = {
+                            'bridge': {
+                                'name': msg_author,
+                                'avatar': url,
+                                'color': color,
+                                'emoji': useremoji
+                            },
+                            'files': files,
+                            'embeds': (
+                                dest_support.convert_embeds(message.embeds) if source=='discord'
+                                else dest_support.convert_embeds(
+                                    source_support.convert_embeds_discord(
+                                        source_support.embeds(message)
+                                    )
+                                )
+                            ),
+                            'reply': None
+                        }
+                        if reply:
+                            special.update({'reply': reply})
+                        msg = await dest_support.send(
+                            ch, friendly_content if friendlified else msg_content, special=special
+                        )
                     except:
                         continue
-                    message_ids.update({f'{destguild.id}':[msg.channel.id,msg.id]})
-                    urls.update({f'{destguild.id}':msg.share_url})
+
+                    message_ids.update({
+                        str(dest_support.get_id(destguild)): [
+                            dest_support.get_id(ch),dest_support.get_id(msg)
+                        ]
+                    })
+                    try:
+                        urls.update({str(dest_support.get_id(destguild)): dest_support.url(msg)})
+                    except platform_base.MissingImplementation:
+                        pass
 
         # Update cache
         tbv2_results = []
@@ -1767,7 +1945,8 @@ class UnifierBridge:
                 if not result:
                     continue
                 message_ids.update(result[0])
-                urls.update(result[1])
+                if result[1]:
+                    urls.update(result[1])
                 if result[2][0]:
                     parent_id = result[2][1]
 
@@ -1778,7 +1957,7 @@ class UnifierBridge:
             self.prs.update({pr_id: parent_id})
 
         if system:
-            msg_author = self.bot.user.id
+            msg_author = self.__bot.user.id
         else:
             msg_author = message.author.id
 
@@ -1797,6 +1976,7 @@ class UnifierBridge:
                 except:
                     self.bridged[index].external_copies.update({platform: message_ids})
             self.bridged[index].urls = self.bridged[index].urls | urls
+            self.bridged[index].reply_v2 = global_reply_v2 if not self.bridged[index].reply_v2 else self.bridged[index].reply_v2
         except:
             copies = {}
             external_copies = {}
@@ -1810,7 +1990,7 @@ class UnifierBridge:
                 server_id = message.guild.id
             if extbridge:
                 try:
-                    hook = await self.bot.fetch_webhook(message.webhook_id)
+                    hook = await self.__bot.fetch_webhook(message.webhook_id)
                     msg_author = hook.user.id
                 except:
                     pass
@@ -1827,7 +2007,8 @@ class UnifierBridge:
                 prehook=message.id,
                 room=room,
                 reply=replying,
-                external_bridged=extbridge
+                external_bridged=extbridge,
+                reply_v2=global_reply_v2
             ))
             if datetime.datetime.now().day != self.msg_stats_reset:
                 self.msg_stats = {}
@@ -1839,10 +2020,10 @@ class UnifierBridge:
 
 class WebhookCacheStore:
     def __init__(self, bot):
-        self.bot = bot
+        self.__bot = bot
         self.__webhooks = {}
 
-    def store_webhook(self, webhook: nextcord.Webhook or guilded.Webhook):
+    def store_webhook(self, webhook: nextcord.Webhook):
         if not webhook.guild.id in self.__webhooks.keys():
             self.__webhooks.update({webhook.guild.id: {webhook.id: webhook}})
         self.__webhooks[webhook.guild.id].update({webhook.id: webhook})
@@ -1887,7 +2068,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     Developed by Green and ItsAsheer"""
 
     def __init__(self, bot):
+        global language
         self.bot = bot
+        language = self.bot.langmgr
         restrictions.attach_bot(self.bot)
         if not hasattr(self.bot, 'bridged'):
             self.bot.bridged = []
@@ -1936,75 +2119,79 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if webhook_cache:
             self.bot.bridge.webhook_cache = webhook_cache
 
-    @commands.command(aliases=['colour'],description='Sets Revolt color.')
+    @commands.command(aliases=['colour'],description=language.desc('bridge.color'))
     async def color(self,ctx,*,color=''):
+        selector = language.get_selector(ctx)
         if color=='':
             try:
                 current_color = self.bot.db['colors'][f'{ctx.author.id}']
                 if current_color=='':
-                    current_color = 'Default'
+                    current_color = selector.get('default')
                     embed_color = self.bot.colors.unifier
                 elif current_color=='inherit':
-                    current_color = 'Inherit from role'
+                    current_color = selector.get('inherit')
                     embed_color = ctx.author.color.value
                 else:
                     embed_color = ast.literal_eval('0x'+current_color)
             except:
                 current_color = 'Default'
                 embed_color = self.bot.colors.unifier
-            embed = nextcord.Embed(title='Your Revolt color',description=current_color,color=embed_color)
+            embed = nextcord.Embed(title=selector.get('title'),description=current_color,color=embed_color)
             await ctx.send(embed=embed)
         elif color=='inherit':
             self.bot.db['colors'].update({f'{ctx.author.id}':'inherit'})
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send('Your Revolt messages will now inherit your Discord role color.')
+            await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_inherit'))
         else:
             try:
                 tuple(int(color.replace('#','',1)[i:i + 2], 16) for i in (0, 2, 4))
             except:
-                return await ctx.send('Invalid hex code!')
+                return await ctx.send(selector.get('invalid'))
             self.bot.db['colors'].update({f'{ctx.author.id}':color})
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send('Your Revolt messages will now inherit the custom color.')
+            await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_custom'))
 
-    @commands.command(description='Sets a nickname. An empty provided nickname will reset it.')
+    @commands.command(description=language.desc('bridge.nickname'))
     async def nickname(self, ctx, *, nickname=''):
+        selector = language.get_selector(ctx)
         if len(nickname) > 33:
-            return await ctx.send('Please keep your nickname within 33 characters.')
+            return await ctx.send(selector.get('exceed'))
         if len(nickname) == 0:
             self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
         else:
             self.bot.db['nicknames'].update({f'{ctx.author.id}': nickname})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send('Nickname updated.')
+        await ctx.send(selector.get('success'))
 
-    @commands.command(description='Measures bot latency.')
+    @commands.command(description=language.desc('bridge.ping'))
     async def ping(self, ctx):
+        selector = language.get_selector(ctx)
         t = time.time()
-        msg = await ctx.send('Ping!')
+        msg = await ctx.send(selector.get('ping'))
         diff = round((time.time() - t) * 1000, 1)
-        text = 'Pong! :ping_pong:'
+        text = selector.get('pong')+' :ping_pong:'
         if diff <= 300 and self.bot.latency <= 0.2:
-            embed = nextcord.Embed(title='Normal - all is well!',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nAll is working normally!',
+            embed = nextcord.Embed(title=selector.get('normal_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('normal_body'),
                                    color=self.bot.colors.success)
         elif diff <= 600 and self.bot.latency <= 0.5:
-            embed = nextcord.Embed(title='Fair - could be better.',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nNothing\'s wrong, but the latency could be better.',
+            embed = nextcord.Embed(title=selector.get('fair_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('fair_body'),
                                    color=self.bot.colors.warning)
         elif diff <= 2000 and self.bot.latency <= 1.0:
-            embed = nextcord.Embed(title='SLOW - __**oh no.**__',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nBot latency is higher than normal, messages may be slow to arrive.',
+            embed = nextcord.Embed(title=selector.get('slow_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('slow_body'),
                                    color=self.bot.colors.error)
         else:
-            text = 'what'
-            embed = nextcord.Embed(title='**WAY TOO SLOW**',
-                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\nSomething is DEFINITELY WRONG here. Consider checking [Discord status](https://discordstatus.com) page.',
+            text = selector.get('what')
+            embed = nextcord.Embed(title=selector.get('tooslow_title'),
+                                   description=f'Roundtrip: {diff}ms\nHeartbeat: {round(self.bot.latency * 1000, 1)}ms\n\n'+selector.get('tooslow_body'),
                                    color=self.bot.colors.critical)
         await msg.edit(content=text, embed=embed)
 
-    @commands.command(description='Shows a list of all global emojis available on the instance.')
+    @commands.command(description=language.desc('bridge.emojis'))
     async def emojis(self,ctx):
+        selector = language.get_selector(ctx)
         panel = 0
         limit = 8
         page = 0
@@ -2035,10 +2222,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if interaction:
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis'
-                embed.description = 'Choose an emoji to view its info!'
+                embed.title = f'{self.bot.ui_emojis.emoji} '+selector.fget("title",values={"botname": self.bot.user.global_name or self.bot.user.name})
+                embed.description = selector.get('body')
                 selection = nextcord.ui.StringSelect(
-                    max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                    max_values=1, min_values=1, custom_id='selection', placeholder=selector.get('selection_emoji')
                 )
 
                 for x in range(limit):
@@ -2064,8 +2251,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     )
                 if len(embed.fields)==0:
                     embed.add_field(
-                        name='No emojis',
-                        value='There\'s no global emojis here!',
+                        name=selector.get('noresults_title'),
+                        value=selector.get('noresults_body_emoji'),
                         inline=False
                     )
                     selection.add_option(
@@ -2081,21 +2268,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
+                            label=language.get('prev','commons.navigation',language=selector.language_set),
                             custom_id='prev',
                             disabled=page <= 0 or selection.disabled,
                             emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Next',
+                            label=language.get('next','commons.navigation',language=selector.language_set),
                             custom_id='next',
                             disabled=page >= maxpage or selection.disabled,
                             emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label='Search',
+                            label=language.get('search','commons.navigation',language=selector.language_set),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search,
                             disabled=selection.disabled
@@ -2117,25 +2304,25 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         offset += 1
 
                 embed.title = f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / search'
-                embed.description = 'Choose an emoji to view its info!'
+                embed.description = selector.get('body')
 
                 if len(emojis) == 0:
                     maxpage = 0
                     embed.add_field(
-                        name='No emojis',
-                        value='There are no emojis matching your search query.',
+                        name=selector.get('noresults_title'),
+                        value=selector.get('noresults_body_search'),
                         inline=False
                     )
                     selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
+                        max_values=1, min_values=1, custom_id='selection', placeholder=selector.get('selection_emoji'), disabled=True
                     )
                     selection.add_option(
-                        label='No emojis'
+                        label=selector.get('noresults_title')
                     )
                 else:
                     maxpage = math.ceil(len(emojis) / limit) - 1
                     selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                        max_values=1, min_values=1, custom_id='selection', placeholder=selector.get('selection_emoji')
                     )
 
                     emojis = await self.bot.loop.run_in_executor(None, lambda: sorted(
@@ -2165,14 +2352,22 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             description=guild.name
                         )
 
-                embed.description = f'Searching: {query} (**{len(emojis)}** results)'
+                embed.description = language.fget(
+                    'search_results','commons.search',
+                    values={'query': query, 'results': len(emojis)},
+                    language=selector.language_set
+                )
                 maxcount = (page + 1) * limit
                 if maxcount > len(emojis):
                     maxcount = len(emojis)
                 embed.set_footer(
                     text=(
-                            f'Page {page + 1} of {maxpage + 1} | {page * limit + 1}-{maxcount} of {len(emojis)}'+
-                            ' results'
+                        language.fget('page','commons.search',values={
+                            'page': page+1, 'maxpage': maxpage+1
+                        }, language=selector.language_set)
+                        + ' | ' + language.fget('result_count','commons.search',values={
+                            'lower':page*limit+1,'upper':maxcount
+                        }, language=selector.language_set)
                     )
                 )
 
@@ -2186,21 +2381,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
+                            label=language.get('prev','commons.navigation',language=selector.language_set),
                             custom_id='prev',
                             disabled=page <= 0,
                             emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Next',
+                            label=language.get('next','commons.navigation',language=selector.language_set),
                             custom_id='next',
                             disabled=page >= maxpage,
                             emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label='Search',
+                            label=language.get('search','commons.navigation',language=selector.language_set),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search
                         )
@@ -2210,7 +2405,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='Back',
+                            label=language.get('back','commons.navigation',language=selector.language_set),
                             custom_id='back',
                             emoji=self.bot.ui_emojis.back
                         )
@@ -2219,24 +2414,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif panel == 2:
                 emoji_obj = nextcord.utils.get(self.bot.emojis, name=emojiname)
                 embed.title = (
-                    f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / search / {emojiname}'
+                    f'{self.bot.ui_emojis.emoji} '+selector.fget("title",values={"botname": self.bot.user.global_name or self.bot.user.name})+f' / {selector.get("search").lower()} / {emojiname}'
                     if was_searching else
-                    f'{self.bot.ui_emojis.emoji} {self.bot.user.global_name or self.bot.user.name} emojis / {emojiname}'
+                    f'{self.bot.ui_emojis.emoji} '+selector.fget("title",values={"botname": self.bot.user.global_name or self.bot.user.name})+f' / {emojiname}'
                 )
                 emoji = (
                     f'<a:{emojiname}:{emoji_obj.id}>' if emoji_obj.animated else f'<:{emojiname}:{emoji_obj.id}>'
                 )
-                embed.description = f'# **{emoji} `:{emojiname}:`**\nFrom: {emoji_obj.guild.name}'
+                embed.description = f'# **{emoji} `:{emojiname}:`**\n'+f'{selector.get("from")} {emoji_obj.guild.name}'
                 embed.add_field(
-                    name='How to use',
-                    value=f'Type `[emoji: {emojiname}]` in your message to use this emoji!',
+                    name=selector.get('instructions_title'),
+                    value=selector.fget('instructions_body',values={'emojiname':emojiname}),
                     inline=False
                 )
                 components.add_rows(
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='Back',
+                            label=language.get('back','commons.navigation',language=selector.language_set),
                             custom_id='back',
                             emoji=self.bot.ui_emojis.back
                         )
@@ -2244,7 +2439,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 )
 
             if panel == 0:
-                embed.set_footer(text=f'Page {page + 1} of {maxpage + 1 if maxpage >= 0 else 1}')
+                embed.set_footer(text=language.get(
+                    'page','commons.search',values={'page':page+1,'maxpage':maxpage+1 if maxpage >= 0 else 1},
+                    language=selector.language_set
+                ))
             if not msg:
                 msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
             else:
@@ -2277,12 +2475,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 elif interaction.data['custom_id'] == 'next':
                     page += 1
                 elif interaction.data['custom_id'] == 'search':
-                    modal = nextcord.ui.Modal(title='Search...', auto_defer=False)
+                    modal = nextcord.ui.Modal(
+                        title=language.get('search_title','commons.search',language=selector.language_set),
+                        auto_defer=False
+                    )
                     modal.add_item(
                         nextcord.ui.TextInput(
-                            label='Search query',
+                            label=language.get('query','commons.search',language=selector.language_set),
                             style=nextcord.TextInputStyle.short,
-                            placeholder='Type something...'
+                            placeholder=language.get('query_prompt','commons.search',language=selector.language_set)
                         )
                     )
                     await interaction.response.send_modal(modal)
@@ -2293,19 +2494,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(
         aliases=['modcall'],
-        description='Ping all moderators to the chat! Use only when necessary, or else.'
+        description=language.desc('bridge.modping')
     )
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
     async def modping(self,ctx):
+        selector = language.get_selector(ctx)
         if not self.bot.config['enable_logging']:
-            return await ctx.send('Modping is disabled, contact your instance\'s owner.')
+            return await ctx.send(selector.get('disabled'))
 
         found = False
         room = None
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{ctx.guild.id}' in list(data.keys()):
                 guilddata = data[f'{ctx.guild.id}']
                 if len(guilddata) == 1:
@@ -2328,7 +2530,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{ctx.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{ctx.guild.id}']
                     else:
@@ -2341,9 +2543,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     break
 
         if not found:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a UniChat room!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}')
 
-        hook_id = self.bot.db['rooms'][room][f'{self.bot.config["home_guild"]}'][0]
+        hook_id = self.bot.db['rooms'][room]['discord'][f'{self.bot.config["home_guild"]}'][0]
         guild = self.bot.get_guild(self.bot.config['home_guild'])
         hooks = await guild.webhooks()
 
@@ -2357,16 +2559,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 try:
                     role = self.bot.config["moderator_role"]
                 except:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} This instance doesn\'t have a moderator role set up. Contact your Unifier admins.')
-                await ch.send(f'<@&{role}> **{author}** ({ctx.author.id}) needs your help!\n\nSent from server **{ctx.guild.name}** ({ctx.guild.id})',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
-                return await ctx.send(f'{self.bot.ui_emojis.success} Moderators called!')
+                    return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_moderator")}')
+                await ch.send(f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.author.id})}',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
+                return await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-        await ctx.send(f'{self.bot.ui_emojis.error} It appears the home guild has configured Unifier wrong, and I cannot ping its UniChat moderators.')
+        await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("bad_config")}')
 
     @nextcord.message_command(name='View reactions')
     async def reactions_ctx(self, interaction, msg: nextcord.Message):
         if interaction.user.id in self.bot.db['fullbanned']:
             return
+        selector = language.get_selector('bridge.reactions_ctx',userid=interaction.user.id)
         gbans = self.bot.db['banned']
         ct = time.time()
         if f'{interaction.user.id}' in list(gbans.keys()):
@@ -2384,15 +2587,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
-            return await interaction.response.send_message('Your account or your guild is currently **global banned**.', ephemeral=True)
+            return await interaction.response.send_message(
+                language.get('banned','commons.interaction',language=selector.language_set),
+                ephemeral=True
+            )
         msg_id = msg.id
 
         try:
             msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
         except:
-            return await interaction.response.send_message('Could not find message in cache!', ephemeral=True)
+            return await interaction.response.send_message(
+                language.get('not_found','commons.interaction',language=selector.language_set),
+                ephemeral=True
+            )
 
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.emoji} Reactions',color=self.bot.colors.unifier)
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.emoji} {selector.get("reactions")}',color=self.bot.colors.unifier)
 
         index = 0
         page = 0
@@ -2405,7 +2614,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         while True:
             selection = nextcord.ui.StringSelect(
-                max_values=1, min_values=1, custom_id='selection', placeholder='Emoji...'
+                max_values=1, min_values=1, custom_id='selection',
+                placeholder=language.get('selection_emoji','bridge.emojis',language=selector.language_set)
             )
 
             for x in range(limit):
@@ -2433,12 +2643,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     emoji=list(msg.reactions.keys())[x + (page * limit)] if not name=='unknown' and platform=='discord' else None,
                     value=f'{x}',
                     default=x + (page * limit)==index,
-                    description=f'{len(msg.reactions[list(msg.reactions.keys())[x + (page * limit)]].keys())} reactions'
+                    description=selector.fget('reactions_count',values={"count": len(msg.reactions[list(msg.reactions.keys())[x + (page * limit)]].keys())})
                 )
             users = []
 
             if len(msg.reactions.keys()) == 0:
-                embed.description = f'No reactions yet!'
+                embed.description = selector.get('no_reactions')
             else:
                 platform = 'discord'
                 for user in list(msg.reactions[list(msg.reactions.keys())[index]].keys()):
@@ -2512,6 +2722,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @nextcord.message_command(name='Report message')
     async def report(self, interaction, msg: nextcord.Message):
+        selector = language.get_selector('bridge.report',userid=interaction.user.id)
         if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
@@ -2531,75 +2742,84 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 return
         if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
-            return await interaction.response.send_message('You or your guild is currently **global banned**.', ephemeral=True)
+            return await interaction.response.send_message(
+                language.get('banned','commons.interaction',language=selector.language_set),
+                ephemeral=True
+            )
 
         if not self.bot.config['enable_logging']:
-            return await interaction.response.send_message('Reporting and logging are disabled, contact your instance\'s owner.', ephemeral=True)
+            return await interaction.response.send_message(selector.get('disabled'), ephemeral=True)
 
         try:
             msgdata = await self.bot.bridge.fetch_message(msg.id)
         except:
-            return await interaction.response.send_message('Could not find message in cache!')
+            return await interaction.response.send_message(
+                language.get('not_found','commons.interaction',language=selector.language_set)
+            )
 
         roomname = msgdata.room
         userid = msgdata.author_id
         content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
 
         btns = ui.ActionRow(
-            nextcord.ui.Button(style=nextcord.ButtonStyle.blurple, label='Spam', custom_id=f'spam', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.blurple, label=selector.get('spam'), custom_id=f'spam', disabled=False),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Abuse or harassment', custom_id=f'abuse', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse'), custom_id=f'abuse', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Explicit or dangerous content', custom_id=f'explicit', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit'), custom_id=f'explicit', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Violates other room rules', custom_id=f'other', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('other'), custom_id=f'other', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Something else', custom_id=f'misc', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('misc'), custom_id=f'misc', disabled=False
             )
         )
         btns_abuse = ui.ActionRow(
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Impersonation', custom_id=f'abuse_1', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_1'), custom_id=f'abuse_1', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Harassment', custom_id=f'abuse_2', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_2'), custom_id=f'abuse_2', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Intentional misinformation', custom_id=f'abuse_3', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_3'), custom_id=f'abuse_3', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Derogatory language', custom_id=f'abuse_4', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_4'), custom_id=f'abuse_4', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Other', custom_id=f'abuse_5', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('category_misc'), custom_id=f'abuse_5', disabled=False
             )
         )
         btns_explicit = ui.ActionRow(
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Adult content', custom_id=f'explicit_1', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_1'), custom_id=f'explicit_1', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Graphic/gory content', custom_id=f'explicit_2', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_2'), custom_id=f'explicit_2', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Encouraging real-world harm', custom_id=f'explicit_3', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_3'), custom_id=f'explicit_3', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Illegal content', custom_id=f'explicit_4', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_4'), custom_id=f'explicit_4', disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label='Other', custom_id=f'explicit_5', disabled=False
+                style=nextcord.ButtonStyle.blurple, label=selector.get('category_misc'), custom_id=f'explicit_5', disabled=False
             )
         )
         btns2 = ui.ActionRow(
-            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Cancel', custom_id=f'cancel', disabled=False)
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray,
+                label=language.get('cancel','commons.navigation',language=selector.language_set),
+                custom_id=f'cancel', disabled=False
+            )
         )
         components = ui.MessageComponents()
         components.add_rows(btns, btns2)
-        msg = await interaction.response.send_message('How does this message violate our rules?', view=components, ephemeral=True)
+        msg = await interaction.response.send_message(selector.get('question'), view=components, ephemeral=True)
         msg = await msg.fetch()
 
         def check(interaction):
@@ -2609,7 +2829,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
         except:
             try:
-                return await interaction.edit_original_message(content='Timed out.', view=None)
+                return await interaction.edit_original_message(
+                    content=language.get('timeout','commons.interaction',language=selector.language_set),
+                    view=None
+                )
             except:
                 return
 
@@ -2624,12 +2847,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         components = ui.MessageComponents()
         if interaction.data["custom_id"] == 'abuse':
             components.add_rows(btns_abuse, btns2)
-            await interaction.response.edit_message(content='In what way?', view=components)
+            await interaction.response.edit_message(content=selector.get('question_2'), view=components)
         elif interaction.data["custom_id"] == 'explicit':
             components.add_rows(btns_explicit, btns2)
-            await interaction.response.edit_message(content='In what way?', view=components)
+            await interaction.response.edit_message(content=selector.get('question_2'), view=components)
         elif interaction.data["custom_id"] == 'cancel':
-            return await interaction.response.edit_message(content='Cancelled.', view=None)
+            return await interaction.response.edit_message(
+                content=language.get('cancel','commons.interaction',language=selector.language_set),
+                view=None
+            )
         else:
             asked = False
         if asked:
@@ -2637,7 +2863,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
             except:
                 try:
-                    return await interaction.edit_original_message(content='Timed out.', view=None)
+                    return await interaction.edit_original_message(
+                        content=language.get('timeout','commons.interaction',language=selector.language_set),
+                        view=None
+                    )
                 except:
                     return
             buttons = msg.components[0].children
@@ -2647,41 +2876,43 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     cat2 = button.label
                     break
             if interaction.data["custom_id"] == 'cancel':
-                return await interaction.response.edit_message(content='Cancelled.', view=None)
+                return await interaction.response.edit_message(content=language.get('cancel','commons.interaction',language=selector.language_set), view=None)
         else:
             cat2 = 'none'
         self.bot.reports.update({f'{interaction.user.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
         reason = nextcord.ui.TextInput(
-            style=nextcord.TextInputStyle.paragraph, label='Additional details',
-            placeholder='Add additional context or information that we should know here.',
+            style=nextcord.TextInputStyle.paragraph, label=selector.get('details_title'),
+            placeholder=selector.get('details_prompt'),
             required=False
         )
         signature = nextcord.ui.TextInput(
-            style=nextcord.TextInputStyle.short, label='Sign with your username',
-            placeholder='Sign this only if your report is truthful and in good faith.',
+            style=nextcord.TextInputStyle.short, label=selector.get('sign_title'),
+            placeholder=selector.get('sign_prompt'),
             required=True, min_length=len(interaction.user.name), max_length=len(interaction.user.name)
         )
-        modal = nextcord.ui.Modal(title='Report message', custom_id=f'{userid}_{msg.id}', auto_defer=False)
+        modal = nextcord.ui.Modal(title=selector.get('title'), custom_id=f'{userid}_{msg.id}', auto_defer=False)
         modal.add_item(reason)
         modal.add_item(signature)
         await interaction.response.send_modal(modal)
 
-    @commands.command(description='Shows your server\'s plugin restriction status.')
+    @commands.command(description=language.desc('bridge.serverstatus'))
     async def serverstatus(self,ctx):
+        selector = language.get_selector(ctx)
         embed = nextcord.Embed(
-            title='Server status',
-            description='Your server is not restricted by plugins.',
+            title=selector.get('title'),
+            description=selector.get('body_ok'),
             color=self.bot.colors.success
         )
         if f'{ctx.guild.id}' in self.bot.bridge.restricted:
-            embed.description = 'Your server is currently limited by a plugin.'
+            embed.description = selector.get('body_restricted')
             embed.colour = self.bot.colors.warning
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['exp','lvl','experience'], description='Shows you or someone else\'s level and EXP.')
+    @commands.command(aliases=['exp','lvl','experience'], description=language.desc('bridge.level'))
     async def level(self,ctx,*,user=None):
+        selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
-            return await ctx.send('Leveling system is disabled on this instance.')
+            return await ctx.send(selector.get('disabled'))
         if not user:
             user = ctx.author
         else:
@@ -2698,12 +2929,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         progressbar = '['+(bars*'|')+(empty*' ')+']'
         embed = nextcord.Embed(
             title=(
-                'Your level' if user.id==ctx.author.id else
-                f'{user.global_name if user.global_name else user.name}\'s level'
+                selector.get("title_self") if user.id==ctx.author.id else
+                selector.fget("title_other", values={"username": user.global_name if user.global_name else user.name})
              ),
             description=(
-                f'Level {data["level"]} | {round(data["experience"],2)} EXP\n\n'+
-                f'`{progressbar}`\n{round(data["progress"]*100)}% towards next level'
+                f'{selector.fget("level", values={"level": data["level"]})} | {selector.fget("exp",values={"exp": {round(data["experience"],2)}})}\n\n'+
+                f'`{progressbar}`\n{selector.fget("progress",values={"progress": round(data["progress"]*100)})}'
             ),
             color=self.bot.colors.unifier
         )
@@ -2713,10 +2944,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['lb'],description='Shows EXP leaderboard.')
+    @commands.command(aliases=['lb'],description=language.desc('bridge.leaderboard'))
     async def leaderboard(self,ctx):
+        selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
-            return await ctx.send('Leveling system is disabled on this instance.')
+            return await ctx.send(language.get('disabled','bridge.level',language=selector.language_set))
         expdata = copy.copy(self.bot.db['exp'])
         lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
                 expdata.items(),
@@ -2727,7 +2959,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg = None
         interaction = None
         embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.leaderboard} {self.bot.user.global_name or self.bot.user.name} leaderboard',
+            title=f'{self.bot.ui_emojis.leaderboard} {selector.fget("title",values={"botname": self.bot.user.global_name or self.bot.user.name})}',
             color=self.bot.colors.unifier
         )
         page = 1
@@ -2754,8 +2986,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 else:
                     username = '[unknown]'
                 lb.append(
-                    f'{placement_emoji[rank]} **{username}**: Level {lb_data[index][1]["level"]}' if rank <= 3 else
-                    f'`{rank}.` **{username}**: Level {lb_data[index][1]["level"]}'
+                    f'{placement_emoji[rank]} **{username}**: {language.fget("level","bridge.level",values={"level": lb_data[index][1]["level"]},language=selector.language_set)}' if rank <= 3 else
+                    f'`{rank}.` **{username}**: {language.fget("level","bridge.level",values={"level": lb_data[index][1]["level"]},language=selector.language_set)}'
                 )
 
             lb_text = '\n'.join(lb)
@@ -2820,293 +3052,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif interaction.data['custom_id']=='last':
                 page = max_page
 
-    @commands.command(description='Makes a Squad.')
-    async def makesquad(self,ctx,*,squadname):
-        if not ctx.author.guild_permissions.manage_guild:
-            return await ctx.send('Only those with Manage Server permissions can manage their Squad.')
-        if not self.bot.config['enable_squads']:
-            return await ctx.send('Squads aren\'t enabled on this instance.')
-        if str(ctx.guild.id) in self.bot.db['squads'].keys():
-            return await ctx.send('Your server already has a Squad! Disband it first to make a new one.')
-
-        embed = nextcord.Embed(
-            title=f'Creating {squadname}',
-            description='First, your Squad must have a HQ channel so your members can receive updates on Squad events.',
-            color=self.bot.colors.unifier
-        )
-
-        components = ui.MessageComponents()
-        components.add_rows(
-            ui.ActionRow(
-                nextcord.ui.ChannelSelect(
-                    max_values=1,
-                    min_values=1,
-                    placeholder='Channel...'
-                )
-            ),
-            ui.ActionRow(
-                nextcord.ui.Button(
-                    custom_id='cancel',
-                    label='Cancel',
-                    style=nextcord.ButtonStyle.gray
-                )
-            )
-        )
-
-        msg = await ctx.send(embed=embed,view=components)
-
-        def check(interaction):
-            return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
-
-        try:
-            interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
-        except:
-            return await msg.edit(view=None)
-
-        if interaction.data['component_type']==2:
-            return await interaction.response.edit_message(view=None)
-
-        hq_id = int(interaction.data['values'][0])
-        squad = {
-            'name': squadname,
-            'suspended': False,
-            'suspended_expire': 0,
-            'members': [],
-            'leader': ctx.author.id,
-            'captains': [],
-            'invited': [],
-            'joinreqs': [],
-            'points': 0,
-            'hq': hq_id,
-            'icon': None
-        }
-
-        self.bot.db['squads'].update({f'{ctx.guild.id}': squad})
-        self.bot.db.save()
-
-        added = 0
-        while True:
-            components = ui.MessageComponents()
-            components.add_rows(
-                ui.ActionRow(
-                    nextcord.ui.UserSelect(
-                        max_values=1,
-                        min_values=1,
-                        placeholder='Select users...'
-                    )
-                ),
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        custom_id='cancel',
-                        label='Add later',
-                        style=nextcord.ButtonStyle.gray
-                    )
-                )
-            )
-
-            embed.description = (
-                'Your squad was created, now you need your Squad captains! You\'re already a Squad captain, but you '+
-                'should add two more. They\'ll be sent an invitation if they aren\'t in a Squad yet.'+
-                '\n\n**You need 2 more Squad captains.**' if added==0 else '\n\n**You need 1 more Squad captain.**'
-            )
-
-            await msg.edit(embed=embed,view=components)
-
-            try:
-                interaction = await self.bot.wait_for('interaction',check=check,timeout=300)
-            except:
-                return await msg.edit(view=None)
-
-            if interaction.data['component_type']==2:
-                return await interaction.response.edit_message(view=None)
-
-            if added==2:
-                break
-
-            user = self.bot.get_user(int(interaction.data['values'][0]))
-
-            fail_msg = (
-                'The bot could not send a Squad invitation! This is either because:\n- The user has their DMs with '+
-                'the bot off\n- The user is ignoring Squad invitations from your server'
-            )
-
-            try:
-                if f'{user.id}' in self.bot.db['squads_optout'].keys():
-                    optout = self.bot.db['squads_optout'][f'{user.id}']
-                    if optout['all']:
-                        fail_msg = f'{user.global_name or user.name} has opted out of receiving Squad invitations.'
-                        raise ValueError()
-                    elif ctx.guild.id in optout['guilds']:
-                        raise ValueError()
-                if f'{user.id}' in self.bot.db['squads_joined'].keys():
-                    if self.bot.db['squads_optout'][f'{user.id}'] is None:
-                        fail_msg = f'{user.global_name or user.name} is already in a Squad!'
-                        raise ValueError()
-                embed = nextcord.Embed(
-                    title=(
-                        f'{ctx.author.global_name or ctx.author.name} has invited you to join {ctx.guild.name}\'s '+
-                        f'**{squadname}** Squad!'
-                    ),
-                    description=(
-                        'You\'ve been invited to join as a **Squad Captain**!\nAs a captain, you may:\n'+
-                        '- Make submissions for events on your Squad\'s behalf\n'+
-                        '- Accept and deny join requests for your Squad\n\n'+
-                        f'To join this squad, run `{self.bot.command_prefix}joinsquad {ctx.guild.id}`!'
-                    )
-                )
-                embed.set_footer(
-                    text=(
-                        f'Reminder - you can always run {self.bot.command_prefix}ignoresquad {ctx.guild.id} to stop receiving invites from '+
-                        'this server\'s Squad.'
-                    )
-                )
-                await user.send(embed=embed)
-                added += 1
-                if added == 2:
-                    break
-                else:
-                    embed.description = (
-                        'Your squad was created, now you need your Squad captains! You\'re already a Squad captain, but you ' +
-                        'should add two more. They\'ll be sent an invitation if they aren\'t in a Squad yet.' +
-                        '\n\n**You need 1 more Squad captain.**'
-                    )
-
-                    await msg.edit(embed=embed, view=components)
-                    self.bot.db['squads'][f'{ctx.guild.id}']['invited'].append(user.id)
-                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-                    await interaction.response.send_message('Invite sent!', ephemeral=True)
-            except:
-                await interaction.response.send_message(fail_msg,ephemeral=True)
-
-        await interaction.response.edit_message(embed=embed,view=None)
-        pass
-
-    @commands.command(description='Disbands your squad.')
-    async def disbandsquad(self,ctx):
-        if not ctx.author.guild_permissions.manage_guild:
-            return await ctx.send('Only those with Manage Server permissions can manage their Squad.')
-        if not self.bot.config['enable_squads']:
-            return await ctx.send('Squads aren\'t enabled on this instance.')
-
-    @commands.command(name='squad-leaderboard', aliases=['squadlb'], description='Shows Squad points leaderboard.')
-    async def squad_leaderboard(self, ctx):
-        if not self.bot.config['enable_squads']:
-            return await ctx.send('Squads aren\'t enabled on this instance.')
-        expdata = copy.copy(self.bot.db['squads'])
-        lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
-                expdata.items(),
-                key=lambda x: x[1]['points'],
-                reverse=True
-            )
-        )
-        msg = None
-        interaction = None
-        embed = nextcord.Embed(
-            title=f'{self.bot.user.global_name or self.bot.user.name} Squads leaderboard',
-            color=self.bot.colors.unifier
-        )
-        page = 1
-        limit = 10
-        max_page = math.ceil(len(lb_data) / limit)
-
-        placement_emoji = {
-            1: ':first_place:',
-            2: ':second_place:',
-            3: ':third_place:'
-        }
-
-        while True:
-            lb = []
-
-            for x in range(limit):
-                index = (page - 1) * limit + x
-                rank = index + 1
-                if index >= len(lb_data):
-                    break
-                username = lb_data[index][1]['name']
-                lb.append(
-                    f'{placement_emoji[rank]} **{username}**: {lb_data[index][1]["points"]} points' if rank <= 3 else
-                    f'`{rank}.` **{username}**: {lb_data[index][1]["level"]} points'
-                )
-
-            lb_text = '\n'.join(lb)
-
-            embed.description = lb_text
-
-            btns = ui.ActionRow(
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.blurple,
-                    emoji='\U000023EE',
-                    custom_id='first',
-                    disabled=page == 1
-                ),
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.gray,
-                    emoji='\U000025C0',
-                    custom_id='prev',
-                    disabled=page == 1
-                ),
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.gray,
-                    emoji='\U000025B6',
-                    custom_id='next',
-                    disabled=page == max_page
-                ),
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.blurple,
-                    emoji='\U000023ED',
-                    custom_id='last',
-                    disabled=page == max_page
-                )
-            )
-
-            components = ui.MessageComponents()
-            components.add_row(btns)
-
-            if not msg:
-                msg = await ctx.send(embed=embed, view=components)
-            else:
-                await interaction.response.edit_message(embed=embed, view=components)
-
-            def check(interaction):
-                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
-
-            try:
-                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
-            except:
-                for x in range(len(btns.items)):
-                    btns.items[x].disabled = True
-
-                components = ui.MessageComponents()
-                components.add_row(btns)
-                await msg.edit(view=components)
-                break
-
-            if interaction.data['custom_id'] == 'first':
-                page = 1
-            elif interaction.data['custom_id'] == 'prev':
-                page -= 1
-            elif interaction.data['custom_id'] == 'next':
-                page += 1
-            elif interaction.data['custom_id'] == 'last':
-                page = max_page
-
     @commands.Cog.listener()
     async def on_interaction(self, interaction):
         if interaction.type==nextcord.InteractionType.component:
             if not 'custom_id' in interaction.data.keys():
                 return
             if (interaction.data["custom_id"].startswith('rp') or interaction.data["custom_id"].startswith('ap')) and not interaction.user.id in self.bot.moderators:
-                return await interaction.response.send_message('buddy you\'re not a global moderator :skull:',ephemeral=True)
+                selector = language.get_selector('bridge.bridge',interaction.user.id)
+                return await interaction.response.send_message(language.get("mod_unexpected","commons.interaction",language=selector.language_set),ephemeral=True)
             if interaction.data["custom_id"].startswith('rpdelete'):
+                selector = language.get_selector('bridge.bridge', interaction.user.id)
                 msg_id = int(interaction.data["custom_id"].replace('rpdelete_','',1))
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.red, label='Delete message',
+                        style=nextcord.ButtonStyle.red, label=language.get('delete','commons.moderation',language=selector.language_set),
                         custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                        style=nextcord.ButtonStyle.green, label=language.get('review','bridge.report',language=selector.language_set),
                         custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=False
                     )
                 )
@@ -3116,35 +3079,36 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 try:
                     msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(msg_id)
                 except:
-                    return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
+                    return await interaction.response.send_message(language.get('not_found','commons.interaction',language=selector.language_set),ephemeral=True)
 
                 if not interaction.user.id in self.bot.moderators:
                     return await interaction.response.send_message('go away',ephemeral=True)
 
-                msg_orig = await interaction.response.send_message("Deleting...",ephemeral=True)
+                await interaction.response.defer(ephemeral=True,with_message=True)
 
                 try:
                     await self.bot.bridge.delete_parent(msg_id)
                     if msg.webhook:
                         raise ValueError()
                     await interaction.message.edit(view=components)
-                    return await msg_orig.edit('Deleted message (parent deleted, copies will follow)')
+                    return await interaction.edit_original_message(language.get("parent_delete","moderation.delete",language=selector.language_set))
                 except:
                     try:
                         deleted = await self.bot.bridge.delete_copies(msg_id)
                         await interaction.message.edit(view=components)
-                        return await msg_orig.edit(f'Deleted message ({deleted} copies deleted)')
+                        return await interaction.edit_original_message(language.fget("children_delete","moderation.delete",values={"count": deleted},language=selector.language_set))
                     except:
                         traceback.print_exc()
-                        await msg_orig.edit(content=f'Something went wrong.')
+                        await interaction.edit_original_message(content=language.get("error","moderation.delete",language=selector.language_set))
             elif interaction.data["custom_id"].startswith('rpreview_'):
+                selector = language.get_selector('moderation.report',userid=interaction.user.id)
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.red, label='Delete message',
+                        style=nextcord.ButtonStyle.red, label=language.get("delete","commons.moderation",language=selector.language_set),
                         custom_id=f'rpdelete_{interaction.data["custom_id"].split("_")[1]}', disabled=True
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.green, label='Mark as reviewed',
+                        style=nextcord.ButtonStyle.green, label=selector.get("review"),
                         custom_id=f'rpreview_{interaction.data["custom_id"].split("_")[1]}', disabled=True
                     )
                 )
@@ -3155,7 +3119,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 author = f'@{interaction.user.name}'
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
-                embed.title = f'This report has been reviewed by {author}!'
+                embed.title = selector.fget("reviewed_notice",values={"moderator": author})
                 await interaction.response.defer(ephemeral=True, with_message=True)
                 try:
                     thread = interaction.channel.get_thread(
@@ -3171,21 +3135,22 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         )
                     except:
                         try:
-                            await thread.send('This report has been reviewed.')
+                            await thread.send(selector.get("reviewed_thread"))
                         except:
                             pass
                     self.bot.db['report_threads'].pop(str(interaction.message.id))
                     await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 await interaction.message.edit(embed=embed,view=components)
-                await interaction.edit_original_message(content='Marked report as reviewed!')
+                await interaction.edit_original_message(content=selector.get('reviewed'))
             elif interaction.data["custom_id"].startswith('apaccept_') or interaction.data["custom_id"].startswith('apreject_'):
+                selector = language.get_selector('moderation.appeal',userid=interaction.user.id)
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
                         style=(
                             nextcord.ButtonStyle.gray if interaction.data["custom_id"].startswith('apaccept_')
                             else nextcord.ButtonStyle.red
                         ),
-                        label='Reject',
+                        label=language.get('reject','commons.navigation',language=selector.language_set),
                         disabled=True,
                         emoji=self.bot.ui_emojis.error
                     ),
@@ -3194,7 +3159,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                             nextcord.ButtonStyle.gray if interaction.data["custom_id"].startswith('apreject_')
                             else nextcord.ButtonStyle.green
                         ),
-                        label='Accept & unban',
+                        label=selector.get('accept'),
                         disabled=True,
                         emoji=self.bot.ui_emojis.success
                     )
@@ -3206,10 +3171,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 author = f'@{interaction.user.name}'
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
-                embed.title = (
-                    'This appeal was ' +
-                    ('accepted' if interaction.data["custom_id"].startswith('apaccept_') else 'rejected') +
-                    f' by {author}!'
+                embed.title = selector.fget(
+                    "accepted_notice" if interaction.data["custom_id"].startswith('apaccept_') else 'rejected_notice',
+                    values={'moderator': author}
                 )
                 await interaction.response.defer(ephemeral=True, with_message=True)
                 try:
@@ -3226,7 +3190,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         )
                     except:
                         try:
-                            await thread.send('This appeal has been closed.')
+                            await thread.send(selector.get('reviewed_thread'))
                         except:
                             pass
                     self.bot.db['report_threads'].pop(str(interaction.message.id))
@@ -3245,25 +3209,23 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     except:
                         pass
                     results_embed = nextcord.Embed(
-                        title='Your ban appeal was accepted!',
-                        description=(
-                            'This ban has been removed from your account and will no longer impact your standing.\n'+
-                            'You may now continue chatting!'
-                        ),
+                        title=selector.get('accepted_title'),
+                        description=selector.get('accepted_body'),
                         color=self.bot.colors.success
                     )
                 else:
                     results_embed = nextcord.Embed(
-                        title='Your ban appeal was denied.',
-                        description='You may continue chatting once the current ban expires.',
+                        title=selector.get('rejected_title'),
+                        description=selector.get('rejected_body'),
                         color=self.bot.colors.error
                     )
                 user = self.bot.get_user(userid)
                 if user:
                     await user.send(embed=results_embed)
                 await interaction.message.edit(embed=embed,view=components)
-                await interaction.edit_original_message(content='Marked appeal as reviewed!')
+                await interaction.edit_original_message(content=selector.get('reviewed'))
         elif interaction.type == nextcord.InteractionType.modal_submit:
+            selector = language.get_selector('bridge.report',userid=interaction.user.id)
             if not interaction.data['custom_id']==f'{interaction.user.id}_{interaction.message.id}':
                 # not a report
                 return
@@ -3271,15 +3233,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if not interaction.data['components'][1]['components'][0]['value'].lower() == interaction.user.name.lower():
                 return
             if context is None or context == '':
-                context = 'no context given'
+                context = selector.get('no_context')
             author = f'@{interaction.user.name}'
             if not interaction.user.discriminator == '0':
                 author = f'{interaction.user.name}#{interaction.user.discriminator}'
             try:
                 report = self.bot.reports[f'{interaction.user.id}_{interaction.data["custom_id"]}']
             except:
-                return await interaction.response.send_message('Something went wrong while submitting the report.',
-                                                               ephemeral=True)
+                return await interaction.response.send_message(selector.get('failed'), ephemeral=True)
 
             await interaction.response.defer(ephemeral=True,with_message=False)
             cat = report[0]
@@ -3292,22 +3253,22 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if len(content) > 4096:
                 content = content[:-(len(content) - 4096)]
             embed = nextcord.Embed(
-                title='Message report - content is as follows',
+                title=selector.get('report_title'),
                 description=content,
                 color=self.bot.colors.warning,
                 timestamp=datetime.datetime.now(datetime.UTC)
             )
-            embed.add_field(name="Reason", value=f'{cat} => {cat2}', inline=False)
-            embed.add_field(name='Context', value=context, inline=False)
-            embed.add_field(name="Sender ID", value=str(msgdata.author_id), inline=False)
-            embed.add_field(name="Message room", value=roomname, inline=False)
-            embed.add_field(name="Message ID", value=str(msgid), inline=False)
-            embed.add_field(name="Reporter ID", value=str(interaction.user.id), inline=False)
+            embed.add_field(name=language.get('reason','commons.moderation',language=selector.language_set), value=f'{cat} => {cat2}', inline=False)
+            embed.add_field(name=language.get('context','commons.moderation',language=selector.language_set), value=context, inline=False)
+            embed.add_field(name=language.get('sender_id','commons.moderation',language=selector.language_set), value=str(msgdata.author_id), inline=False)
+            embed.add_field(name=language.get('room','commons.moderation',language=selector.language_set), value=roomname, inline=False)
+            embed.add_field(name=language.get('message_id','commons.moderation',language=selector.language_set), value=str(msgid), inline=False)
+            embed.add_field(name=language.get('reporter_id','commons.moderation',language=selector.language_set), value=str(interaction.user.id), inline=False)
             try:
-                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.',
+                embed.set_footer(text=selector.fget('submitted_by',values={'username': author}),
                                  icon_url=interaction.user.avatar.url)
             except:
-                embed.set_footer(text=f'Submitted by {author} - please do not disclose actions taken against the user.')
+                embed.set_footer(text=selector.fget('submitted_by',values={'username': author}))
             try:
                 user = self.bot.get_user(userid)
                 if not user:
@@ -3325,10 +3286,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             ch = guild.get_channel(self.bot.config['reports_channel'])
             btns = ui.ActionRow(
                 nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.red, label='Delete message', custom_id=f'rpdelete_{msgid}',
+                    style=nextcord.ButtonStyle.red, label=language.get('delete','commons.moderation',language=selector.language_set), custom_id=f'rpdelete_{msgid}',
                     disabled=False),
                 nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.green, label='Mark as reviewed', custom_id=f'rpreview_{msgid}',
+                    style=nextcord.ButtonStyle.green, label=selector.get('review'), custom_id=f'rpreview_{msgid}',
                     disabled=False
                 )
             )
@@ -3339,7 +3300,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
             try:
                 thread = await msg.create_thread(
-                    name=f'Discussion: #{msgid}',
+                    name=selector.get('discussion',values={'message_id': msgid}),
                     auto_archive_duration=10080
                 )
                 self.bot.db['report_threads'].update({str(msg.id): thread.id})
@@ -3348,15 +3309,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 pass
             self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
             return await interaction.edit_original_message(
-                content="# :white_check_mark: Your report was submitted!\nThanks for your report! Our moderators will have a look at it, then decide what to do.\nFor privacy reasons, we will not disclose actions taken against the user.",
+                content=f'# {self.bot.ui_emojis.success} {selector.get("success_title")}\n{selector.get("success_body")}',
                 view=None
             )
 
-    @commands.command(hidden=True,description='Initializes new UnifierBridge object.')
+    @commands.command(hidden=True,description=language.desc("bridge.initbridge"))
     @restrictions.owner()
     async def initbridge(self, ctx, *, args=''):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
+        selector = language.get_selector(ctx)
         msgs = []
         prs = {}
         if 'preserve' in args:
@@ -3367,19 +3327,22 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if 'preserve' in args:
             self.bot.bridge.bridged = msgs
             self.bot.bridge.prs = prs
-        await ctx.send('Bridge initialized')
+        await ctx.send(selector.get("success"))
 
-    @commands.command(hidden=True,description='Sends a message as system.')
+    @commands.command(hidden=True,description=language.desc("bridge.system"))
     @restrictions.owner()
-    async def system(self, ctx, room):
-        ctx.message.content = ctx.message.content.replace(f'{self.bot.command_prefix}system {room}','',1)
-        await self.bot.bridge.send(room,ctx.message,'discord',system=True)
+    async def system(self, ctx, room, *, content):
+        selector = language.get_selector(ctx)
+        await self.bot.bridge.send(room,ctx.message,'discord',system=True,content_override=content)
         for platform in self.bot.config['external']:
-            await self.bot.bridge.send(room, ctx.message, platform, system=True)
-        await ctx.send('Sent as system')
+            await self.bot.bridge.send(
+                room, ctx.message, platform, system=True,
+                content_override=content)
+        await ctx.send(selector.get("success"))
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        selector = language.get_selector("bridge.bridge",userid=message.author.id)
         if not type(message.channel) is nextcord.TextChannel:
             return
         if message.content.startswith(f'{self.bot.command_prefix}system'):
@@ -3443,7 +3406,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
                 if len(guilddata) == 1:
@@ -3466,7 +3429,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
                     else:
@@ -3529,18 +3492,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         public = True
 
             embed = nextcord.Embed(
-                title='Content blocked',
-                description='Your message was blocked. Moderators may be able to see the blocked content.',
+                title=selector.get("blocked_title"),
+                description=selector.get("blocked_body"),
                 color=self.bot.colors.error
             )
 
             if public:
-                embed.add_field(name='Reason',value=public_reason if public_reason else '[unknown]',inline=False)
+                embed.add_field(name=language.get("reason","commons.moderation",language=selector.language_set),value=public_reason if public_reason else '[unknown]',inline=False)
 
             await message.channel.send(embed=embed)
 
             embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.warning} Content blocked - content is as follows',
+                title=f'{self.bot.ui_emojis.warning} {selector.get("blocked_report_title")}',
                 description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
                 color=self.bot.colors.error,
                 timestamp=datetime.datetime.now(datetime.UTC)
@@ -3556,17 +3519,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     plugname = plugin
                 embed.add_field(
-                    name=plugname + f' ({len(responses[plugin]["target"])} users involved)',
+                    name=plugname + f' ({selector.fget("involved",values={"count":len(responses[plugin]["target"])})})',
                     value=responses[plugin]['description'],
                     inline=False
                 )
                 if len(embed.fields) == 23:
                     break
 
-            embed.add_field(name='Punished user IDs', value=' '.join(list(banned.keys())), inline=False)
-            embed.add_field(name='Message room', value=roomname, inline=False)
+            embed.add_field(name=selector.get("punished"), value=' '.join(list(banned.keys())), inline=False)
+            embed.add_field(name=language.get("room","commons.moderation",language=selector.language_set), value=roomname, inline=False)
             embed.set_footer(
-                text='This is an automated action performed by a plugin, always double-check before taking action',
+                text=selector.get("automated"),
                 icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
             )
 
@@ -3580,14 +3543,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 user_obj = self.bot.get_user(int(user))
                 if int(user)==self.bot.config['owner']:
                     try:
-                        await user_obj.send('just as a fyi: this would have banned you')
+                        await user_obj.send(selector.get("owner_immunity"))
                     except:
                         pass
                     continue
                 nt = time.time() + banned[user]
                 embed = nextcord.Embed(
-                    title=f'You\'ve been __banned__ by @Unifier (system)!',
-                    description='Automatic action carried out by security plugins',
+                    title=language.fget("ban_title","commons.moderation",values={"moderator": "@Unifier (system)"},language=selector.language_set),
+                    description=selector.get("ban_reason"),
                     color=self.bot.colors.warning,
                     timestamp=datetime.datetime.now(datetime.UTC)
                 )
@@ -3598,22 +3561,22 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if banned[user]==0:
                     embed.colour = self.bot.colors.critical
                     embed.add_field(
-                        name='Actions taken',
-                        value=f'- :zipper_mouth: Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.\n- :white_check_mark: You must contact a moderator to appeal this restriction.',
+                        name=language.get('actions_taken','commons.moderation',language=selector.language_set),
+                        value=f'- :zipper_mouth: {language.get("perm_ban","commons.moderation",language=selector.language_set)}\n- :white_check_mark: {language.get("perm_ban_appeal","commons.moderation",language=selector.language_set)}',
                         inline=False
                     )
-                    embed.add_field(name='Did we make a mistake?',
-                                    value=f'If you think we didn\'t make the right call, you can always appeal your ban using `{self.bot.command_prefix}!appeal`.',
+                    embed.add_field(name=language.get('appeal_title','commons.moderation',language=selector.language_set),
+                                    value=language.get('appeal_body','commons.moderation',language=selector.language_set),
                                     inline=False)
                     await self.bot.loop.run_in_executor(None,lambda: self.bot.bridge.add_modlog(0, user_obj.id, 'Automatic action carried out by security plugins', self.bot.user.id))
                 else:
                     embed.add_field(
-                        name='Actions taken',
-                        value=f'- :warning: You have been **warned**. Further rule violations may lead to sanctions on the Unified Chat global moderators\' discretion.\n- :zipper_mouth: Your ability to text and speak have been **restricted** until <t:{round(nt)}:f>. This will expire <t:{round(nt)}:R>.',
+                        name=language.get('actions_taken','commons.moderation',language=selector.language_set),
+                        value=f"- :warning: {language.get('warned','commons.moderation',language=selector.language_set)}\n- :zipper_mouth: {language.fget('temp_ban','commons.moderation',values={'unix': round(nt)},language=selector.language_set)}",
                         inline=False
                     )
-                    embed.add_field(name='Did we make a mistake?',
-                                    value=f'Unfortunately, this ban cannot be appealed using `{self.bot.command_prefix}appeal`. You will need to ask moderators for help.',
+                    embed.add_field(name=language.get('appeal_title','commons.moderation',language=selector.language_set),
+                                    value=selector.get('cannot_appeal'),
                                     inline=False)
                 try:
                     await user_obj.send(embed=embed)
@@ -3634,12 +3597,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 if len(message.content) > self.bot.config['restriction_length']:
                     return await message.channel.send(
-                        ('Your server is currently limited for security. The maximum character limit for now is **'+
-                            self.bot.config["restriction_length"]+' characters**.')
+                        selector.fget("limited_limit",values={'count': self.bot.config['restriction_length']})
                     )
                 elif self.bot.bridge.cooldowned[f'{message.author.id}'] < time.time():
                     return await message.channel.send(
-                        'Your server is currently limited for security. Please wait before sending another message.'
+                        selector.get("limited_cooldown")
                     )
 
         multisend = True
@@ -3676,13 +3638,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if not message.channel.permissions_for(message.guild.me).manage_messages:
             if emojified or is_pr_ref:
-                return await message.channel.send(
-                    'Parent message could not be deleted. I may be missing the `Manage Messages` permission.'
-                )
+                return await message.channel.send(selector.get('delete_fail'))
 
         if (message.content.lower().startswith('is unifier down') or
                 message.content.lower().startswith('unifier not working')):
-            await message.channel.send('no',reference=message)
+            await message.channel.send(selector.get('is_unifier_down'),reference=message)
 
         if multisend:
             # Multisend
@@ -3742,16 +3702,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if idmatch:
             if not ids:
-                return await message.channel.send('Could not get message IDs.')
+                return await message.channel.send(selector.get('debug_msg_ids_fail'))
             if parent_id:
                 ids.append(parent_id)
             if len(list(set(ids)))==1:
-                await message.channel.send('All IDs match. ID: '+str(ids[0]))
+                await message.channel.send(selector.fget('debug_msg_ids_match', values={'message_id': str(ids[0])}))
             else:
                 text = ''
                 for msgid in ids:
                     text = text + f'\n{msgid}'
-                await message.channel.send('Mismatch detected.'+text)
+                await message.channel.send(selector.get('debug_msg_ids_mismatch')+text)
 
         if not message.author.bot and self.bot.config['enable_exp']:
             _newexp, levelup = await self.bot.bridge.add_exp(message.author.id)
@@ -3759,14 +3719,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if levelup:
                 level = self.bot.db['exp'][f'{message.author.id}']['level']
                 embed = nextcord.Embed(
-                    title=f'Level {level-1} => __Level {level}__',
+                    title=selector.fget('level_progress',values={'previous': level-1, 'new': level}),
                     color=self.bot.colors.blurple
                 )
                 embed.set_author(
-                    name=(
-                        f'@{message.author.global_name if message.author.global_name else message.author.name} leveled'+
-                        ' up!'
-                    ),
+                    name=(selector.fget('level_up',values={
+                        'username': message.author.global_name if message.author.global_name else message.author.name
+                    })),
                     icon_url=message.author.avatar.url if message.author.avatar else None
                 )
                 await message.channel.send(embed=embed)
@@ -3815,7 +3774,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
                 if len(guilddata) == 1:
@@ -3838,7 +3797,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
                     else:
@@ -3911,7 +3870,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             # Optimized logic
             for key in self.bot.db['rooms']:
-                data = self.bot.db['rooms'][key]
+                data = self.bot.db['rooms'][key]['discord']
                 if f'{message.guild.id}' in list(data.keys()):
                     guilddata = data[f'{message.guild.id}']
                     if len(guilddata) == 1:
@@ -3931,7 +3890,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 for webhook in hooks:
                     index = 0
                     for key in self.bot.db['rooms']:
-                        data = self.bot.db['rooms'][key]
+                        data = self.bot.db['rooms'][key]['discord']
                         if f'{message.guild.id}' in list(data.keys()):
                             hook_ids = data[f'{message.guild.id}']
                         else:
@@ -3960,6 +3919,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message_delete(self, message):
+        selector = language.get_selector('bridge.bridge',userid=message.author.id)
         gbans = self.bot.db['banned']
 
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
@@ -3977,7 +3937,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
-            data = self.bot.db['rooms'][key]
+            data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
                 if len(guilddata) == 1:
@@ -4000,7 +3960,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
-                    data = self.bot.db['rooms'][key]
+                    data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
                     else:
@@ -4036,8 +3996,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             if len(message.content) == 0:
                 content = '[no content]'
-            embed = nextcord.Embed(title=f'Message deleted from `{roomname}`', description=content)
-            embed.add_field(name='Embeds', value=f'{len(message.embeds)} embeds, {len(message.attachments)} files',
+            embed = nextcord.Embed(title=selector.fget('deleted',values={'roomname':roomname}), description=content)
+            embed.add_field(name='Embeds',
+                            value=selector.fget(
+                                      'embeds',values={'count': len(message.embeds)}
+                                  )+', '+selector.fget(
+                                      'files',values={'count': len(message.attachments)}
+                                  ),
                             inline=False)
             embed.add_field(name='IDs', value=f'MSG: {message.id}\nSVR: {message.guild.id}\nUSR: {message.author.id}',
                             inline=False)
