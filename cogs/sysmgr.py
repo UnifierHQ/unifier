@@ -241,7 +241,7 @@ class AutoSaveDict(dict):
                      'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
                      'external_bridge': [], 'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {},
                      'fullbanned': [], 'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {},
-                     'appealban': [], 'languages': {}, 'settings': {}})
+                     'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}})
         self.threads = []
 
         # Load data
