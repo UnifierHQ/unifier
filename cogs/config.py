@@ -49,12 +49,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.trusted_group = self.bot.db['trusted']
         restrictions.attach_bot(self.bot)
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
-        self.__room_template = {'rules': [], 'restricted': False, 'locked': False, 'private': False, 'emoji': None,
-                                'description': None}
-
-    @property
-    def room_template(self):
-        return self.__room_template
 
     def is_user_admin(self,user_id):
         try:
@@ -142,8 +136,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
         if room in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
-        self.bot.db['rooms'].update({room:self.room_template})
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+        self.bot.bridge.create_room(room)
         await ctx.send(f'{self.bot.ui_emojis.success} Created room `{room}`!')
 
     @commands.command(hidden=True, description='Renames a room.')
@@ -432,107 +425,24 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await ctx.send(embed=embed)
 
     @commands.command(aliases=['link','connect','federate','bridge'],description='Connects the channel to a given room.')
-    @commands.has_permissions(manage_channels=True)
     async def bind(self,ctx,*,room=''):
-        room = room.lower()
-        if self.is_room_restricted(room,self.bot.db) and not self.is_user_admin(ctx.author.id):
-            return await ctx.send(f'{self.bot.ui_emojis.error} Only admins can bind channels to restricted rooms.')
-        if room=='' or not room: # Added "not room" as a failback
-            room = self.bot.config['main_room']
-            await ctx.send(f'{self.bot.ui_emojis.warning} No room was given, defaulting to `{room}`.')
         try:
-            data = self.bot.db['rooms'][room]['discord']
+            roominfo = self.bot.bridge.get_room(room.lower())
         except:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
+            roominfo = await self.bot.bridge.accept_invite(room.lower())
+        text = []
+        for i in range(len(roominfo['rules'])):
+            text.append(f'{i+1}. '+roominfo['rules'][i])
+        text = '\n'.join(text)
+
         embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.warning} Ensuring channel is not connected...',
-            description='This may take a while.',
-            color=self.bot.colors.warning
-        )
-        msg = await ctx.send(embed=embed)
-        hooks = await ctx.channel.webhooks()
-        for roomname in list(self.bot.db['rooms'].keys()):
-            # Prevent duplicate binding
-            try:
-                hook_id = self.bot.db['rooms'][roomname]['discord'][f'{ctx.guild.id}'][0]
-            except:
-                continue
-            for hook in hooks:
-                if hook.id == hook_id:
-                    embed.title = f'{self.bot.ui_emojis.error} Channel already linked!'
-                    embed.colour = self.bot.colors.error
-                    embed.description = f'This channel is already linked to `{roomname}`!\nRun `{self.bot.command_prefix}unbind {roomname}` to unbind from it.'
-                    return await msg.edit(embed=embed)
-        try:
-            guild = data[f'{ctx.guild.id}']
-        except:
-            guild = []
-        if len(guild) >= 1:
-            return await ctx.send(f'Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{self.bot.command_prefix}unlink` it then `{self.bot.command_prefix}link` it back.')
-        index = 0
-        text = ''
-        if len(self.bot.db['rooms'][room]['meta']['rules'])==0:
-            text = f'No rules exist yet for this room! For now, follow the main room\'s rules.\nYou can always view rules if any get added using `{self.bot.command_prefix}rules {room}`.'
-        else:
-            for rule in self.bot.db['rooms'][room]['meta']['rules']:
-                if text=='':
-                    text = f'1. {rule}'
-                else:
-                    text = f'{text}\n{index}. {rule}'
-                index += 1
-        text = f'{text}\n\nPlease display these rules somewhere accessible.\nThis message will be automatically pinned if you accept these rules.'
-        embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.rooms} Please agree to the room rules first:',
-            description=text,
+            title=f'{self.bot.ui_emojis.rooms} Join {roominfo['meta']['display_name'] or room.lower()}?',
+            description=(f'{text}\n\nBy joining this room, you and your members agree to these rules.\n'+
+                         'This message will be pinned (if possible) for better accessibility to the rules.'
+                         ),
             color=self.bot.colors.unifier
         )
-        embed.set_footer(text='Failure to follow room rules may result in user or server restrictions.')
-        btns = ui.ActionRow(
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.green, label='Accept and bind', custom_id=f'accept',disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.red, label='No thanks', custom_id=f'reject',disabled=False
-            )
-        )
-        components = ui.MessageComponents()
-        components.add_row(btns)
-        await msg.edit(embed=embed,view=components)
-
-        def check(interaction):
-            return interaction.user.id==ctx.author.id and (
-                interaction.data['custom_id']=='accept' or
-                interaction.data['custom_id']=='reject'
-            ) and interaction.channel.id==ctx.channel.id
-
-        try:
-            resp = await self.bot.wait_for("interaction", check=check, timeout=60.0)
-        except:
-            btns.items[0].disabled = True
-            btns.items[1].disabled = True
-            components = ui.MessageComponents()
-            components.add_row(btns)
-            await msg.edit(view=components)
-            return await ctx.send('Timed out.')
-        btns.items[0].disabled = True
-        btns.items[1].disabled = True
-        components = ui.MessageComponents()
-        components.add_row(btns)
-        await msg.edit(view=components)
-        await resp.response.defer(with_message=True)
-        if resp.data['custom_id']=='reject':
-            return
-        webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
-        guild = [webhook.id, ctx.channel.id]
-        if not 'discord' in self.bot.db['rooms'][room]:
-            self.bot.db['rooms'][room].update({'discord': {}})
-        self.bot.db['rooms'][room]['discord'].update({f'{ctx.guild.id}':guild})
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await resp.edit_original_message(content=f'# {self.bot.ui_emojis.success} Linked channel to Unifier network!\nYou can now send messages to the Unifier network through this channel. Say hi!')
-        try:
-            await msg.pin()
-        except:
-            pass
+        embed.set_footer(text='Failure to follow room rules may lead to user or server restrictions.')
 
     @commands.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
     @commands.has_permissions(manage_channels=True)
@@ -735,7 +645,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if len(roomname) < 3:
                 roomname = str(channel.id)
             if not roomname in self.bot.db['rooms'].keys():
-                self.bot.db['rooms'].update({roomname: self.room_template})
+                self.bot.bridge.create_room(roomname)
                 if restricted:
                     self.bot.db['rooms'][roomname]['meta']['restricted'] = True
                 elif locked:
