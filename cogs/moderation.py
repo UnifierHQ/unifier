@@ -27,12 +27,6 @@ from utils import log, ui
 from utils import restrictions as r
 
 override_st = False
-
-with open('config.json', 'r') as file:
-    data = json.load(file)
-
-externals = data["external"]
-
 restrictions = r.Restrictions()
 
 def encrypt_string(hash_string):
@@ -256,7 +250,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         
         if not discreet:
             await self.bot.bridge.send("main", ctx.message, 'discord', system=True, content_override='')
-        for platform in externals:
+        for platform in self.bot.config["external"]:
             await self.bot.bridge.send("main", ctx.message, platform, system=True, content_override='')
 
         ctx.message.embeds = []
@@ -1375,27 +1369,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return
 
         self.logger.warn(f'Bridge lockdown issued by {ctx.author.id}!')
-
-        try:
-            self.logger.info("Shutting down Revolt client...")
-            await self.bot.revolt_session.close()
-            del self.bot.revolt_client
-            del self.bot.revolt_session
-            self.bot.unload_extension('cogs.bridge_revolt')
-            self.logger.info("Revolt client has been shut down.")
-        except Exception as e:
-            if not isinstance(e, AttributeError):
-                self.logger.exception("Shutdown failed.")
-        try:
-            self.logger.info("Shutting down Guilded client...")
-            await self.bot.guilded_client.close()
-            self.bot.guilded_client_task.cancel()
-            del self.bot.guilded_client
-            self.bot.unload_extension('cogs.bridge_guilded')
-            self.logger.info("Guilded client has been shut down.")
-        except Exception as e:
-            if not isinstance(e, AttributeError):
-                self.logger.exception("Shutdown failed.")
         self.logger.info("Backing up message cache...")
         await self.bot.bridge.backup()
         self.logger.info("Backup complete")
@@ -1422,18 +1395,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self.logger.info('Restored ' + str(len(self.bot.bridge.bridged)) + ' messages')
         except:
             traceback.print_exc()
-        if 'revolt' in externals:
-            try:
-                self.bot.load_extension('cogs.bridge_revolt')
-            except Exception as e:
-                if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
-                    traceback.print_exc()
-        if 'guilded' in externals:
-            try:
-                self.bot.load_extension('cogs.bridge_guilded')
-            except Exception as e:
-                if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
-                    traceback.print_exc()
         await ctx.send(f'{self.bot.ui_emojis.success} Lockdown removed')
 
     async def cog_command_error(self, ctx, error):
