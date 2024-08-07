@@ -83,6 +83,7 @@ We want to thank:
   discord.py library Novus and Nextcord are based on
 - [**Revolt**](https://github.com/revoltchat), for creating revolt.py and an awesome open-source Discord alternative
 - [**shayypy**](https://github.com/shayypy), for creating guilded.py
+- [**UnifierHQ Team**](https://github.com/UnifierHQ), for creating Unifier
 
 We also use the logging logger formatting code from discord.py, which is licensed under the MIT license. You can find more info in 
 the `EXTERNAL_LICENSES.txt` file.
