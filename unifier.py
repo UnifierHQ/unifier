@@ -114,13 +114,10 @@ class DiscordBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__ready = False
-        self.ready = None
         self.__update = False
-        self.update = None
         self.__config = None
-        self.config = None
         self.__safemode = None
-        self.safemode = None
+        self.__coreboot = None
         self.bridge = None
 
     @property
@@ -158,10 +155,20 @@ class DiscordBot(commands.Bot):
         return self.__safemode
 
     @safemode.setter
-    def safemode(self, status):
+    def safemode(self, status: bool):
         if not self.__safemode is None:
             raise RuntimeError('Safemode is set')
         self.__safemode = status
+
+    @property
+    def coreboot(self):
+        return self.__coreboot
+
+    @coreboot.setter
+    def coreboot(self, status: bool):
+        if not self.__coreboot is None:
+            raise RuntimeError('Coreboot is set')
+        self.__coreboot = status
 
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
@@ -169,8 +176,12 @@ if data['enable_squads']:
     logger.warning('Squads have been disabled as they are still incomplete.')
     data['enable_squads'] = False
 bot.config = data
-bot.safemode = 'safemode' in sys.argv
+bot.coreboot = 'core' in sys.argv
+bot.safemode = 'safemode' in sys.argv and not bot.coreboot
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
+
+if bot.coreboot:
+    logger.warning('Core-only boot is enabled. Only core and System Manager will be loaded.')
 
 if bot.safemode:
     logger.warning('Safemode is enabled. Only system extensions will be loaded.')
@@ -213,8 +224,10 @@ async def on_ready():
         if should_abort:
             sys.exit(1)
         logger.debug('System extensions loaded')
-        if hasattr(bot, 'bridge'):
+        if hasattr(bot, 'bridge') and not bot.coreboot:
             try:
+                logger.debug('Restructuring room data...')
+                await bot.bridge.convert_1()
                 logger.debug('Optimizing room data, this may take a while...')
                 await bot.bridge.optimize()
                 if len(bot.bridge.bridged) == 0:
@@ -227,7 +240,7 @@ async def on_ready():
                 logger.warning('Message restore failed')
         elif data['periodic_backup'] <= 0:
             logger.debug(f'Periodic backups disabled')
-        if data['enable_ctx_commands']:
+        if data['enable_ctx_commands'] and not bot.coreboot:
             logger.debug("Registering context commands...")
             await bot.sync_application_commands()
     logger.info('Unifier is ready!')
@@ -242,6 +255,9 @@ async def on_command_error(_ctx, _command):
 
 @bot.event
 async def on_message(message):
+    if not bot.ready:
+        return
+
     if not message.webhook_id==None:
         # webhook msg
         return

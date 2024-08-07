@@ -1,3 +1,21 @@
+"""
+Unifier - A sophisticated Discord bot uniting servers and platforms
+Copyright (C) 2023-present  UnifierHQ
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from nextcord.ext import commands
 
 class Restrictions:
@@ -30,6 +48,40 @@ class Restrictions:
     def moderator(self):
         async def predicate(ctx: commands.Context):
             return ctx.author.id in self.__bot.moderators or ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
+
+        return commands.check(predicate)
+
+    def join_room(self):
+        async def predicate(ctx: commands.Context):
+            index = 0
+
+            # the below is to be used if we ever make a command
+            # that has the room arg not in position 0
+            # if ctx.command.qualified_name == "name":
+            #     index = 1
+
+            room = ctx.args[index]
+            try:
+                return self.__bot.bridge.can_join_room(room,ctx.author)
+            except:
+                return False
+
+        return commands.check(predicate)
+
+    def manage_room(self):
+        async def predicate(ctx: commands.Context):
+            index = 0
+
+            # the below is to be used if we ever make a command
+            # that has the room arg not in position 0
+            # if ctx.command.qualified_name == "name":
+            #     index = 1
+
+            room = ctx.args[index]
+            try:
+                return self.__bot.bridge.can_manage_room(room,ctx.author)
+            except:
+                return False
 
         return commands.check(predicate)
 
