@@ -224,7 +224,7 @@ async def on_ready():
         if should_abort:
             sys.exit(1)
         logger.debug('System extensions loaded')
-        if hasattr(bot, 'bridge'):
+        if hasattr(bot, 'bridge') and not bot.coreboot:
             try:
                 logger.debug('Restructuring room data...')
                 await bot.bridge.convert_1()
