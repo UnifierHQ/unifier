@@ -453,6 +453,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.bot.loglevel = logging.DEBUG if self.bot.config['debug'] else logging.INFO
         if not hasattr(self.bot, 'package'):
             self.bot.package = self.bot.config['package']
+        if not hasattr(self.bot, 'admins'):
+            self.bot.admins = self.bot.config['admin_ids']
+            self.bot.moderators = self.bot.admins + self.bot.db['moderators']
 
         self.bot.exhandler = CommandExceptionHandler(self.bot)
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
