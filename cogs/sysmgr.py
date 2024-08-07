@@ -440,6 +440,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('emojis/base.json', 'w') as file:
                     json.dump(base, file, indent=2)
             try:
+                if self.bot.coreboot:
+                    raise RuntimeError()
                 with open('emojis/current.json', 'r') as file:
                     data = json.load(file)
                 self.bot.ui_emojis = Emojis(data=data)
@@ -461,7 +463,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         language = self.bot.langmgr
         if not hasattr(self.bot,'loaded_plugins'):
             self.bot.loaded_plugins = {}
-            if not self.bot.safemode:
+            if not self.bot.safemode and not self.bot.coreboot:
                 for plugin in os.listdir('plugins'):
                     with open('plugins/' + plugin) as file:
                         extinfo = json.load(file)
@@ -479,7 +481,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             # This loads the entire plugin script to memory.
             # Plugins will need to create the platform support object themselves when the
             # bot is ready on the platform.
-            if not self.bot.safemode:
+            if not self.bot.safemode and not self.bot.coreboot:
                 for plugin in os.listdir('plugins'):
                     with open('plugins/' + plugin) as file:
                         extinfo = json.load(file)
@@ -495,7 +497,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not hasattr(self.bot, "disconnects"):
             self.bot.disconnects = 0
 
-        if not self.bot.ready:
+        if not self.bot.ready and not self.bot.coreboot:
             try:
                 with open('plugins/system.json') as file:
                     sysext = json.load(file)
@@ -528,17 +530,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
 
-        if not hasattr(self.bot, 'status_rotation_task'):
+        if not hasattr(self.bot, 'status_rotation_task') and not self.bot.coreboot:
             self.bot.status_rotation_task = self.changestatus
             if not self.bot.status_rotation_task .is_running() and self.bot.config['enable_rotating_status']:
                 self.bot.status_rotation_task.start()
-        if not hasattr(self.bot, 'antisleep_task'):
+        if not hasattr(self.bot, 'antisleep_task') and not self.bot.coreboot:
             self.bot.antisleep_task = self.periodicping
             self.bot.antisleep_task.change_interval(seconds=round(self.bot.config['ping']))
             if not self.bot.antisleep_task.is_running() and round(self.bot.config['ping']) > 0:
                 self.bot.antisleep_task.start()
                 self.logger.debug(f'Pinging servers every {round(self.bot.config["ping"])} seconds')
-        if not hasattr(self.bot, 'backup_local_task'):
+        if not hasattr(self.bot, 'backup_local_task') and not self.bot.coreboot:
             self.bot.backup_local_task = self.periodic_backup
             self.bot.backup_local_task.change_interval(seconds=round(
                 self.bot.config['periodic_backup_local']
@@ -552,7 +554,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ) > 0:
                 self.bot.backup_local_task.start()
                 self.logger.debug(f'Backing up messages every {round(self.bot.config["ping"])} seconds')
-        if not hasattr(self.bot, 'backup_cloud_task'):
+        if not hasattr(self.bot, 'backup_cloud_task') and not self.bot.coreboot:
             self.bot.backup_cloud_task = self.periodic_backup_cloud
             self.bot.backup_cloud_task.change_interval(seconds=round(
                 self.bot.config['periodic_backup_cloud']
