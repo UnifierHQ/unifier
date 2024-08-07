@@ -39,12 +39,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 self.bot.db.save_data()
             self.bot.bridged_emojis = self.bot.db['emojis']
         self.bot.admins = self.bot.config['admin_ids']
-        moderators = self.bot.db['moderators']
-        for admin in self.bot.admins:
-            if admin in moderators:
-                continue
-            moderators.append(admin)
-        self.bot.moderators = moderators
+        self.bot.moderators = self.bot.admins + self.bot.db['moderators']
         if not hasattr(self.bot, 'trusted_group'):
             self.bot.trusted_group = self.bot.db['trusted']
         restrictions.attach_bot(self.bot)
@@ -98,6 +93,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if self.is_user_admin(userid) or user.bot:
             return await ctx.send('are you fr')
         self.bot.db['moderators'].append(userid)
+        self.bot.moderators.append(userid)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         mod = f'{user.name}#{user.discriminator}'
         if user.discriminator=='0':
@@ -122,6 +118,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if self.is_user_admin(userid):
             return await ctx.send('are you fr')
         self.bot.db['moderators'].remove(userid)
+        self.bot.moderators.remove(userid)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         mod = f'{user.name}#{user.discriminator}'
         if user.discriminator=='0':
