@@ -20,7 +20,7 @@ are in dd/mm/yyyy format.
 - `legacy`: This is an older series that will continue to receive bug
   patches and security updates.
 - `extended`: This is an older series that should have been discontinued
-  but continues to receive updates due to special circumstances.
+  but continue to receive updates due to special circumstances.
 - `eol`: This series is no longer maintained. They will not receive any
   updates.
 
