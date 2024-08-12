@@ -341,6 +341,10 @@ class CommandExceptionHandler:
                 await ctx.send(f'{self.bot.ui_emojis.error} {error}')
             elif isinstance(error, commands.CheckFailure):
                 await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
+            elif isinstance(error, commands.NoPrivateMessage):
+                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in servers.')
+            elif isinstance(error, commands.PrivateMessageOnly):
+                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in DMs.')
             elif isinstance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
                 await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')
