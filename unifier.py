@@ -121,6 +121,10 @@ class DiscordBot(commands.Bot):
         self.bridge = None
 
     @property
+    def owner(self):
+        return self.__config['owner'] if self.__config else None
+
+    @property
     def config(self):
         return self.__config
 
