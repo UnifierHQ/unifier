@@ -79,5 +79,7 @@ body:
       description: If you have screenshots of the bug, please attach them here.
   - type: markdown
     attributes:
-      value: >-
-        Thanks to [Issue Forms Creator](https://issue-forms-creator.netlify.app) for simplifying the Forms creation process!
+      value: <p>
+        Please do not report false bugs to us. On repeated false reports, we may prevent you from creating new issues on the repository.
+        </p>
+        <sub>Thanks to [Issue Forms Creator](https://issue-forms-creator.netlify.app) for simplifying the Forms creation process!</sub>
