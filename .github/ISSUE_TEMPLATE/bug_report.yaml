@@ -69,7 +69,7 @@ body:
     id: modified-repo
     attributes:
       label: Modified instance repository
-      description: If you modified your instance, please provide its repository here.
+      description: If you're running a modified instance, please provide its repository here. This is only required if you've selected the checkbox above.
   - type: textarea
     id: screenshots
     attributes:
