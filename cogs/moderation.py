@@ -210,7 +210,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             title=f'You\'ve been __banned__ by {mod}!',
             description=reason,
             color=self.bot.colors.error,
-            timestamp=datetime.datetime.now(datetime.UTC)
+            timestamp=self.bot.datetime_utc()
         )
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if rtt_msg:
@@ -265,7 +265,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.add_modlog(1, user.id, reason, ctx.author.id))
         actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(user.id)
-        log_embed = nextcord.Embed(title='User banned', description=reason, color=self.bot.colors.error, timestamp=datetime.datetime.now(datetime.UTC))
+        log_embed = nextcord.Embed(title='User banned', description=reason, color=self.bot.colors.error, timestamp=datetime.datetime.now(datetime.timezone.utc))
         log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
         log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
@@ -1066,7 +1066,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             title=f'You\'ve been __warned__ by {mod}!',
             description=reason,
             color=self.bot.colors.warning,
-            timestamp=datetime.datetime.now(datetime.UTC)
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if rtt_msg:
@@ -1097,7 +1097,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             title='User warned',
             description=reason,
             color=self.bot.colors.warning,
-            timestamp=datetime.datetime.now(datetime.UTC)
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
