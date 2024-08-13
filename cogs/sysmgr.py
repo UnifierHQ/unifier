@@ -832,17 +832,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can execute code.')
 
-    @eval.error
-    async def eval_error(self, ctx, error):
-        if ctx.author.id == self.bot.config['owner']:
-            if isinstance(error, commands.MissingRequiredArgument):
-                await ctx.send('where code :thinking:')
-            else:
-                await ctx.send('Something went horribly wrong.')
-                raise
-        else:
-            await ctx.send('Only the owner can execute code.')
-
     @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
     @restrictions.owner()
     async def shutdown(self, ctx):
