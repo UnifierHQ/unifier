@@ -2055,7 +2055,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await ctx.send(f'{self.bot.ui_emojis.error} Could not activate emoji pack.')
 
     @commands.command(description=language.desc('sysmgr.help'))
-    async def help(self,ctx):
+    async def help(self,ctx,query=None):
         selector = language.get_selector(ctx)
         panel = 0
         limit = 20
@@ -2065,9 +2065,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         descmatch = False
         cogname = ''
         cmdname = ''
-        query = ''
         msg = None
         interaction = None
+        if not query:
+            query = ''
+        else:
+            panel = 1
+            cogname = 'search'
+            namematch = True
+            descmatch = True
+            match = 0
 
         # Command overrides - these commands will be shown regardless of permissions.
         # Useful if cooldowns cause checks to fail
