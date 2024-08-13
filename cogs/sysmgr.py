@@ -878,7 +878,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             await ctx.send('Only the owner can execute code.')
 
-    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
+    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
     @restrictions.owner()
     async def shutdown(self, ctx):
         selector = language.get_selector(ctx)
