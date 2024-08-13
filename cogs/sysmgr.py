@@ -817,7 +817,66 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\n{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
+            await ctx.author.send(f'**Fail logs**\n{text}')
+
+    @commands.command(hidden=True, description='Evaluates code.')
+    @restrictions.owner()
+    async def eval(self, ctx, *, body):
+        if ctx.author.id == self.bot.config['owner']:
+            env = {
+                'ctx': ctx,
+                'channel': ctx.channel,
+                'author': ctx.author,
+                'guild': ctx.guild,
+                'message': ctx.message,
+                'source': inspect.getsource,
+                'session': self.bot.session,
+                'bot': self.bot
+            }
+
+            env.update(globals())
+
+            body = cleanup_code(body)
+            stdout = io.StringIO()
+
+            to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
+
+            try:
+                if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
+                    raise ValueError('Blocked phrase')
+                exec(to_compile, env)
+            except:
+                pass
+
+            try:
+                func = env['func']
+            except Exception as e:
+                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
+                await ctx.author.send(
+                    f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
+                return
+            token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
+            try:
+                with redirect_stdout(stdout):
+                    # ret = await func() to return output
+                    await func()
+            except:
+                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
+                if token_start in value:
+                    return await ctx.author.send('The error contained your bot\'s token, so it was not sent.')
+                await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
+            else:
+                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+                if token_start in value:
+                    return await ctx.send('The output contained your bot\'s token, so it was not sent.')
+                if value == '':
+                    pass
+                else:
+                    #  here, cause is if haves value
+                    await ctx.send('```%s```' % value)
+        else:
+            await ctx.send('Only the owner can execute code.')
 
     @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
