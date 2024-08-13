@@ -166,8 +166,15 @@ class UnifierBridge:
         self.msg_stats = {}
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
-        self.__room_template = {'rules': [], 'restricted': False, 'locked': False, 'private': False, 'emoji': None,
-                                'description': None}
+        self.__room_template = {
+            'rules': [], 'restricted': False, 'locked': False, 'private': False,
+            'private_meta': {
+                'server': None,
+                'allowed': [],
+                'invites': []
+            },
+            'emoji': None, 'description': None
+        }
 
     @property
     def room_template(self):
@@ -265,6 +272,12 @@ class UnifierBridge:
     class RoomExistsError(Exception):
         pass
 
+    class InviteNotFoundError(Exception):
+        pass
+
+    class InviteExistsError(Exception):
+        pass
+
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
@@ -323,7 +336,17 @@ class UnifierBridge:
         """Gets a Unifier room.
         This will be moved to UnifierBridge for a future update."""
         try:
-            return self.__bot.db['rooms'][room]
+            roominfo = self.__bot.db['rooms'][room]
+            base = dict(self.__room_template)
+
+            # add template keys and values to data
+            for key in roominfo.keys():
+                if key == 'private_meta':
+                    for meta_key in roominfo['private_meta'].keys():
+                        base['private_meta'].update({meta_key: roominfo['private_meta'][meta_key]})
+                base.update({key: roominfo[key]})
+
+            return base
         except:
             return None
 
@@ -373,26 +396,64 @@ class UnifierBridge:
 
     def get_invite(self, invite) -> dict or None:
         try:
+            invite = self.__bot.db['invites'][invite]
+
+            if invite['expire'] < time.time():
+                # invite expired
+                self.delete_invite(invite)
+                return None
+
             return self.__bot.db['invites'][invite]
         except:
             return None
 
+    def create_invite(self, room, max_usage, expire) -> dict:
+        while True:
+            # generate unique invite
+            invite = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+            if not invite in self.__bot.db['invites'].keys():
+                break
+
+        self.__bot.db['invites'].update({invite: {
+            'remaining': max_usage, 'expire': expire, 'room': room
+        }})
+        self.__bot.db['rooms'][room]['private_meta']['invites'].append(invite)
+        return self.__room_template
+
     def delete_invite(self, invite):
-        # TODO: Add InviteNotFoundError, like RoomNotFoundError but for invites.
+        if not invite in self.__bot.db['invites'].keys():
+            raise self.InviteNotFoundError('invalid invite')
+
+        room = self.__bot.db['invites']['invite']['room']
         self.__bot.db['invites'].pop(invite)
+        try:
+            self.__bot.db['rooms'][room]['private_meta']['invites'].remove(invite)
+        except:
+            # room prob deleted, ignore
+            pass
         self.__bot.db.save_data()
 
-    async def accept_invite(self, user, invite):
-        # TODO: This is incomplete
+    async def accept_invite(self, user, invite, platform='discord'):
         invite = self.get_invite(invite)
         if not invite:
-            raise ValueError('invalid invite')
+            raise self.InviteNotFoundError('invalid invite')
         roominfo = self.get_room(invite['room'])
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
         if not roominfo['private']:
-            self.__bot.db['invites'].pop(invite)
+            self.delete_invite(invite)
             raise RuntimeError('invite leads to a public room, expired')
+        if invite['remaining'] == 1:
+            self.delete_invite(invite)
+        else:
+            self.__bot.db['invites'][invite]['remaining'] -= 1
+        if platform == 'discord':
+            roominfo['private_meta']['allowed'].append(user.guild.id)
+        else:
+            support = self.__bot.platforms[platform]
+            roominfo['private_meta']['allowed'].append(support.get_id(support.server(user)))
+            self.update_room(invite['room'], roominfo)
+        self.__bot.db.save_data()
 
     async def join_room(self, user, room, webhook_or_channel, platform='discord'):
         roominfo = self.get_room(room)
@@ -489,7 +550,8 @@ class UnifierBridge:
                 'private': False,
                 'private_meta': {
                     'server': None,
-                    'allowed': []
+                    'allowed': [],
+                    'invites': []
                 },
                 'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
                 'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None
@@ -1042,6 +1104,23 @@ class UnifierBridge:
             return
         if ignore is None:
             ignore = []
+
+        # WIP orphan message system.
+        # if type(message) is dict:
+        #     orphan = True
+        # else:
+        #     orphan = False
+        #     message = {
+        #         'id': message.id,
+        #         'author': message.author,
+        #         'guild': message.guild,
+        #         'content': message.content,
+        #         'channel': message.channel,
+        #         'attachments': message.attachments,
+        #         'embeds': message.embeds,
+        #         'reference': message.reference
+        #     }
+
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
 
         source_support = self.__bot.platforms[source] if source != 'discord' else None
