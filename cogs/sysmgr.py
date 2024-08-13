@@ -867,14 +867,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return await ctx.author.send(selector.get('blocked'))
             await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
         else:
-            value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-            if token_start in value:
-                return await ctx.send(selector.get('blocked'))
-            if value == '':
-                pass
-            else:
-                #  here, cause is if haves value
-                await ctx.send('```%s```' % value)
+            await ctx.send('Only the owner can execute code.')
 
     @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
