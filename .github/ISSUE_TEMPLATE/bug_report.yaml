@@ -57,16 +57,14 @@ body:
       label: Plugins
       description: What plugins were you using at the time?
       placeholder: RaidGuard, Revolt Support, etc.
-  - type: dropdown
+  - type: checkboxes
     id: modified
     attributes:
       label: Modified instance
       description: Are you running a modified version of Unifier?
       options:
-        - 'No'
-        - 'Yes'
-    validations:
-      required: true
+        - label: Yes, I'm running a modified version of Unifier.
+          required: false
   - type: input
     id: modified-repo
     attributes:
