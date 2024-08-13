@@ -433,7 +433,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         text = '\n'.join(text)
 
         embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.rooms} Join {roominfo['meta']['display_name'] or room.lower()}?',
+            title=f'{self.bot.ui_emojis.rooms} Join {roominfo["meta"]["display_name"] or room.lower()}?',
             description=(f'{text}\n\nBy joining this room, you and your members agree to these rules.\n'+
                          'This message will be pinned (if possible) for better accessibility to the rules.'
                          ),
