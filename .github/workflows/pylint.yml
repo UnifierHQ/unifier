@@ -21,4 +21,4 @@ jobs:
         pip install pylint
     - name: Analysing the code with pylint
       run: |
-        pylint --disable=R,C,W $(git ls-files '*.py')
+        pylint --enable-all-extensions --disable=R,C,W $(git ls-files '*.py')
