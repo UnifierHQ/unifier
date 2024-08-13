@@ -2196,15 +2196,22 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 offset = 0
 
+                def in_aliases(query, query_cmd):
+                    for alias in query_cmd.aliases:
+                        if query.lower() in alias.lower():
+                            return True
+
                 def search_filter(query, query_cmd):
                     if match==0:
                         return (
-                            query.lower() in query_cmd.qualified_name and namematch or
+                            (query.lower() in query_cmd.qualified_name.lower() or
+                             in_aliases(query,query_cmd)) and namematch or
                             query.lower() in query_cmd.description.lower() and descmatch
                         )
                     elif match==1:
                         return (
-                            ((query.lower() in query_cmd.qualified_name and namematch) or not namematch) and
+                            (((query.lower() in query_cmd.qualified_name.lower() or
+                               in_aliases(query,query_cmd)) and namematch) or not namematch) and
                             ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
                         )
 
