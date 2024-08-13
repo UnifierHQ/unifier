@@ -2015,7 +2015,11 @@ class UnifierBridge:
         tbv2_results = []
         if tb_v2:
             tbv2_results = await asyncio.gather(*threads)
-        urls = urls | thread_urls
+
+        if self.__bot.pyversion > (3,8):
+            urls = urls | thread_urls
+        else:
+            urls = {**urls, **thread_urls}
 
         parent_id = None
 
@@ -2047,14 +2051,26 @@ class UnifierBridge:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
             if msg_object.source == platform:
-                self.bridged[index].copies = msg_object.copies | message_ids
+                if self.__bot.pyversion > (3, 8):
+                    self.bridged[index].copies = msg_object.copies | message_ids
+                else:
+                    self.bridged[index].copies = {**msg_object.copies, **message_ids}
             else:
                 try:
-                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[
-                                                                        platform] | message_ids
+                    if self.__bot.pyversion > (3, 8):
+                        self.bridged[index].external_copies[platform] = (
+                            self.bridged[index].external_copies[platform] | message_ids
+                        )
+                    else:
+                        self.bridged[index].external_copies[platform] = {
+                            **self.bridged[index].external_copies[platform], **message_ids
+                        }
                 except:
                     self.bridged[index].external_copies.update({platform: message_ids})
-            self.bridged[index].urls = self.bridged[index].urls | urls
+            if self.__bot.pyversion > (3, 8):
+                self.bridged[index].urls = self.bridged[index].urls | urls
+            else:
+                self.bridged[index].urls = {**self.bridged[index].urls, **urls}
             self.bridged[index].reply_v2 = global_reply_v2 if not self.bridged[index].reply_v2 else self.bridged[index].reply_v2
         except:
             copies = {}

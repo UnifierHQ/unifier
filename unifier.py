@@ -119,6 +119,7 @@ class DiscordBot(commands.Bot):
         self.__safemode = None
         self.__coreboot = None
         self.bridge = None
+        self.pyversion = sys.version_info
 
     @property
     def owner(self):
