@@ -3335,7 +3335,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 title=selector.get('report_title'),
                 description=content,
                 color=self.bot.colors.warning,
-                timestamp=datetime.datetime.now(datetime.UTC)
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
             embed.add_field(name=language.get('reason','commons.moderation',language=selector.language_set), value=f'{cat} => {cat2}', inline=False)
             embed.add_field(name=language.get('context','commons.moderation',language=selector.language_set), value=context, inline=False)
@@ -3585,7 +3585,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 title=f'{self.bot.ui_emojis.warning} {selector.get("blocked_report_title")}',
                 description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
                 color=self.bot.colors.error,
-                timestamp=datetime.datetime.now(datetime.UTC)
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
 
             for plugin in responses:
@@ -3631,7 +3631,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     title=language.fget("ban_title","commons.moderation",values={"moderator": "@Unifier (system)"},language=selector.language_set),
                     description=selector.get("ban_reason"),
                     color=self.bot.colors.warning,
-                    timestamp=datetime.datetime.now(datetime.UTC)
+                    timestamp=datetime.datetime.now(datetime.timezone.utc)
                 )
                 embed.set_author(
                     name='@Unifier (system)',
