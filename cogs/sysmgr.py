@@ -876,14 +876,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 #  here, cause is if haves value
                 await ctx.send('```%s```' % value)
 
-    @eval.error
-    async def eval_error(self, ctx, error):
-        selector = language.get_selector(ctx)
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(selector.get('nocode'))
-        else:
-            raise
-
     @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
     async def shutdown(self, ctx):
