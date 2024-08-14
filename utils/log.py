@@ -84,7 +84,10 @@ def buildlogger(package, name, level, handler=None):
 
     # Prevent duplicate output
     while logger.hasHandlers():
-        logger.removeHandler(logger.handlers[0])
+        try:
+            logger.removeHandler(logger.handlers[0])
+        except:
+            break
 
     logger.setLevel(level)
     logger.addHandler(handler)
