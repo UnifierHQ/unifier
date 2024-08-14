@@ -416,7 +416,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     def __init__(self, bot):
         global language
         self.bot = bot
-        if not hasattr(self.bot, 'db'):
+        if not self.bot.db:
             self.bot.db = AutoSaveDict({})
 
         restrictions.attach_bot(self.bot)

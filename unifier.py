@@ -120,6 +120,7 @@ class DiscordBot(commands.Bot):
         self.__coreboot = None
         self.bridge = None
         self.pyversion = sys.version_info
+        self.db = None
 
     @property
     def owner(self):
