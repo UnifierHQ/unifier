@@ -44,8 +44,8 @@ body:
       placeholder: I'm always frustrated when...
     validations:
       required: true
-  - type: solution
-    id: bug-expected
+  - type: textarea
+    id: solution
     attributes:
       label: Proposed solution
       description: What do you want to happen that would solve your issue?
