@@ -19,16 +19,6 @@ body:
         - label: All info applicable to the issue has been attached.
           required: true
   - type: textarea
-    id: bug-desc
-    attributes:
-      label: Bug description
-      description: Please provide a clear and concise description of what the bug is.
-      placeholder: >-
-        e.g. "When running u!help, I get an error in the console saying 'list
-        index out of range'."
-    validations:
-      required: true
-  - type: textarea
     id: problem
     attributes:
       label: Problem
