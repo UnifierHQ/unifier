@@ -1,0 +1,49 @@
+name: Feature request
+description: Got a suggestion for Unifier? Let us know!
+title: '[Feat] '
+assignees:
+  - greeeen-dev
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please make sure all of the following applies to your issue.
+      options:
+        - label: The same feedback was not posted yet.
+          required: true
+        - label: This is not a suggestion for the moderation team.
+          required: true
+        - label: All info applicable to the issue has been attached.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What do you want to happen that would solve your issue?
+      placeholder: I would like...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Please describe any alternative solutions you've considered.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Is there something else we should know or any screenshots/images we should see?
+  - type: markdown
+    attributes:
+      value: Please do not make troll feature requests. On repeated cases, we may prevent you from creating new issues on the repository.
