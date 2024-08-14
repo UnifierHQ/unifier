@@ -18,14 +18,6 @@ body:
           required: true
         - label: All info applicable to the issue has been attached.
           required: true
-  - type: input
-    id: version
-    attributes:
-      label: Version
-      description: What Unifier version did you use when you encountered the bug?
-      placeholder: 1.2.5, 2.0.6, etc.
-    validations:
-      required: true
   - type: textarea
     id: bug-desc
     attributes:
