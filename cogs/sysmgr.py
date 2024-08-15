@@ -280,7 +280,7 @@ class CommandExceptionHandler:
                         cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                                 )
                 await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
-            elif isinstance(error, commands.MissingPermissions):
+            elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.BotMissingPermissions):
                 await ctx.send(f'{self.bot.ui_emojis.error} {error}')
             elif isinstance(error, commands.NoPrivateMessage):
                 await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in servers.')
@@ -288,6 +288,12 @@ class CommandExceptionHandler:
                 await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in DMs.')
             elif isinstance(error, commands.CheckFailure):
                 await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
+            elif isinstance(error, restrictions.NoRoomManagement):
+                await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to manage this room.')
+            elif isinstance(error, restrictions.NoRoomJoin):
+                await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to join this room.')
+            elif isinstance(error, restrictions.UnknownRoom):
+                await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
             elif isinstance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
                 await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')

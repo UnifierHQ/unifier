@@ -180,6 +180,14 @@ class UnifierBridge:
     def room_template(self):
         return self.__room_template
 
+    @property
+    def rooms(self):
+        return list(self.__bot.db.rooms.keys())
+
+    @property
+    def public_rooms(self):
+        return [room for room in self.rooms if not self.get_room(room)['private']]
+
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                      external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
@@ -329,9 +337,6 @@ class UnifierBridge:
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
-    def rooms(self) -> list:
-        return list(self.__bot.db['rooms'].keys())
-
     def get_room(self, room) -> dict or None:
         """Gets a Unifier room.
         This will be moved to UnifierBridge for a future update."""
@@ -455,7 +460,7 @@ class UnifierBridge:
             self.update_room(invite['room'], roominfo)
         self.__bot.db.save_data()
 
-    async def join_room(self, user, room, webhook_or_channel, platform='discord'):
+    async def join_room(self, user, room, channel_id, webhook_id=None, platform='discord'):
         roominfo = self.get_room(room)
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
@@ -486,7 +491,15 @@ class UnifierBridge:
                 raise ValueError('forbidden')
 
         guild_id = str(guild_id)
-        webhook_id = support.get_id(webhook_or_channel)
+
+        if platform == 'discord':
+            if not webhook_id:
+                raise ValueError('webhook must be provided for discord')
+            ids = [webhook_id, channel_id]
+        else:
+            ids = [channel_id]
+            if webhook_id:
+                ids.append(webhook_id)
 
         if not platform in roominfo.keys():
             self.__bot.db['rooms'][room].update({platform:{}})
@@ -494,7 +507,7 @@ class UnifierBridge:
         if guild_id in self.__bot.db['rooms'][room][platform].keys():
             raise ValueError('already joined')
 
-        self.__bot.db['rooms'][room][platform].update({guild_id: webhook_id})
+        self.__bot.db['rooms'][room][platform].update({guild_id: ids})
         self.__bot.db.save_data()
 
     async def leave_room(self, guild, room, platform='discord'):
