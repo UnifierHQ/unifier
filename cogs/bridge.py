@@ -286,6 +286,17 @@ class UnifierBridge:
     class InviteExistsError(Exception):
         pass
 
+    def get_reply_style(self, guild_id):
+        if str(guild_id) in self.__bot.db['settings'].keys():
+            return self.__bot.db['settings'][f'{guild_id}'].get('reply_layout',0)
+        return 0
+
+    def set_reply_style(self, guild_id, reply_type):
+        if not str(guild_id) in self.__bot.db['settings'].keys():
+            self.__bot.db['settings'].update({f'{guild_id}': {}})
+
+        self.__bot.db['settings'][f'{guild_id}'].update({'reply_layout': reply_type})
+
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
@@ -1383,7 +1394,7 @@ class UnifierBridge:
         # Broadcast message
         for guild in list(guilds.keys()):
             if source=='discord':
-                reply_v2 = not (self.__bot.db['settings'][guild]['reply_v2_optout'] if guild in self.__bot.db['settings'].keys() else False)
+                reply_v2 = self.get_reply_style(message.guild.id) == 1
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
             else:
                 reply_v2 = False
@@ -1511,9 +1522,7 @@ class UnifierBridge:
                             content = msg.content
 
                         if source=='discord':
-                            used_reply_v2 = not (self.__bot.db['settings'][str(message.reference.guild_id)][
-                                'reply_v2_optout'] if str(message.reference.guild_id) in self.__bot.db[
-                                'settings'].keys() else False)
+                            used_reply_v2 = self.get_reply_style(message.reference.guild_id) == 1
                             if reply_msg.reply_v2 and (
                                     str(message.reference.guild_id) in reply_msg.copies.keys() or
                                     reply_msg.webhook

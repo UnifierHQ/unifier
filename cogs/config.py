@@ -667,6 +667,59 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Removed rule!')
 
+    @commands.command(name='reply-layout', description="Sets the reply layout.")
+    @commands.has_guild_permissions(manage_channels=True)
+    async def reply_layout(self, ctx):
+        layout = self.bot.bridge.get_reply_style(ctx.guild.id)
+        embed = nextcord.Embed(
+            title='Reply layout',
+            description='Current layout: '+(
+                'Stylish\n\nA colored button will appear at the bottom of the message.' if layout==0
+                else 'Familiar\n\nSome text will be added on top of the message.'
+            )
+        )
+        selection_row = ui.ActionRow(
+            nextcord.ui.StringSelect(
+                options=[
+                    nextcord.SelectOption(
+                        label='Stylish',
+                        value='0',
+                        default=layout == 0,
+                        description='A colored button will appear at the bottom of the message.'
+                    ),
+                    nextcord.SelectOption(
+                        label='Familiar',
+                        value='1',
+                        default=layout == 1,
+                        description='Some text will be added on top of the message.'
+                    )
+                ]
+            )
+        )
+        components = ui.MessageComponents()
+        components.add_row(selection_row)
+
+        msg = await ctx.send(embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        while True:
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                return await msg.edit(view=None)
+
+            layout = int(interaction.data['values'][0])
+            self.bot.bridge.set_reply_style(ctx.guild.id, layout)
+            embed.description='Current layout: ' + (
+                'Stylish\n\nA colored button will appear at the bottom of the message.' if layout == 0
+                else 'Familiar\n\nSome text will be added on top of the message.'
+            )
+            components = ui.MessageComponents()
+            components.add_row(selection_row)
+            await interaction.response.edit_message(embed=embed,view=components)
+
     @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
     @restrictions.admin()
     async def addbridge(self,ctx,*,userid):
