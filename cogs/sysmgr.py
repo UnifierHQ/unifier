@@ -45,7 +45,6 @@ import importlib
 import math
 import asyncio
 import discord_emoji
-import threading
 import hashlib
 import orjson
 from Crypto.Protocol.KDF import PBKDF2
@@ -230,62 +229,6 @@ class Emojis:
         self.emoji = data['emojis']['emoji'][0]
         self.leaderboard = data['emojis']['leaderboard'][0]
 
-class AutoSaveDict(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.file_path = 'data.json'
-        self.__save_lock = False
-
-        # Ensure necessary keys exist
-        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
-                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
-                     'external_bridge': [], 'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {},
-                     'fullbanned': [], 'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {},
-                     'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}})
-        self.threads = []
-
-        # Load data
-        self.load_data()
-
-    @property
-    def save_lock(self):
-        return self.__save_lock
-
-    @save_lock.setter
-    def save_lock(self, save_lock):
-        if self.__save_lock:
-            raise RuntimeError('already locked')
-        self.__save_lock = save_lock
-
-    def load_data(self):
-        try:
-            with open(self.file_path, 'r') as file:
-                data = json.load(file)
-            self.update(data)
-        except FileNotFoundError:
-            pass  # If the file is not found, initialize an empty dictionary
-
-    def save(self):
-        if self.__save_lock:
-            return
-        with open(self.file_path, 'w') as file:
-            json.dump(self, file, indent=4)
-        return
-
-    def cleanup(self):
-        for thread in self.threads:
-            thread.join()
-        count = len(self.threads)
-        self.threads.clear()
-        return count
-
-    def save_data(self):
-        if self.__save_lock:
-            return
-        thread = threading.Thread(target=self.save)
-        thread.start()
-        self.threads.append(thread)
-
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -416,8 +359,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     def __init__(self, bot):
         global language
         self.bot = bot
-        if not self.bot.db:
-            self.bot.db = AutoSaveDict({})
 
         restrictions.attach_bot(self.bot)
 

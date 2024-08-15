@@ -26,6 +26,7 @@ import sys
 import logging
 import requests
 import traceback
+import threading
 from utils import log
 from dotenv import load_dotenv
 from pathlib import Path
@@ -108,6 +109,62 @@ if not data['skip_status_check']:
     except:
         logger.debug('Failed to get Discord status')
 
+class AutoSaveDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.file_path = 'data.json'
+        self.__save_lock = False
+
+        # Ensure necessary keys exist
+        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
+                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
+                     'external_bridge': [], 'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {},
+                     'fullbanned': [], 'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {},
+                     'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}})
+        self.threads = []
+
+        # Load data
+        self.load_data()
+
+    @property
+    def save_lock(self):
+        return self.__save_lock
+
+    @save_lock.setter
+    def save_lock(self, save_lock):
+        if self.__save_lock:
+            raise RuntimeError('already locked')
+        self.__save_lock = save_lock
+
+    def load_data(self):
+        try:
+            with open(self.file_path, 'r') as file:
+                data = json.load(file)
+            self.update(data)
+        except FileNotFoundError:
+            pass  # If the file is not found, initialize an empty dictionary
+
+    def save(self):
+        if self.__save_lock:
+            return
+        with open(self.file_path, 'w') as file:
+            json.dump(self, file, indent=4)
+        return
+
+    def cleanup(self):
+        for thread in self.threads:
+            thread.join()
+        count = len(self.threads)
+        self.threads.clear()
+        return count
+
+    def save_data(self):
+        if self.__save_lock:
+            return
+        thread = threading.Thread(target=self.save)
+        thread.start()
+        self.threads.append(thread)
+
 class DiscordBot(commands.Bot):
     """Extension of discord.ext.commands.Bot for bot configuration"""
 
@@ -120,7 +177,7 @@ class DiscordBot(commands.Bot):
         self.__coreboot = None
         self.bridge = None
         self.pyversion = sys.version_info
-        self.db = None
+        self.db = AutoSaveDict({})
 
     @property
     def owner(self):
