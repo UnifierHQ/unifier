@@ -685,26 +685,27 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 else 'Familiar\n\nSome text will be added on top of the message.'
             )
         )
-        selection_row = ui.ActionRow(
-            nextcord.ui.StringSelect(
-                options=[
-                    nextcord.SelectOption(
-                        label='Stylish',
-                        value='0',
-                        default=layout == 0,
-                        description='A colored button will appear at the bottom of the message.'
-                    ),
-                    nextcord.SelectOption(
-                        label='Familiar',
-                        value='1',
-                        default=layout == 1,
-                        description='Some text will be added on top of the message.'
-                    )
-                ]
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.StringSelect(
+                    options=[
+                        nextcord.SelectOption(
+                            label='Stylish',
+                            value='0',
+                            default=layout == 0,
+                            description='A colored button will appear at the bottom of the message.'
+                        ),
+                        nextcord.SelectOption(
+                            label='Familiar',
+                            value='1',
+                            default=layout == 1,
+                            description='Some text will be added on top of the message.'
+                        )
+                    ]
+                )
             )
         )
-        components = ui.MessageComponents()
-        components.add_row(selection_row)
 
         msg = await ctx.send(embed=embed,view=components)
 
@@ -724,7 +725,26 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 else 'Familiar\n\nSome text will be added on top of the message.'
             )
             components = ui.MessageComponents()
-            components.add_row(selection_row)
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.StringSelect(
+                        options=[
+                            nextcord.SelectOption(
+                                label='Stylish',
+                                value='0',
+                                default=layout == 0,
+                                description='A colored button will appear at the bottom of the message.'
+                            ),
+                            nextcord.SelectOption(
+                                label='Familiar',
+                                value='1',
+                                default=layout == 1,
+                                description='Some text will be added on top of the message.'
+                            )
+                        ]
+                    )
+                )
+            )
             await interaction.response.edit_message(embed=embed,view=components)
 
     @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
