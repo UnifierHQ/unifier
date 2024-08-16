@@ -493,6 +493,9 @@ class UnifierBridge:
             return None
 
     def create_invite(self, room, max_usage, expire) -> dict:
+        if len(self.__bot.db['rooms'][room]['private_meta']['invites']) >= 20:
+            raise RuntimeError('maximum invite limit reached')
+
         while True:
             # generate unique invite
             invite = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
@@ -531,7 +534,8 @@ class UnifierBridge:
         if invite['remaining'] == 1:
             self.delete_invite(invite)
         else:
-            self.__bot.db['invites'][invite]['remaining'] -= 1
+            if invite['remaining'] > 0:
+                self.__bot.db['invites'][invite]['remaining'] -= 1
         if platform == 'discord':
             roominfo['private_meta']['allowed'].append(user.guild.id)
         else:

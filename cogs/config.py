@@ -25,6 +25,7 @@ import math
 import random
 import string
 import emoji as pymoji
+import time
 
 restrictions = r.Restrictions()
 
@@ -135,8 +136,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         roomtype = 'private'
 
         if room:
+            room = room.replace(' ','-')
             if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
-                return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.'
+                )
 
         interaction = None
         if ctx.author.id in self.bot.admins or ctx.author.id == self.bot.config['owner']:
@@ -173,7 +177,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             except:
                 return await msg.edit(content=f'{self.bot.ui_emojis.error} Timed out.', view=None)
 
-        if not room:
+        if not room or roomtype=='private':
             for _ in range(10):
                 room = roomtype + ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
                 if not room in self.bot.bridge.rooms:
@@ -199,6 +203,77 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             )
         await ctx.send(f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!')
 
+    @commands.command(name='create-invite', hidden=True, description='Creates an invite.')
+    @restrictions.manage_room()
+    @restrictions.not_banned()
+    async def create_invite(self, ctx, room, expiry='7d', max_usage=0):
+        if not self.bot.db['rooms'][room]['private']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
+        if len(self.bot.db['rooms'][room]['private_meta']['invites']) >= 20:
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} You\'ve reached the limit for invites. Delete some first, then try again.'
+            )
+        invite = self.bot.bridge.create_invite(max_usage, expiry)
+        try:
+            await ctx.author.send(
+                f'Invite code: `{invite}`\nServers can use `{self.bot.command_prefix}join {invite}` to join your room.'
+            )
+        except:
+            return await ctx.send(
+                f'{self.bot.ui_emojis.warning} Invite was created, but it could not be DMed. Turn your DMs on, then '+
+                f'run `{self.bot.command_prefix}invites` to view your invite.'
+            )
+        await ctx.send(f'{self.bot.ui_emojis.success} Invite was created, check your DMs!')
+
+    @commands.command(name='delete-invite', hidden=True, description='Deletes an invite.')
+    @restrictions.manage_room()
+    @restrictions.not_banned()
+    async def delete_invite(self, ctx, invite):
+        try:
+            self.bot.bridge.delete_invite(invite)
+        except self.bot.bridge.InviteNotFoundError:
+            return await ctx.send(f'{self.bot.ui_emojis.error} Could not find invite.')
+        await ctx.send(f'{self.bot.ui_emojis.success} Invite was deleted.')
+
+    @commands.command(hidden=True, description='Views your room\'s invites.')
+    @restrictions.manage_room()
+    @restrictions.not_banned()
+    async def invites(self, ctx, room):
+        if not self.bot.db['rooms'][room]['private']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
+
+        invites = self.bot.db['rooms'][room]['private']
+
+        embed = nextcord.Embed(
+            title=f'Invites for `{room}`',
+        )
+
+        offset = 0
+        for index in range(len(invites)):
+            try:
+                invite_data = self.bot.db['invites'][invites[index+offset]]
+            except:
+                break
+            if invite_data['expire'] > time.time():
+                self.bot.bridge.delete_invite(invites[index+offset])
+                invites.pop(index+offset)
+            else:
+                embed.add_field(
+                    name=f'`{invites[index+offset]}`',
+                    value=(
+                        'Unlimited usage' if invite_data['remaining'] == 0 else
+                        f'Remaining uses: {invite_data["remaining"]}'
+                    )+f'\nExpiry: <t:{invite_data["expire"]}:R>'
+                )
+                offset += 1
+
+        embed.description = f'{len(invites)}/20 invites created'
+        try:
+            await ctx.author.send(embed=embed)
+        except:
+            return await ctx.send(f'{self.bot.ui_emojis.error} Could not DM invites. Please turn your DMs on.')
+        await ctx.send(f'{self.bot.ui_emojis.success} Invites have been DMed.')
+
     @commands.command(hidden=True, description='Renames a room.')
     @restrictions.admin()
     async def rename(self, ctx, room, newroom):
@@ -209,6 +284,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
         if newroom in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
+        if self.bot.db['rooms'][room]['private']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot rename private rooms.')
         self.bot.db['rooms'].update({newroom: self.bot.db['rooms'][room]})
         self.bot.db['rooms'].pop(room)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
