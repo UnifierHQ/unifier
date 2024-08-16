@@ -22,6 +22,8 @@ import traceback
 import re
 from utils import log, ui, restrictions as r
 import math
+import random
+import string
 import emoji as pymoji
 
 restrictions = r.Restrictions()
@@ -128,12 +130,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(hidden=True, aliases=['newroom'],description='Creates a new room.')
     @restrictions.can_create()
     @restrictions.not_banned()
-    async def make(self,ctx,*,room):
+    async def make(self,ctx,*,room=None):
         room = room.lower()
         roomtype = 'private'
 
-        if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
-            return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
+        if room:
+            if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
+                return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
 
         interaction = None
         if ctx.author.id in self.bot.admins or ctx.author.id == self.bot.config['owner']:
@@ -169,6 +172,18 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 roomtype = interaction.data['values'][0]
             except:
                 return await msg.edit(content=f'{self.bot.ui_emojis.error} Timed out.', view=None)
+
+        if not room:
+            for _ in range(10):
+                room = roomtype + ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+                if not room in self.bot.bridge.rooms:
+                    break
+            if room in self.bot.bridge.rooms:
+                if interaction:
+                    return await interaction.response.edit_message(
+                        content=f'{self.bot.ui_emojis.error} Could not generate a unique room name in 10 tries.'
+                    )
+                return await ctx.send(f'{self.bot.ui_emojis.error} Could not generate a unique room name in 10 tries.')
 
         if room in list(self.bot.db['rooms'].keys()):
             if interaction:

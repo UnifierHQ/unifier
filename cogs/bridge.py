@@ -462,12 +462,15 @@ class UnifierBridge:
         self.__bot.db['rooms'][room] = roominfo
         self.__bot.db.save_data()
 
-    def create_room(self, room) -> dict:
+    def create_room(self, room, private=True) -> dict:
         if room in self.__bot.db['rooms'].keys():
             raise self.RoomExistsError('room already exists')
 
-        self.__bot.db['rooms'].update({room: self.__room_template})
-        return self.__room_template
+        room_base = dict(self.__room_template)
+        room_base.update({'private': private})
+
+        self.__bot.db['rooms'].update({room: room_base})
+        return room_base
 
     def delete_room(self, room):
         if not room in self.__bot.db['rooms'].keys():
