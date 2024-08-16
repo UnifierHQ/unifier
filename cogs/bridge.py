@@ -126,13 +126,13 @@ class UnifierAlert:
 
     precautions = {
         'drill': {
-            'warning': [
+            'emergency': [
                 'How to address **real emergency alerts**:',
                 '- If you see an **emergency**, a safety risk may be imminent. Immediate attention is required.',
                 '- Countermeasures against the risk **should** be taken.',
                 '- Take actions as described to protect your community.'
             ],
-            'caution': [
+            'warning': [
                 'How to address **real warning alerts**:',
                 '- If you see a **warning**, a safety risk is likely. Attention is required.',
                 '- Countermeasures against the risk **can** be taken.',
