@@ -1099,7 +1099,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             embed.title = f'{self.bot.ui_emojis.error} Failed to connect.'
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
-            return await interaction.edit_original_message(content=f'{self.bot.ui_emojis.error} An error occurred during binding.')
+            await interaction.edit_original_message(content=f'{self.bot.ui_emojis.error} An error occurred during binding.')
+            raise
         else:
             embed.title = f'{self.bot.ui_emojis.success} Connected to room!'
             embed.colour = self.bot.colors.success
