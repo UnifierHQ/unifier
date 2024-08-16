@@ -2801,6 +2801,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
+                    if not 'discord' in self.bot.db['rooms'][key].keys():
+                        continue
                     data = self.bot.db['rooms'][key]['discord']
                     if f'{ctx.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{ctx.guild.id}']
@@ -3703,6 +3705,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
+                    if not 'discord' in self.bot.db['rooms'][key].keys():
+                        continue
                     data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
@@ -4093,6 +4097,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
+                    if not 'discord' in self.bot.db['rooms'][key].keys():
+                        continue
                     data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']
@@ -4188,6 +4194,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 for webhook in hooks:
                     index = 0
                     for key in self.bot.db['rooms']:
+                        if not 'discord' in self.bot.db['rooms'][key].keys():
+                            continue
                         data = self.bot.db['rooms'][key]['discord']
                         if f'{message.guild.id}' in list(data.keys()):
                             hook_ids = data[f'{message.guild.id}']
@@ -4260,6 +4268,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             for webhook in hooks:
                 index = 0
                 for key in self.bot.db['rooms']:
+                    if not 'discord' in self.bot.db['rooms'][key].keys():
+                        continue
                     data = self.bot.db['rooms'][key]['discord']
                     if f'{message.guild.id}' in list(data.keys()):
                         hook_ids = data[f'{message.guild.id}']

@@ -1468,7 +1468,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
-            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
 
         try:
             interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
