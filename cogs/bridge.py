@@ -490,6 +490,7 @@ class UnifierBridge:
         room_base.update({'private': private})
 
         self.__bot.db['rooms'].update({room: room_base})
+        self.__bot.db.save_data()
         return room_base
 
     def delete_room(self, room):
@@ -526,6 +527,7 @@ class UnifierBridge:
             'remaining': max_usage, 'expire': expire, 'room': room
         }})
         self.__bot.db['rooms'][room]['private_meta']['invites'].append(invite)
+        self.__bot.db.save_data()
         return self.__room_template
 
     def delete_invite(self, invite):
