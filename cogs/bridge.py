@@ -105,36 +105,42 @@ class SelfDeleteException(Exception):
 class UnifierAlert:
     titles = {
         'drill': {
+            'emergency': 'Drill **emergency** issued (this is only a test)',
             'warning': 'Drill **warning** issued (this is only a test)',
-            'caution': 'Drill **caution** issued (this is only a test)',
             'advisory': 'Drill **advisory** issued (this is only a test)',
             'clear': 'Drill **all clear** issued (this is only a test)'
         },
         'raid': {
+            'emergency': 'Raid **emergency** issued',
             'warning': 'Raid **warning** issued',
-            'caution': 'Raid **caution** issued',
             'advisory': 'Raid **advisory** issued',
             'clear': 'Raid **all clear** issued'
+        },
+        'general': {
+            'emergency': 'General **emergency** issued',
+            'warning': 'General **warning** issued',
+            'advisory': 'General **advisory** issued',
+            'clear': 'General **all clear** issued'
         }
     }
 
     precautions = {
         'drill': {
             'warning': [
-                'How to address **real warning alerts**:',
-                '- If you see a **warning**, a safety risk may be imminent. Immediate attention is required.',
+                'How to address **real emergency alerts**:',
+                '- If you see an **emergency**, a safety risk may be imminent. Immediate attention is required.',
                 '- Countermeasures against the risk **should** be taken.',
                 '- Take actions as described to protect your community.'
             ],
             'caution': [
-                'How to address **real caution alerts**:',
-                '- If you see a **watch**, a safety risk is likely. Attention is required.',
+                'How to address **real warning alerts**:',
+                '- If you see a **warning**, a safety risk is likely. Attention is required.',
                 '- Countermeasures against the risk **can** be taken.',
                 '- Take actions as described to prepare for the safety risk.'
             ],
             'advisory': [
                 'How to address **real advisory alerts**:',
-                '- If you see a **watch**, a safety risk is possible, but not imminent.',
+                '- If you see an **advisory**, a safety risk is possible, but not imminent.',
                 '- Countermeasures against the risk are not recommended at this stage.',
                 '- Take actions as described to prepare for a possible risk elevation (to caution or warning).'
             ],
@@ -145,13 +151,13 @@ class UnifierAlert:
             ]
         },
         'raid': {
-            'warning': [
+            'emergency': [
                 '- Notify members of a likely imminent raid in Unifier rooms.',
                 '- Prepare to run `u!restrict` on servers being raided.',
                 '- If your server is being raided, run `u!under-attack` to temporarily block messages from ' +
                 'being sent from your server to Unifier rooms.'
             ],
-            'caution': [
+            'warning': [
                 '- Notify members of a possible raid in Unifier rooms.',
                 '- Familiarize moderators with server-side moderation commands.',
                 '- If your server is targeted, take countermeasures to protect your server.'
@@ -163,6 +169,25 @@ class UnifierAlert:
             'clear': [
                 '- Run `u!unrestrict` on affected servers to unblock them from your server.',
                 '- If your server was being raided, run `u!under-attack` to disable Under Attack mode.'
+            ]
+        },
+        'general': {
+            'emergency': [
+                '- Notify members of a likely imminent general safety risk.',
+                '- Prepare to take appropriate action.',
+                '- Prepare to run `u!restrict` on servers if needed.'
+            ],
+            'warning': [
+                '- Notify members of a possible general safety risk.',
+                '- Plan appropriate actions to be taken.',
+                '- Familiarize moderators with server-side moderation commands.'
+            ],
+            'advisory': [
+                '- Stay alert for unusual behavior.',
+                '- Frequently check the alerts channel for any developments.'
+            ],
+            'clear': [
+                '- Run `u!unrestrict` on affected servers to unblock them from your server.'
             ]
         }
     }
@@ -1253,7 +1278,9 @@ class UnifierBridge:
             }
 
             alert_embed = nextcord.Embed(
-                title=self.__bot.ui_emojis.warning + ' ' + self.alert.titles[alert['type']][alert['severity']],
+                title=(
+                    self.__bot.ui_emojis.success if alert['severity'] == 'clear' else self.__bot.ui_emojis.warning
+                ) + ' ' + self.alert.titles[alert['type']][alert['severity']],
                 description=alert['description'], color=alert_color[alert['severity']]
             )
             alert_embed.set_footer(
