@@ -105,22 +105,22 @@ class SelfDeleteException(Exception):
 class UnifierAlert:
     titles = {
         'drill': {
-            'emergency': 'Drill **emergency** issued (this is only a test)',
-            'warning': 'Drill **warning** issued (this is only a test)',
-            'advisory': 'Drill **advisory** issued (this is only a test)',
-            'clear': 'Drill **all clear** issued (this is only a test)'
+            'emergency': 'Drill __**emergency**__ issued (this is only a test)',
+            'warning': 'Drill __**warning**__ issued (this is only a test)',
+            'advisory': 'Drill __**advisory**__ issued (this is only a test)',
+            'clear': 'Drill __**all clear**__ issued (this is only a test)'
         },
         'raid': {
-            'emergency': 'Raid **emergency** issued',
-            'warning': 'Raid **warning** issued',
-            'advisory': 'Raid **advisory** issued',
-            'clear': 'Raid **all clear** issued'
+            'emergency': 'Raid __**emergency**__ issued',
+            'warning': 'Raid __**warning**__ issued',
+            'advisory': 'Raid __**advisory**__ issued',
+            'clear': 'Raid __**all clear**__ issued'
         },
         'general': {
-            'emergency': 'General **emergency** issued',
-            'warning': 'General **warning** issued',
-            'advisory': 'General **advisory** issued',
-            'clear': 'General **all clear** issued'
+            'emergency': 'General __**emergency**__ issued',
+            'warning': 'General __**warning**__ issued',
+            'advisory': 'General __**advisory**__ issued',
+            'clear': 'General __**all clear**__ issued'
         }
     }
 
