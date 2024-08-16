@@ -1244,9 +1244,16 @@ class UnifierBridge:
         if alert:
             system = True
 
+            alert_color = {
+                'warning': self.__bot.colors.error,
+                'caution': self.__bot.colors.warning,
+                'advisory': self.__bot.colors.blurple,
+                'clear': self.__bot.colors.success
+            }
+
             alert_embed = nextcord.Embed(
                 title=self.__bot.ui_emojis.warning + ' ' + self.alert.titles[alert['type']][alert['severity']],
-                description=alert['description']
+                description=alert['description'], color=alert_color[alert['severity']]
             )
             alert_embed.set_footer(
                 text=(
