@@ -577,7 +577,7 @@ class UnifierBridge:
         if not self.can_join_room(room, user):
             raise self.RoomNotFoundError('cannot join room')
 
-        if self.check_duplicate(channel, room):
+        if self.check_duplicate(channel):
             raise restrictions.AlreadyConnected()
 
         support = None
