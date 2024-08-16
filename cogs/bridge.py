@@ -620,6 +620,7 @@ class UnifierBridge:
             raise ValueError('already joined')
 
         self.__bot.db['rooms'][room][platform].update({guild_id: ids})
+        print(self.__bot.db['rooms'][room][platform])
         self.__bot.db.save_data()
 
     async def leave_room(self, guild, room, platform='discord'):
