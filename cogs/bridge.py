@@ -620,7 +620,6 @@ class UnifierBridge:
             raise ValueError('already joined')
 
         self.__bot.db['rooms'][room][platform].update({guild_id: ids})
-        print(self.__bot.db['rooms'][room][platform])
         self.__bot.db.save_data()
 
     async def leave_room(self, guild, room, platform='discord'):
@@ -2777,6 +2776,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
+            if not 'discord' in self.bot.db['rooms'][key].keys():
+                continue
             data = self.bot.db['rooms'][key]['discord']
             if f'{ctx.guild.id}' in list(data.keys()):
                 guilddata = data[f'{ctx.guild.id}']
@@ -3677,6 +3678,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
+            if not 'discord' in self.bot.db['rooms'][key].keys():
+                continue
             data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
@@ -4065,6 +4068,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
+            if not 'discord' in self.bot.db['rooms'][key].keys():
+                continue
             data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
@@ -4161,6 +4166,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             # Optimized logic
             for key in self.bot.db['rooms']:
+                if not 'discord' in self.bot.db['rooms'][key].keys():
+                    continue
                 data = self.bot.db['rooms'][key]['discord']
                 if f'{message.guild.id}' in list(data.keys()):
                     guilddata = data[f'{message.guild.id}']
@@ -4228,6 +4235,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         # Optimized logic
         for key in self.bot.db['rooms']:
+            if not 'discord' in self.bot.db['rooms'][key].keys():
+                continue
             data = self.bot.db['rooms'][key]['discord']
             if f'{message.guild.id}' in list(data.keys()):
                 guilddata = data[f'{message.guild.id}']
