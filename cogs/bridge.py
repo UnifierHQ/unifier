@@ -128,19 +128,19 @@ class UnifierAlert:
         'drill': {
             'emergency': [
                 'How to address **real emergency alerts**:',
-                '- If you see an **emergency**, a safety risk may be imminent. Immediate attention is required.',
+                '- If you see an **emergency**, a threat may be imminent. Immediate attention is required.',
                 '- Countermeasures against the risk **should** be taken.',
                 '- Take actions as described to protect your community.'
             ],
             'warning': [
                 'How to address **real warning alerts**:',
-                '- If you see a **warning**, a safety risk is likely. Attention is required.',
+                '- If you see a **warning**, a threat is likely. Attention is required.',
                 '- Countermeasures against the risk **can** be taken.',
-                '- Take actions as described to prepare for the safety risk.'
+                '- Take actions as described to prepare for the threat.'
             ],
             'advisory': [
                 'How to address **real advisory alerts**:',
-                '- If you see an **advisory**, a safety risk is possible, but not imminent.',
+                '- If you see an **advisory**, a threat is possible, but not imminent.',
                 '- Countermeasures against the risk are not recommended at this stage.',
                 '- Take actions as described to prepare for a possible risk elevation (to caution or warning).'
             ],
@@ -173,12 +173,12 @@ class UnifierAlert:
         },
         'general': {
             'emergency': [
-                '- Notify members of a likely imminent general safety risk.',
+                '- Notify members of a likely imminent general threat.',
                 '- Prepare to take appropriate action.',
                 '- Prepare to run `u!restrict` on servers if needed.'
             ],
             'warning': [
-                '- Notify members of a possible general safety risk.',
+                '- Notify members of a possible general threat.',
                 '- Plan appropriate actions to be taken.',
                 '- Familiarize moderators with server-side moderation commands.'
             ],
@@ -1281,12 +1281,13 @@ class UnifierBridge:
                 title=(
                     self.__bot.ui_emojis.success if alert['severity'] == 'clear' else self.__bot.ui_emojis.warning
                 ) + ' ' + self.alert.titles[alert['type']][alert['severity']],
-                description=alert['description'], color=alert_color[alert['severity']]
+                description=alert['description'], color=alert_color[alert['severity']],
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
             alert_embed.set_footer(
                 text=(
                     f'{self.__bot.user.global_name or self.__bot.user.name} moderators have been alerted of this '+
-                    'risk. Feel free to report any more information to them that you may have.'
+                    'risk. Feel free to report any more information that you may have to us.'
                 )
             )
             alert_embed.add_field(
