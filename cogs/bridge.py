@@ -2017,6 +2017,8 @@ class UnifierBridge:
                         toping = [f'<@&{role.id}>' for role in destguild.roles if role.permissions.ban_members]
                         toping.append(f'<@{destguild.owner_id}>')
                         friendly_content = msg_content = ' '.join(toping)
+                    else:
+                        friendly_content = msg_content = ''
 
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
