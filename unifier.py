@@ -32,19 +32,21 @@ from utils import log
 from dotenv import load_dotenv
 from pathlib import Path
 
-if os.name != "nt":
-    try:
-        import uvloop
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    except:
-        pass
+try:
+    if os.name == "nt":
+        import winloop as uvloop  # pylint: disable=import-error
+    else:
+        import uvloop  # pylint: disable=import-error
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except:
+    pass
 
 try:
     with open('config.toml', 'rb') as file:
         data = toml.load(file)
 except:
     traceback.print_exc()
-    print('\nFailed to load config.json file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
+    print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
     sys.exit(1)
 
 env_loaded = load_dotenv()
@@ -66,7 +68,6 @@ if not owner_valid:
     sys.exit(1)
 
 if os.name == "nt":
-    import winloop as uvloop
     logger.warning('You are using Windows, which is untested. Some features may not work.')
 
 if not '.welcome.txt' in os.listdir():
