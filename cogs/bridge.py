@@ -1247,6 +1247,23 @@ class UnifierBridge:
         if not platform in self.__bot.platforms.keys() and not platform=='discord':
             raise ValueError('invalid platform')
 
+        # redundant check in case on_message or plugin does not respect ban status, and also
+        # for under attack mode
+        if platform == 'discord':
+            if (
+                    f'{message.author.id}' in self.__bot.db['banned'].keys() or
+                    f'{message.guild.id}' in self.__bot.db['banned'].keys() or
+                    f'{message.guild.id}' in self.__bot.db['underattack']
+            ):
+                return
+        else:
+            if (
+                    f'{source_support.get_id(source_support.author(message))}' in self.__bot.db['banned'].keys() or
+                    f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['banned'].keys() or
+                    f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['underattack']
+            ):
+                return
+
         guilds = self.__bot.db['rooms'][room][platform]
 
         is_pr = room == self.__bot.config['posts_room'] and (
