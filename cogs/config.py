@@ -127,6 +127,447 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             traceback.print_exc()
             return False
 
+    async def roomslist(self, ctx, private):
+        show_restricted = False
+        show_locked = False
+
+        if ctx.author.id in self.bot.admins:
+            show_restricted = True
+            show_locked = True
+        elif ctx.author.id in self.bot.moderators:
+            show_locked = True
+
+        panel = 0
+        limit = 8
+        page = 0
+        match = 0
+        namematch = False
+        descmatch = False
+        was_searching = False
+        roomname = ''
+        query = ''
+        msg = None
+        interaction = None
+
+        while True:
+            embed = nextcord.Embed(color=self.bot.colors.unifier)
+            maxpage = 0
+            components = ui.MessageComponents()
+
+            if panel == 0:
+                was_searching = False
+                roomlist = list(self.bot.db['rooms'].keys())
+                offset = 0
+                for x in range(len(roomlist)):
+                    if (not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
+                            not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db) or
+                            (
+                                    not self.bot.bridge.can_join_room(roomlist[x - offset],ctx.author) or
+                                    not self.bot.db['rooms'][roomlist[x - offset]]['private']
+                            ) and private):
+                        roomlist.pop(x - offset)
+                        offset += 1
+
+                maxpage = math.ceil(len(roomlist) / limit) - 1
+                if interaction:
+                    if page > maxpage:
+                        page = maxpage
+                embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms'
+                embed.description = 'Choose a room to view its info!'
+                selection = nextcord.ui.StringSelect(
+                    max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
+                )
+
+                for x in range(limit):
+                    index = (page * limit) + x
+                    if index >= len(roomlist):
+                        break
+                    name = roomlist[index]
+                    display_name = (
+                            self.bot.db['rooms'][name]['meta']['display_name'] or name
+                    )
+                    description = (
+                            self.bot.db['rooms'][name]['meta']['description'] or 'This room has no description.'
+                    )
+                    emoji = (
+                        '\U0001F527' if self.is_room_restricted(roomlist[index], self.bot.db) else
+                        '\U0001F512' if self.is_room_locked(roomlist[index], self.bot.db) else
+                        '\U0001F310'
+                    ) if not self.bot.db['rooms'][name]['meta']['emoji'] else self.bot.db['rooms'][name]['meta'][
+                        'emoji']
+
+                    embed.add_field(
+                        name=f'{emoji} `{display_name}`',
+                        value=description,
+                        inline=False
+                    )
+                    selection.add_option(
+                        label=name,
+                        emoji=emoji,
+                        description=description,
+                        value=name
+                    )
+
+                if len(embed.fields) == 0:
+                    embed.add_field(
+                        name='No rooms',
+                        value='There\'s no rooms here!',
+                        inline=False
+                    )
+                    selection.add_option(
+                        label='placeholder',
+                        value='placeholder'
+                    )
+                    selection.disabled = True
+
+                components.add_rows(
+                    ui.ActionRow(
+                        selection
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0 or selection.disabled,
+                            emoji=self.bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage or selection.disabled,
+                            emoji=self.bot.ui_emojis.next
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji=self.bot.ui_emojis.search,
+                            disabled=selection.disabled
+                        )
+                    )
+                )
+            elif panel == 1:
+                was_searching = True
+                roomlist = list(self.bot.db['rooms'].keys())
+
+                def search_filter(query, query_cmd):
+                    if match == 0:
+                        return (
+                                (
+                                        query.lower() in query_cmd or
+                                        query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
+                                ) and namematch or
+                                (
+                                    query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
+                                    if self.bot.db['rooms'][query_cmd]['meta']['description'] else False
+                                ) and descmatch
+                        )
+                    elif match == 1:
+                        return (
+                                (((
+                                          query.lower() in query_cmd or
+                                          query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
+                                  ) and namematch) or not namematch) and
+                                ((
+                                     query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
+                                     if self.bot.db['rooms'][query_cmd]['meta']['description'] else False
+                                 ) and descmatch or not descmatch)
+                        )
+
+                offset = 0
+                for x in range(len(roomlist)):
+                    room = roomlist[x - offset]
+                    if (not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
+                        not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db) or
+                            (
+                                    not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author) or
+                                    not self.bot.db['rooms'][roomlist[x - offset]]['private']
+                            ) and private) and not show_restricted or not search_filter(query, room):
+                        roomlist.pop(x - offset)
+                        offset += 1
+
+                embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search'
+                embed.description = 'Choose a room to view its info!'
+
+                if len(roomlist) == 0:
+                    maxpage = 0
+                    embed.add_field(
+                        name='No rooms',
+                        value='There are no rooms matching your search query.',
+                        inline=False
+                    )
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
+                    )
+                    selection.add_option(
+                        label='No rooms'
+                    )
+                else:
+                    maxpage = math.ceil(len(roomlist) / limit) - 1
+                    selection = nextcord.ui.StringSelect(
+                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
+                    )
+
+                    roomlist = await self.bot.loop.run_in_executor(None, lambda: sorted(
+                        roomlist,
+                        key=lambda x: x.lower()
+                    ))
+
+                    for x in range(limit):
+                        index = (page * limit) + x
+                        if index >= len(roomlist):
+                            break
+                        room = roomlist[index]
+                        display_name = (
+                                self.bot.db['rooms'][room]['meta']['display_name'] or room
+                        )
+                        emoji = (
+                            '\U0001F527' if self.is_room_restricted(roomlist[index], self.bot.db) else
+                            '\U0001F512' if self.is_room_locked(roomlist[index], self.bot.db) else
+                            '\U0001F310'
+                        ) if not self.bot.db['rooms'][room]['meta']['emoji'] else self.bot.db['rooms'][room]['meta'][
+                            'emoji']
+                        roomdesc = (
+                            self.bot.db['rooms'][room]['meta']['description']
+                            if self.bot.db['rooms'][room]['meta']['description'] else 'This room has no description.'
+                        )
+                        embed.add_field(
+                            name=f'{emoji} `{display_name}`',
+                            value=roomdesc,
+                            inline=False
+                        )
+                        selection.add_option(
+                            label=display_name,
+                            description=roomdesc if len(roomdesc) <= 100 else roomdesc[:-(len(roomdesc) - 97)] + '...',
+                            value=room,
+                            emoji=emoji
+                        )
+
+                embed.description = f'Searching: {query} (**{len(roomlist)}** results)'
+                maxcount = (page + 1) * limit
+                if maxcount > len(roomlist):
+                    maxcount = len(roomlist)
+                embed.set_footer(
+                    text=(
+                            f'Page {page + 1} of {maxpage + 1} | {page * limit + 1}-{maxcount} of {len(roomlist)}' +
+                            ' results'
+                    )
+                )
+
+                components.add_row(
+                    ui.ActionRow(
+                        selection
+                    )
+                )
+
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Previous',
+                            custom_id='prev',
+                            disabled=page <= 0,
+                            emoji=self.bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='Next',
+                            custom_id='next',
+                            disabled=page >= maxpage,
+                            emoji=self.bot.ui_emojis.next
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label='Search',
+                            custom_id='search',
+                            emoji=self.bot.ui_emojis.search
+                        )
+                    )
+                )
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            custom_id='match',
+                            label=(
+                                'Matches any of' if match == 0 else
+                                'Matches both'
+                            ),
+                            style=(
+                                nextcord.ButtonStyle.green if match == 0 else
+                                nextcord.ButtonStyle.blurple
+                            ),
+                            emoji=(
+                                '\U00002194' if match == 0 else
+                                '\U000023FA'
+                            )
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='name',
+                            label='Room name',
+                            style=nextcord.ButtonStyle.green if namematch else nextcord.ButtonStyle.gray
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='desc',
+                            label='Room description',
+                            style=nextcord.ButtonStyle.green if descmatch else nextcord.ButtonStyle.gray
+                        )
+                    )
+                )
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                            emoji=self.bot.ui_emojis.back
+                        )
+                    )
+                )
+            elif panel == 2:
+                embed.title = (
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname}'
+                    if was_searching else
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname}'
+                )
+                display_name = (
+                        self.bot.db['rooms'][roomname]['meta']['display_name'] or roomname
+                )
+                description = (
+                        self.bot.db['rooms'][roomname]['meta']['description'] or 'This room has no description.'
+                )
+                emoji = (
+                    '\U0001F527' if self.is_room_restricted(roomname, self.bot.db) else
+                    '\U0001F512' if self.is_room_locked(roomname, self.bot.db) else
+                    '\U0001F310'
+                ) if not self.bot.db['rooms'][roomname]['meta']['emoji'] else self.bot.db['rooms'][roomname]['meta'][
+                    'emoji']
+                if self.bot.db['rooms'][roomname]['meta']['display_name']:
+                    embed.description = f'# **{emoji} `{display_name}`**\n(`{roomname}`)\n\n{description}'
+                else:
+                    embed.description = f'# **{emoji} `{display_name}`**\n{description}'
+                stats = await self.bot.bridge.roomstats(roomname)
+                embed.add_field(name='Statistics', value=(
+                        f':homes: {stats["guilds"]} servers\n' +
+                        f':green_circle: {stats["online"]} online, :busts_in_silhouette: {stats["members"]} members\n' +
+                        f':speech_balloon: {stats["messages"]} messages sent today'
+                ))
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label='View room rules',
+                            custom_id='rules',
+                        )
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                            emoji=self.bot.ui_emojis.back
+                        )
+                    )
+                )
+            elif panel == 3:
+                embed.title = (
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname} / rules'
+                    if was_searching else
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname} / rules'
+                )
+                index = 0
+                text = ''
+                if roomname in list(self.bot.db['rules'].keys()):
+                    rules = self.bot.db['rules'][roomname]
+                else:
+                    rules = []
+                for rule in rules:
+                    if text == '':
+                        text = f'1. {rule}'
+                    else:
+                        text = f'{text}\n{index}. {rule}'
+                    index += 1
+                if len(rules) == 0:
+                    text = (
+                            'The room admins haven\'t added rules for this room yet.\n' +
+                            'Though, do remember to use common sense and refrain from doing things that you shouldn\'t do.'
+                    )
+                embed.description = text
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Back',
+                            custom_id='back',
+                            emoji=self.bot.ui_emojis.back
+                        )
+                    )
+                )
+
+            if panel == 0:
+                embed.set_footer(text=f'Page {page + 1} of {maxpage + 1}')
+            if not msg:
+                msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
+            else:
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed, view=components)
+            embed.clear_fields()
+
+            def check(interaction):
+                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            except:
+                await msg.edit(view=None)
+                break
+            if interaction.type == nextcord.InteractionType.component:
+                if interaction.data['custom_id'] == 'selection':
+                    roomname = interaction.data['values'][0]
+                    panel = 2
+                    page = 0
+                elif interaction.data['custom_id'] == 'back':
+                    panel -= 1
+                    if panel < 0 or panel == 1 and not was_searching:
+                        panel = 0
+                    page = 0
+                elif interaction.data['custom_id'] == 'rules':
+                    panel += 1
+                elif interaction.data['custom_id'] == 'prev':
+                    page -= 1
+                elif interaction.data['custom_id'] == 'next':
+                    page += 1
+                elif interaction.data['custom_id'] == 'search':
+                    modal = nextcord.ui.Modal(title='Search...', auto_defer=False)
+                    modal.add_item(
+                        nextcord.ui.TextInput(
+                            label='Search query',
+                            style=nextcord.TextInputStyle.short,
+                            placeholder='Type something...'
+                        )
+                    )
+                    await interaction.response.send_modal(modal)
+                elif interaction.data['custom_id'] == 'match':
+                    match += 1
+                    if match > 1:
+                        match = 0
+                elif interaction.data['custom_id'] == 'name':
+                    namematch = not namematch
+                    if not namematch and not descmatch:
+                        namematch = True
+                elif interaction.data['custom_id'] == 'desc':
+                    descmatch = not descmatch
+                    if not namematch and not descmatch:
+                        descmatch = True
+            elif interaction.type == nextcord.InteractionType.modal_submit:
+                panel = 1
+                query = interaction.data['components'][0]['components'][0]['value']
+                namematch = True
+                descmatch = True
+                match = 0
+                page = 0
+
     @commands.command(hidden=True,description='Adds a moderator to the instance.')
     @restrictions.admin()
     async def addmod(self,ctx,*,userid):
@@ -1098,438 +1539,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         return await ctx.send(
             f'# {self.bot.ui_emojis.success} Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
 
-    @commands.command(description='Shows a list of rooms.')
+    @commands.command(aliases=['public-rooms'], description='Shows a list of public rooms.')
     async def rooms(self,ctx):
-        show_restricted = False
-        show_locked = False
+        await self.roomslist(ctx, False)
 
-        if ctx.author.id in self.bot.admins:
-            show_restricted = True
-            show_locked = True
-        elif ctx.author.id in self.bot.moderators:
-            show_locked = True
-
-        panel = 0
-        limit = 8
-        page = 0
-        match = 0
-        namematch = False
-        descmatch = False
-        was_searching = False
-        roomname = ''
-        query = ''
-        msg = None
-        interaction = None
-
-        while True:
-            embed = nextcord.Embed(color=self.bot.colors.unifier)
-            maxpage = 0
-            components = ui.MessageComponents()
-
-            if panel == 0:
-                was_searching = False
-                roomlist = list(self.bot.db['rooms'].keys())
-                offset = 0
-                for x in range(len(roomlist)):
-                    if (not show_restricted and self.is_room_restricted(roomlist[x-offset],self.bot.db) or
-                            not show_locked and self.is_room_locked(roomlist[x-offset],self.bot.db)):
-                        roomlist.pop(x-offset)
-                        offset += 1
-
-                maxpage = math.ceil(len(roomlist) / limit) - 1
-                if interaction:
-                    if page > maxpage:
-                        page = maxpage
-                embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms'
-                embed.description = 'Choose a room to view its info!'
-                selection = nextcord.ui.StringSelect(
-                    max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
-                )
-
-                for x in range(limit):
-                    index = (page * limit) + x
-                    if index >= len(roomlist):
-                        break
-                    name = roomlist[index]
-                    display_name = (
-                        self.bot.db['rooms'][name]['meta']['display_name'] or name
-                    )
-                    description = (
-                        self.bot.db['rooms'][name]['meta']['description'] or 'This room has no description.'
-                    )
-                    emoji = (
-                        '\U0001F527' if self.is_room_restricted(roomlist[index],self.bot.db) else
-                        '\U0001F512' if self.is_room_locked(roomlist[index],self.bot.db) else
-                        '\U0001F310'
-                    ) if not self.bot.db['rooms'][name]['meta']['emoji'] else self.bot.db['rooms'][name]['meta']['emoji']
-
-                    embed.add_field(
-                        name=f'{emoji} `{display_name}`',
-                        value=description,
-                        inline=False
-                    )
-                    selection.add_option(
-                        label=name,
-                        emoji=emoji,
-                        description=description,
-                        value=name
-                    )
-
-                if len(embed.fields) == 0:
-                    embed.add_field(
-                        name='No rooms',
-                        value='There\'s no rooms here!',
-                        inline=False
-                    )
-                    selection.add_option(
-                        label='placeholder',
-                        value='placeholder'
-                    )
-                    selection.disabled = True
-
-                components.add_rows(
-                    ui.ActionRow(
-                        selection
-                    ),
-                    ui.ActionRow(
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
-                            custom_id='prev',
-                            disabled=page <= 0 or selection.disabled,
-                            emoji=self.bot.ui_emojis.prev
-                        ),
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.blurple,
-                            label='Next',
-                            custom_id='next',
-                            disabled=page >= maxpage or selection.disabled,
-                            emoji=self.bot.ui_emojis.next
-                        ),
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.green,
-                            label='Search',
-                            custom_id='search',
-                            emoji=self.bot.ui_emojis.search,
-                            disabled=selection.disabled
-                        )
-                    )
-                )
-            elif panel == 1:
-                was_searching = True
-                roomlist = list(self.bot.db['rooms'].keys())
-
-                def search_filter(query, query_cmd):
-                    if match == 0:
-                        return (
-                                (
-                                        query.lower() in query_cmd or
-                                        query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
-                                ) and namematch or
-                                (
-                                        query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
-                                        if self.bot.db['rooms'][query_cmd]['meta']['description'] else False
-                                ) and descmatch
-                        )
-                    elif match == 1:
-                        return (
-                                (((
-                                    query.lower() in query_cmd or
-                                    query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
-                                  ) and namematch) or not namematch) and
-                                ((
-                                    query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
-                                    if self.bot.db['rooms'][query_cmd]['meta']['description'] else False
-                                ) and descmatch or not descmatch)
-                        )
-
-                offset = 0
-                for x in range(len(roomlist)):
-                    room = roomlist[x - offset]
-                    if (
-                            not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
-                            not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db)
-                    ) and not show_restricted or not search_filter(query,room):
-                        roomlist.pop(x - offset)
-                        offset += 1
-
-                embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search'
-                embed.description = 'Choose a room to view its info!'
-
-                if len(roomlist) == 0:
-                    maxpage = 0
-                    embed.add_field(
-                        name='No rooms',
-                        value='There are no rooms matching your search query.',
-                        inline=False
-                    )
-                    selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...', disabled=True
-                    )
-                    selection.add_option(
-                        label='No rooms'
-                    )
-                else:
-                    maxpage = math.ceil(len(roomlist) / limit) - 1
-                    selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
-                    )
-
-                    roomlist = await self.bot.loop.run_in_executor(None, lambda: sorted(
-                        roomlist,
-                        key=lambda x: x.lower()
-                    ))
-
-                    for x in range(limit):
-                        index = (page * limit) + x
-                        if index >= len(roomlist):
-                            break
-                        room = roomlist[index]
-                        display_name = (
-                            self.bot.db['rooms'][room]['meta']['display_name'] or room
-                        )
-                        emoji = (
-                            '\U0001F527' if self.is_room_restricted(roomlist[index], self.bot.db) else
-                            '\U0001F512' if self.is_room_locked(roomlist[index], self.bot.db) else
-                            '\U0001F310'
-                        ) if not self.bot.db['rooms'][room]['meta']['emoji'] else self.bot.db['rooms'][room]['meta']['emoji']
-                        roomdesc = (
-                            self.bot.db['rooms'][room]['meta']['description']
-                            if self.bot.db['rooms'][room]['meta']['description'] else 'This room has no description.'
-                        )
-                        embed.add_field(
-                            name=f'{emoji} `{display_name}`',
-                            value=roomdesc,
-                            inline=False
-                        )
-                        selection.add_option(
-                            label=display_name,
-                            description=roomdesc if len(roomdesc) <= 100 else roomdesc[:-(len(roomdesc) - 97)] + '...',
-                            value=room,
-                            emoji=emoji
-                        )
-
-                embed.description = f'Searching: {query} (**{len(roomlist)}** results)'
-                maxcount = (page + 1) * limit
-                if maxcount > len(roomlist):
-                    maxcount = len(roomlist)
-                embed.set_footer(
-                    text=(
-                        f'Page {page + 1} of {maxpage + 1} | {page * limit + 1}-{maxcount} of {len(roomlist)}'+
-                        ' results'
-                    )
-                )
-
-                components.add_row(
-                    ui.ActionRow(
-                        selection
-                    )
-                )
-
-                components.add_row(
-                    ui.ActionRow(
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
-                            custom_id='prev',
-                            disabled=page <= 0,
-                            emoji=self.bot.ui_emojis.prev
-                        ),
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.blurple,
-                            label='Next',
-                            custom_id='next',
-                            disabled=page >= maxpage,
-                            emoji=self.bot.ui_emojis.next
-                        ),
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.green,
-                            label='Search',
-                            custom_id='search',
-                            emoji=self.bot.ui_emojis.search
-                        )
-                    )
-                )
-                components.add_row(
-                    ui.ActionRow(
-                        nextcord.ui.Button(
-                            custom_id='match',
-                            label=(
-                                'Matches any of' if match == 0 else
-                                'Matches both'
-                            ),
-                            style=(
-                                nextcord.ButtonStyle.green if match == 0 else
-                                nextcord.ButtonStyle.blurple
-                            ),
-                            emoji=(
-                                '\U00002194' if match == 0 else
-                                '\U000023FA'
-                            )
-                        ),
-                        nextcord.ui.Button(
-                            custom_id='name',
-                            label='Room name',
-                            style=nextcord.ButtonStyle.green if namematch else nextcord.ButtonStyle.gray
-                        ),
-                        nextcord.ui.Button(
-                            custom_id='desc',
-                            label='Room description',
-                            style=nextcord.ButtonStyle.green if descmatch else nextcord.ButtonStyle.gray
-                        )
-                    )
-                )
-                components.add_row(
-                    ui.ActionRow(
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.gray,
-                            label='Back',
-                            custom_id='back',
-                            emoji=self.bot.ui_emojis.back
-                        )
-                    )
-                )
-            elif panel == 2:
-                embed.title = (
-                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname}'
-                    if was_searching else
-                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname}'
-                )
-                display_name = (
-                    self.bot.db['rooms'][roomname]['meta']['display_name'] or roomname
-                )
-                description = (
-                    self.bot.db['rooms'][roomname]['meta']['description'] or 'This room has no description.'
-                )
-                emoji = (
-                    '\U0001F527' if self.is_room_restricted(roomname, self.bot.db) else
-                    '\U0001F512' if self.is_room_locked(roomname, self.bot.db) else
-                    '\U0001F310'
-                ) if not self.bot.db['rooms'][roomname]['meta']['emoji'] else self.bot.db['rooms'][roomname]['meta']['emoji']
-                if self.bot.db['rooms'][roomname]['meta']['display_name']:
-                    embed.description = f'# **{emoji} `{display_name}`**\n(`{roomname}`)\n\n{description}'
-                else:
-                    embed.description = f'# **{emoji} `{display_name}`**\n{description}'
-                stats = await self.bot.bridge.roomstats(roomname)
-                embed.add_field(name='Statistics',value=(
-                    f':homes: {stats["guilds"]} servers\n'+
-                    f':green_circle: {stats["online"]} online, :busts_in_silhouette: {stats["members"]} members\n'+
-                    f':speech_balloon: {stats["messages"]} messages sent today'
-                ))
-                components.add_rows(
-                    ui.ActionRow(
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.blurple,
-                            label='View room rules',
-                            custom_id='rules',
-                        )
-                    ),
-                    ui.ActionRow(
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.gray,
-                            label='Back',
-                            custom_id='back',
-                            emoji=self.bot.ui_emojis.back
-                        )
-                    )
-                )
-            elif panel==3:
-                embed.title = (
-                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search / {roomname} / rules'
-                    if was_searching else
-                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname} / rules'
-                )
-                index = 0
-                text = ''
-                if roomname in list(self.bot.db['rules'].keys()):
-                    rules = self.bot.db['rules'][roomname]
-                else:
-                    rules = []
-                for rule in rules:
-                    if text == '':
-                        text = f'1. {rule}'
-                    else:
-                        text = f'{text}\n{index}. {rule}'
-                    index += 1
-                if len(rules)==0:
-                    text = (
-                        'The room admins haven\'t added rules for this room yet.\n'+
-                        'Though, do remember to use common sense and refrain from doing things that you shouldn\'t do.'
-                    )
-                embed.description=text
-                components.add_rows(
-                    ui.ActionRow(
-                        nextcord.ui.Button(
-                            style=nextcord.ButtonStyle.gray,
-                            label='Back',
-                            custom_id='back',
-                            emoji=self.bot.ui_emojis.back
-                        )
-                    )
-                )
-
-            if panel == 0:
-                embed.set_footer(text=f'Page {page + 1} of {maxpage + 1}')
-            if not msg:
-                msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
-            else:
-                if not interaction.response.is_done():
-                    await interaction.response.edit_message(embed=embed, view=components)
-            embed.clear_fields()
-
-            def check(interaction):
-                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
-
-            try:
-                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
-            except:
-                await msg.edit(view=None)
-                break
-            if interaction.type == nextcord.InteractionType.component:
-                if interaction.data['custom_id'] == 'selection':
-                    roomname = interaction.data['values'][0]
-                    panel = 2
-                    page = 0
-                elif interaction.data['custom_id'] == 'back':
-                    panel -= 1
-                    if panel < 0 or panel==1 and not was_searching:
-                        panel = 0
-                    page = 0
-                elif interaction.data['custom_id'] == 'rules':
-                    panel += 1
-                elif interaction.data['custom_id'] == 'prev':
-                    page -= 1
-                elif interaction.data['custom_id'] == 'next':
-                    page += 1
-                elif interaction.data['custom_id'] == 'search':
-                    modal = nextcord.ui.Modal(title='Search...', auto_defer=False)
-                    modal.add_item(
-                        nextcord.ui.TextInput(
-                            label='Search query',
-                            style=nextcord.TextInputStyle.short,
-                            placeholder='Type something...'
-                        )
-                    )
-                    await interaction.response.send_modal(modal)
-                elif interaction.data['custom_id'] == 'match':
-                    match += 1
-                    if match > 1:
-                        match = 0
-                elif interaction.data['custom_id'] == 'name':
-                    namematch = not namematch
-                    if not namematch and not descmatch:
-                        namematch = True
-                elif interaction.data['custom_id'] == 'desc':
-                    descmatch = not descmatch
-                    if not namematch and not descmatch:
-                        descmatch = True
-            elif interaction.type == nextcord.InteractionType.modal_submit:
-                panel = 1
-                query = interaction.data['components'][0]['components'][0]['value']
-                namematch = True
-                descmatch = True
-                match = 0
-                page = 0
+    @commands.command(name='private-rooms', description='Shows a list of public rooms.')
+    async def private_rooms(self, ctx):
+        await self.roomslist(ctx, True)
 
     @commands.command(aliases=['guilds'], description='Lists all servers connected to a given room.')
     async def servers(self, ctx, *, room='main'):
