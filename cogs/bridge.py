@@ -101,6 +101,71 @@ class ExternalReference:
 class SelfDeleteException(Exception):
     pass
 
+class UnifierAlert:
+    titles = {
+        'drill': {
+            'warning': 'Drill **warning** issued (this is only a test)',
+            'caution': 'Drill **caution** issued (this is only a test)',
+            'advisory': 'Drill **advisory** issued (this is only a test)',
+            'clear': 'Drill **all clear** issued (this is only a test)'
+        },
+        'raid': {
+            'warning': 'Raid **warning** issued',
+            'caution': 'Raid **caution** issued',
+            'advisory': 'Raid **advisory** issued',
+            'clear': 'Raid **all clear** issued'
+        }
+    }
+
+    precautions = {
+        'drill': {
+            'warning': [
+                'How to address **real warning alerts**:',
+                '- If you see a **warning**, a safety risk may be imminent. Immediate attention is required.',
+                '- Countermeasures against the risk **should** be taken.',
+                '- Take actions as described to protect your community.'
+            ],
+            'caution': [
+                'How to address **real caution alerts**:',
+                '- If you see a **watch**, a safety risk is likely. Attention is required.',
+                '- Countermeasures against the risk **can** be taken.',
+                '- Take actions as described to prepare for the safety risk.'
+            ],
+            'advisory': [
+                'How to address **real advisory alerts**:',
+                '- If you see a **watch**, a safety risk is possible, but not imminent.',
+                '- Countermeasures against the risk are not recommended at this stage.',
+                '- Take actions as described to prepare for a possible risk elevation (to caution or warning).'
+            ],
+            'clear': [
+                'How to address **real all clear alerts**:',
+                '- If you see an **all clear**, it means related alerts are no longer in effect.',
+                '- You may remove any temporary countermeasures to restore normal functionality.'
+            ]
+        },
+        'raid': {
+            'warning': [
+                '- Notify members of a likely imminent raid in Unifier rooms.',
+                '- Prepare to run `u!restrict` on servers being raided.',
+                '- If your server is being raided, run `u!under-attack` to temporarily block messages from ' +
+                'being sent from your server to Unifier rooms.'
+            ],
+            'caution': [
+                '- Notify members of a possible raid in Unifier rooms.',
+                '- Familiarize moderators with server-side moderation commands.',
+                '- If your server is targeted, take countermeasures to protect your server.'
+            ],
+            'advisory': [
+                '- Stay alert for unusual behavior from new members.',
+                '- If your server is targeted, stay alert for any developments.'
+            ],
+            'clear': [
+                '- Run `u!unrestrict` on affected servers to unblock them from your server.',
+                '- If your server was being raided, run `u!under-attack` to disable Under Attack mode.'
+            ]
+        }
+    }
+
 class UnifierRaidBan:
     def __init__(self, debug=True, frequency=1):
         self.frequency = frequency # Frequency of content
@@ -175,6 +240,7 @@ class UnifierBridge:
             },
             'emoji': None, 'description': None
         }
+        self.alert = UnifierAlert
 
     @property
     def room_template(self):
@@ -1123,11 +1189,36 @@ class UnifierBridge:
     async def send(self, room: str, message,
                    platform: str = 'discord', system: bool = False,
                    extbridge=False, id_override=None, ignore=None, source='discord',
-                   content_override=None):
+                   content_override=None, alert=None):
         if is_room_locked(room,self.__bot.db) and not message.author.id in self.__bot.admins:
             return
         if ignore is None:
             ignore = []
+
+        alert_embed = None
+        alert_text = None
+        if alert:
+            system = True
+
+            alert_embed = nextcord.Embed(
+                title=self.__bot.ui_emojis.warning + ' ' + self.alert.titles[alert['type']][alert['severity']],
+                description=alert['description']
+            )
+            alert_embed.set_footer(
+                text=(
+                    f'{self.__bot.user.global_name or self.__bot.user.name} moderators have been alerted of this '+
+                    'risk. Feel free to report any more information to them that you may have.'
+                )
+            )
+            alert_embed.add_field(
+                name='What should I do?',
+                value=self.alert.precautions[alert['type']][alert['severity']]
+            )
+
+            alert_text = (
+                '# '+self.alert.titles[alert['type']][alert['severity']]+'\n\n'+alert['description']+'\n\n**What '+
+                'should I do?**\n'+self.alert.precautions[alert['type']][alert['severity']]
+            )
 
         # WIP orphan message system.
         # if type(message) is dict:
@@ -1858,6 +1949,14 @@ class UnifierBridge:
                 if not webhook:
                     continue
 
+                if alert:
+                    embeds = [alert_embed]
+
+                    if not alert['severity'] == 'advisory':
+                        toping = [f'<@&{role.id}>' for role in destguild.roles if role.permissions.ban_members]
+                        toping.append(f'<@{destguild.owner_id}>')
+                        friendly_content = msg_content = ' '.join(toping)
+
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
@@ -1950,6 +2049,9 @@ class UnifierBridge:
                         roles = source_support.roles(source_support.author(message))
                         color = source_support.get_hex(roles[len(roles)-1])
 
+                if alert:
+                    friendly_content = msg_content = alert_text
+
                 async def tbsend(msg_author,url,color,useremoji,reply,content):
                     files = await get_files(message.attachments)
                     special = {
@@ -1959,7 +2061,7 @@ class UnifierBridge:
                             'color': color,
                             'emoji': useremoji
                         },
-                        'files': files,
+                        'files': files if not alert else None,
                         'embeds': (
                             dest_support.convert_embeds(message.embeds) if source=='discord'
                             else dest_support.convert_embeds(
@@ -1967,10 +2069,10 @@ class UnifierBridge:
                                     source_support.embeds(message)
                                 )
                             )
-                        ),
+                        ) if not alert else None,
                         'reply': None
                     }
-                    if reply:
+                    if reply and not alert:
                         special.update({'reply': reply})
                     msg = await dest_support.send(
                         ch, content, special=special
@@ -2004,7 +2106,7 @@ class UnifierBridge:
                                 'color': color,
                                 'emoji': useremoji
                             },
-                            'files': files,
+                            'files': files if not alert else None,
                             'embeds': (
                                 dest_support.convert_embeds(message.embeds) if source=='discord'
                                 else dest_support.convert_embeds(
@@ -2012,10 +2114,10 @@ class UnifierBridge:
                                         source_support.embeds(message)
                                     )
                                 )
-                            ),
+                            ) if not alert else None,
                             'reply': None
                         }
-                        if reply:
+                        if reply and not alert:
                             special.update({'reply': reply})
                         msg = await dest_support.send(
                             ch, friendly_content if friendlified else msg_content, special=special
@@ -3442,6 +3544,79 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 room, ctx.message, platform, system=True,
                 content_override=content)
         await ctx.send(selector.get("success"))
+
+    @commands.command(hidden=True,description='Sends a safety-related alert.')
+    @restrictions.moderator()
+    async def alert(self, ctx, risk_type, level, *, message):
+        risk_type = risk_type.lower()
+        if not risk_type in self.bot.bridge.alert.titles.keys():
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid risk type.')
+        level = level.lower()
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Are you sure you want to send this alert?',
+            description=f'You are sending a **{level}** alert.',
+            color=self.bot.colors.warning
+        )
+        if not level == 'advisory':
+            embed.set_footer(
+                text='Server moderators will be pinged. The main channel will also receive a notification.'
+            )
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Send alert',
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        alert = {
+            'type': risk_type,
+            'severity': level,
+            'description': message
+        }
+
+        parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'],ctx.message, alert=alert)
+        parent_id_2 = await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, alert=alert)
+
+        for platform in self.bot.platforms.keys():
+            await self.bot.bridge.send(
+                self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
+            )
+            await self.bot.bridge.send(
+                self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
+            )
+
+        await interaction.delete_original_message()
+
+        embed.title = f'{self.bot.ui_emojis.success} Alert issued'
+        embed.description = 'Alert was issued to Unifier network.'
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, message):

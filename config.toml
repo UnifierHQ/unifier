@@ -33,6 +33,7 @@ enable_rotating_status = true
 enable_squads = false
 suppress_filesize_warning = false
 main_room = "main"
+alert_room = "alerts"
 posts_room = "posts"
 posts_ref_room = "post-comments"
 compress_cache = true
