@@ -862,7 +862,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 text = f'- {name} (`{guild_id}`)'
             else:
                 text = f'{text}\n- {name} (`{guild_id}`)'
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`',description=text)
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`',description=text,
+            color=self.bot.colors.unifier
+        )
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['find'], description='Identifies the origin of a message.')
