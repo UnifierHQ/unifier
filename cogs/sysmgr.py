@@ -282,7 +282,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await ctx.send('where code :thinking:')
             else:
                 await ctx.send('Something went horribly wrong.')
-                raise
+                traceback.print_exc()
         else:
             await ctx.send('Only the owner can execute code.')
 
