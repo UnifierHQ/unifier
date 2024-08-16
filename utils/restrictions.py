@@ -205,7 +205,7 @@ class Restrictions:
             if f'{ctx.guild.id}' in self.__bot.db['banned'].keys():
                 raise self.GlobalBanned('You are global banned.')
             elif f'{ctx.guild.id}' in self.__bot.db['underattack']:
-                raise self.UnderAttack('The server is under attack.')
+                raise self.UnderAttack('This server is under attack.')
 
         return commands.check(predicate)
 
