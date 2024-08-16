@@ -122,9 +122,10 @@ class Restrictions:
             #     index = 1
 
             if len(ctx.args) == 0:
-                raise self.CustomMissingArgument(
-                    '`room` is a required argument.'
-                )
+                if ctx.command.qualified_name == 'delete-invite':
+                    raise self.CustomMissingArgument('`invite` is a required argument.')
+                else:
+                    raise self.CustomMissingArgument('`room` is a required argument.')
 
             room = ctx.args[index].lower()
 
