@@ -238,7 +238,7 @@ class UnifierBridge:
                 'allowed': [],
                 'invites': []
             },
-            'emoji': None, 'description': None
+            'emoji': None, 'description': None, 'display_name': None
         }
         self.alert = UnifierAlert
 
