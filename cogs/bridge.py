@@ -37,6 +37,7 @@ import importlib
 import emoji as pymoji
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
+emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=True)
 restrictions = r.Restrictions()
 language = langmgr.partial()
 language.load()
@@ -2029,6 +2030,9 @@ class UnifierBridge:
                         friendly_content = msg_content = ' '.join(toping)
                     else:
                         friendly_content = msg_content = ''
+                    touse_mentions = emergency_mentions
+                else:
+                    touse_mentions = mentions
 
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
@@ -2051,7 +2055,7 @@ class UnifierBridge:
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=tosend_content,
-                                                 files=files, allowed_mentions=mentions, view=(
+                                                 files=files, allowed_mentions=touse_mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
@@ -2085,7 +2089,7 @@ class UnifierBridge:
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=tosend_content,
-                                                 files=files, allowed_mentions=mentions, view=(
+                                                 files=files, allowed_mentions=touse_mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
