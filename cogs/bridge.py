@@ -1308,6 +1308,9 @@ class UnifierBridge:
             ):
                 return
 
+        if not platform in self.__bot.db['rooms'][room].keys():
+            return
+
         guilds = self.__bot.db['rooms'][room][platform]
 
         is_pr = room == self.__bot.config['posts_room'] and (

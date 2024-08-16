@@ -1491,12 +1491,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         parent_id_2 = await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, alert=alert)
 
         for platform in self.bot.platforms.keys():
-            await self.bot.bridge.send(
-                self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
-            )
-            await self.bot.bridge.send(
-                self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
-            )
+            if parent_id:
+                await self.bot.bridge.send(
+                    self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
+                )
+            if parent_id_2:
+                await self.bot.bridge.send(
+                    self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
+                )
 
         await interaction.delete_original_message()
 
@@ -1565,9 +1567,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'], ctx.message, alert=alert)
 
         for platform in self.bot.platforms.keys():
-            await self.bot.bridge.send(
-                self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
-            )
+            if parent_id:
+                await self.bot.bridge.send(
+                    self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
+                )
 
         await interaction.delete_original_message()
 
