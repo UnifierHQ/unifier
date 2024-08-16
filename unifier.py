@@ -21,7 +21,7 @@ from nextcord.ext import commands
 import aiohttp
 import asyncio
 import ujson as json
-import tomllib as toml
+import toml
 import os
 import sys
 import logging
@@ -42,8 +42,7 @@ except:
     pass
 
 try:
-    with open('config.toml', 'rb') as file:
-        data = toml.load(file)
+    data = toml.load('config.toml')
 except:
     traceback.print_exc()
     print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
