@@ -3,7 +3,8 @@ aiofiles
 py-cpuinfo
 tld
 jellyfish
-uvloop
+uvloop; sys_platform != 'nt'
+winloop; sys_platform == 'nt'
 compress_json
 python-dotenv
 requests

@@ -21,6 +21,7 @@ from nextcord.ext import commands
 import aiohttp
 import asyncio
 import ujson as json
+import tomllib as toml
 import os
 import sys
 import logging
@@ -39,8 +40,8 @@ if os.name != "nt":
         pass
 
 try:
-    with open('config.json', 'r') as file:
-        data = json.load(file)
+    with open('config.toml', 'rb') as file:
+        data = toml.load(file)
 except:
     traceback.print_exc()
     print('\nFailed to load config.json file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
@@ -65,7 +66,8 @@ if not owner_valid:
     sys.exit(1)
 
 if os.name == "nt":
-    logger.warning('You are using Windows, which Unifier does not officially support. Some features may not work.')
+    import winloop as uvloop
+    logger.warning('You are using Windows, which is untested. Some features may not work.')
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
