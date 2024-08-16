@@ -166,7 +166,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     )
                 )
             )
-            msg = await ctx.send(f'{self.bot.ui_emojis.warning} Please select the room type.')
+            msg = await ctx.send(f'{self.bot.ui_emojis.warning} Please select the room type.',view=components)
 
             def check(interaction):
                 return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
