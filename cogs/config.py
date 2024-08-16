@@ -172,7 +172,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 if interaction:
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms'
+                embed.title = (
+                    f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms' if not private
+                    else f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} private rooms'
+                )
                 embed.description = 'Choose a room to view its info!'
                 selection = nextcord.ui.StringSelect(
                     max_values=1, min_values=1, custom_id='selection', placeholder='Room...'
