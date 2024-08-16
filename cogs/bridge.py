@@ -2325,6 +2325,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridge.webhook_cache = webhook_cache
 
     @commands.command(aliases=['colour'],description=language.desc('bridge.color'))
+    @restrictions.not_banned_guild()
     async def color(self,ctx,*,color=''):
         selector = language.get_selector(ctx)
         if color=='':
@@ -2357,6 +2358,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_custom'))
 
     @commands.command(description=language.desc('bridge.nickname'))
+    @restrictions.not_banned_guild()
     async def nickname(self, ctx, *, nickname=''):
         selector = language.get_selector(ctx)
         if len(nickname) > 33:
@@ -2702,6 +2704,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         description=language.desc('bridge.modping')
     )
     @commands.cooldown(rate=1, per=1800, type=commands.BucketType.user)
+    @restrictions.not_banned()
     async def modping(self,ctx):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_logging']:
@@ -3101,6 +3104,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await interaction.response.send_modal(modal)
 
     @commands.command(description=language.desc('bridge.serverstatus'))
+    @restrictions.not_banned_guild()
     async def serverstatus(self,ctx):
         selector = language.get_selector(ctx)
         embed = nextcord.Embed(
@@ -3608,6 +3612,77 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
             await self.bot.bridge.send(
                 self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
+            )
+
+        await interaction.delete_original_message()
+
+        embed.title = f'{self.bot.ui_emojis.success} Alert issued'
+        embed.description = 'Alert was issued to Unifier network.'
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+
+    @commands.command(hidden=True, description='Sends a safety-related alert.')
+    @restrictions.moderator()
+    @restrictions.not_banned()
+    async def advisory(self, ctx, risk_type, *, message):
+        risk_type = risk_type.lower()
+        if not risk_type in self.bot.bridge.alert.titles.keys():
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid risk type.')
+        if risk_type == 'drill':
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot issue drill advisories.')
+        level = 'advisory'
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Are you sure you want to send this alert?',
+            description=f'You are sending an **advisory** alert.',
+            color=self.bot.colors.warning
+        )
+        embed.set_footer(
+            text='Misuse will be sanctioned with a 1 month minimum global ban from Unifier.'
+        )
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Send alert',
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        alert = {
+            'type': risk_type,
+            'severity': level,
+            'description': message
+        }
+
+        parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'], ctx.message, alert=alert)
+
+        for platform in self.bot.platforms.keys():
+            await self.bot.bridge.send(
+                self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
             )
 
         await interaction.delete_original_message()

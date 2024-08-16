@@ -38,6 +38,9 @@ class Restrictions:
     class NotConnected(commands.CheckFailure):
         pass
 
+    class GlobalBanned(commands.CheckFailure):
+        pass
+
     @property
     def attached(self):
         return self.__attached
@@ -172,6 +175,30 @@ class Restrictions:
                     return True
 
             raise self.NotConnected('You are not connected to this room.')
+
+        return commands.check(predicate)
+
+    def not_banned(self):
+        async def predicate(ctx: commands.Context):
+            if (
+                    f'{ctx.author.id}' in self.__bot.db['banned'].keys() or
+                    f'{ctx.guild.id}' in self.__bot.db['banned'].keys()
+            ):
+                raise self.GlobalBanned('You are global banned.')
+
+        return commands.check(predicate)
+
+    def not_banned_user(self):
+        async def predicate(ctx: commands.Context):
+            if f'{ctx.author.id}' in self.__bot.db['banned'].keys():
+                raise self.GlobalBanned('You are global banned.')
+
+        return commands.check(predicate)
+
+    def not_banned_guild(self):
+        async def predicate(ctx: commands.Context):
+            if f'{ctx.guild.id}' in self.__bot.db['banned'].keys():
+                raise self.GlobalBanned('You are global banned.')
 
         return commands.check(predicate)
 

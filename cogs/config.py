@@ -127,6 +127,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True, aliases=['newroom'],description='Creates a new room.')
     @restrictions.can_create()
+    @restrictions.not_banned()
     async def make(self,ctx,*,room):
         room = room.lower()
         if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
@@ -153,6 +154,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True, description='Sets room display name.')
     @restrictions.manage_room()
+    @restrictions.not_banned()
     async def roomdisplay(self, ctx, room, *, name=''):
         room = room.lower()
         if len(name) == 0:
@@ -167,6 +169,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True,description='Sets room description.')
     @restrictions.manage_room()
+    @restrictions.not_banned()
     async def roomdesc(self,ctx,room,*,desc=''):
         room = room.lower()
         if len(desc)==0:
@@ -181,6 +184,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True, description='Sets room emoji.')
     @restrictions.manage_room()
+    @restrictions.not_banned()
     async def roomemoji(self, ctx, room, *, emoji=''):
         room = room.lower()
         if len(emoji) == 0:
@@ -301,6 +305,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_connected()
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_permissions(manage_webhooks=True)
+    @restrictions.not_banned()
     async def bind(self,ctx,*,room=''):
         invite = False
 
@@ -641,6 +646,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True,description="Adds a rule to a given room.")
     @restrictions.manage_room()
+    @restrictions.not_banned()
     async def addrule(self,ctx,room,*,rule):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
@@ -653,6 +659,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(hidden=True,description="Removes a given rule from a given room.")
     @restrictions.manage_room()
+    @restrictions.not_banned()
     async def delrule(self,ctx,room,*,rule):
         room = room.lower()
         try:

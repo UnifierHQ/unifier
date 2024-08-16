@@ -294,6 +294,8 @@ class CommandExceptionHandler:
                 await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to join this room.')
             elif isinstance(error, restrictions.UnknownRoom):
                 await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
+            elif isinstance(error, restrictions.GlobalBanned):
+                await ctx.send(f'{self.bot.ui_emojis.error} Your account or server is currently global banned. Run `{self.bot.command_prefix}standing` for more info.')
             elif isinstance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
                 await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')
