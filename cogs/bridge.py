@@ -422,6 +422,9 @@ class UnifierBridge:
         for room in self.rooms:
             roominfo = self.get_room(room)
 
+            if not platform in roominfo.keys():
+                continue
+
             if platform=='discord':
                 if not f'{channel.guild.id}' in roominfo['discord'].keys():
                     continue
