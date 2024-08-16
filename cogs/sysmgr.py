@@ -258,7 +258,7 @@ class CommandExceptionHandler:
 
     async def handle(self, ctx, error):
         try:
-            if isinstance(error, commands.MissingRequiredArgument):
+            if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, restrictions.CustomMissingArgument):
                 cmdname = ctx.command.name
                 cmd = self.bot.get_command(cmdname)
                 embed = nextcord.Embed(color=self.bot.colors.unifier)
@@ -279,7 +279,10 @@ class CommandExceptionHandler:
                     f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(
                         cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                                 )
-                await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
+                if isinstance(error, commands.MissingRequiredArgument):
+                    await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
+                else:
+                    await ctx.send(f'{self.bot.ui_emojis.error} {error}', embed=embed)
             elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.BotMissingPermissions):
                 await ctx.send(f'{self.bot.ui_emojis.error} {error}')
             elif isinstance(error, commands.NoPrivateMessage):
