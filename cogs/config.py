@@ -126,7 +126,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(f'{self.bot.ui_emojis.success} **{mod}** is no longer a moderator!')
 
     @commands.command(hidden=True, aliases=['newroom'],description='Creates a new room.')
-    @restrictions.admin()
+    @restrictions.can_create()
     async def make(self,ctx,*,room):
         room = room.lower()
         if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
@@ -151,53 +151,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Room renamed!')
 
-    @commands.command(hidden=True,description='Creates a new experiment.')
-    @restrictions.admin()
-    async def addexperiment(self, ctx, experiment, *, experiment_name):
-        # maybe i should remove this...?
-        if experiment in list(self.bot.db['experiments'].keys()):
-            return await ctx.send('This experiment already exists!')
-        self.bot.db['experiments'].update({experiment: []})
-        self.bot.db['experiments_info'].update({experiment: {'name':experiment_name,'description':'A new experiment'}})
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'Created experiment `{experiment}`!')
-
-    @commands.command(hidden=True,description='Removes an experiment.')
-    @restrictions.admin()
-    async def removeexperiment(self, ctx, *, experiment):
-        if not experiment in list(self.bot.db['experiments'].keys()):
-            return await ctx.send('This experiment doesn\'t exist!')
-        self.bot.db['experiments'].pop(experiment)
-        self.bot.db['experiments_info'].pop(experiment)
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'Deleted experiment `{experiment}`!')
-
-    @commands.command(hidden=True,description='Sets experiment description.')
-    @restrictions.admin()
-    async def experimentdesc(self, ctx, experiment, *, experiment_desc):
-        if not experiment in list(self.bot.db['experiments'].keys()):
-            return await ctx.send('This experiment doesn\'t exist!')
-        self.bot.db['experiments_info'][experiment].update({'description': experiment_desc})
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'Added description to experiment `{experiment}`!')
-
     @commands.command(hidden=True, description='Sets room display name.')
+    @restrictions.manage_room()
     async def roomdisplay(self, ctx, room, *, name=''):
         room = room.lower()
-        if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
-            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
-        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
-            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
-            origin_guild = self.bot.get_guild(origin_id)
-            if not origin_guild or not origin_guild.id == ctx.guild.id:
-                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
-                # pretend like it doesn't exist, since there's no way this server can have access to the room
-                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-            if not ctx.author.guild_permissions.manage_guild:
-                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
         if len(name) == 0:
             if not self.bot.db['rooms'][room]['meta']['display_name']:
                 return await ctx.send(f'{self.bot.ui_emojis.error} There is no display name to reset for this room.')
@@ -209,22 +166,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(f'{self.bot.ui_emojis.success} Updated description!')
 
     @commands.command(hidden=True,description='Sets room description.')
+    @restrictions.manage_room()
     async def roomdesc(self,ctx,room,*,desc=''):
         room = room.lower()
-        if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
-            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
-        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
-            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
-            origin_guild = self.bot.get_guild(origin_id)
-            if not origin_guild or not origin_guild.id == ctx.guild.id:
-                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
-                # pretend like it doesn't exist, since there's no way this server can have access to the room
-                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-            if not ctx.author.guild_permissions.manage_guild:
-                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
         if len(desc)==0:
             if not self.bot.db['rooms'][room]['meta']['description']:
                 return await ctx.send(f'{self.bot.ui_emojis.error} There is no description to reset for this room.')
@@ -236,23 +180,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(f'{self.bot.ui_emojis.success} Updated description!')
 
     @commands.command(hidden=True, description='Sets room emoji.')
-    @restrictions.admin()
+    @restrictions.manage_room()
     async def roomemoji(self, ctx, room, *, emoji=''):
         room = room.lower()
-        if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
-            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
-        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
-            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
-            origin_guild = self.bot.get_guild(origin_id)
-            if not origin_guild or not origin_guild.id == ctx.guild.id:
-                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
-                # pretend like it doesn't exist, since there's no way this server can have access to the room
-                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-            if not ctx.author.guild_permissions.manage_guild:
-                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
         if len(emoji) == 0:
             if not self.bot.db['rooms'][room]['meta']['emoji']:
                 return await ctx.send(f'{self.bot.ui_emojis.error} There is no emoji to reset for this room.')
@@ -305,22 +235,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(description='Disbands a room.')
+    @restrictions.manage_room()
     async def disband(self, ctx, room):
         room = room.lower()
-        if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
-            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage public rooms.')
-        if self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.moderators and not ctx.author.id in self.bot.admins:
-            origin_id = self.bot.db['rooms'][room]['meta']['private_meta']['server']
-            origin_guild = self.bot.get_guild(origin_id)
-            if not origin_guild or not origin_guild.id==ctx.guild.id:
-                if ctx.guild.id in self.bot.db['rooms']['room']['private_meta']['allowed']:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
-                # pretend like it doesn't exist, since there's no way this server can have access to the room
-                return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-            if not ctx.author.guild_permissions.manage_guild:
-                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot manage this private room.')
         embed = nextcord.Embed(
             title=f'{self.bot.ui_emojis.warning} Disband `{room}`?',
             description='Once the room is disbanded, it\'s gone forever!',
@@ -379,76 +296,112 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await interaction.response.edit_message(embed=embed,view=None)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-    @commands.command(
-        aliases=['experiment'],description='Shows a list of Unifier experiments, and lets you join or leave them.'
-    )
-    async def experiments(self,ctx,action='',experiment=''):
-        if action.lower()=='enroll' or action.lower()=='add':
-            if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
-                return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have the necessary permissions.')
-            if not experiment in list(self.bot.db['experiments'].keys()):
-                return await ctx.send(f'{self.bot.ui_emojis.error} This experiment doesn\'t exist!')
-            if ctx.guild.id in self.bot.db['experiments'][experiment]:
-                return await ctx.send(f'{self.bot.ui_emojis.error} Your server is already a part of this experiment!')
-            self.bot.db['experiments'][experiment].append(ctx.guild.id)
-            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            return await ctx.send(f'{self.bot.ui_emojis.success} Enrolled in experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
-        elif action.lower()=='unenroll' or action.lower()=='remove':
-            if not ctx.author.guild_permissions.manage_channels and not self.is_user_admin(ctx.author.id):
-                return await ctx.send(f'{self.bot.ui_emojis.error} You don\'t have the necessary permissions.')
-            if not experiment in list(self.bot.db['experiments'].keys()):
-                return await ctx.send(f'{self.bot.ui_emojis.error} This experiment doesn\'t exist!')
-            if not ctx.guild.id in self.bot.db['experiments'][experiment]:
-                return await ctx.send(f'{self.bot.ui_emojis.error} Your server is not a part of this experiment!')
-            self.bot.db['experiments'][experiment].remove(ctx.guild.id)
-            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            return await ctx.send(f'{self.bot.ui_emojis.success} Unenrolled from experiment **'+self.bot.db['experiments_info'][experiment]['name']+'**!')
-        else:
-            embed = nextcord.Embed(title=':test_tube: Experiments',
-                                   description=f'Help us test Unifier\'s experimental features! Run `{self.bot.command_prefix}experiment enroll <experiment>` to join one.\n\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!',
-                                   color=self.bot.colors.blurple)
-            for experiment in self.bot.db['experiments']:
-                name = self.bot.db['experiments_info'][experiment]['name'] + f" (`{experiment}`"
-                description = self.bot.db['experiments_info'][experiment]['description']
-                enrolled = ctx.guild.id in self.bot.db['experiments'][experiment]
-                if enrolled:
-                    name = name + ", active)"
-                    description = description + "\n\n**Your server is enrolled in this experiment!**"
-                else:
-                    name = name + ")"
-                embed.add_field(name=name, value=description, inline=False)
-            if len(list(self.bot.db['experiments'].keys()))==0:
-                embed.add_field(name="no experiments? :face_with_raised_eyebrow:",value='There\'s no experiments available yet!',inline=False)
-            await ctx.send(embed=embed)
-
     @commands.command(aliases=['link','connect','federate','bridge'],description='Connects the channel to a given room.')
+    @restrictions.join_room()
+    @restrictions.not_connected()
+    @commands.has_permissions(manage_channels=True)
+    @commands.bot_has_permissions(manage_webhooks=True)
     async def bind(self,ctx,*,room=''):
+        invite = False
+
         try:
             roominfo = self.bot.bridge.get_room(room.lower())
         except:
-            roominfo = await self.bot.bridge.accept_invite(room.lower())
+            # as join_room and not_connected succeeded, that means the room or invite is valid.
+            # thus, no need to use try-except for this
+            invite = True
+            roominfo = self.bot.bridge.get_room(
+                self.bot.bridge.get_invite(room.lower())['room']
+            )
+
         text = []
         for i in range(len(roominfo['rules'])):
             text.append(f'{i+1}. '+roominfo['rules'][i])
         text = '\n'.join(text)
 
         embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.rooms} Join {roominfo['meta']['display_name'] or room.lower()}?',
+            title=f'{self.bot.ui_emojis.rooms} Join {roominfo["meta"]["display_name"] or room.lower()}?',
             description=(f'{text}\n\nBy joining this room, you and your members agree to these rules.\n'+
                          'This message will be pinned (if possible) for better accessibility to the rules.'
                          ),
-            color=self.bot.colors.unifier
+            color=self.bot.colors.warning
         )
         embed.set_footer(text='Failure to follow room rules may lead to user or server restrictions.')
 
-    @commands.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
-    @commands.has_permissions(manage_channels=True)
-    async def unbind(self,ctx,*,room):
-        room = room.lower()
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green,
+                    label='Accept & bind',
+                    custom_id='accept',
+                    emoji=f'{self.bot.ui_emojis.success}'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel',
+                    emoji=f'{self.bot.ui_emojis.error}'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
         try:
-            data = self.bot.db['rooms'][room]['discord']
+            interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+
+            if interaction.data['custom_id'] == 'cancel':
+                await interaction.response.edit_message(components=None)
+                raise Exception()
         except:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
+            embed.title = f'{self.bot.ui_emojis.error} Server did not agree to room rules.'
+            embed.colour = self.bot.colors.error
+            return await msg.edit(embed=embed,components=None)
+
+        await msg.edit(components=None)
+        await interaction.response.defer(ephemeral=False, with_message=True)
+
+        webhook = None
+
+        try:
+            roomname = room
+            if invite:
+                await self.bot.bridge.accept_invite(ctx.author, room.lower())
+                roomname = self.bot.bridge.get_invite(room.lower())['room']
+
+            webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
+            await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel.id,webhook_id=webhook.id)
+        except:
+            if webhook:
+                try:
+                    await webhook.delete()
+                except:
+                    pass
+
+            embed.title = f'{self.bot.ui_emojis.error} Failed to connect.'
+            embed.colour = self.bot.colors.error
+            await msg.edit(embed=embed)
+            return await interaction.edit_original_message(content=f'{self.bot.ui_emojis.error} An error occurred during binding.')
+        else:
+            embed.title = f'{self.bot.ui_emojis.success} Connected to room!'
+            embed.colour = self.bot.colors.success
+            await msg.edit(embed=embed)
+            try:
+                await msg.pin()
+            except:
+                pass
+            await interaction.edit_original_message(content=f'{self.bot.ui_emojis.success} You\'re now connected! Say hi!')
+
+    @commands.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
+    @restrictions.is_connected()
+    @commands.has_permissions(manage_channels=True)
+    @commands.bot_has_permissions(manage_webhooks=True)
+    async def unbind(self,ctx,room):
+        data = self.bot.bridge.get_room(room.lower())
         try:
             try:
                 hooks = await ctx.guild.webhooks()
@@ -465,9 +418,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             data.pop(f'{ctx.guild.id}')
             self.bot.db['rooms'][room]['discord'] = data
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send(f'# {self.bot.ui_emojis.success} Unlinked channel from Unifier network!\nThis channel is no longer linked, nothing from now will be bridged.')
+            await ctx.send(f'{self.bot.ui_emojis.success} Channel has been unbinded.')
         except:
-            await ctx.send(f'{self.bot.ui_emojis.error} Something went wrong - check my permissions.')
+            await ctx.send(f'{self.bot.ui_emojis.error} An error occurred during unbinding')
             raise
 
     @commands.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
@@ -476,6 +429,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         channels = []
         channels_enabled = []
         namelist = []
+
+        # get using async because this property may take a while to get if there's lots of rooms
+        public_rooms = await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.public_rooms)
+
         embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Checking bindable channels...',
                                description='This may take a while.',
                                color=self.bot.colors.warning)
@@ -483,10 +440,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         hooks = await ctx.guild.webhooks()
         for channel in ctx.guild.text_channels:
             duplicate = False
-            for roomname in list(self.bot.db['rooms'].keys()):
+            for roomname in list(public_rooms):
                 # Prevent duplicate binding
                 try:
-                    hook_id = self.bot.db['rooms'][roomname]['discord'][f'{ctx.guild.id}'][0]
+                    hook_id = self.bot.bridge.get_room(roomname)['discord'][f'{ctx.guild.id}'][0]
                 except:
                     continue
                 for hook in hooks:
@@ -648,14 +605,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 elif locked:
                     self.bot.db['rooms'][roomname]['meta']['locked'] = True
             webhook = await channel.create_webhook(name='Unifier Bridge')
-            guild = [webhook.id, channel.id]
-            if not 'discord' in self.bot.db['rooms'][roomname].keys():
-                self.bot.db['rooms'][roomname].update({'discord': {}})
-            self.bot.db['rooms'][roomname]['discord'].update({f'{ctx.guild.id}': guild})
+            await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel.id,webhook_id=webhook.id)
 
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await interaction.edit_original_message(
-            content=f'# {self.bot.ui_emojis.success} Linked channels to Unifier network!\nYou can now send messages to the Unifier network through the channels. Say hi!')
+            content=f'{self.bot.ui_emojis.success} Channels are now connected! Say hi!')
 
     @commands.command(description='Displays room rules for the specified room.')
     async def rules(self,ctx,*,room=''):
@@ -687,7 +640,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True,description="Adds a rule to a given room.")
-    @restrictions.admin()
+    @restrictions.manage_room()
     async def addrule(self,ctx,room,*,rule):
         room = room.lower()
         if not room in list(self.bot.db['rooms'].keys()):
@@ -699,7 +652,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(f'{self.bot.ui_emojis.success} Added rule!')
 
     @commands.command(hidden=True,description="Removes a given rule from a given room.")
-    @restrictions.admin()
+    @restrictions.manage_room()
     async def delrule(self,ctx,room,*,rule):
         room = room.lower()
         try:
@@ -713,6 +666,59 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['rooms'][room]['meta']['rules'].pop(rule-1)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Removed rule!')
+
+    @commands.command(name='reply-layout', description="Sets the reply layout.")
+    @commands.has_guild_permissions(manage_channels=True)
+    async def reply_layout(self, ctx):
+        layout = self.bot.bridge.get_reply_style(ctx.guild.id)
+        embed = nextcord.Embed(
+            title='Reply layout',
+            description='Current layout: '+(
+                'Stylish\n\nA colored button will appear at the bottom of the message.' if layout==0
+                else 'Familiar\n\nSome text will be added on top of the message.'
+            )
+        )
+        selection_row = ui.ActionRow(
+            nextcord.ui.StringSelect(
+                options=[
+                    nextcord.SelectOption(
+                        label='Stylish',
+                        value='0',
+                        default=layout == 0,
+                        description='A colored button will appear at the bottom of the message.'
+                    ),
+                    nextcord.SelectOption(
+                        label='Familiar',
+                        value='1',
+                        default=layout == 1,
+                        description='Some text will be added on top of the message.'
+                    )
+                ]
+            )
+        )
+        components = ui.MessageComponents()
+        components.add_row(selection_row)
+
+        msg = await ctx.send(embed=embed,view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        while True:
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except:
+                return await msg.edit(view=None)
+
+            layout = int(interaction.data['values'][0])
+            self.bot.bridge.set_reply_style(ctx.guild.id, layout)
+            embed.description='Current layout: ' + (
+                'Stylish\n\nA colored button will appear at the bottom of the message.' if layout == 0
+                else 'Familiar\n\nSome text will be added on top of the message.'
+            )
+            components = ui.MessageComponents()
+            components.add_row(selection_row)
+            await interaction.response.edit_message(embed=embed,view=components)
 
     @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
     @restrictions.admin()

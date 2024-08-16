@@ -45,7 +45,6 @@ import importlib
 import math
 import asyncio
 import discord_emoji
-import threading
 import hashlib
 import orjson
 from Crypto.Protocol.KDF import PBKDF2
@@ -230,62 +229,6 @@ class Emojis:
         self.emoji = data['emojis']['emoji'][0]
         self.leaderboard = data['emojis']['leaderboard'][0]
 
-class AutoSaveDict(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.file_path = 'data.json'
-        self.__save_lock = False
-
-        # Ensure necessary keys exist
-        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
-                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
-                     'external_bridge': [], 'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {},
-                     'fullbanned': [], 'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {},
-                     'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}})
-        self.threads = []
-
-        # Load data
-        self.load_data()
-
-    @property
-    def save_lock(self):
-        return self.__save_lock
-
-    @save_lock.setter
-    def save_lock(self, save_lock):
-        if self.__save_lock:
-            raise RuntimeError('already locked')
-        self.__save_lock = save_lock
-
-    def load_data(self):
-        try:
-            with open(self.file_path, 'r') as file:
-                data = json.load(file)
-            self.update(data)
-        except FileNotFoundError:
-            pass  # If the file is not found, initialize an empty dictionary
-
-    def save(self):
-        if self.__save_lock:
-            return
-        with open(self.file_path, 'w') as file:
-            json.dump(self, file, indent=4)
-        return
-
-    def cleanup(self):
-        for thread in self.threads:
-            thread.join()
-        count = len(self.threads)
-        self.threads.clear()
-        return count
-
-    def save_data(self):
-        if self.__save_lock:
-            return
-        thread = threading.Thread(target=self.save)
-        thread.start()
-        self.threads.append(thread)
-
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -337,10 +280,20 @@ class CommandExceptionHandler:
                         cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                                 )
                 await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
-            elif isinstance(error, commands.MissingPermissions):
+            elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.BotMissingPermissions):
                 await ctx.send(f'{self.bot.ui_emojis.error} {error}')
+            elif isinstance(error, commands.NoPrivateMessage):
+                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in servers.')
+            elif isinstance(error, commands.PrivateMessageOnly):
+                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in DMs.')
             elif isinstance(error, commands.CheckFailure):
                 await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
+            elif isinstance(error, restrictions.NoRoomManagement):
+                await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to manage this room.')
+            elif isinstance(error, restrictions.NoRoomJoin):
+                await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to join this room.')
+            elif isinstance(error, restrictions.UnknownRoom):
+                await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
             elif isinstance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
                 await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')
@@ -412,8 +365,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     def __init__(self, bot):
         global language
         self.bot = bot
-        if not hasattr(self.bot, 'db'):
-            self.bot.db = AutoSaveDict({})
 
         restrictions.attach_bot(self.bot)
 
@@ -690,7 +641,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ["playing","with ItsAsheer"],
             ["watching","webhooks"],
             ["custom","Unifying servers like they're nothing"],
-            ["custom","Made for communities, by communities"]
+            ["custom","Made for communities, by communities"],
+            ["custom","bro nevira stop stealing my code"]
         ]
         new_stat = random.choice(status_messages)
         if new_stat[0] == "watching":
@@ -814,7 +766,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not len(failed) == 0:
             await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
 
-    @commands.command(hidden=True,description=language.desc('sysmgr.eval'))
+    @commands.command(hidden=True, description=language.desc('sysmgr.eval'))
     @restrictions.owner()
     async def eval(self, ctx, *, body):
         selector = language.get_selector(ctx)
@@ -870,14 +822,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             else:
                 #  here, cause is if haves value
                 await ctx.send('```%s```' % value)
-
-    @eval.error
-    async def eval_error(self, ctx, error):
-        selector = language.get_selector(ctx)
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(selector.get('nocode'))
-        else:
-            raise
 
     @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
@@ -2058,7 +2002,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await ctx.send(f'{self.bot.ui_emojis.error} Could not activate emoji pack.')
 
     @commands.command(description=language.desc('sysmgr.help'))
-    async def help(self,ctx):
+    async def help(self,ctx,query=None):
         selector = language.get_selector(ctx)
         panel = 0
         limit = 20
@@ -2068,9 +2012,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         descmatch = False
         cogname = ''
         cmdname = ''
-        query = ''
         msg = None
         interaction = None
+        if not query:
+            query = ''
+        else:
+            panel = 1
+            cogname = 'search'
+            namematch = True
+            descmatch = True
+            match = 0
 
         # Command overrides - these commands will be shown regardless of permissions.
         # Useful if cooldowns cause checks to fail
@@ -2199,15 +2150,22 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 offset = 0
 
+                def in_aliases(query, query_cmd):
+                    for alias in query_cmd.aliases:
+                        if query.lower() in alias.lower():
+                            return True
+
                 def search_filter(query, query_cmd):
                     if match==0:
                         return (
-                            query.lower() in query_cmd.qualified_name and namematch or
+                            (query.lower() in query_cmd.qualified_name.lower() or
+                             in_aliases(query,query_cmd)) and namematch or
                             query.lower() in query_cmd.description.lower() and descmatch
                         )
                     elif match==1:
                         return (
-                            ((query.lower() in query_cmd.qualified_name and namematch) or not namematch) and
+                            (((query.lower() in query_cmd.qualified_name.lower() or
+                               in_aliases(query,query_cmd)) and namematch) or not namematch) and
                             ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
                         )
 

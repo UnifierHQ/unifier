@@ -166,12 +166,27 @@ class UnifierBridge:
         self.msg_stats = {}
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
-        self.__room_template = {'rules': [], 'restricted': False, 'locked': False, 'private': False, 'emoji': None,
-                                'description': None}
+        self.__room_template = {
+            'rules': [], 'restricted': False, 'locked': False, 'private': False,
+            'private_meta': {
+                'server': None,
+                'allowed': [],
+                'invites': []
+            },
+            'emoji': None, 'description': None
+        }
 
     @property
     def room_template(self):
         return self.__room_template
+
+    @property
+    def rooms(self):
+        return list(self.__bot.db.rooms.keys())
+
+    @property
+    def public_rooms(self):
+        return [room for room in self.rooms if not self.get_room(room)['private']]
 
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
@@ -265,6 +280,23 @@ class UnifierBridge:
     class RoomExistsError(Exception):
         pass
 
+    class InviteNotFoundError(Exception):
+        pass
+
+    class InviteExistsError(Exception):
+        pass
+
+    def get_reply_style(self, guild_id):
+        if str(guild_id) in self.__bot.db['settings'].keys():
+            return self.__bot.db['settings'][f'{guild_id}'].get('reply_layout',0)
+        return 0
+
+    def set_reply_style(self, guild_id, reply_type):
+        if not str(guild_id) in self.__bot.db['settings'].keys():
+            self.__bot.db['settings'].update({f'{guild_id}': {}})
+
+        self.__bot.db['settings'][f'{guild_id}'].update({'reply_layout': reply_type})
+
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
@@ -316,14 +348,21 @@ class UnifierBridge:
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
-    def rooms(self) -> list:
-        return list(self.__bot.db['rooms'].keys())
-
     def get_room(self, room) -> dict or None:
         """Gets a Unifier room.
         This will be moved to UnifierBridge for a future update."""
         try:
-            return self.__bot.db['rooms'][room]
+            roominfo = self.__bot.db['rooms'][room]
+            base = dict(self.__room_template)
+
+            # add template keys and values to data
+            for key in roominfo.keys():
+                if key == 'private_meta':
+                    for meta_key in roominfo['private_meta'].keys():
+                        base['private_meta'].update({meta_key: roominfo['private_meta'][meta_key]})
+                base.update({key: roominfo[key]})
+
+            return base
         except:
             return None
 
@@ -373,28 +412,66 @@ class UnifierBridge:
 
     def get_invite(self, invite) -> dict or None:
         try:
+            invite = self.__bot.db['invites'][invite]
+
+            if invite['expire'] < time.time():
+                # invite expired
+                self.delete_invite(invite)
+                return None
+
             return self.__bot.db['invites'][invite]
         except:
             return None
 
+    def create_invite(self, room, max_usage, expire) -> dict:
+        while True:
+            # generate unique invite
+            invite = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+            if not invite in self.__bot.db['invites'].keys():
+                break
+
+        self.__bot.db['invites'].update({invite: {
+            'remaining': max_usage, 'expire': expire, 'room': room
+        }})
+        self.__bot.db['rooms'][room]['private_meta']['invites'].append(invite)
+        return self.__room_template
+
     def delete_invite(self, invite):
-        # TODO: Add InviteNotFoundError, like RoomNotFoundError but for invites.
+        if not invite in self.__bot.db['invites'].keys():
+            raise self.InviteNotFoundError('invalid invite')
+
+        room = self.__bot.db['invites']['invite']['room']
         self.__bot.db['invites'].pop(invite)
+        try:
+            self.__bot.db['rooms'][room]['private_meta']['invites'].remove(invite)
+        except:
+            # room prob deleted, ignore
+            pass
         self.__bot.db.save_data()
 
-    async def accept_invite(self, user, invite):
-        # TODO: This is incomplete
+    async def accept_invite(self, user, invite, platform='discord'):
         invite = self.get_invite(invite)
         if not invite:
-            raise ValueError('invalid invite')
+            raise self.InviteNotFoundError('invalid invite')
         roominfo = self.get_room(invite['room'])
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
         if not roominfo['private']:
-            self.__bot.db['invites'].pop(invite)
+            self.delete_invite(invite)
             raise RuntimeError('invite leads to a public room, expired')
+        if invite['remaining'] == 1:
+            self.delete_invite(invite)
+        else:
+            self.__bot.db['invites'][invite]['remaining'] -= 1
+        if platform == 'discord':
+            roominfo['private_meta']['allowed'].append(user.guild.id)
+        else:
+            support = self.__bot.platforms[platform]
+            roominfo['private_meta']['allowed'].append(support.get_id(support.server(user)))
+            self.update_room(invite['room'], roominfo)
+        self.__bot.db.save_data()
 
-    async def join_room(self, user, room, webhook_or_channel, platform='discord'):
+    async def join_room(self, user, room, channel_id, webhook_id=None, platform='discord'):
         roominfo = self.get_room(room)
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
@@ -425,7 +502,15 @@ class UnifierBridge:
                 raise ValueError('forbidden')
 
         guild_id = str(guild_id)
-        webhook_id = support.get_id(webhook_or_channel)
+
+        if platform == 'discord':
+            if not webhook_id:
+                raise ValueError('webhook must be provided for discord')
+            ids = [webhook_id, channel_id]
+        else:
+            ids = [channel_id]
+            if webhook_id:
+                ids.append(webhook_id)
 
         if not platform in roominfo.keys():
             self.__bot.db['rooms'][room].update({platform:{}})
@@ -433,7 +518,7 @@ class UnifierBridge:
         if guild_id in self.__bot.db['rooms'][room][platform].keys():
             raise ValueError('already joined')
 
-        self.__bot.db['rooms'][room][platform].update({guild_id: webhook_id})
+        self.__bot.db['rooms'][room][platform].update({guild_id: ids})
         self.__bot.db.save_data()
 
     async def leave_room(self, guild, room, platform='discord'):
@@ -489,7 +574,8 @@ class UnifierBridge:
                 'private': False,
                 'private_meta': {
                     'server': None,
-                    'allowed': []
+                    'allowed': [],
+                    'invites': []
                 },
                 'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
                 'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None
@@ -1042,6 +1128,23 @@ class UnifierBridge:
             return
         if ignore is None:
             ignore = []
+
+        # WIP orphan message system.
+        # if type(message) is dict:
+        #     orphan = True
+        # else:
+        #     orphan = False
+        #     message = {
+        #         'id': message.id,
+        #         'author': message.author,
+        #         'guild': message.guild,
+        #         'content': message.content,
+        #         'channel': message.channel,
+        #         'attachments': message.attachments,
+        #         'embeds': message.embeds,
+        #         'reference': message.reference
+        #     }
+
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
 
         source_support = self.__bot.platforms[source] if source != 'discord' else None
@@ -1291,7 +1394,7 @@ class UnifierBridge:
         # Broadcast message
         for guild in list(guilds.keys()):
             if source=='discord':
-                reply_v2 = not (self.__bot.db['settings'][guild]['reply_v2_optout'] if guild in self.__bot.db['settings'].keys() else False)
+                reply_v2 = self.get_reply_style(message.guild.id) == 1
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
             else:
                 reply_v2 = False
@@ -1419,9 +1522,7 @@ class UnifierBridge:
                             content = msg.content
 
                         if source=='discord':
-                            used_reply_v2 = not (self.__bot.db['settings'][str(message.reference.guild_id)][
-                                'reply_v2_optout'] if str(message.reference.guild_id) in self.__bot.db[
-                                'settings'].keys() else False)
+                            used_reply_v2 = self.get_reply_style(message.reference.guild_id) == 1
                             if reply_msg.reply_v2 and (
                                     str(message.reference.guild_id) in reply_msg.copies.keys() or
                                     reply_msg.webhook
@@ -1936,6 +2037,7 @@ class UnifierBridge:
         tbv2_results = []
         if tb_v2:
             tbv2_results = await asyncio.gather(*threads)
+
         urls = urls | thread_urls
 
         parent_id = None
@@ -1971,8 +2073,9 @@ class UnifierBridge:
                 self.bridged[index].copies = msg_object.copies | message_ids
             else:
                 try:
-                    self.bridged[index].external_copies[platform] = self.bridged[index].external_copies[
-                                                                        platform] | message_ids
+                    self.bridged[index].external_copies[platform] = (
+                        self.bridged[index].external_copies[platform] | message_ids
+                    )
                 except:
                     self.bridged[index].external_copies.update({platform: message_ids})
             self.bridged[index].urls = self.bridged[index].urls | urls
@@ -3256,7 +3359,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 title=selector.get('report_title'),
                 description=content,
                 color=self.bot.colors.warning,
-                timestamp=datetime.datetime.now(datetime.UTC)
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
             embed.add_field(name=language.get('reason','commons.moderation',language=selector.language_set), value=f'{cat} => {cat2}', inline=False)
             embed.add_field(name=language.get('context','commons.moderation',language=selector.language_set), value=context, inline=False)
@@ -3506,7 +3609,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 title=f'{self.bot.ui_emojis.warning} {selector.get("blocked_report_title")}',
                 description=message.content[:-(len(message.content)-4096)] if len(message.content) > 4096 else message.content,
                 color=self.bot.colors.error,
-                timestamp=datetime.datetime.now(datetime.UTC)
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
 
             for plugin in responses:
@@ -3552,7 +3655,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     title=language.fget("ban_title","commons.moderation",values={"moderator": "@Unifier (system)"},language=selector.language_set),
                     description=selector.get("ban_reason"),
                     color=self.bot.colors.warning,
-                    timestamp=datetime.datetime.now(datetime.UTC)
+                    timestamp=datetime.datetime.now(datetime.timezone.utc)
                 )
                 embed.set_author(
                     name='@Unifier (system)',

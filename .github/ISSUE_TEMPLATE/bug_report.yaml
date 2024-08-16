@@ -1,0 +1,83 @@
+name: Bug report
+description: Found a bug? Report it here!
+title: '[Bug] '
+assignees:
+  - greeeen-dev
+labels:
+  - bug
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please make sure all of the following applies to your issue.
+      options:
+        - label: I've checked issues to see if my bug has been reported yet.
+          required: true
+        - label: I'm reporting a Unifier software bug, not a user.
+          required: true
+        - label: I've provided as much info/evidence as I can.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What Unifier version did you use when you encountered the bug?
+      placeholder: 1.2.5, 2.0.6, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: bug-desc
+    attributes:
+      label: Bug description
+      description: Please provide a clear and concise description of what the bug is.
+      placeholder: >-
+        e.g. "When running u!help, I get an error in the console saying 'list
+        index out of range'."
+    validations:
+      required: true
+  - type: textarea
+    id: bug-repro
+    attributes:
+      label: Reproduction steps
+      description: What should we do to reproduce the bug?
+      placeholder: e.g. 1. Run u!help 2. Click on any extension 3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: bug-expected
+    attributes:
+      label: Expected behavior
+      description: What should've happened instead?
+    validations:
+      required: true
+  - type: input
+    id: plugins
+    attributes:
+      label: Plugins
+      description: What plugins were you using at the time?
+      placeholder: RaidGuard, Revolt Support, etc.
+  - type: checkboxes
+    id: modified
+    attributes:
+      label: Modified instance
+      description: Are you running a modified version of Unifier?
+      options:
+        - label: Yes, I'm running a modified version of Unifier.
+          required: false
+  - type: input
+    id: modified-repo
+    attributes:
+      label: Modified instance repository
+      description: If you're running a modified instance, please provide its repository here. This is only required if you've selected the checkbox above.
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If you have screenshots of the bug, please attach them here.
+  - type: markdown
+    attributes:
+      value: <p>
+        Please do not report false bugs to us. On repeated false reports, we may prevent you from creating new issues on the repository.
+        </p>
+        <sub>Thanks to <a href='https://issue-forms-creator.netlify.app'>Issue Forms Creator</a> for simplifying the Forms creation process!</sub>

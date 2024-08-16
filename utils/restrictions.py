@@ -23,6 +23,21 @@ class Restrictions:
         self.__bot = bot
         self.__attached = (not bot is None)
 
+    class NoRoomManagement(commands.CheckFailure):
+        pass
+
+    class NoRoomJoin(commands.CheckFailure):
+        pass
+
+    class UnknownRoom(commands.CheckFailure):
+        pass
+
+    class AlreadyConnected(commands.CheckFailure):
+        pass
+
+    class NotConnected(commands.CheckFailure):
+        pass
+
     @property
     def attached(self):
         return self.__attached
@@ -51,6 +66,14 @@ class Restrictions:
 
         return commands.check(predicate)
 
+    def can_create(self):
+        async def predicate(ctx: commands.Context):
+            return (
+                ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
+            ) or ctx.author.guild_permissions.manage_channels
+
+        return commands.check(predicate)
+
     def join_room(self):
         async def predicate(ctx: commands.Context):
             index = 0
@@ -60,11 +83,18 @@ class Restrictions:
             # if ctx.command.qualified_name == "name":
             #     index = 1
 
-            room = ctx.args[index]
-            try:
-                return self.__bot.bridge.can_join_room(room,ctx.author)
-            except:
-                return False
+            room = ctx.args[index].lower()
+
+            if ctx.command.qualified_name == 'bind' and self.__bot.bridge.get_invite(room):
+                return True
+
+            if not room in self.__bot.bridge.rooms:
+                raise self.UnknownRoom('The room does not exist.')
+
+            if self.__bot.bridge.can_join_room(room, ctx.author):
+                return True
+
+            raise self.NoRoomJoin('You do not have permissions to join this room.')
 
         return commands.check(predicate)
 
@@ -77,11 +107,71 @@ class Restrictions:
             # if ctx.command.qualified_name == "name":
             #     index = 1
 
-            room = ctx.args[index]
-            try:
-                return self.__bot.bridge.can_manage_room(room,ctx.author)
-            except:
-                return False
+            room = ctx.args[index].lower()
+
+            if not room in self.__bot.bridge.rooms:
+                raise self.UnknownRoom('The room does not exist.')
+
+            # this should not fail, but if it does check will fail
+            if self.__bot.bridge.can_manage_room(room, ctx.author):
+                return ctx.author.guild_permissions.manage_channels
+
+            raise self.NoRoomManagement('You do not have permissions to manage this room.')
+
+        return commands.check(predicate)
+
+    def not_connected(self):
+        async def predicate(ctx: commands.Context):
+            index = 0
+
+            # the below is to be used if we ever make a command
+            # that has the room arg not in position 0
+            # if ctx.command.qualified_name == "name":
+            #     index = 1
+
+            room = ctx.args[index].lower()
+
+            if ctx.command.qualified_name == 'bind' and self.__bot.bridge.get_invite(room):
+                return True
+
+            if not room in self.__bot.bridge.rooms:
+                raise self.UnknownRoom('The room does not exist.')
+
+            roominfo = self.__bot.bridge.get_room(room)
+
+            # assume no servers are connected if discord isn't a key
+            if 'discord' in roominfo.keys():
+                if str(ctx.guild.id) in roominfo['discord'].keys():
+                    raise self.AlreadyConnected('You are already connected to this room.')
+
+            return True
+
+        return commands.check(predicate)
+
+    def is_connected(self):
+        # basically not_connected but inverted
+
+        async def predicate(ctx: commands.Context):
+            index = 0
+
+            # the below is to be used if we ever make a command
+            # that has the room arg not in position 0
+            # if ctx.command.qualified_name == "name":
+            #     index = 1
+
+            room = ctx.args[index].lower()
+
+            if not room in self.__bot.bridge.rooms:
+                raise self.UnknownRoom('The room does not exist.')
+
+            roominfo = self.__bot.bridge.get_room(room)
+
+            # assume no servers are connected if discord isn't a key
+            if 'discord' in roominfo.keys():
+                if str(ctx.guild.id) in roominfo['discord'].keys():
+                    return True
+
+            raise self.NotConnected('You are not connected to this room.')
 
         return commands.check(predicate)
 
