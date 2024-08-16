@@ -130,12 +130,59 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def make(self,ctx,*,room):
         room = room.lower()
+        roomtype = 'private'
+
         if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
             return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
+
+        interaction = None
+        if ctx.author.id in self.bot.admins or ctx.author.id == self.bot.config['owner']:
+            components = ui.MessageComponents()
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.StringSelect(
+                        options=[
+                            nextcord.SelectOption(
+                                value='private',
+                                label='Private',
+                                description='Make a room just for me and my buddies.',
+                                emoji='\U0001F512',
+                                default=True
+                            ),
+                            nextcord.SelectOption(
+                                value='public',
+                                label='Public',
+                                description='Make a room for everyone to talk in.',
+                                emoji='\U0001F310'
+                            )
+                        ]
+                    )
+                )
+            )
+            msg = await ctx.send(f'{self.bot.ui_emojis.warning} Please select the room type.')
+
+            def check(interaction):
+                return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+                roomtype = interaction.data['values'][0]
+            except:
+                return await msg.edit(content=f'{self.bot.ui_emojis.error} Timed out.', view=None)
+
         if room in list(self.bot.db['rooms'].keys()):
+            if interaction:
+                return await interaction.response.edit_message(
+                    content=f'{self.bot.ui_emojis.error} This room already exists!'
+                )
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
+
         self.bot.bridge.create_room(room)
-        await ctx.send(f'{self.bot.ui_emojis.success} Created room `{room}`!')
+        if interaction:
+            return await interaction.response.edit_message(
+                content=f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!'
+            )
+        await ctx.send(f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!')
 
     @commands.command(hidden=True, description='Renames a room.')
     @restrictions.admin()
