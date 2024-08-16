@@ -35,7 +35,7 @@ from pathlib import Path
 try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
-    if os.name == "nt":
+    if os.name == "win32":
         import winloop as uvloop  # pylint: disable=import-error
     else:
         import uvloop  # pylint: disable=import-error
@@ -68,7 +68,7 @@ if not owner_valid:
     logger.critical('Invalid owner user ID in configuration!')
     sys.exit(1)
 
-if os.name == "nt":
+if os.name == "win32":
     logger.warning('You are using Windows, which is untested. Some features may not work.')
 
 if not '.welcome.txt' in os.listdir():
