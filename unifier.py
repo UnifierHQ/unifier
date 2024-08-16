@@ -33,6 +33,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 try:
+    # as only winloop or uvloop will be installed depending on the system,
+    # we will ask pylint to ignore importerrors for both
     if os.name == "nt":
         import winloop as uvloop  # pylint: disable=import-error
     else:
