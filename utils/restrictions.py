@@ -190,6 +190,7 @@ class Restrictions:
                 raise self.GlobalBanned('You are global banned.')
             elif f'{ctx.guild.id}' in self.__bot.db['underattack']:
                 raise self.UnderAttack('The server is under attack.')
+            return True
 
         return commands.check(predicate)
 
@@ -197,6 +198,7 @@ class Restrictions:
         async def predicate(ctx: commands.Context):
             if f'{ctx.author.id}' in self.__bot.db['banned'].keys():
                 raise self.GlobalBanned('You are global banned.')
+            return True
 
         return commands.check(predicate)
 
@@ -206,6 +208,16 @@ class Restrictions:
                 raise self.GlobalBanned('You are global banned.')
             elif f'{ctx.guild.id}' in self.__bot.db['underattack']:
                 raise self.UnderAttack('This server is under attack.')
+            return True
+
+        return commands.check(predicate)
+
+    def under_attack(self):
+        async def predicate(ctx: commands.Context):
+            if f'{ctx.guild.id}' in self.__bot.db['underattack']:
+                return ctx.author.guild_permissions.manage_channels
+            else:
+                return ctx.author.guild_permissions.ban_members or ctx.author.guild_permissions.manage_channels
 
         return commands.check(predicate)
 

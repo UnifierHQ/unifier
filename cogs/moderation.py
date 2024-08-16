@@ -22,7 +22,6 @@ import hashlib
 import datetime
 from nextcord.ext import commands
 import traceback
-import ujson as json
 from utils import log, ui
 from utils import restrictions as r
 
@@ -1377,6 +1376,225 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             traceback.print_exc()
         await ctx.send(f'{self.bot.ui_emojis.success} Lockdown removed')
+
+    @commands.command(
+        name='under-attack', aliases=['underattack'], hidden=True, description='Toggles Under Attack mode.'
+    )
+    @restrictions.under_attack()
+    async def under_attack(self,ctx):
+        if f'{ctx.guild.id}' in self.bot.db['underattack']:
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.warning} Disable Under Attack mode?',
+                description=(
+                    'Users will be able to send messages in Unifier rooms again. Only disable this mode if you\'re '+
+                    'absolutely sure your server is in the clear.'
+                )
+            )
+        else:
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.warning} Enable Under Attack mode?',
+                description=(
+                    'Users will not be able to send messages in Unifier rooms. Only enable this mode if your ' +
+                    'server is under attack or is likely to be attacked.\n\n**WARNING** You will not be able to '+
+                    'disable this mode without the Manage Channels permission.'
+                )
+            )
+            embed.set_footer(text='Make sure you\'ve warned this instance\'s moderators if you need their help.')
+        embed.colour = self.bot.colors.warning
+
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Deactivate' if f'{ctx.guild.id}' in self.bot.db['underattack'] else 'Activate',
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        was_attack = f'{ctx.guild.id}' in self.bot.db['underattack']
+
+        if was_attack:
+            self.bot.db['underattack'].remove(f'{ctx.guild.id}')
+        else:
+            self.bot.db['underattack'].append(f'{ctx.guild.id}')
+
+        embed.title = f'{self.bot.ui_emojis.success} ' + (
+            'Under Attack mode disabled' if was_attack else 'Under Attack mode enabled'
+        )
+        embed.description = (
+            'Under Attack mode is now disabled. Your members can now chat in Unifier rooms again.' if was_attack else
+            'Under Attack mode is now enabled. Your members can no longer chat in Unifier rooms.'
+        )
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+
+    @commands.command(hidden=True, description='Sends a safety-related alert.')
+    @restrictions.moderator()
+    async def alert(self, ctx, risk_type, level, *, message):
+        risk_type = risk_type.lower()
+        if not risk_type in self.bot.bridge.alert.titles.keys():
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid risk type.')
+        level = level.lower()
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Are you sure you want to send this alert?',
+            description=f'You are sending a **{level}** alert.',
+            color=self.bot.colors.warning
+        )
+        if not level == 'advisory':
+            embed.set_footer(
+                text='Server moderators will be pinged. The main channel will also receive a notification.'
+            )
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Send alert',
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        alert = {
+            'type': risk_type,
+            'severity': level,
+            'description': message
+        }
+
+        parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'], ctx.message, alert=alert)
+        parent_id_2 = await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, alert=alert)
+
+        for platform in self.bot.platforms.keys():
+            await self.bot.bridge.send(
+                self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
+            )
+            await self.bot.bridge.send(
+                self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
+            )
+
+        await interaction.delete_original_message()
+
+        embed.title = f'{self.bot.ui_emojis.success} Alert issued'
+        embed.description = 'Alert was issued to Unifier network.'
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+
+    @commands.command(hidden=True, description='Sends a safety-related alert.')
+    @restrictions.moderator()
+    @restrictions.not_banned()
+    async def advisory(self, ctx, risk_type, *, message):
+        risk_type = risk_type.lower()
+        if not risk_type in self.bot.bridge.alert.titles.keys():
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid risk type.')
+        if risk_type == 'drill':
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot issue drill advisories.')
+        level = 'advisory'
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Are you sure you want to send this alert?',
+            description=f'You are sending an **advisory** alert.',
+            color=self.bot.colors.warning
+        )
+        embed.set_footer(
+            text='Misuse will be sanctioned with a 1 month minimum global ban from Unifier.'
+        )
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Send alert',
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        alert = {
+            'type': risk_type,
+            'severity': level,
+            'description': message
+        }
+
+        parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'], ctx.message, alert=alert)
+
+        for platform in self.bot.platforms.keys():
+            await self.bot.bridge.send(
+                self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
+            )
+
+        await interaction.delete_original_message()
+
+        embed.title = f'{self.bot.ui_emojis.success} Alert issued'
+        embed.description = 'Alert was issued to Unifier network.'
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
 
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
