@@ -36,3 +36,10 @@ Pull request.
 To test the modifications you have made, you will need to install Unifier. Please follow [this 
 guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started) to learn how to install and configure Unifier so 
 you can test the modified code before opening a PR.
+
+### The bot crashes on boot!
+If your changes only modify the core and core extensions (sysmgr.py, lockdown.py), you may test Unifier by running `python3
+unifier.py core`.
+
+If your changes modify other system extensions, please review your code. If you're absolutely sure the crash isn't caused by
+your code, but rather ours, let us know.
