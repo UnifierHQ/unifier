@@ -1256,7 +1256,7 @@ class UnifierBridge:
             )
             alert_embed.add_field(
                 name='What should I do?',
-                value=self.alert.precautions[alert['type']][alert['severity']]
+                value='\n'.join(self.alert.precautions[alert['type']][alert['severity']])
             )
 
             alert_text = (
