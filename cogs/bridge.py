@@ -3969,7 +3969,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         else:
             parent_id = await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
 
-        for platform in [self.bot.platforms.keys()]:
+        for platform in self.bot.platforms.keys():
             if should_resend and parent_id==message.id:
                 tasks.append(self.bot.loop.create_task(self.bot.bridge.send(
                     room=roomname, message=message, platform=platform, extbridge=extbridge, id_override=parent_id
