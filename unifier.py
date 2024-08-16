@@ -122,9 +122,9 @@ class AutoSaveDict(dict):
         # Ensure necessary keys exist
         self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
                      'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
-                     'external_bridge': [], 'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {},
-                     'fullbanned': [], 'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {},
-                     'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': []})
+                     'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
+                     'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [],
+                     'languages': {}, 'settings': {}, 'invites': {}, 'underattack': []})
         self.threads = []
 
         # Load data
