@@ -2029,6 +2029,8 @@ class UnifierBridge:
                             f'<@&{role.id}>' for role in destguild.roles
                             if role.permissions.ban_members and not role.managed
                         ]
+                        if destguild.id == self.__bot.config['home_guild']:
+                            toping.append(f'<@&{self.__bot.config["moderator_role"]}>')
                         toping.append(f'<@{destguild.owner_id}>')
                         friendly_content = msg_content = ' '.join(toping)
                     else:
