@@ -65,12 +65,15 @@ logger = log.buildlogger(package,'core',level)
 owner_valid = True
 
 try:
-    int(data['owner'])
+    if int(data['owner']) < 0 or type(data['owner']) is str:
+        raise Exception()
 except:
     owner_valid = False
 
 if not owner_valid:
     logger.critical('Invalid owner user ID in configuration!')
+    if type(data['owner']) is str:
+        logger.critical('Please note that IDs should be integers and not strings.')
     sys.exit(1)
 
 if os.name == "win32":

@@ -418,7 +418,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not hasattr(self.bot, 'langmgr'):
             self.bot.langmgr = langmgr.LanguageManager(self.bot)
             self.bot.langmgr.load()
+
         language = self.bot.langmgr
+
         if not hasattr(self.bot,'loaded_plugins'):
             self.bot.loaded_plugins = {}
             if not self.bot.safemode and not self.bot.coreboot:
