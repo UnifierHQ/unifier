@@ -44,6 +44,9 @@ class Restrictions:
     class UnderAttack(commands.CheckFailure):
         pass
 
+    class CustomMissingArgument(commands.CheckFailure):
+        pass
+
     @property
     def attached(self):
         return self.__attached
@@ -89,6 +92,11 @@ class Restrictions:
             # if ctx.command.qualified_name == "name":
             #     index = 1
 
+            if len(ctx.args) == 0:
+                raise self.CustomMissingArgument(
+                    '`room` is a required argument.'
+                )
+
             room = ctx.args[index].lower()
 
             if ctx.command.qualified_name == 'bind' and self.__bot.bridge.get_invite(room):
@@ -113,7 +121,18 @@ class Restrictions:
             # if ctx.command.qualified_name == "name":
             #     index = 1
 
+            if len(ctx.args) == 0:
+                raise self.CustomMissingArgument(
+                    '`room` is a required argument.'
+                )
+
             room = ctx.args[index].lower()
+
+            if ctx.command.qualified_name == 'delete-invite' and self.__bot.bridge.get_invite(room):
+                roominfo = self.__bot.get_room(self.__bot.bridge.get_invite(room)['room'])
+                if not roominfo['private_meta']['server'] == ctx.guild.id:
+                    raise self.NoRoomManagement('You do not have permissions to manage this room.')
+                return True
 
             if not room in self.__bot.bridge.rooms:
                 raise self.UnknownRoom('The room does not exist.')
@@ -134,6 +153,11 @@ class Restrictions:
             # that has the room arg not in position 0
             # if ctx.command.qualified_name == "name":
             #     index = 1
+
+            if len(ctx.args) == 0:
+                raise self.CustomMissingArgument(
+                    '`room` is a required argument.'
+                )
 
             room = ctx.args[index].lower()
 
