@@ -257,7 +257,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 )
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
 
-        self.bot.bridge.create_room(room)
+        self.bot.bridge.create_room(room, private=roomtype=='private')
         if interaction:
             return await interaction.response.edit_message(
                 content=f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!',
@@ -318,7 +318,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not self.bot.db['rooms'][room]['private']:
             return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
 
-        invites = self.bot.db['rooms'][room]['private']
+        invites = self.bot.db['rooms'][room]['invites']
 
         embed = nextcord.Embed(
             title=f'Invites for `{room}`',

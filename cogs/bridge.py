@@ -486,7 +486,7 @@ class UnifierBridge:
         if room in self.__bot.db['rooms'].keys():
             raise self.RoomExistsError('room already exists')
 
-        room_base = dict(self.__room_template)
+        room_base = {'meta': dict(self.__room_template)}
         room_base.update({'private': private})
 
         self.__bot.db['rooms'].update({room: room_base})
@@ -676,7 +676,8 @@ class UnifierBridge:
                     'invites': []
                 },
                 'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
-                'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None
+                'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None,
+                'display_name': None
             },'discord': self.__bot.db['rooms'][room]}
             if room in self.__bot.db['rooms_revolt'].keys():
                 self.__bot.db['rooms'][room].update({'revolt': self.__bot.db['rooms_revolt'][room]})
