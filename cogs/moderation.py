@@ -858,25 +858,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             elif interaction.data['custom_id'] == 'next':
                 page += 1
 
-    @commands.command(aliases=['guilds'],description='Lists all servers connected to a given room.')
-    async def servers(self,ctx,*,room='main'):
-        try:
-            data = self.bot.db['rooms'][room]
-        except:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
-        text = ''
-        for guild_id in data:
-            try:
-                name = self.bot.get_guild(int(guild_id)).name
-            except:
-                continue
-            if len(text)==0:
-                text = f'- {name} (`{guild_id}`)'
-            else:
-                text = f'{text}\n- {name} (`{guild_id}`)'
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`',description=text)
-        await ctx.send(embed=embed)
-
     @commands.command(aliases=['find'], description='Identifies the origin of a message.')
     async def identify(self, ctx):
         # use legacy permissions check because check_any is broken

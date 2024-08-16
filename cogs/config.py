@@ -1243,6 +1243,29 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 match = 0
                 page = 0
 
+    @commands.command(aliases=['guilds'], description='Lists all servers connected to a given room.')
+    async def servers(self, ctx, *, room='main'):
+        try:
+            data = self.bot.db['rooms'][room]
+        except:
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
+        text = ''
+        for guild_id in data:
+            try:
+                name = self.bot.get_guild(int(guild_id)).name
+            except:
+                continue
+            if len(text) == 0:
+                text = f'- {name} (`{guild_id}`)'
+            else:
+                text = f'{text}\n- {name} (`{guild_id}`)'
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`', description=text,
+            color=self.bot.colors.unifier
+        )
+        await ctx.send(embed=embed)
+
     @commands.command(description='Enables or disables usage of server emojis as Global Emojis.')
     @commands.has_permissions(manage_guild=True)
     async def toggle_emoji(self,ctx):
