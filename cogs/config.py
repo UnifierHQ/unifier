@@ -1021,12 +1021,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         break
                     name = roomlist[index]
                     display_name = (
-                        self.bot.db['rooms'][name]['meta']['display_name'] if self.bot.db['rooms'][name]['meta']['display_name']
-                        else name
+                        self.bot.db['rooms'][name]['meta']['display_name'] or name
                     )
                     description = (
-                        self.bot.db['rooms'][name]['meta']['description']
-                        if self.bot.db['rooms'][name]['meta']['description'] else 'This room has no description.'
+                        self.bot.db['rooms'][name]['meta']['description'] or 'This room has no description.'
                     )
                     emoji = (
                         '\U0001F527' if self.is_room_restricted(roomlist[index],self.bot.db) else
@@ -1157,8 +1155,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             break
                         room = roomlist[index]
                         display_name = (
-                            self.bot.db['rooms'][room]['meta']['display_name'] if self.bot.db['rooms'][room]['meta']['display_name']
-                            else room
+                            self.bot.db['rooms'][room]['meta']['display_name'] or room
                         )
                         emoji = (
                             '\U0001F527' if self.is_room_restricted(roomlist[index], self.bot.db) else
@@ -1268,19 +1265,20 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / {roomname}'
                 )
                 display_name = (
-                    self.bot.db['rooms'][roomname]['meta']['display_name'] if self.bot.db['rooms'][roomname]['meta']['display_name']
-                    else roomname
+                    self.bot.db['rooms'][roomname]['meta']['display_name'] or roomname
                 )
                 description = (
-                    self.bot.db['rooms'][roomname]['meta']['description']
-                    if self.bot.db['rooms'][roomname]['meta']['description'] else 'This room has no description.'
+                    self.bot.db['rooms'][roomname]['meta']['description'] or 'This room has no description.'
                 )
                 emoji = (
                     '\U0001F527' if self.is_room_restricted(roomname, self.bot.db) else
                     '\U0001F512' if self.is_room_locked(roomname, self.bot.db) else
                     '\U0001F310'
                 ) if not self.bot.db['rooms'][roomname]['meta']['emoji'] else self.bot.db['rooms'][roomname]['meta']['emoji']
-                embed.description = f'# **{emoji} `{display_name}`**\n{description}'
+                if self.bot.db['rooms'][roomname]['meta']['display_name']:
+                    embed.description = f'# **{emoji} `{display_name}`**\n(`{roomname}`)\n\n{description}'
+                else:
+                    embed.description = f'# **{emoji} `{display_name}`**\n{description}'
                 stats = await self.bot.bridge.roomstats(roomname)
                 embed.add_field(name='Statistics',value=(
                     f':homes: {stats["guilds"]} servers\n'+
