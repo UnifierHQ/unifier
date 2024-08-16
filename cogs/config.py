@@ -211,7 +211,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.bridge.create_room(room)
         if interaction:
             return await interaction.response.edit_message(
-                content=f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!'
+                content=f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!',
+                view=None
             )
         await ctx.send(f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!')
 
