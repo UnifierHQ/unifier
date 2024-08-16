@@ -1271,8 +1271,8 @@ class UnifierBridge:
             system = True
 
             alert_color = {
-                'warning': self.__bot.colors.error,
-                'caution': self.__bot.colors.warning,
+                'emergency': self.__bot.colors.error,
+                'warning': self.__bot.colors.warning,
                 'advisory': self.__bot.colors.blurple,
                 'clear': self.__bot.colors.success
             }
@@ -2048,10 +2048,11 @@ class UnifierBridge:
                 if not webhook:
                     continue
 
+                touse_mentions = mentions
                 if alert:
                     embeds = [alert_embed]
-
-                    if not alert['severity'] == 'advisory':
+                    friendly_content = msg_content = ''
+                    if not alert['severity'] == 'advisory' and room == self.__bot.config['alerts_room']:
                         toping = [
                             f'<@&{role.id}>' for role in destguild.roles
                             if role.permissions.ban_members and not role.managed
@@ -2060,11 +2061,7 @@ class UnifierBridge:
                             toping.append(f'<@&{self.__bot.config["moderator_role"]}>')
                         toping.append(f'<@{destguild.owner_id}>')
                         friendly_content = msg_content = ' '.join(toping)
-                    else:
-                        friendly_content = msg_content = ''
-                    touse_mentions = emergency_mentions
-                else:
-                    touse_mentions = mentions
+                        touse_mentions = emergency_mentions
 
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
