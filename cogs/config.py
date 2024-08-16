@@ -1069,14 +1069,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
 
             if interaction.data['custom_id'] == 'cancel':
-                await interaction.response.edit_message(components=None)
+                await interaction.response.edit_message(view=None)
                 raise Exception()
         except:
             embed.title = f'{self.bot.ui_emojis.error} Server did not agree to room rules.'
             embed.colour = self.bot.colors.error
-            return await msg.edit(embed=embed,components=None)
+            return await msg.edit(embed=embed,view=None)
 
-        await msg.edit(components=None)
+        await msg.edit(view=None)
         await interaction.response.defer(ephemeral=False, with_message=True)
 
         webhook = None
