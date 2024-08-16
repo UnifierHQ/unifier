@@ -414,6 +414,26 @@ class UnifierBridge:
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
+    def check_duplicate(self, channel, platform='discord'):
+        support = None
+        if not platform=='discord':
+            support = self.__bot.platforms[platform]
+
+        for room in self.rooms:
+            roominfo = self.get_room(room)
+
+            if platform=='discord':
+                if not f'{channel.guild.id}' in roominfo['discord'].keys():
+                    continue
+                if channel.id in roominfo['discord'][f'{channel.guild.id}']:
+                    return room
+            else:
+                if not f'{support.get_id(support.server(channel))}' in roominfo[platform].keys():
+                    continue
+                if support.get_id(channel) in roominfo[platform][f'{support.get_id(support.server(channel))}']:
+                    return room
+        return False
+
     def get_room(self, room) -> dict or None:
         """Gets a Unifier room.
         This will be moved to UnifierBridge for a future update."""
@@ -544,7 +564,7 @@ class UnifierBridge:
             self.update_room(invite['room'], roominfo)
         self.__bot.db.save_data()
 
-    async def join_room(self, user, room, channel_id, webhook_id=None, platform='discord'):
+    async def join_room(self, user, room, channel, webhook_id=None, platform='discord'):
         roominfo = self.get_room(room)
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
@@ -552,15 +572,18 @@ class UnifierBridge:
         if not self.can_join_room(room, user):
             raise self.RoomNotFoundError('cannot join room')
 
+        if self.check_duplicate(channel, room):
+            raise restrictions.AlreadyConnected()
+
         support = None
 
         if not platform=='discord':
             support = self.__bot.platforms[platform]
-
-        if platform=='discord':
-            guild_id = user.guild.id
-        else:
+            channel_id = support.get_id(channel)
             guild_id = support.get_id(support.server(user))
+        else:
+            channel_id = channel.id
+            guild_id = user.guild.id
 
         if roominfo['private']:
             if user:
