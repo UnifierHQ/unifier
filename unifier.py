@@ -46,9 +46,14 @@ except:
 try:
     data = toml.load('config.toml')
 except:
-    traceback.print_exc()
-    print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
-    sys.exit(1)
+    try:
+        data = toml.load('config.json')
+    except:
+        traceback.print_exc()
+        print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
+        sys.exit(1)
+    with open('config.toml', 'w+') as file:
+        toml.dump(data, file)
 
 env_loaded = load_dotenv()
 
