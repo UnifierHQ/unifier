@@ -1261,7 +1261,7 @@ class UnifierBridge:
 
             alert_text = (
                 '# '+self.alert.titles[alert['type']][alert['severity']]+'\n\n'+alert['description']+'\n\n**What '+
-                'should I do?**\n'+self.alert.precautions[alert['type']][alert['severity']]
+                'should I do?**\n'+'\n'.join(self.alert.precautions[alert['type']][alert['severity']])
             )
 
         # WIP orphan message system.
