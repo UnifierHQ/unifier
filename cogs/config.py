@@ -145,7 +145,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         interaction = None
         if ctx.author.id in self.bot.admins or ctx.author.id == self.bot.config['owner']:
             components = ui.MessageComponents()
-            components.add_row(
+            components.add_rows(
                 ui.ActionRow(
                     nextcord.ui.StringSelect(
                         options=[
@@ -153,8 +153,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                                 value='private',
                                 label='Private',
                                 description='Make a room just for me and my buddies.',
-                                emoji='\U0001F512',
-                                default=True
+                                emoji='\U0001F512'
                             ),
                             nextcord.SelectOption(
                                 value='public',
@@ -162,7 +161,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                                 description='Make a room for everyone to talk in.',
                                 emoji='\U0001F310'
                             )
-                        ]
+                        ],
+                        custom_id='selection'
+                    )
+                ),
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.gray,
+                        label='Cancel',
+                        custom_id='cancel'
                     )
                 )
             )
@@ -173,7 +180,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
             try:
                 interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
-                roomtype = interaction.data['values'][0]
+                if interaction.data['custom_id'] == 'cancel':
+                    return await interaction.response.edit_message(
+                        content=f'{self.bot.ui_emojis.error} Aborted.', view=None
+                    )
+                else:
+                    roomtype = interaction.data['values'][0]
             except:
                 return await msg.edit(content=f'{self.bot.ui_emojis.error} Timed out.', view=None)
 
