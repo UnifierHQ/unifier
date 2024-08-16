@@ -576,25 +576,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             ephemeral=True
         )
 
-    @commands.command(
-        hidden=True,
-        description='Locks/unlocks a private room. Only moderators and admins will be able to chat in this room when locked.'
-    )
-    @restrictions.moderator()
-    async def lock(self,ctx,room):
-        room = room.lower()
-        if not room in list(self.bot.db['rooms'].keys()):
-            return await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist!')
-        if not self.bot.db['rooms'][room]['meta']['private']:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
-        if self.bot.db['rooms'][room]['meta']['locked']:
-            self.bot.db['rooms'][room]['meta']['locked'] = False
-            await ctx.send(f'{self.bot.ui_emojis.success} Unlocked `{room}`!')
-        else:
-            self.bot.db['rooms'][room]['meta']['locked'] = True
-            await ctx.send(f'{self.bot.ui_emojis.success} Locked `{room}`!')
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-
     @commands.command(aliases=['account_standing'],description='Shows your instance account standing.')
     async def standing(self,ctx,*,target=None):
         if target and not ctx.author.id in self.bot.moderators:
