@@ -248,7 +248,7 @@ class UnifierBridge:
 
     @property
     def rooms(self):
-        return list(self.__bot.db.rooms.keys())
+        return list(self.__bot.db['rooms'].keys())
 
     @property
     def public_rooms(self):
