@@ -269,7 +269,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def create_invite(self, ctx, room, expiry='7d', max_usage=0):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -309,7 +309,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def invites(self, ctx, room):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -354,7 +354,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def rename(self, ctx, room, newroom):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -378,7 +378,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def roomdisplay(self, ctx, room, *, name=''):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -398,7 +398,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def roomdesc(self,ctx,room,*,desc=''):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -418,7 +418,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def roomemoji(self, ctx, room, *, emoji=''):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -478,7 +478,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(description='Disbands a room.')
     async def disband(self, ctx, room):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -561,7 +561,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         if not invite:
             room = room.lower()
-            if not room in self.bot.db.rooms:
+            if not room in self.bot.bridge.rooms:
                 raise restrictions.UnknownRoom()
 
             if not self.can_manage(ctx.author, room):
@@ -912,7 +912,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def addrule(self,ctx,room,*,rule):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
@@ -928,7 +928,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def delrule(self,ctx,room,*,rule):
         room = room.lower()
-        if not room in self.bot.db.rooms:
+        if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         if not self.can_manage(ctx.author, room):
