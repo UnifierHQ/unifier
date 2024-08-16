@@ -903,12 +903,18 @@ class UnifierBridge:
         for platform in self.__bot.db['rooms'][roomname]:
             if platform == 'meta' or platform == 'private':
                 continue
+            support = self.__bot.platforms[platform]
             for guild_id in self.__bot.db['rooms'][roomname][platform]:
                 try:
-                    if platform=='revolt':
-                        guild = self.__bot.revolt_client.get_server(int(guild_id))
-                    else:
+                    if platform=='discord':
                         guild = self.__bot.get_guild(int(guild_id))
+                    else:
+                        try:
+                            guild = support.get_server(int(guild_id))
+                            if not guild:
+                                raise Exception()
+                        except:
+                            guild = await support.fetch_server(int(guild_id))
                     online += len(list(
                         filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
                                guild.members)))
