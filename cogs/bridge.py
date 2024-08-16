@@ -2025,7 +2025,10 @@ class UnifierBridge:
                     embeds = [alert_embed]
 
                     if not alert['severity'] == 'advisory':
-                        toping = [f'<@&{role.id}>' for role in destguild.roles if role.permissions.ban_members]
+                        toping = [
+                            f'<@&{role.id}>' for role in destguild.roles
+                            if role.permissions.ban_members and not role.managed
+                        ]
                         toping.append(f'<@{destguild.owner_id}>')
                         friendly_content = msg_content = ' '.join(toping)
                     else:
