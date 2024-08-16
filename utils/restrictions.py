@@ -41,6 +41,9 @@ class Restrictions:
     class GlobalBanned(commands.CheckFailure):
         pass
 
+    class UnderAttack(commands.CheckFailure):
+        pass
+
     @property
     def attached(self):
         return self.__attached
@@ -185,6 +188,8 @@ class Restrictions:
                     f'{ctx.guild.id}' in self.__bot.db['banned'].keys()
             ):
                 raise self.GlobalBanned('You are global banned.')
+            elif f'{ctx.guild.id}' in self.__bot.db['underattack']:
+                raise self.UnderAttack('The server is under attack.')
 
         return commands.check(predicate)
 
@@ -199,6 +204,8 @@ class Restrictions:
         async def predicate(ctx: commands.Context):
             if f'{ctx.guild.id}' in self.__bot.db['banned'].keys():
                 raise self.GlobalBanned('You are global banned.')
+            elif f'{ctx.guild.id}' in self.__bot.db['underattack']:
+                raise self.UnderAttack('The server is under attack.')
 
         return commands.check(predicate)
 
