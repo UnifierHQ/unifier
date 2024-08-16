@@ -1088,7 +1088,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 roomname = self.bot.bridge.get_invite(room.lower())['room']
 
             webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
-            await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel.id,webhook_id=webhook.id)
+            await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel,webhook_id=webhook.id)
         except:
             if webhook:
                 try:
