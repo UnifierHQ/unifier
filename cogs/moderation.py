@@ -1488,14 +1488,17 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         }
 
         parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'], ctx.message, alert=alert)
-        parent_id_2 = await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, alert=alert)
+
+        parent_id_2 = None
+        if not level == 'advisory':
+            parent_id_2 = await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, alert=alert)
 
         for platform in self.bot.platforms.keys():
             if parent_id:
                 await self.bot.bridge.send(
                     self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
                 )
-            if parent_id_2:
+            if not level == 'advisory' and parent_id_2:
                 await self.bot.bridge.send(
                     self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
                 )
