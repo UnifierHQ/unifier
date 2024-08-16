@@ -289,8 +289,6 @@ class CommandExceptionHandler:
                 await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in servers.')
             elif isinstance(error, commands.PrivateMessageOnly):
                 await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in DMs.')
-            elif isinstance(error, commands.CheckFailure):
-                await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
             elif isinstance(error, restrictions.NoRoomManagement):
                 await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to manage this room.')
             elif isinstance(error, restrictions.NoRoomJoin):
@@ -301,6 +299,8 @@ class CommandExceptionHandler:
                 await ctx.send(f'{self.bot.ui_emojis.error} Your account or this server is currently global banned. Run `{self.bot.command_prefix}standing` for more info.')
             elif isinstance(error, restrictions.UnderAttack):
                 await ctx.send(f'{self.bot.ui_emojis.error} This server is in Under Attack mode. Some functionality is unavailable.')
+            elif isinstance(error, commands.CheckFailure):
+                await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
             elif isinstance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
                 await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')
