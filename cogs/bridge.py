@@ -268,6 +268,9 @@ class UnifierBridge:
         }
         self.alert = UnifierAlert
 
+        # This is a developer-only value. Please leave this as is.
+        self.moderator_override = True
+
     @property
     def room_template(self):
         return self.__room_template
@@ -485,7 +488,7 @@ class UnifierBridge:
         roominfo = self.get_room(room)
         if roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators:
+                if user.id in self.__bot.moderators and not self.moderator_override:
                     return True
             return user.guild.id == roominfo['private_meta']['server'] and user.guild_permissions.manage_guild
         else:
@@ -495,7 +498,7 @@ class UnifierBridge:
         roominfo = self.get_room(room)
         if roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators:
+                if user.id in self.__bot.moderators and not self.moderator_override:
                     return True
             return (
                     user.guild.id == roominfo['private_meta']['server'] or
