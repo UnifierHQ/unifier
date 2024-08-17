@@ -805,7 +805,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     f'{self.bot.ui_emojis.error} Invites cannot last longer than 7 days.{infinite_enabled}'
                 )
             expiry += time.time()
-        invite = self.bot.bridge.create_invite(max_usage, expiry)
+        invite = self.bot.bridge.create_invite(room, max_usage, expiry)
         try:
             await ctx.author.send(
                 f'Invite code: `{invite}`\nServers can use `{self.bot.command_prefix}join {invite}` to join your room.'
