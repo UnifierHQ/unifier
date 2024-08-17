@@ -848,26 +848,23 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             title=f'Invites for `{room}`',
         )
 
-        offset = 0
-        for index in range(len(invites)):
-            try:
-                invite_data = self.bot.db['invites'][invites[index+offset]]
-            except:
-                break
-            if invite_data['expire'] > time.time():
-                self.bot.bridge.delete_invite(invites[index+offset])
-                invites.pop(index+offset)
-            else:
-                embed.add_field(
-                    name=f'`{invites[index+offset]}`',
-                    value=(
-                        'Unlimited usage' if invite_data['remaining'] == 0 else
-                        f'Remaining uses: {invite_data["remaining"]}'
-                    )+f'\nExpiry: <t:{invite_data["expire"]}:R>'
+        success = 0
+        for invite in invites:
+            invite_data = self.bot.bridge.get_invite(invite)
+            if not invite_data:
+                continue
+            embed.add_field(
+                name=f'`{invite}`',
+                value=(
+                    'Unlimited usage' if invite_data['remaining'] == 0 else
+                    f'Remaining uses: {invite_data["remaining"]}'
+                )+'\nExpiry: '+(
+                    'never' if invite_data["expire"] == 0 else f'<t:{round(invite_data["expire"])}:R>'
                 )
-                offset += 1
+            )
+            success += 1
 
-        embed.description = f'{len(invites)}/20 invites created'
+        embed.description = f'{success}/20 invites created'
         try:
             await ctx.author.send(embed=embed)
         except:
@@ -898,9 +895,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Room renamed!')
 
-    @commands.command(hidden=True, description='Sets room display name.')
+    @commands.command(name='display-name', hidden=True, description='Sets room display name.')
     @restrictions.not_banned()
-    async def roomdisplay(self, ctx, room, *, name=''):
+    async def display_name(self, ctx, room, *, name=''):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -916,7 +913,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.success} Display name removed.')
         self.bot.db['rooms'][room]['meta']['display_name'] = name
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'{self.bot.ui_emojis.success} Updated description!')
+        await ctx.send(f'{self.bot.ui_emojis.success} Updated display name to `{name}`!')
 
     @commands.command(hidden=True,description='Sets room description.')
     @restrictions.not_banned()
@@ -1072,9 +1069,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def bind(self,ctx,*,room=''):
         invite = False
-        try:
-            roominfo = self.bot.bridge.get_room(room.lower())
-        except:
+        roominfo = self.bot.bridge.get_room(room.lower())
+
+        if not roominfo:
             invite = True
             try:
                 roominfo = self.bot.bridge.get_room(
@@ -1088,12 +1085,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if not room in self.bot.bridge.rooms:
                 raise restrictions.UnknownRoom()
 
-            if not self.can_manage(ctx.author, room):
+            if not self.can_join(ctx.author, room):
                 raise restrictions.NoRoomJoin()
+            roomname = room
+        else:
+            roomname = self.bot.bridge.get_invite(room.lower())['room']
 
         text = []
-        for i in range(len(roominfo['rules'])):
-            text.append(f'{i+1}. '+roominfo['rules'][i])
+        for i in range(len(roominfo['meta']['rules'])):
+            text.append(f'{i+1}. '+roominfo['meta']['rules'][i])
         text = '\n'.join(text)
 
         embed = nextcord.Embed(
@@ -1108,13 +1108,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             embed.colour = self.bot.colors.error
             embed.title = f'{self.bot.ui_emojis.error} Already connected'
             embed.description = (
-                f'This channel is already connected to `{duplicate}`!\nRun `{self.bot.command_prefix}unbind {room}` '+
-                'to disconnect the channel.'
+                f'This channel is already connected to `{duplicate}`!\nRun `{self.bot.command_prefix}unbind '+
+                f'{duplicate}` to disconnect the channel.'
             )
             return await msg.edit(embed=embed)
 
         embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.rooms} Join {roominfo["meta"]["display_name"] or room.lower()}?',
+            title=f'{self.bot.ui_emojis.rooms} Join {roominfo["meta"]["display_name"] or roomname}?',
             description=(f'{text}\n\nBy joining this room, you and your members agree to these rules.\n'+
                          'This message will be pinned (if possible) for better accessibility to the rules.'
                          ),
@@ -1164,12 +1164,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         try:
             roomname = room
             if invite:
-                await self.bot.bridge.accept_invite(ctx.author, room.lower())
                 roomname = self.bot.bridge.get_invite(room.lower())['room']
+                await self.bot.bridge.accept_invite(ctx.author, room.lower())
 
             webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
             await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel,webhook_id=webhook.id)
-        except:
+        except Exception as e:
             if webhook:
                 try:
                     await webhook.delete()
@@ -1177,10 +1177,16 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     pass
 
             embed.title = f'{self.bot.ui_emojis.error} Failed to connect.'
+
+            if type(e) is self.bot.bridge.InviteNotFoundError:
+                embed.title = f'{self.bot.ui_emojis.error} Invite is invalid.'
+
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
-            await interaction.edit_original_message(content=f'{self.bot.ui_emojis.error} An error occurred during binding.')
-            raise
+            await interaction.delete_original_message()
+
+            if not type(e) is self.bot.bridge.InviteNotFoundError:
+                raise
         else:
             embed.title = f'{self.bot.ui_emojis.success} Connected to room!'
             embed.colour = self.bot.colors.success

@@ -548,16 +548,15 @@ class UnifierBridge:
         try:
             invite = self.__bot.db['invites'][invite]
 
-            if invite['expire'] < time.time():
-                # invite expired
+            if invite['expire'] < time.time() and not invite['expire'] == 0:
                 self.delete_invite(invite)
                 return None
 
-            return self.__bot.db['invites'][invite]
+            return invite
         except:
             return None
 
-    def create_invite(self, room, max_usage, expire) -> dict:
+    def create_invite(self, room, max_usage, expire) -> str:
         if len(self.__bot.db['rooms'][room]['meta']['private_meta']['invites']) >= 20:
             raise RuntimeError('maximum invite limit reached')
 
@@ -572,13 +571,13 @@ class UnifierBridge:
         }})
         self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].append(invite)
         self.__bot.db.save_data()
-        return self.__room_template
+        return invite
 
     def delete_invite(self, invite):
         if not invite in self.__bot.db['invites'].keys():
             raise self.InviteNotFoundError('invalid invite')
 
-        room = self.__bot.db['invites']['invite']['room']
+        room = self.__bot.db['invites'][invite]['room']
         self.__bot.db['invites'].pop(invite)
         try:
             self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].remove(invite)
@@ -632,15 +631,15 @@ class UnifierBridge:
             guild_id = user.guild.id
 
         if roominfo['meta']['private']:
-            if user:
-                if platform=='discord':
-                    user_id = user.id
-                else:
-                    user_id = support.get_id(user)
+            if platform=='discord':
+                user_id = user.id
+            else:
+                user_id = support.get_id(user)
 
-                if not user_id in self.__bot.moderators:
-                    raise ValueError('forbidden')
-            if not guild_id in roominfo['meta']['private_meta']['allowed']:
+            if (
+                    not guild_id in roominfo['meta']['private_meta']['allowed'] and
+                    not guild_id == roominfo['meta']['private_meta']['server']
+            ) and (not user_id in self.__bot.moderators and not self.moderator_override):
                 raise ValueError('forbidden')
 
         guild_id = str(guild_id)
