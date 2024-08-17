@@ -159,12 +159,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 roomlist = list(self.bot.db['rooms'].keys())
                 offset = 0
                 for x in range(len(roomlist)):
-                    if (not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
-                            not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db) or
+                    if (
+                            not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
+                            not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db)
+                    ) or (
                             (
-                                    not self.bot.bridge.can_join_room(roomlist[x - offset],ctx.author) or
+                                    not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author) or
                                     not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']
-                            ) and not private):
+                            ) and not private
+                    ):
                         roomlist.pop(x - offset)
                         offset += 1
 
