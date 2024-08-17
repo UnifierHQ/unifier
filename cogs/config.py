@@ -690,7 +690,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         if not room or roomtype=='private':
             for _ in range(10):
-                room = roomtype + ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+                room = roomtype + '-' + ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
                 if not room in self.bot.bridge.rooms:
                     break
             if room in self.bot.bridge.rooms:
