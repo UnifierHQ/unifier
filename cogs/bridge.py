@@ -262,7 +262,8 @@ class UnifierBridge:
             'private_meta': {
                 'server': None,
                 'allowed': [],
-                'invites': []
+                'invites': [],
+                'platform': 'discord'
             },
             'emoji': None, 'description': None, 'display_name': None
         }
@@ -521,7 +522,7 @@ class UnifierBridge:
         self.__bot.db['rooms'][room] = roominfo
         self.__bot.db.save_data()
 
-    def create_room(self, room, private=True, origin=None, dry_run=False) -> dict:
+    def create_room(self, room, private=True, platform='discord', origin=None, dry_run=False) -> dict:
         if room in self.__bot.db['rooms'].keys():
             raise self.RoomExistsError('room already exists')
 
@@ -529,7 +530,7 @@ class UnifierBridge:
         room_base['meta'].update({'private': private})
 
         if private:
-            room_base['meta']['private_meta'].update({'server': origin})
+            room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
 
         if not dry_run:
             self.__bot.db['rooms'].update({room: room_base})
@@ -718,7 +719,8 @@ class UnifierBridge:
                 'private_meta': {
                     'server': None,
                     'allowed': [],
-                    'invites': []
+                    'invites': [],
+                    'platform': 'discord'
                 },
                 'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
                 'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None,

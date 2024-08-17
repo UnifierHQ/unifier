@@ -71,6 +71,17 @@ try:
 except:
     owner_valid = False
 
+if not env_loaded or not os.path.isfile('.env'):
+    logger.critical(
+        'Could not load .env file! More info: https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token'
+    )
+    if not os.path.isfile('.env'):
+        dotenv = open('.env', 'w+')
+        dotenv.write('TOKEN=token_goes_here')
+        dotenv.close()
+        logger.critical('A template .env file was created. Please add your token to that file to start Unifier.')
+    sys.exit(1)
+
 if not owner_valid:
     logger.critical('Invalid owner user ID in configuration!')
     if type(data['owner']) is str:
@@ -94,10 +105,6 @@ if not 'repo' in list(data.keys()):
 
 if 'allow_prs' in list(data.keys()) and not 'allow_posts' in list(data.keys()):
     logger.warning('From v1.2.4, allow_prs is deprecated. Use allow_posts instead.')
-
-if not env_loaded:
-    logger.critical('Could not load .env file! More info: https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token')
-    sys.exit(1)
 
 if 'token' in list(data.keys()):
     logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
