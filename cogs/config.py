@@ -245,17 +245,16 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     ) if not self.bot.db['rooms'][name]['meta']['emoji'] else self.bot.db['rooms'][name]['meta'][
                         'emoji']
 
-                    name_additional = ''
-                    if self.bot.db['rooms'][name]['meta']['display_name']:
-                        name_additional = f' (`{name}`)'
-
                     embed.add_field(
-                        name=f'{emoji} `{display_name}`{name_additional}',
+                        name=f'{emoji} '+(
+                            f'{display_name} (`{name}`)' if self.bot.db['rooms'][name]['meta']['display_name'] else
+                            f'`{display_name}`'
+                        ),
                         value=description,
                         inline=False
                     )
                     selection.add_option(
-                        label=name,
+                        label=display_name,
                         emoji=emoji,
                         description=description,
                         value=name
@@ -332,14 +331,32 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 offset = 0
                 for x in range(len(roomlist)):
                     room = roomlist[x - offset]
-                    if (not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
-                        not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db) or
-                            (
-                                    not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author) or
-                                    not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']
-                            ) and not private) and not show_restricted or not search_filter(query, room):
+                    if not search_filter(query, room):
                         roomlist.pop(x - offset)
                         offset += 1
+                        continue
+                    elif private:
+                        if not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                        elif not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author):
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                    else:
+                        if self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                        elif not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db):
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                        elif not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db):
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
 
                 embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search'
                 embed.description = 'Choose a room to view its info!'
@@ -387,7 +404,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             if self.bot.db['rooms'][room]['meta']['description'] else 'This room has no description.'
                         )
                         embed.add_field(
-                            name=f'{emoji} `{display_name}`',
+                            name=f'{emoji} ' + (
+                                f'{display_name} (`{room}`)' if self.bot.db['rooms'][room]['meta']['display_name'] else
+                                f'`{display_name}`'
+                            ),
                             value=roomdesc,
                             inline=False
                         )
@@ -497,7 +517,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 ) if not self.bot.db['rooms'][roomname]['meta']['emoji'] else self.bot.db['rooms'][roomname]['meta'][
                     'emoji']
                 if self.bot.db['rooms'][roomname]['meta']['display_name']:
-                    embed.description = f'# **{emoji} `{display_name}`**\n(`{roomname}`)\n\n{description}'
+                    embed.description = f'# **{emoji} {display_name}**\n(`{roomname}`)\n\n{description}'
                 else:
                     embed.description = f'# **{emoji} `{display_name}`**\n{description}'
                 stats = await self.bot.bridge.roomstats(roomname)
