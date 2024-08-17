@@ -478,7 +478,7 @@ class UnifierBridge:
                 if key == 'meta':
                     for meta_key in roominfo['meta'].keys():
                         if meta_key == 'private_meta':
-                            for pmeta_key in roominfo['meta'].keys():
+                            for pmeta_key in roominfo['meta']['private_meta'].keys():
                                 base['meta']['private_meta'].update(
                                     {pmeta_key: roominfo['meta']['private_meta'][pmeta_key]}
                                 )
@@ -489,7 +489,6 @@ class UnifierBridge:
 
             return base
         except:
-            raise
             return None
 
     def can_manage_room(self, room, user) -> bool:
