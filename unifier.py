@@ -43,8 +43,12 @@ try:
 except:
     pass
 
+config_file = 'config.toml'
+if 'devmode' in sys.argv:
+    config_file = 'devconfig.toml'
+
 try:
-    data = toml.load('config.toml')
+    data = toml.load(config_file)
 except:
     try:
         with open('config.json') as file:
@@ -53,7 +57,7 @@ except:
         traceback.print_exc()
         print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
         sys.exit(1)
-    with open('config.toml', 'w+') as file:
+    with open(config_file, 'w+') as file:
         toml.dump(data, file)
 
 env_loaded = load_dotenv()
@@ -195,6 +199,7 @@ class DiscordBot(commands.Bot):
         self.__config = None
         self.__safemode = None
         self.__coreboot = None
+        self.__devmode = None
         self.bridge = None
         self.pyversion = sys.version_info
         self.db = AutoSaveDict({})
@@ -253,6 +258,16 @@ class DiscordBot(commands.Bot):
             raise RuntimeError('Coreboot is set')
         self.__coreboot = status
 
+    @property
+    def devmode(self):
+        return self.__devmode
+
+    @devmode.setter
+    def devmode(self, status: bool):
+        if not self.__devmode is None:
+            raise RuntimeError('Coreboot is set')
+        self.__devmode = status
+
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
 if data['enable_squads']:
@@ -261,6 +276,7 @@ if data['enable_squads']:
 bot.config = data
 bot.coreboot = 'core' in sys.argv
 bot.safemode = 'safemode' in sys.argv and not bot.coreboot
+bot.devmode = 'devmode' in sys.argv
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
 if bot.coreboot:

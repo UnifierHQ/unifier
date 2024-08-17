@@ -203,9 +203,13 @@ class Colors: # format: 0xHEXCODE
     critical = 0xff0000
 
 class Emojis:
-    def __init__(self, data=None):
-        with open('emojis/base.json', 'r') as file:
-            base = json.load(file)
+    def __init__(self, data=None, devmode=False):
+        if devmode:
+            with open('emojis/devbase.json', 'r') as file:
+                base = json.load(file)
+        else:
+            with open('emojis/base.json', 'r') as file:
+                base = json.load(file)
 
         if data:
             for key in base['emojis'].keys():
@@ -395,16 +399,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if text.startswith(':') and text.endswith(':'):
                         base['emojis'][emoji][0] = discord_emoji.to_unicode(text)
                 base['installed'] = True
-                with open('emojis/base.json', 'w') as file:
-                    json.dump(base, file, indent=2)
+                if self.bot.devmode:
+                    with open('emojis/devbase.json', 'w+') as file:
+                        json.dump(base, file, indent=2)
+                else:
+                    with open('emojis/base.json', 'w+') as file:
+                        json.dump(base, file, indent=2)
             try:
-                if self.bot.coreboot:
+                if self.bot.coreboot or self.bot.devmode:
                     raise RuntimeError()
                 with open('emojis/current.json', 'r') as file:
                     data = json.load(file)
                 self.bot.ui_emojis = Emojis(data=data)
             except:
-                self.bot.ui_emojis = Emojis()
+                self.bot.ui_emojis = Emojis(devmode=self.bot.devmode)
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
         if not hasattr(self.bot, 'loglevel'):
@@ -1132,6 +1140,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions.owner()
     async def install(self, ctx, url):
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
         selector = language.get_selector(ctx)
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
@@ -1373,6 +1383,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Uninstalls a plugin.')
     @restrictions.owner()
     async def uninstall(self, ctx, plugin):
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
         if not ctx.author.id == self.bot.config['owner']:
             return
 
@@ -1457,6 +1469,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Upgrades Unifier or a plugin.')
     @restrictions.owner()
     async def upgrade(self, ctx, plugin='system', *, args=''):
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
         if not ctx.author.id == self.bot.config['owner']:
             return
 
@@ -1992,6 +2006,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     )
     @restrictions.owner()
     async def uiemojis(self, ctx, *, emojipack):
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
         selector = language.get_selector(ctx)
 
         emojipack = emojipack.lower()
