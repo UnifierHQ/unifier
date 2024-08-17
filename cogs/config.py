@@ -625,11 +625,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.can_create()
     @restrictions.not_banned()
     async def make(self,ctx,*,room=None):
-        room = room.lower()
         roomtype = 'private'
 
         if room:
-            room = room.replace(' ','-')
+            room = room.lower().replace(' ','-')
             if not bool(re.match("^[A-Za-z0-9_-]*$", room)):
                 return await ctx.send(
                     f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.'
