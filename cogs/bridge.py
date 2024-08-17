@@ -558,7 +558,7 @@ class UnifierBridge:
             return None
 
     def create_invite(self, room, max_usage, expire) -> dict:
-        if len(self.__bot.db['rooms'][room]['private_meta']['invites']) >= 20:
+        if len(self.__bot.db['rooms'][room]['meta']['private_meta']['invites']) >= 20:
             raise RuntimeError('maximum invite limit reached')
 
         while True:
@@ -570,7 +570,7 @@ class UnifierBridge:
         self.__bot.db['invites'].update({invite: {
             'remaining': max_usage, 'expire': expire, 'room': room
         }})
-        self.__bot.db['rooms'][room]['private_meta']['invites'].append(invite)
+        self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].append(invite)
         self.__bot.db.save_data()
         return self.__room_template
 
@@ -581,7 +581,7 @@ class UnifierBridge:
         room = self.__bot.db['invites']['invite']['room']
         self.__bot.db['invites'].pop(invite)
         try:
-            self.__bot.db['rooms'][room]['private_meta']['invites'].remove(invite)
+            self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].remove(invite)
         except:
             # room prob deleted, ignore
             pass

@@ -789,7 +789,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not self.bot.db['rooms'][room]['meta']['private']:
             return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
 
-        invites = self.bot.db['rooms'][room]['invites']
+        invites = self.bot.db['rooms'][room]['meta']['private_meta']['invites']
 
         embed = nextcord.Embed(
             title=f'Invites for `{room}`',
