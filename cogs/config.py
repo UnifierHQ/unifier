@@ -626,6 +626,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.not_banned()
     async def make(self,ctx,*,room=None):
         roomtype = 'private'
+        dry_run = False
+
+        if room:
+            if room.startswith('-dry-run'):
+                if room == '-dry-run':
+                    room = None
+                dry_run = ctx.author.id == self.bot.owner
 
         if room:
             room = room.lower().replace(' ','-')
@@ -700,13 +707,18 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 )
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
 
-        self.bot.bridge.create_room(room, private=roomtype=='private')
+        roomdata = self.bot.bridge.create_room(room, private=roomtype=='private', dry_run=dry_run)
+
+        dry_run_text = ''
+        if dry_run:
+            dry_run_text = f'{roomdata}'
+
         if interaction:
             return await interaction.response.edit_message(
-                content=f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!',
+                content=f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!{dry_run_text}',
                 view=None
             )
-        await ctx.send(f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!')
+        await ctx.send(f'{self.bot.ui_emojis.success} Created **{roomtype}** room `{room}`!{dry_run_text}')
 
     @commands.command(name='create-invite', hidden=True, description='Creates an invite.')
     @restrictions.not_banned()
