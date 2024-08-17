@@ -489,6 +489,7 @@ class UnifierBridge:
 
             return base
         except:
+            raise
             return None
 
     def can_manage_room(self, room, user) -> bool:
