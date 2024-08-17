@@ -1558,14 +1558,17 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             f'# {self.bot.ui_emojis.success} Unlinked bridge from Unifier network!\nThis user\'s webhooks can no longer bridge messages through Unifier.')
 
     @commands.command(aliases=['public-rooms'], description='Shows a list of public rooms.')
+    @commands.guild_only()
     async def rooms(self,ctx):
         await self.roomslist(ctx, False)
 
     @commands.command(name='private-rooms', description='Shows a list of public rooms.')
+    @commands.guild_only()
     async def private_rooms(self, ctx):
         await self.roomslist(ctx, True)
 
     @commands.command(aliases=['guilds'], description='Lists all servers connected to a given room.')
+    @commands.guild_only()
     async def servers(self, ctx, *, room='main'):
         try:
             data = self.bot.db['rooms'][room]
