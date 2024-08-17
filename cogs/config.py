@@ -780,7 +780,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         if not self.bot.db['rooms'][room]['meta']['private']:
             return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
-        if len(self.bot.db['rooms'][room]['private_meta']['invites']) >= 20:
+        if len(self.bot.db['rooms'][room]['meta']['private_meta']['invites']) >= 20:
             return await ctx.send(
                 f'{self.bot.ui_emojis.error} You\'ve reached the limit for invites. Delete some first, then try again.'
             )
