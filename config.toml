@@ -1,3 +1,7 @@
+# Unifier config TOML v1
+# Right now this is in no way sorted, and it's still very messy.
+# We'll sort them for Unifier 3.1.0 or something.
+
 debug = false
 package = "unifier"
 owner = -1
@@ -38,3 +42,4 @@ posts_room = "posts"
 posts_ref_room = "post-comments"
 compress_cache = true
 external = ["revolt", "guilded"]
+permanent_invites = false

@@ -29,6 +29,38 @@ import time
 
 restrictions = r.Restrictions()
 
+def timetoint(t):
+    try:
+        return int(t)
+    except:
+        pass
+    if not type(t) is str:
+        t = str(t)
+    total = 0
+    if t.count('d')>1 or t.count('w')>1 or t.count('h')>1 or t.count('m')>1 or t.count('s')>1:
+        raise ValueError('each identifier should never recur')
+    t = t.replace('n','n ').replace('d','d ').replace('w','w ').replace('h','h ').replace('m','m ').replace('s','s ')
+    times = t.split()
+    for part in times:
+        if part.endswith('d'):
+            multi = int(part[:-1])
+            total += (86400 * multi)
+        elif part.endswith('w'):
+            multi = int(part[:-1])
+            total += (604800 * multi)
+        elif part.endswith('h'):
+            multi = int(part[:-1])
+            total += (3600 * multi)
+        elif part.endswith('m'):
+            multi = int(part[:-1])
+            total += (60 * multi)
+        elif part.endswith('s'):
+            multi = int(part[:-1])
+            total += multi
+        else:
+            raise ValueError('invalid identifier')
+    return total
+
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
 
@@ -752,6 +784,27 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(
                 f'{self.bot.ui_emojis.error} You\'ve reached the limit for invites. Delete some first, then try again.'
             )
+
+        infinite_enabled = ''
+        if self.bot.config['permanent_invites']:
+            infinite_enabled = ' Use `inf` instead for permanent invites.'
+
+        if expiry == 'inf':
+            if not self.bot.config['permanent_invites']:
+                return await ctx.send(f'{self.bot.ui_emojis.error} Permanent invites are not enabled on this instance.')
+            expiry = 0
+        else:
+            try:
+                expiry = timetoint(expiry)
+            except:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} This is not a valid duration string. Try something like `7d` or `24h`.'
+                )
+            if expiry > 604800:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} Invites cannot last longer than 7 days.{infinite_enabled}'
+                )
+            expiry += time.time()
         invite = self.bot.bridge.create_invite(max_usage, expiry)
         try:
             await ctx.author.send(
