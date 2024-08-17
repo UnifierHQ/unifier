@@ -165,7 +165,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                                     not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author) or
                                     not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']
                             ) and private
-                    ):
+                    ) or not private and self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
                         roomlist.pop(x - offset)
                         offset += 1
 
