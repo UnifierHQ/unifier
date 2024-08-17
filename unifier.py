@@ -47,7 +47,8 @@ try:
     data = toml.load('config.toml')
 except:
     try:
-        data = toml.load('config.json')
+        with open('config.json') as file:
+            data = json.load(file)
     except:
         traceback.print_exc()
         print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
