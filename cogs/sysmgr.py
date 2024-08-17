@@ -837,22 +837,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def shutdown(self, ctx):
         selector = language.get_selector(ctx)
         self.logger.info("Attempting graceful shutdown...")
-        self.bot.bridge.backup_lock = True
+        if not self.bot.coreboot:
+            self.bot.bridge.backup_lock = True
         try:
-            if self.bot.bridge.backup_running:
-                self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
-                try:
-                    while self.bot.bridge.backup_running:
-                        await asyncio.sleep(1)
-                except KeyboardInterrupt:
-                    pass
-            for extension in self.bot.extensions:
-                await self.preunload(extension)
-            self.logger.info("Backing up message cache...")
-            self.bot.db.save_data()
-            self.bot.bridge.backup_lock = False
-            await self.bot.bridge.backup(limit=10000)
-            self.logger.info("Backup complete")
+            if not self.bot.coreboot:
+                if self.bot.bridge.backup_running:
+                    self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
+                    try:
+                        while self.bot.bridge.backup_running:
+                            await asyncio.sleep(1)
+                    except KeyboardInterrupt:
+                        pass
+                for extension in self.bot.extensions:
+                    await self.preunload(extension)
+                self.logger.info("Backing up message cache...")
+                self.bot.db.save_data()
+                self.bot.bridge.backup_lock = False
+                await self.bot.bridge.backup(limit=10000)
+                self.logger.info("Backup complete")
             await ctx.send(selector.get('success'))
         except:
             self.logger.exception("Graceful shutdown failed")
