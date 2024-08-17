@@ -2104,8 +2104,7 @@ class UnifierBridge:
                             )
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=tosend_content,
-                                                 files=files, allowed_mentions=mentions, view=(
+                                                 content=tosend_content, files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
