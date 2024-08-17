@@ -245,8 +245,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     ) if not self.bot.db['rooms'][name]['meta']['emoji'] else self.bot.db['rooms'][name]['meta'][
                         'emoji']
 
+                    name_additional = ''
+                    if self.bot.db['rooms'][name]['meta']['display_name']:
+                        name_additional = f' (`{name}`)'
+
                     embed.add_field(
-                        name=f'{emoji} `{display_name}`',
+                        name=f'{emoji} `{display_name}`{name_additional}',
                         value=description,
                         inline=False
                     )
