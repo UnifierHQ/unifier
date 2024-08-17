@@ -708,7 +708,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 )
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
 
-        roomdata = self.bot.bridge.create_room(room, private=roomtype=='private', dry_run=dry_run)
+        roomdata = self.bot.bridge.create_room(
+            room, private=roomtype=='private', dry_run=dry_run, origin=ctx.guild.id
+        )
 
         dry_run_text = ''
         if dry_run:
