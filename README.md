@@ -103,9 +103,12 @@ code, so people can use it to bring people together just like how he did.
 
 In return, we expect that all users honor those who made this project possible use the code **responsibly**. Please do not organize 
 any hate groups or whatever with Unifier.
-:3
 
 ## Note
 Unifier's icon was co-created by @green. and @thegodlypenguin on Discord.
 
 Unifier and UnifierHQ developers are not affiliated or associated with, or endorsed by Discord Inc., Guilded Inc. and Revolt.
+
+
+
+:3
