@@ -471,7 +471,7 @@ class UnifierBridge:
         This will be moved to UnifierBridge for a future update."""
         try:
             roominfo = self.__bot.db['rooms'][room]
-            base = dict(self.__room_template)
+            base = {'meta': dict(self.__room_template)}
 
             # add template keys and values to data
             for key in roominfo.keys():
