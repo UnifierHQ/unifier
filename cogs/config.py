@@ -711,7 +711,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         dry_run_text = ''
         if dry_run:
-            dry_run_text = f'{roomdata}'
+            dry_run_text = f'\n```js\n{roomdata}```'
 
         if interaction:
             return await interaction.response.edit_message(
