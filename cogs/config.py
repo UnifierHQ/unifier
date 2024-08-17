@@ -60,9 +60,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not roominfo:
             return False
 
-        if roominfo['private']:
+        if roominfo['meta']['private']:
             return (
-                    user.guild_permissions.manage_channels and user.guild.id == roominfo['private_meta']['server']
+                    user.guild_permissions.manage_channels and user.guild.id == roominfo['meta']['private_meta']['server']
             ) or (
                     user.id in self.bot.moderators or
                     user.id in self.bot.admins or
@@ -87,15 +87,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not roominfo:
             return False
 
-        if roominfo['private']:
+        if roominfo['meta']['private']:
             return (
-                    user.guild.id in roominfo['private_meta']['allowed'] or
-                    user.guild.id == roominfo['private_meta']['server']
+                    user.guild.id in roominfo['meta']['private_meta']['allowed'] or
+                    user.guild.id == roominfo['meta']['private_meta']['server']
             )
         else:
             return True
-
-
 
     def is_user_admin(self,user_id):
         try:
