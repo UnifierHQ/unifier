@@ -278,7 +278,7 @@ class UnifierBridge:
 
     @property
     def public_rooms(self):
-        return [room for room in self.rooms if not self.get_room(room)['private']]
+        return [room for room in self.rooms if not self.get_room(room)['meta']['private']]
 
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
@@ -483,7 +483,7 @@ class UnifierBridge:
 
     def can_manage_room(self, room, user) -> bool:
         roominfo = self.get_room(room)
-        if roominfo['private']:
+        if roominfo['meta']['private']:
             if user:
                 if user.id in self.__bot.moderators:
                     return True
@@ -493,7 +493,7 @@ class UnifierBridge:
 
     def can_join_room(self, room, user) -> bool:
         roominfo = self.get_room(room)
-        if roominfo['private']:
+        if roominfo['meta']['private']:
             if user:
                 if user.id in self.__bot.moderators:
                     return True
@@ -516,7 +516,7 @@ class UnifierBridge:
             raise self.RoomExistsError('room already exists')
 
         room_base = {'meta': dict(self.__room_template)}
-        room_base.update({'private': private})
+        room_base['meta'].update({'private': private})
 
         if not dry_run:
             self.__bot.db['rooms'].update({room: room_base})
@@ -581,7 +581,7 @@ class UnifierBridge:
         roominfo = self.get_room(invite['room'])
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
-        if not roominfo['private']:
+        if not roominfo['meta']['private']:
             self.delete_invite(invite)
             raise RuntimeError('invite leads to a public room, expired')
         if invite['remaining'] == 1:
@@ -618,7 +618,7 @@ class UnifierBridge:
             channel_id = channel.id
             guild_id = user.guild.id
 
-        if roominfo['private']:
+        if roominfo['meta']['private']:
             if user:
                 if platform=='discord':
                     user_id = user.id
@@ -932,7 +932,7 @@ class UnifierBridge:
         members = 0
         guilds = 0
         for platform in self.__bot.db['rooms'][roomname]:
-            if platform == 'meta' or platform == 'private':
+            if platform == 'meta':
                 continue
             support = self.__bot.platforms[platform]
             for guild_id in self.__bot.db['rooms'][roomname][platform]:

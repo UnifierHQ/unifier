@@ -163,7 +163,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db) or
                             (
                                     not self.bot.bridge.can_join_room(roomlist[x - offset],ctx.author) or
-                                    not self.bot.db['rooms'][roomlist[x - offset]]['private']
+                                    not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']
                             ) and private):
                         roomlist.pop(x - offset)
                         offset += 1
@@ -286,7 +286,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db) or
                             (
                                     not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author) or
-                                    not self.bot.db['rooms'][roomlist[x - offset]]['private']
+                                    not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']
                             ) and private) and not show_restricted or not search_filter(query, room):
                         roomlist.pop(x - offset)
                         offset += 1
@@ -730,7 +730,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not self.can_manage(ctx.author, room):
             raise restrictions.NoRoomManagement()
 
-        if not self.bot.db['rooms'][room]['private']:
+        if not self.bot.db['rooms'][room]['meta']['private']:
             return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
         if len(self.bot.db['rooms'][room]['private_meta']['invites']) >= 20:
             return await ctx.send(
@@ -770,7 +770,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not self.can_manage(ctx.author, room):
             raise restrictions.NoRoomManagement()
 
-        if not self.bot.db['rooms'][room]['private']:
+        if not self.bot.db['rooms'][room]['meta']['private']:
             return await ctx.send(f'{self.bot.ui_emojis.error} This is a public room.')
 
         invites = self.bot.db['rooms'][room]['invites']
@@ -822,7 +822,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} Room names may only contain alphabets, numbers, dashes, and underscores.')
         if newroom in list(self.bot.db['rooms'].keys()):
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
-        if self.bot.db['rooms'][room]['private']:
+        if self.bot.db['rooms'][room]['meta']['private']:
             return await ctx.send(f'{self.bot.ui_emojis.error} You cannot rename private rooms.')
         self.bot.db['rooms'].update({newroom: self.bot.db['rooms'][room]})
         self.bot.db['rooms'].pop(room)
