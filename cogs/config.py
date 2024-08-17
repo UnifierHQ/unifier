@@ -157,17 +157,30 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 roomlist = list(self.bot.db['rooms'].keys())
                 offset = 0
                 for x in range(len(roomlist)):
-                    if (
-                            not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db) or
-                            not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db)
-                    ) or (
-                            (
-                                    not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author) or
-                                    not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']
-                            ) and private
-                    ) or not private and self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
-                        roomlist.pop(x - offset)
-                        offset += 1
+                    # yes, this logic is messy.
+                    # but it doesn't overwrite the origin server thing so i'm keeping it for now
+                    if private:
+                        if not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                        elif not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author):
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                    else:
+                        if self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                        elif not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db):
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
+                        elif not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db):
+                            roomlist.pop(x - offset)
+                            offset += 1
+                            continue
 
                 maxpage = math.ceil(len(roomlist) / limit) - 1
                 if interaction:
