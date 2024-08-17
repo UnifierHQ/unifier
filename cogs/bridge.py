@@ -497,7 +497,7 @@ class UnifierBridge:
             if user:
                 if user.id in self.__bot.moderators and not self.moderator_override:
                     return True
-            return user.guild.id == roominfo['private_meta']['server'] and user.guild_permissions.manage_guild
+            return user.guild.id == roominfo['meta']['private_meta']['server'] and user.guild_permissions.manage_guild
         else:
             return user.id in self.__bot.admins
 
@@ -508,8 +508,8 @@ class UnifierBridge:
                 if user.id in self.__bot.moderators and not self.moderator_override:
                     return True
             return (
-                    user.guild.id == roominfo['private_meta']['server'] or
-                    user.guild.id in roominfo['private_meta']['allowed']
+                    user.guild.id == roominfo['meta']['private_meta']['server'] or
+                    user.guild.id in roominfo['meta']['private_meta']['allowed']
             ) and user.guild_permissions.manage_channels
         else:
             return user.guild_permissions.manage_channels
@@ -600,10 +600,10 @@ class UnifierBridge:
             if invite['remaining'] > 0:
                 self.__bot.db['invites'][invite]['remaining'] -= 1
         if platform == 'discord':
-            roominfo['private_meta']['allowed'].append(user.guild.id)
+            roominfo['meta']['private_meta']['allowed'].append(user.guild.id)
         else:
             support = self.__bot.platforms[platform]
-            roominfo['private_meta']['allowed'].append(support.get_id(support.server(user)))
+            roominfo['meta']['private_meta']['allowed'].append(support.get_id(support.server(user)))
             self.update_room(invite['room'], roominfo)
         self.__bot.db.save_data()
 
@@ -637,7 +637,7 @@ class UnifierBridge:
 
                 if not user_id in self.__bot.moderators:
                     raise ValueError('forbidden')
-            if not guild_id in roominfo['private_meta']['allowed']:
+            if not guild_id in roominfo['meta']['private_meta']['allowed']:
                 raise ValueError('forbidden')
 
         guild_id = str(guild_id)
