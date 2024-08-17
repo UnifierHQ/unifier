@@ -475,10 +475,17 @@ class UnifierBridge:
 
             # add template keys and values to data
             for key in roominfo.keys():
-                if key == 'private_meta':
-                    for meta_key in roominfo['private_meta'].keys():
-                        base['private_meta'].update({meta_key: roominfo['private_meta'][meta_key]})
-                base.update({key: roominfo[key]})
+                if key == 'meta':
+                    for meta_key in roominfo['meta'].keys():
+                        if meta_key == 'private_meta':
+                            for pmeta_key in roominfo['meta'].keys():
+                                base['meta']['private_meta'].update(
+                                    {pmeta_key: roominfo['meta']['private_meta'][pmeta_key]}
+                                )
+                        else:
+                            base['meta'].update({meta_key: roominfo['meta'][meta_key]})
+                else:
+                    base.update({key: roominfo[key]})
 
             return base
         except:
