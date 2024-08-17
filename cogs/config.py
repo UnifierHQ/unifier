@@ -911,6 +911,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.db['rooms'][room]['meta']['display_name'] = None
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             return await ctx.send(f'{self.bot.ui_emojis.success} Display name removed.')
+        elif len(name) > 32:
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} Display name is too long. Please keep it within 32 characters.'
+            )
         self.bot.db['rooms'][room]['meta']['display_name'] = name
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Updated display name to `{name}`!')
