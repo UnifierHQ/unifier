@@ -2105,7 +2105,7 @@ class UnifierBridge:
                         files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=tosend_content,
-                                                 files=files, allowed_mentions=touse_mentions, view=(
+                                                 files=files, allowed_mentions=mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
@@ -2120,7 +2120,7 @@ class UnifierBridge:
 
                 if tb_v2:
                     threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,
-                                                              mentions,components,sameguild,
+                                                              touse_mentions,components,sameguild,
                                                               destguild)))
                 else:
                     try:
