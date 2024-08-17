@@ -308,8 +308,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     if match == 0:
                         return (
                                 (
-                                        query.lower() in query_cmd or
-                                        query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
+                                        query.lower() in (
+                                            self.bot.db['rooms'][query_cmd]['meta']['display_name'] or query_cmd
+                                        )
                                 ) and namematch or
                                 (
                                     query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
@@ -319,8 +320,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     elif match == 1:
                         return (
                                 (((
-                                          query.lower() in query_cmd or
-                                          query.lower() in self.bot.db['rooms'][query_cmd]['meta']['display_name']
+                                          query.lower() in (
+                                              self.bot.db['rooms'][query_cmd]['meta']['display_name'] or query_cmd
+                                          )
                                   ) and namematch) or not namematch) and
                                 ((
                                      query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
@@ -517,7 +519,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 ) if not self.bot.db['rooms'][roomname]['meta']['emoji'] else self.bot.db['rooms'][roomname]['meta'][
                     'emoji']
                 if self.bot.db['rooms'][roomname]['meta']['display_name']:
-                    embed.description = f'# **{emoji} {display_name}**\n(`{roomname}`)\n\n{description}'
+                    embed.description = f'# **{emoji} {display_name}**\n`{roomname}`\n\n{description}'
                 else:
                     embed.description = f'# **{emoji} `{display_name}`**\n{description}'
                 stats = await self.bot.bridge.roomstats(roomname)

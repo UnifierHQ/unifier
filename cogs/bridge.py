@@ -948,7 +948,11 @@ class UnifierBridge:
         for platform in self.__bot.db['rooms'][roomname]:
             if platform == 'meta':
                 continue
-            support = self.__bot.platforms[platform]
+
+            support = None
+            if not platform == 'discord':
+                support = self.__bot.platforms[platform]
+
             for guild_id in self.__bot.db['rooms'][roomname][platform]:
                 try:
                     if platform=='discord':
