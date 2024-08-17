@@ -693,6 +693,8 @@ class UnifierBridge:
         """Optimizes data to avoid having to fetch webhooks.
         This decreases latency incuded by message bridging prep."""
         for room in self.__bot.db['rooms']:
+            if not 'discord' in self.__bot.db['rooms'][room].keys():
+                continue
             for guild in self.__bot.db['rooms'][room]['discord']:
                 if len(self.__bot.db['rooms'][room]['discord'][guild])==1:
                     try:
