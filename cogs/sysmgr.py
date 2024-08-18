@@ -296,7 +296,7 @@ class CommandExceptionHandler:
             elif isinstance(error, commands.PrivateMessageOnly):
                 await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in DMs.')
             elif isinstance(error, restrictions.NoRoomManagement):
-                await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to manage this room.')
+                await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to manage this room.')
             elif isinstance(error, restrictions.NoRoomJoin):
                 await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to join this room.')
             elif isinstance(error, restrictions.UnknownRoom):
