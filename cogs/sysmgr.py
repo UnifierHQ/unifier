@@ -47,6 +47,7 @@ import asyncio
 import discord_emoji
 import hashlib
 import orjson
+import toml
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
 from Crypto import Random as CryptoRandom
@@ -55,6 +56,7 @@ import base64
 import random
 import requests
 import time
+import shutil
 import datetime
 
 restrictions = r.Restrictions()
@@ -538,6 +540,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         sha_signature = \
             hashlib.sha256(hash_string.encode()).hexdigest()
         return sha_signature
+
+    async def copy(self, src, dst):
+        await self.bot.loop.run_in_executor(None, lambda: shutil.copy2(src,dst))
 
     async def encrypt(self, encoded, password, salt):
         __key = await self.bot.loop.run_in_executor(None, lambda: PBKDF2(password, salt, dkLen=32))
@@ -1355,8 +1360,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open(f'emojis/{plugin_id}.json', 'w+') as file:
                     json.dump(emojipack, file, indent=2)
             self.logger.info('Registering plugin')
-            status(
-                os.system('cp ' + os.getcwd() + '/plugin_install/plugin.json' + ' ' + os.getcwd() + '/plugins/' + plugin_id + '.json'))
+            await self.copy('plugin_install/plugin.json', 'plugins/' + plugin_id + '.json')
             with open('plugins/' + plugin_id + '.json') as file:
                 plugin_info = json.load(file)
                 plugin_info.update({'repository':url})
@@ -1630,15 +1634,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     pass
                 for file in os.listdir(os.getcwd() + '/cogs'):
                     self.logger.debug('Backing up: ' + os.getcwd() + '/cogs/' + file)
-                    os.system('cp ' + os.getcwd() + '/cogs/' + file + ' ' + os.getcwd() + '/old/cogs/' + file)
+                    await self.copy('cogs/' + file, 'old/cogs/' + file)
                 self.logger.debug('Backing up: ' + os.getcwd() + '/unifier.py')
-                os.system('cp ' + os.getcwd() + '/unifier.py ' + os.getcwd() + '/old/unifier.py')
+                await self.copy('unifier.py ', 'old/unifier.py')
                 self.logger.debug('Backing up: ' + os.getcwd() + '/data.json')
-                os.system('cp ' + os.getcwd() + '/data.json ' + os.getcwd() + '/old/data.json')
-                self.logger.debug('Backing up: ' + os.getcwd() + '/config.json')
-                os.system('cp ' + os.getcwd() + '/config.json ' + os.getcwd() + '/old/config.json')
-                self.logger.debug('Backing up: ' + os.getcwd() + '/update.json')
-                os.system('cp ' + os.getcwd() + '/update.json ' + os.getcwd() + '/old/update.json')
+                await self.copy('data.json ', 'old/data.json')
+                self.logger.debug('Backing up: ' + os.getcwd() + '/config.toml')
+                await self.copy('config.toml ', 'old/config.json')
             except:
                 if no_backup:
                     self.logger.warning('Backup skipped, requesting final confirmation.')
@@ -1735,17 +1737,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = f':white_check_mark: {selector.get("downloading")}\n:hourglass_flowing_sand: {selector.get("installing")}\n:x: {selector.get("reloading")}'
                 await msg.edit(embed=embed)
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/unifier.py')
-                status(os.system('cp ' + os.getcwd() + '/update/unifier.py ' + os.getcwd() + '/unifier.py'))
+                await self.copy('update/unifier.py ', 'unifier.py')
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements.txt')
-                status(os.system('cp ' + os.getcwd() + '/update/requirements.txt ' + os.getcwd() + '/requirements.txt'))
-                self.logger.debug('Installing: ' + os.getcwd() + '/update_check/update.json')
+                await self.copy('update/requirements.txt', 'requirements.txt')
+                self.logger.debug('Installing: ' + os.getcwd() + '/update_check/plugins/system.json')
                 if legacy:
                     current['version'] = version
                     current['legacy'] = release
                     with open('plugins/system.json', 'w+') as file:
                         json.dump(current,file)
                 else:
-                    status(os.system('cp ' + os.getcwd() + '/update_check/update.json ' + os.getcwd() + '/plugins/system.json'))
+                    await self.copy('update_check/update.json', 'plugins/system.json')
                     with open('plugins/system.json', 'r') as file:
                         newcurrent = json.load(file)
                     newcurrent.pop('legacy')
@@ -1753,21 +1755,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         json.dump(newcurrent, file)
                 for file in os.listdir(os.getcwd() + '/update/cogs'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/cogs/' + file)
-                    status(
-                        os.system('cp ' + os.getcwd() + '/update/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file))
+                    await self.copy('update/cogs/' + file, 'cogs/' + file)
                 for file in os.listdir(os.getcwd() + '/update/utils'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
-                    status(
-                        os.system('cp ' + os.getcwd() + '/update/utils/' + file + ' ' + os.getcwd() + '/utils/' + file))
-                self.logger.debug('Updating config.json')
-                with open('config.json', 'r') as file:
-                    oldcfg = json.load(file)
-                with open('update/config.json', 'r') as file:
-                    newcfg = json.load(file)
+                    await self.copy('update/utils/' + file, 'utils/' + file)
+                self.logger.debug('Updating config.toml')
+                oldcfg = toml.load('config.toml')
+                newcfg = toml.load('update/config.toml')
+                # TODO: toml updater
                 for key in newcfg:
                     if not key in list(oldcfg.keys()):
                         oldcfg.update({key: newcfg[key]})
-                with open('config.json', 'w') as file:
+                with open('config.toml', 'w') as file:
                     json.dump(oldcfg, file, indent=4)
                 if should_reboot:
                     self.bot.update = True
