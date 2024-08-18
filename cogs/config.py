@@ -196,7 +196,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue
-                        elif not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author):
+                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue
@@ -342,7 +342,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue
-                        elif not self.bot.bridge.can_join_room(roomlist[x - offset], ctx.author):
+                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue

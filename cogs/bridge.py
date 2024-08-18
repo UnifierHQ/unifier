@@ -515,6 +515,19 @@ class UnifierBridge:
         else:
             return user.guild_permissions.manage_channels
 
+    def can_access_room(self, room, user) -> bool:
+        roominfo = self.get_room(room)
+        if roominfo['meta']['private']:
+            if user:
+                if user.id in self.__bot.moderators and not self.moderator_override:
+                    return True
+            return (
+                    user.guild.id == roominfo['meta']['private_meta']['server'] or
+                    user.guild.id in roominfo['meta']['private_meta']['allowed']
+            )
+        else:
+            return True
+
     def update_room(self, room, roominfo):
         if not room in self.__bot.db['rooms'].keys():
             raise self.RoomNotFoundError('invalid room')
