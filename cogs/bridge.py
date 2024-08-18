@@ -1619,6 +1619,8 @@ class UnifierBridge:
                     msg_author_rv = msg_author_rv + ' ' + useremoji
 
                 try:
+                    if source == 'guilded':
+                        url = url.split('?')[0]
                     persona = revolt.Masquerade(name=msg_author_rv, avatar=url, colour=rvtcolor)
                 except:
                     persona = revolt.Masquerade(name=msg_author_rv, avatar=None, colour=rvtcolor)
