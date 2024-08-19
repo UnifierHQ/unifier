@@ -491,7 +491,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.warning('plugins/system.json is missing. Copying update.json...')
                 if not os.path.exists('plugins'):
                     os.mkdir('plugins')
-                status(os.system('cp ' + os.getcwd() + '/update.json ' + os.getcwd() + '/plugins/system.json'))
+                shutil.copy2('update.json', 'plugins/system.json')
                 with open('plugins/system.json') as file:
                     sysext = json.load(file)
             for extension in sysext['modules']:
@@ -1181,9 +1181,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
-            os.system('rm -rf ' + os.getcwd() + '/plugin_install')
+            try:
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('plugin_install'))
+            except:
+                pass
             await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                'git clone ' + url + ' ' + os.getcwd() + '/plugin_install')))
+                'git clone ' + url + ' plugin_install')))
             with open('plugin_install/plugin.json', 'r') as file:
                 new = json.load(file)
             if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
@@ -1339,21 +1342,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     newdeps = new['requirements']
                     if len(newdeps) > 0:
                         self.logger.debug('Installing: ' + ' '.join(newdeps))
-                        await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps))
-                        ))
+                        if sys.platform == 'win32':
+                            await self.bot.loop.run_in_executor(None, lambda: status(
+                                os.system('py -3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                            ))
+                        else:
+                            await self.bot.loop.run_in_executor(None, lambda: status(
+                                os.system('python3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                            ))
             except:
                 self.logger.exception('Dependency installation failed')
                 raise RuntimeError()
             self.logger.info('Installing Plugin')
             for module in modules:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+module)
-                status(os.system(
-                    'cp ' + os.getcwd() + '/plugin_install/' + module + ' ' + os.getcwd() + '/cogs/' + module))
+                await self.copy('plugin_install/' + module, 'cogs/' + module)
             for util in utilities:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+util)
-                status(os.system(
-                    'cp ' + os.getcwd() + '/plugin_install/' + util + ' ' + os.getcwd() + '/utils/' + util))
+                await self.copy('plugin_install/' + util, 'utils/' + util)
             if 'emojis' in services:
                 self.logger.info('Installing Emoji Pack')
                 home_guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -1526,10 +1532,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             msg = await ctx.send(embed=embed)
             available = []
             try:
-                os.system('rm -rf ' + os.getcwd() + '/update_check')
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update_check'))
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
                     'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config[
-                        'check_endpoint'] + ' ' + os.getcwd() + '/update_check'))
+                        'check_endpoint'] + ' update_check'))
                 with open('plugins/system.json', 'r') as file:
                     current = json.load(file)
                 with open('update_check/update.json', 'r') as file:
@@ -1700,11 +1706,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.logger.info('Starting upgrade')
             try:
                 self.logger.debug('Purging old update files')
-                os.system('rm -rf ' + os.getcwd() + '/update')
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update'))
                 self.logger.info('Downloading from remote repository...')
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
                     'git clone --branch ' + new['version'] + ' --single-branch --depth 1 ' + self.bot.config[
-                        'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update'
+                        'files_endpoint'] + '/unifier.git update'
                 ))
                 self.logger.debug('Confirming download...')
                 x = open(os.getcwd() + '/update/plugins/system.json', 'r')
@@ -1736,9 +1742,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         pass
                 if len(newdeps) > 0:
                     self.logger.debug('Installing: ' + ' '.join(newdeps))
-                    await self.bot.loop.run_in_executor(None, lambda: status(
-                        os.system('python3 -m pip install ' + ' '.join(newdeps))
-                    ))
+                    if sys.platform == 'win32':
+                        await self.bot.loop.run_in_executor(None, lambda: status(
+                            os.system('py -3 -m pip install -U ' + ' '.join(newdeps))
+                        ))
+                    else:
+                        await self.bot.loop.run_in_executor(None, lambda: status(
+                            os.system('python3 -m pip install -U ' + ' '.join(newdeps))
+                        ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
@@ -1831,17 +1842,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.colour = self.bot.colors.error
                 try:
                     self.logger.debug('Reverting: ' + os.getcwd() + '/unifier.py')
-                    status(os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py'))
+                    await self.copy('old/unifier.py', 'unifier.py')
                     self.logger.debug('Reverting: ' + os.getcwd() + '/data.json')
-                    status(os.system('cp ' + os.getcwd() + '/old/data.json ' + os.getcwd() + '/data.json'))
+                    await self.copy('old/data.json', 'data.json')
                     self.logger.debug('Reverting: ' + os.getcwd() + '/plugins/system.json')
-                    status(os.system('cp ' + os.getcwd() + '/old/plugins/system.json ' + os.getcwd() + '/plugins/system.json'))
-                    self.logger.debug('Reverting: ' + os.getcwd() + '/config.json')
-                    status(os.system('cp ' + os.getcwd() + '/old/config.json ' + os.getcwd() + '/config.json'))
+                    await self.copy('old/plugins/system.json', 'plugins/system.json')
+                    self.logger.debug('Reverting: ' + os.getcwd() + '/config.toml')
+                    await self.copy('old/config.toml', 'config.toml')
                     for file in os.listdir(os.getcwd() + '/old/cogs'):
                         self.logger.debug('Reverting: ' + os.getcwd() + '/cogs/' + file)
-                        status(
-                            os.system('cp ' + os.getcwd() + '/old/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file))
+                        await self.copy('old/cogs/' + file, 'cogs/' + file)
                     self.logger.info('Rollback success')
                     embed.description = selector.get("rollback")
                 except:
@@ -1869,9 +1879,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             msg = await ctx.send(embed=embed)
             url = plugin_info['repository']
             try:
-                os.system('rm -rf ' + os.getcwd() + '/plugin_install')
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('plugin_install'))
                 await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                    'git clone ' + url + ' ' + os.getcwd() + '/plugin_install')))
+                    'git clone ' + url + ' plugin_install')))
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
                 if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
@@ -1943,21 +1953,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 newdeps.remove(dep)
                         if len(newdeps) > 0:
                             self.logger.debug('Installing: ' + ' '.join(newdeps))
-                            await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps))
-                            ))
+                            if sys.platform == 'win32':
+                                await self.bot.loop.run_in_executor(None, lambda: status(
+                                    os.system('py -3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                ))
+                            else:
+                                await self.bot.loop.run_in_executor(None, lambda: status(
+                                    os.system('python3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                ))
                 except:
                     self.logger.exception('Dependency installation failed')
                     raise RuntimeError()
                 self.logger.info('Upgrading Plugin')
                 for module in modules:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + module)
-                    status(os.system(
-                        'cp ' + os.getcwd() + '/plugin_install/' + module + ' ' + os.getcwd() + '/cogs/' + module))
+                    await self.copy('plugin_install/' + module, 'cogs/' + module)
                 for util in utilities:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + util)
-                    status(os.system(
-                        'cp ' + os.getcwd() + '/plugin_install/' + util + ' ' + os.getcwd() + '/utils/' + util))
+                    await self.copy('plugin_install/' + util, '/utils/' + util)
                 if 'emojis' in services:
                     self.logger.info('Uninstalling previous Emoji Pack')
                     home_guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -2008,9 +2021,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             json.dump(emojipack, file, indent=2)
                         self.bot.ui_emojis = Emojis(data=emojipack)
                 self.logger.info('Registering plugin')
-                status(
-                    os.system(
-                        'cp ' + os.getcwd() + '/plugin_install/plugin.json' + ' ' + os.getcwd() + '/plugins/' + plugin_id + '.json'))
+                await self.copy('plugin_install/plugin.json', 'plugins/' + plugin_id + '.json')
                 with open('plugins/' + plugin_id + '.json') as file:
                     plugin_info = json.load(file)
                     plugin_info.update({'repository': url})
