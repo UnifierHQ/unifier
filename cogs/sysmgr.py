@@ -1776,13 +1776,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                 else:
-                    self.logger.info('Restarting extensions')
+                    self.logger.info('Reloading extensions')
                     f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n:hourglass_flowing_sand: {selector.get("reloading")}'
                     await msg.edit(embed=embed)
                     for cog in list(self.bot.extensions):
-                        self.logger.debug('Restarting extension: ' + cog)
-                        await self.preunload(cog)
-                        self.bot.reload_extension(cog)
+                        self.logger.debug('Reloading extension: ' + cog)
+                        try:
+                            await self.preunload(cog)
+                            self.bot.reload_extension(cog)
+                        except:
+                            self.logger.warning(cog+' could not be reloaded.')
+                            embed.set_footer(text=':warning: Some extensions could not be reloaded.')
                     self.logger.info('Upgrade complete')
                     embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                     embed.description = selector.get("success_body")
@@ -1984,8 +1988,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     modname = 'cogs.' + module[:-3]
                     if modname in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + modname)
-                        await self.preunload(modname)
-                        self.bot.reload_extension(modname)
+                        try:
+                            await self.preunload(modname)
+                            self.bot.reload_extension(modname)
+                        except:
+                            self.logger.warning(modname+' could not be reloaded.')
+                            embed.set_footer(text=':warning: Some extensions could not be reloaded.')
                 self.logger.debug('Upgrade complete')
                 embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                 embed.description = selector.get("success_body")
