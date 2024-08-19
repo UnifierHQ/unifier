@@ -106,6 +106,32 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     user.id == self.bot.owner
             )
 
+    def can_moderate(self, user, room):
+        room = room.lower()
+        if not room in self.bot.bridge.rooms:
+            try:
+                room = self.bot.bridge.get_invite(room)['room']
+            except:
+                return False
+
+        roominfo = self.bot.bridge.get_room(room)
+        if not roominfo:
+            return False
+
+        if roominfo['meta']['private']:
+            return (
+                    user.guild_permissions.ban_members and user.guild.id == roominfo['meta']['private_meta']['server']
+            ) or (
+                    user.id in self.bot.moderators or
+                    user.id in self.bot.admins or
+                    user.id == self.bot.owner
+            )
+        else:
+            return (
+                    user.id in self.bot.admins or
+                    user.id == self.bot.owner
+            )
+
     def can_join(self, user, room):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
@@ -778,10 +804,20 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     content=f'{self.bot.ui_emojis.error} This room already exists!'
                 )
             return await ctx.send(f'{self.bot.ui_emojis.error} This room already exists!')
-
-        roomdata = self.bot.bridge.create_room(
-            room, private=roomtype=='private', dry_run=dry_run, origin=ctx.guild.id
-        )
+        try:
+            roomdata = self.bot.bridge.create_room(
+                room, private=roomtype=='private', dry_run=dry_run, origin=ctx.guild.id
+            )
+        except self.bot.bridge.TooManyRooms:
+            if interaction:
+                return await interaction.response.edit_message(
+                    content=f'{self.bot.ui_emojis.error} You cannot create any more Private Rooms. The limit is '+
+                            f'{self.bot.config["private_rooms_limit"]}.'
+                )
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} You cannot create any more Private Rooms. The limit is '+
+                f'{self.bot.config["private_rooms_limit"]}.'
+            )
 
         dry_run_text = ''
         if dry_run:
@@ -1210,6 +1246,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
             if type(e) is self.bot.bridge.InviteNotFoundError:
                 embed.title = f'{self.bot.ui_emojis.error} Invite is invalid.'
+            elif type(e) is self.bot.bridge.RoomBannedError:
+                embed.title = f'{self.bot.ui_emojis.error} You are banned from this room.'
 
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
@@ -1252,6 +1290,114 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['rooms'][room]['discord'] = data
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Channel has been unbinded.')
+
+    @commands.command(description='Kicks a server from the room.')
+    @restrictions.not_banned()
+    async def roomkick(self, ctx, room, guild):
+        room = room.lower()
+        if not room in self.bot.bridge.rooms:
+            raise restrictions.UnknownRoom()
+
+        if not self.can_moderate(ctx.author, room):
+            raise restrictions.NoRoomModeration()
+
+        data = self.bot.bridge.get_room(room.lower())
+
+        platform = None
+        for check_platform in data.keys():
+            if check_platform == 'meta':
+                continue
+            if f'{guild}' in data[check_platform].keys():
+                platform = check_platform
+                break
+
+        if not platform:
+            return await ctx.send(f'{self.bot.ui_emojis.error} This server isn\'t connected to this room.')
+
+        server_name = None
+        try:
+            if platform == 'discord':
+                guild_obj = self.bot.get_guild(int(guild))
+                server_name = guild_obj.name
+            else:
+                support = self.bot.platforms[platform]
+                guild_obj = support.get_server(guild)
+                server_name = support.name(guild_obj)
+
+            hooks = await guild_obj.webhooks()
+            if guild in list(data.keys()):
+                hook_ids = data[guild]
+            else:
+                hook_ids = []
+            for webhook in hooks:
+                if webhook.id in hook_ids:
+                    await webhook.delete()
+                    break
+        except:
+            pass
+        data[platform].pop(guild)
+        self.bot.bridge.update_room(room, data)
+
+        if not server_name:
+            server_name = '[unknown server]'
+
+        await ctx.send(f'{self.bot.ui_emojis.success} Server {server_name} was kicked from the room.')
+
+    @commands.command(description='Bans a server from the room.')
+    @restrictions.not_banned()
+    async def roomban(self, ctx, room, guild):
+        room = room.lower()
+        if not room in self.bot.bridge.rooms:
+            raise restrictions.UnknownRoom()
+
+        if not self.can_moderate(ctx.author, room):
+            raise restrictions.NoRoomModeration()
+
+        data = self.bot.bridge.get_room(room.lower())
+
+        platform = None
+        for check_platform in data.keys():
+            if check_platform == 'meta':
+                continue
+            if f'{guild}' in data[check_platform].keys():
+                platform = check_platform
+                break
+
+        if not platform:
+            return await ctx.send(f'{self.bot.ui_emojis.error} This server isn\'t connected to this room.')
+
+        server_name = None
+        try:
+            if platform == 'discord':
+                guild_obj = self.bot.get_guild(int(guild))
+                server_name = guild_obj.name
+            else:
+                support = self.bot.platforms[platform]
+                guild_obj = support.get_server(guild)
+                server_name = support.name(guild_obj)
+
+            hooks = await guild_obj.webhooks()
+            if guild in list(data.keys()):
+                hook_ids = data[guild]
+            else:
+                hook_ids = []
+            for webhook in hooks:
+                if webhook.id in hook_ids:
+                    await webhook.delete()
+                    break
+        except:
+            pass
+        data[platform].pop(guild)
+
+        if not guild in data['meta']['banned']:
+            data['meta']['banned'].append(guild)
+
+        self.bot.bridge.update_room(room, data)
+
+        if not server_name:
+            server_name = '[unknown server]'
+
+        await ctx.send(f'{self.bot.ui_emojis.success} Server {server_name} was kicked from the room.')
 
     @commands.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
     @restrictions.admin()

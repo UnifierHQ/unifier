@@ -26,6 +26,9 @@ class Restrictions:
     class NoRoomManagement(commands.CheckFailure):
         pass
 
+    class NoRoomModeration(commands.CheckFailure):
+        pass
+
     class NoRoomJoin(commands.CheckFailure):
         pass
 

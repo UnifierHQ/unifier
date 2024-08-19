@@ -43,3 +43,5 @@ posts_ref_room = "post-comments"
 compress_cache = true
 external = ["revolt", "guilded"]
 permanent_invites = false
+enable_private_rooms = true
+private_rooms_limit = 0

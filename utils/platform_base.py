@@ -93,6 +93,11 @@ class PlatformBase:
         """Returns the username of a user object."""
         raise MissingImplementation()
 
+    def name(self, obj):
+        """Alias to user_name intended for non-user objects.
+        Override this if needed."""
+        return self.user_name(obj)
+
     def avatar(self, user):
         """Returns the avatar URL of a user object."""
         raise MissingImplementation()

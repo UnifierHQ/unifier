@@ -370,6 +370,12 @@ class UnifierBridge:
     class RoomForbiddenError(Exception):
         pass
 
+    class TooManyRooms(Exception):
+        pass
+
+    class RoomBannedError(Exception):
+        pass
+
     class RoomNotFoundError(Exception):
         pass
 
@@ -538,11 +544,22 @@ class UnifierBridge:
     def create_room(self, room, private=True, platform='discord', origin=None, dry_run=False) -> dict:
         if room in self.__bot.db['rooms'].keys():
             raise self.RoomExistsError('room already exists')
+        if private and not origin:
+            raise ValueError('origin must be provided')
 
         room_base = {'meta': dict(self.__room_template)}
         room_base['meta'].update({'private': private})
 
         if private:
+            if not dry_run:
+                if not f'{origin}' in self.__bot.db['rooms_count'].keys():
+                    self.__bot.db['rooms_count'].update({f'{origin}': 0})
+                if (
+                        self.__bot.db['rooms_count'][f'{origin}'] >= self.__bot.config['private_rooms_limit'] and
+                        not self.__bot.config['private_rooms_limit'] == 0
+                ):
+                    raise self.TooManyRooms('exceeded limit')
+                self.__bot.db['rooms_count'][f'{origin}'] += 1
             room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
 
         if not dry_run:
@@ -552,8 +569,22 @@ class UnifierBridge:
         return room_base
 
     def delete_room(self, room):
-        if not room in self.__bot.db['rooms'].keys():
+        if not room in self.rooms:
             raise self.RoomNotFoundError('invalid room')
+
+        room = self.get_room(room)
+        for invite in room['meta']['private_meta']['invites']:
+            self.delete_invite(invite)
+
+        try:
+            if (
+                    room['meta']['private_meta']['server'] and
+                    self.__bot.db['rooms_count'][room['meta']['private_meta']['server']] > 0
+            ):
+                self.__bot.db['rooms_count'][room['meta']['private_meta']['server']] -= 1
+        except:
+            # not something to worry about
+            pass
 
         self.__bot.db['rooms'].pop(room)
         self.__bot.db.save_data()
@@ -610,17 +641,24 @@ class UnifierBridge:
         if not roominfo['meta']['private']:
             self.delete_invite(invite)
             raise RuntimeError('invite leads to a public room, expired')
+        if platform == 'discord':
+            server_id = user.guild.id
+            user_id = user.id
+        else:
+            support = self.__bot.platforms[platform]
+            server_id = support.get_id(support.server(user))
+            user_id = support.get_id(user)
+        if (
+                str(server_id) in roominfo['meta']['banned']
+        ) and (not user_id in self.__bot.moderators and not self.moderator_override):
+            raise self.RoomBannedError('banned from room')
         if invite['remaining'] == 1:
             self.delete_invite(invite)
         else:
             if invite['remaining'] > 0:
                 self.__bot.db['invites'][invite]['remaining'] -= 1
-        if platform == 'discord':
-            roominfo['meta']['private_meta']['allowed'].append(user.guild.id)
-        else:
-            support = self.__bot.platforms[platform]
-            roominfo['meta']['private_meta']['allowed'].append(support.get_id(support.server(user)))
-            self.update_room(invite['room'], roominfo)
+        roominfo['meta']['private_meta']['allowed'].append(server_id)
+        self.update_room(invite['room'], roominfo)
         self.__bot.db.save_data()
 
     async def join_room(self, user, room, channel, webhook_id=None, platform='discord'):
@@ -634,22 +672,22 @@ class UnifierBridge:
         if self.check_duplicate(channel):
             raise restrictions.AlreadyConnected()
 
-        support = None
-
         if not platform=='discord':
             support = self.__bot.platforms[platform]
             channel_id = support.get_id(channel)
+            user_id = support.get_id(user)
             guild_id = support.get_id(support.server(user))
         else:
             channel_id = channel.id
+            user_id = user.id
             guild_id = user.guild.id
 
-        if roominfo['meta']['private']:
-            if platform=='discord':
-                user_id = user.id
-            else:
-                user_id = support.get_id(user)
+        if (
+                str(guild_id) in roominfo['meta']['banned']
+        ) and (not user_id in self.__bot.moderators and not self.moderator_override):
+            raise self.RoomBannedError('banned from room')
 
+        if roominfo['meta']['private']:
             if (
                     not guild_id in roominfo['meta']['private_meta']['allowed'] and
                     not guild_id == roominfo['meta']['private_meta']['server']
@@ -1368,6 +1406,7 @@ class UnifierBridge:
             if (
                     f'{message.author.id}' in self.__bot.db['banned'].keys() or
                     f'{message.guild.id}' in self.__bot.db['banned'].keys() or
+                    f'{message.guild.id}' in self.__bot.db['rooms'][room]['meta']['banned'] or
                     f'{message.guild.id}' in self.__bot.db['underattack']
             ):
                 return
@@ -1375,6 +1414,7 @@ class UnifierBridge:
             if (
                     f'{source_support.get_id(source_support.author(message))}' in self.__bot.db['banned'].keys() or
                     f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['banned'].keys() or
+                    f'{source_support.get_id(source_support.author(message))}' in self.__bot.db['rooms'][room]['meta']['banned'] or
                     f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['underattack']
             ):
                 return
