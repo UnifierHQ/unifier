@@ -204,6 +204,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         query = ''
         msg = None
         interaction = None
+        ignore_mod = True
 
         while True:
             embed = nextcord.Embed(color=self.bot.colors.unifier)
@@ -222,7 +223,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue
-                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author):
+                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author, ignore_mod=ignore_mod):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue
@@ -326,6 +327,17 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         )
                     )
                 )
+
+                if ctx.author.id in self.bot.moderators and private:
+                    components.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                style=nextcord.ButtonStyle.gray,
+                                label='Hide inaccessible rooms' if ignore_mod else 'Show all rooms',
+                                custom_id='viewall'
+                            )
+                        )
+                    )
             elif panel == 1:
                 was_searching = True
                 roomlist = list(self.bot.db['rooms'].keys())
@@ -368,7 +380,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue
-                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author):
+                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author, ignore_mod=ignore_mod):
                             roomlist.pop(x - offset)
                             offset += 1
                             continue
@@ -661,6 +673,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     descmatch = not descmatch
                     if not namematch and not descmatch:
                         descmatch = True
+                elif interaction.data['custom_id'] == 'viewall':
+                    ignore_mod = not ignore_mod
             elif interaction.type == nextcord.InteractionType.modal_submit:
                 panel = 1
                 query = interaction.data['components'][0]['components'][0]['value']
@@ -741,50 +755,56 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         interaction = None
         if ctx.author.id in self.bot.admins or ctx.author.id == self.bot.config['owner']:
-            components = ui.MessageComponents()
-            components.add_rows(
-                ui.ActionRow(
-                    nextcord.ui.StringSelect(
-                        options=[
-                            nextcord.SelectOption(
-                                value='private',
-                                label='Private',
-                                description='Make a room just for me and my buddies.',
-                                emoji='\U0001F512'
-                            ),
-                            nextcord.SelectOption(
-                                value='public',
-                                label='Public',
-                                description='Make a room for everyone to talk in.',
-                                emoji='\U0001F310'
-                            )
-                        ],
-                        custom_id='selection'
-                    )
-                ),
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.gray,
-                        label='Cancel',
-                        custom_id='cancel'
+            if not self.bot.config['enable_private_rooms']:
+                roomtype = 'public'
+            else:
+                components = ui.MessageComponents()
+                components.add_rows(
+                    ui.ActionRow(
+                        nextcord.ui.StringSelect(
+                            options=[
+                                nextcord.SelectOption(
+                                    value='private',
+                                    label='Private',
+                                    description='Make a room just for me and my buddies.',
+                                    emoji='\U0001F512'
+                                ),
+                                nextcord.SelectOption(
+                                    value='public',
+                                    label='Public',
+                                    description='Make a room for everyone to talk in.',
+                                    emoji='\U0001F310'
+                                )
+                            ],
+                            custom_id='selection'
+                        )
+                    ),
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label='Cancel',
+                            custom_id='cancel'
+                        )
                     )
                 )
-            )
-            msg = await ctx.send(f'{self.bot.ui_emojis.warning} Please select the room type.',view=components)
+                msg = await ctx.send(f'{self.bot.ui_emojis.warning} Please select the room type.',view=components)
 
-            def check(interaction):
-                return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+                def check(interaction):
+                    return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
 
-            try:
-                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
-                if interaction.data['custom_id'] == 'cancel':
-                    return await interaction.response.edit_message(
-                        content=f'{self.bot.ui_emojis.error} Aborted.', view=None
-                    )
-                else:
-                    roomtype = interaction.data['values'][0]
-            except:
-                return await msg.edit(content=f'{self.bot.ui_emojis.error} Timed out.', view=None)
+                try:
+                    interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+                    if interaction.data['custom_id'] == 'cancel':
+                        return await interaction.response.edit_message(
+                            content=f'{self.bot.ui_emojis.error} Aborted.', view=None
+                        )
+                    else:
+                        roomtype = interaction.data['values'][0]
+                except:
+                    return await msg.edit(content=f'{self.bot.ui_emojis.error} Timed out.', view=None)
+
+        if not self.bot.config['enable_private_rooms'] and roomtype == 'private':
+            return await ctx.send(f'{self.bot.ui_emojis.error} Private Rooms are disabled.')
 
         if not room or roomtype=='private':
             for _ in range(10):

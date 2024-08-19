@@ -521,11 +521,11 @@ class UnifierBridge:
         else:
             return user.guild_permissions.manage_channels
 
-    def can_access_room(self, room, user) -> bool:
+    def can_access_room(self, room, user, ignore_mod=False) -> bool:
         roominfo = self.get_room(room)
         if roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators and not self.moderator_override:
+                if user.id in self.__bot.moderators and not (self.moderator_override or ignore_mod):
                     return True
             return (
                     user.guild.id == roominfo['meta']['private_meta']['server'] or
@@ -551,6 +551,9 @@ class UnifierBridge:
         room_base['meta'].update({'private': private})
 
         if private:
+            if not self.__bot.config['enable_private_rooms']:
+                raise ValueError('private rooms are disabled')
+
             if not dry_run:
                 if not f'{origin}' in self.__bot.db['rooms_count'].keys():
                     self.__bot.db['rooms_count'].update({f'{origin}': 0})
