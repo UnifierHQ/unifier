@@ -1376,7 +1376,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 title=f'{self.bot.ui_emojis.warning} Enable Under Attack mode?',
                 description=(
                     'Users will not be able to send messages in Unifier rooms. Only enable this mode if your ' +
-                    'server is under attack or is likely to be attacked.\n\n**WARNING**; You will not be able to '+
+                    'server is under attack or is likely to be attacked.\n\n**WARNING**: You will not be able to '+
                     'disable this mode without the Manage Channels permission.'
                 )
             )
@@ -1413,7 +1413,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await interaction.response.edit_message(view=None)
 
         await msg.edit(view=None)
-        await interaction.response.defer(ephemeral=True, with_message=True)
 
         was_attack = f'{ctx.guild.id}' in self.bot.db['underattack']
 
