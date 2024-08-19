@@ -749,6 +749,16 @@ class UnifierBridge:
         elif platform=='guilded':
             guilds = self.bot.db['rooms_guilded'][room]
 
+        # redundant check in case on_message or plugin does not respect ban status, and also
+        # for under attack mode
+        uam_guild = message.guild.id if source == 'discord' else message.server.id
+        if (
+                f'{message.author.id}' in self.bot.db['banned'].keys() or
+                f'{uam_guild}' in self.bot.db['banned'].keys() or
+                f'{uam_guild}' in self.bot.db['underattack']
+        ):
+            return
+
         try:
             is_pr = room == self.bot.config['posts_room'] and (
                 self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
@@ -1789,6 +1799,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         """Ping all moderators to the chat! Use only when necessary, or else."""
         if not self.bot.config['enable_logging']:
             return await ctx.send('Modping is disabled, contact your instance\'s owner.')
+
+        if ctx.guild.id in self.bot.db['underattack']:
+            return await ctx.send('This server is in Under Attack mode. Some functionality is unavailable.')
 
         hooks = await ctx.channel.webhooks()
         found = False

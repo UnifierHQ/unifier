@@ -1106,5 +1106,83 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     traceback.print_exc()
         await ctx.send('Lockdown removed')
 
+    @commands.command(
+        name='under-attack', aliases=['underattack'], hidden=True, description='Toggles Under Attack mode.'
+    )
+    async def under_attack(self, ctx):
+        if f'{ctx.guild.id}' in self.bot.db['underattack']:
+            if not ctx.author.guild_permissions.manage_channels:
+                return await ctx.send('You do not have permissions to run this command.')
+
+            embed = discord.Embed(
+                title=':warning: Disable Under Attack mode?',
+                description=(
+                        'Users will be able to send messages in Unifier rooms again. Only disable this mode if you\'re ' +
+                        'absolutely sure your server is in the clear.'
+                )
+            )
+        else:
+            if not ctx.author.guild_permissions.ban_members and not ctx.author.guild_permissions.manage_channels:
+                return await ctx.send('You do not have permissions to run this command.')
+
+            embed = discord.Embed(
+                title=f'{self.bot.ui_emojis.warning} Enable Under Attack mode?',
+                description=(
+                        'Users will not be able to send messages in Unifier rooms. Only enable this mode if your ' +
+                        'server is under attack or is likely to be attacked.\n\n**WARNING**: You will not be able to ' +
+                        'disable this mode without the Manage Channels permission.'
+                )
+            )
+            embed.set_footer(text='Make sure you\'ve warned this instance\'s moderators if you need their help.')
+        embed.colour = self.bot.colors.warning
+
+        components = discord.ui.MessageComponents(
+            discord.ui.ActionRow(
+                discord.ui.Button(
+                    style=discord.ButtonStyle.red,
+                    label='Deactivate' if f'{ctx.guild.id}' in self.bot.db['underattack'] else 'Activate',
+                    custom_id='accept'
+                ),
+                discord.ui.Button(
+                    style=discord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('component_interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.custom_id == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+
+        was_attack = f'{ctx.guild.id}' in self.bot.db['underattack']
+
+        if was_attack:
+            self.bot.db['underattack'].remove(f'{ctx.guild.id}')
+        else:
+            self.bot.db['underattack'].append(f'{ctx.guild.id}')
+
+        embed.title = ':white_check_mark: ' + (
+            'Under Attack mode disabled' if was_attack else 'Under Attack mode enabled'
+        )
+        embed.description = (
+            'Under Attack mode is now disabled. Your members can now chat in Unifier rooms again.' if was_attack else
+            'Under Attack mode is now enabled. Your members can no longer chat in Unifier rooms.'
+        )
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+
 def setup(bot):
     bot.add_cog(Moderation(bot))
