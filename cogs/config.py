@@ -1307,7 +1307,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 await webhook.delete()
                 break
         data['discord'].pop(f'{ctx.guild.id}')
-        self.bot.db['rooms'][room]['discord'] = data
+        self.bot.bridge.update_room(room, data)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Channel has been unbinded.')
 
