@@ -2849,7 +2849,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             try:
                 interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
             except:
-                await msg.edit(view=None)
+                try:
+                    await msg.edit(view=None)
+                except:
+                    pass
                 break
             if interaction.type == nextcord.InteractionType.component:
                 if interaction.data['custom_id'] == 'selection':
