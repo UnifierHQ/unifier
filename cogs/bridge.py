@@ -1405,7 +1405,7 @@ class UnifierBridge:
 
         # redundant check in case on_message or plugin does not respect ban status, and also
         # for under attack mode
-        if platform == 'discord':
+        if source == 'discord':
             if (
                     f'{message.author.id}' in self.__bot.db['banned'].keys() or
                     f'{message.guild.id}' in self.__bot.db['banned'].keys() or
