@@ -3678,6 +3678,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
         )
 
+        emojified = False
+        should_resend = False
+
         skip = []
 
         if '[emoji' in message.content:
