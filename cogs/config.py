@@ -832,7 +832,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if interaction:
                 return await interaction.response.edit_message(
                     content=f'{self.bot.ui_emojis.error} You cannot create any more Private Rooms. The limit is '+
-                            f'{self.bot.config["private_rooms_limit"]}.'
+                            f'{self.bot.config["private_rooms_limit"]}.',
+                    view=None
                 )
             return await ctx.send(
                 f'{self.bot.ui_emojis.error} You cannot create any more Private Rooms. The limit is '+
