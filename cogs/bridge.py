@@ -142,7 +142,7 @@ class UnifierAlert:
                 'How to address **real advisory alerts**:',
                 '- If you see an **advisory**, a threat is possible, but not imminent.',
                 '- Countermeasures against the risk are not recommended at this stage.',
-                '- Take actions as described to prepare for a possible risk elevation (to caution or warning).'
+                '- Take actions as described to prepare for a possible risk elevation (to warning or emergency).'
             ],
             'clear': [
                 'How to address **real all clear alerts**:',
