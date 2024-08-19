@@ -4037,6 +4037,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
         )
 
+        emojified = False
+        should_resend = False
+
         skip = []
 
         if '[emoji' in message.content:
@@ -4077,7 +4080,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             # Multisend
             # Sends Discord message along with other platforms to minimize
             # latency on external platforms.
-            self.bot.bridge.bridged.append(UnifierBridge.UnifierMessage(
+            self.bot.bridge.bridged.append(
+                UnifierBridge.UnifierMessage(
                     author_id=message.author.id if not extbridge else hook.user.id,
                     guild_id=message.guild.id,
                     channel_id=message.channel.id,
