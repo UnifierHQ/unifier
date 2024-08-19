@@ -1857,9 +1857,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 except:
                     continue
                 if len(text) == 0:
-                    text = f'- {name} (`{guild_id}`)'
+                    text = f'- {name} (`{guild_id}`, {platform})'
                 else:
-                    text = f'{text}\n- {name} (`{guild_id}`)'
+                    text = f'{text}\n- {name} (`{guild_id}`, {platform})'
         embed = nextcord.Embed(
             title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`', description=text,
             color=self.bot.colors.unifier
