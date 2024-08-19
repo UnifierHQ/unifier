@@ -47,8 +47,10 @@ config_file = 'config.toml'
 if 'devmode' in sys.argv:
     config_file = 'devconfig.toml'
 
+valid_toml = False
 try:
     data = toml.load(config_file)
+    valid_toml = True
 except:
     try:
         with open('config.json') as file:
@@ -95,6 +97,10 @@ try:
         raise Exception()
 except:
     owner_valid = False
+
+if not valid_toml:
+    logger.warning('From v3.0.0, Unifier will use config.toml rather than config.json.')
+    logger.warning('To change your Unifier configuration, please use the new file.')
 
 if not env_loaded or not os.path.isfile('.env'):
     logger.critical(
@@ -292,9 +298,6 @@ class DiscordBot(commands.Bot):
 
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
-if data['enable_squads']:
-    logger.warning('Squads have been disabled as they are still incomplete.')
-    data['enable_squads'] = False
 bot.config = data
 bot.coreboot = 'core' in sys.argv
 bot.safemode = 'safemode' in sys.argv and not bot.coreboot

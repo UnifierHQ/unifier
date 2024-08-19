@@ -8,8 +8,12 @@ skip_status_check = false
 
 [roles]
 owner = -1
-owner_external = {}
 admin_ids = []
+
+[roles.owner_external]
+# For each platform, you can add your account's ID here.
+revolt = ""
+guilded = ""
 
 [bot]
 prefix = "u!"
