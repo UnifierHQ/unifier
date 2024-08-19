@@ -47,7 +47,7 @@ import asyncio
 import discord_emoji
 import hashlib
 import orjson
-import toml
+import tomli, tomli_w
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
 from Crypto import Random as CryptoRandom
@@ -1761,8 +1761,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
                     await self.copy('update/utils/' + file, 'utils/' + file)
                 self.logger.debug('Updating config.toml')
-                oldcfg = toml.load('config.toml')
-                newcfg = toml.load('update/config.toml')
+                with open('config.toml','rb') as file:
+                    oldcfg = tomli.load(file)
+                with open('update/config.toml', 'rb') as file:
+                    newcfg = tomli.load(file)
 
                 newdata = {}
 
@@ -1784,8 +1786,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 oldcfg = update_toml(oldcfg, newcfg)
 
-                with open('config.toml', 'w') as file:
-                    json.dump(oldcfg, file, indent=4)
+                with open('config.toml', 'wb+') as file:
+                    tomli_w.dump(oldcfg, file)
                 if should_reboot:
                     self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')

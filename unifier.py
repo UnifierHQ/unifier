@@ -21,7 +21,8 @@ from nextcord.ext import commands
 import aiohttp
 import asyncio
 import ujson as json
-import toml
+import tomli
+import tomli_w
 import os
 import sys
 import logging
@@ -49,7 +50,8 @@ if 'devmode' in sys.argv:
 
 valid_toml = False
 try:
-    data = toml.load(config_file)
+    with open(config_file, 'rb') as file:
+        data = tomli.load(file)
     valid_toml = True
 except:
     try:
@@ -61,7 +63,8 @@ except:
         sys.exit(1)
 
     # toml is likely in update files, pull from there
-    newdata = toml.load('update/config.toml')
+    with open('update/config.toml', 'rb') as file:
+        newdata = tomli.load(file)
 
     def update_toml(old, new):
         for key in new:
@@ -72,8 +75,8 @@ except:
 
     data = update_toml(data, newdata)
 
-    with open(config_file, 'w+') as file:
-        toml.dump(data, file)
+    with open(config_file, 'wb+') as file:
+        tomli_w.dump(data, file)
 
 newdata = {}
 

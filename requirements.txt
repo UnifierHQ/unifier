@@ -13,4 +13,5 @@ emoji
 discord-emoji
 pycryptodome
 orjson
-toml
+tomli
+tomli-w

@@ -265,7 +265,7 @@ class UnifierBridge:
                 'invites': [],
                 'platform': 'discord'
             },
-            'emoji': None, 'description': None, 'display_name': None
+            'emoji': None, 'description': None, 'display_name': None, 'banned': []
         }
         self.alert = UnifierAlert
 
