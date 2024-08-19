@@ -2590,7 +2590,27 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         should_resend = False
         emojified = False
 
-        if '[emoji:' in message.content or is_pr or is_pr_ref:
+        skip = []
+
+        if '[emoji' in message.content:
+            content_split = message.content.split('[emoji')
+
+            for i in range(1,len(content_split)):
+                if not ']' in content_split[i]:
+                    continue
+
+                emojiname = content_split[i].replace(': ',':',1).split(':')[1]
+                emoji = discord.utils.find(
+                    lambda e: e.name == emojiname and not e.id in skip and e.guild_id in self.bot.db['emojis'],
+                    self.bot.emojis
+                )
+
+                if not emoji:
+                    continue
+
+                skip.append(emoji.id)
+
+        if is_pr or is_pr_ref or len(skip) > 1:
             multisend = False
             should_resend = True
             emojified = True
