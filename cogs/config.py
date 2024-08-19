@@ -333,7 +333,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         ui.ActionRow(
                             nextcord.ui.Button(
                                 style=nextcord.ButtonStyle.gray,
-                                label='Hide inaccessible rooms' if ignore_mod else 'Show all rooms',
+                                label='Show all rooms' if ignore_mod else 'Hide inaccessible rooms',
                                 custom_id='viewall'
                             )
                         )
