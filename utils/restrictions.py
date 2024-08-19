@@ -33,6 +33,15 @@ class Restrictions:
 
         return commands.check(predicate)
 
+    def under_attack(self):
+        async def predicate(ctx: commands.Context):
+            if f'{ctx.guild.id}' in self.__bot.db['underattack']:
+                return ctx.author.guild_permissions.manage_channels
+            else:
+                return ctx.author.guild_permissions.ban_members or ctx.author.guild_permissions.manage_channels
+
+        return commands.check(predicate)
+
     def demo_error(self):
         """A demo check which will always fail, intended for development use only."""
 

@@ -239,7 +239,8 @@ class AutoSaveDict(dict):
                      'descriptions': {}, 'restricted': [], 'locked': [], 'blocked': {}, 'banned': {}, 'moderators': [],
                      'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {}, 'external_bridge': [],
                      'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {}, 'fullbanned': [], 'exp': {},
-                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {}})
+                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {},
+                     'underattack': []})
         self.threads = []
 
         # Load data
