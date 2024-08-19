@@ -1844,15 +1844,22 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(
                 f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
         text = ''
-        for guild_id in data:
-            try:
-                name = self.bot.get_guild(int(guild_id)).name
-            except:
+        for platform in data.keys():
+            if platform == 'meta':
                 continue
-            if len(text) == 0:
-                text = f'- {name} (`{guild_id}`)'
-            else:
-                text = f'{text}\n- {name} (`{guild_id}`)'
+            for guild_id in data[platform]:
+                try:
+                    if platform == 'discord':
+                        name = self.bot.get_guild(int(guild_id)).name
+                    else:
+                        support = self.bot.platforms[platform]
+                        name = support.name(support.server(guild_id))
+                except:
+                    continue
+                if len(text) == 0:
+                    text = f'- {name} (`{guild_id}`)'
+                else:
+                    text = f'{text}\n- {name} (`{guild_id}`)'
         embed = nextcord.Embed(
             title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`', description=text,
             color=self.bot.colors.unifier
