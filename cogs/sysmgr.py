@@ -676,6 +676,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ["playing","with ItsAsheer"],
             ["watching","webhooks"],
             ["custom","Unifying servers like they're nothing"],
+            ["custom","Communities, connected."],
             ["custom","Made for communities, by communities"],
             ["custom","bro nevira stop stealing my code"]
         ]
