@@ -187,6 +187,20 @@ attribution = {
         'repo': 'https://github.com/ijl/orjson',
         'license': 'MIT',
         'license_url': 'https://github.com/ijl/orjson/blob/master/LICENSE-MIT'
+    },
+    'tomli': {
+        'author': 'Taneli Hukkinen',
+        'description': 'A lil\' TOML parser',
+        'repo': 'https://github.com/hukkin/tomli',
+        'license': 'MIT',
+        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+    },
+    'tomli-w': {
+        'author': 'Taneli Hukkinen',
+        'description': 'A lil\' TOML writer (counterpart to https://github.com/hukkin/tomli)',
+        'repo': 'https://github.com/hukkin/tomli-w',
+        'license': 'MIT',
+        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
     }
 }
 
