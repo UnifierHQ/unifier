@@ -2128,10 +2128,14 @@ class UnifierBridge:
                     continue
 
                 touse_mentions = mentions
+                alert_pings = ''
                 if alert:
                     embeds = [alert_embed]
                     friendly_content = msg_content = ''
                     if not alert['severity'] == 'advisory' and room == self.__bot.config['alerts_room']:
+                        for role in destguild.roles:
+                            if role.permissions.ban_members:
+                                print(role.name,role.permissions.ban_members or role.permissions.manage_channels or role.permissions.administrator)
                         toping = [
                             f'<@&{role.id}>' for role in destguild.roles
                             if role.permissions.ban_members and not role.managed
@@ -2139,8 +2143,16 @@ class UnifierBridge:
                         if destguild.id == self.__bot.config['home_guild']:
                             toping.append(f'<@&{self.__bot.config["moderator_role"]}>')
                         toping.append(f'<@{destguild.owner_id}>')
-                        friendly_content = msg_content = ' '.join(toping)
-                        touse_mentions = emergency_mentions
+                        alert_pings = ' '.join(toping)
+                        # touse_mentions = emergency_mentions
+
+                try:
+                    v2_layout = self.__bot.db['settings'][f'{destguild.id}']['reply_layout']
+                except:
+                    v2_layout = 0
+
+                if v2_layout == 0:
+                    replytext = ''
 
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
@@ -2148,7 +2160,7 @@ class UnifierBridge:
                 async def tbsend(webhook,url,msg_author_dc,embeds,message,mentions,components,sameguild,
                                  destguild):
                     try:
-                        tosend_content = replytext+(friendly_content if friendlified else msg_content)
+                        tosend_content = replytext+alert_pings+(friendly_content if friendlified else msg_content)
                         if len(tosend_content) > 2000:
                             tosend_content = tosend_content[:-(len(tosend_content)-2000)]
                             if not components:
@@ -2181,7 +2193,7 @@ class UnifierBridge:
                                                               destguild)))
                 else:
                     try:
-                        tosend_content = replytext + (friendly_content if friendlified else msg_content)
+                        tosend_content = replytext + alert_pings + (friendly_content if friendlified else msg_content)
                         if len(tosend_content) > 2000:
                             tosend_content = tosend_content[:-(len(tosend_content) - 2000)]
                             if not components:
