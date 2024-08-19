@@ -1982,7 +1982,10 @@ class UnifierBridge:
                             authid = source_support.get_id(source_support.author(authmsg))
                     except:
                         authid = None
-                    botext = authid == source_support.bot_id()
+                    if platform == 'discord':
+                        botext = False
+                    else:
+                        botext = authid == source_support.bot_id()
 
                     if authid==self.__bot.user.id or botext:
                         reply_row = ui.ActionRow(
