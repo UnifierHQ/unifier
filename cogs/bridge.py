@@ -2902,6 +2902,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not self.bot.config['enable_logging']:
             return await ctx.send(selector.get('disabled'))
 
+        if ctx.guild.id in self.bot.db['underattack']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} This server is in Under Attack mode. Some functionality is unavailable.')
+
         found = False
         room = None
 
@@ -4033,9 +4036,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.config['allow_prs'] if 'allow_prs' in list(self.bot.config.keys()) else False or
             self.bot.config['allow_posts'] if 'allow_posts' in list(self.bot.config.keys()) else False
         )
-
-        should_resend = False
-        emojified = False
 
         skip = []
 
