@@ -1281,10 +1281,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.colour = self.bot.colors.error
                     return await msg.edit(embed=embed)
             else:
-                text = (
-                    f':grey_question: `{service}`\n',
-                    'This is an unknown service.'
-                )
+                text = f':grey_question: `{service}`\n This is an unknown service.'
             if len(services_text)==0:
                 services_text = text
             else:
@@ -1370,7 +1367,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for module in modules:
                 modname = 'cogs.' + module[:-3]
                 self.logger.debug('Activating extension: '+modname)
-                self.bot.load_extension(modname)
+                try:
+                    self.bot.load_extension(modname)
+                except:
+                    self.logger.warning(modname + ' could not be activated.')
+                    embed.set_footer(text=':warning: Some extensions could not be activated.')
             self.logger.debug('Installation complete')
             embed.title = f'{self.bot.ui_emojis.success} Installation successful'
             embed.description = 'The installation was successful! :partying_face:'
@@ -1762,10 +1763,27 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Updating config.toml')
                 oldcfg = toml.load('config.toml')
                 newcfg = toml.load('update/config.toml')
-                # TODO: toml updater
-                for key in newcfg:
-                    if not key in list(oldcfg.keys()):
-                        oldcfg.update({key: newcfg[key]})
+
+                newdata = {}
+
+                for key in oldcfg:
+                    if type(oldcfg[key]) is dict:
+                        for newkey in oldcfg[key]:
+                            newdata.update({newkey: oldcfg[key][newkey]})
+                    else:
+                        newdata.update({key: oldcfg[key]})
+
+                oldcfg = newdata
+
+                def update_toml(old, new):
+                    for key in new:
+                        for newkey in new[key]:
+                            if newkey in old.keys():
+                                new[key].update({newkey: old[newkey]})
+                    return new
+
+                oldcfg = update_toml(oldcfg, newcfg)
+
                 with open('config.toml', 'w') as file:
                     json.dump(oldcfg, file, indent=4)
                 if should_reboot:

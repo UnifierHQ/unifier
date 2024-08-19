@@ -57,8 +57,29 @@ except:
         traceback.print_exc()
         print('\nFailed to load config.toml file.\nIf the error is a JSONDecodeError, it\'s most likely a syntax error.')
         sys.exit(1)
+
+    # toml is likely in update files, pull from there
+    newdata = toml.load('update/config.toml')
+
+    def update_toml(old, new):
+        for key in new:
+            for newkey in new[key]:
+                if newkey in old.keys():
+                    new[key].update({newkey: old[newkey]})
+        return new
+
+    data = update_toml(data, newdata)
+
     with open(config_file, 'w+') as file:
         toml.dump(data, file)
+
+newdata = {}
+
+for key in data:
+    for newkey in data[key]:
+        newdata.update({newkey: data[key][newkey]})
+
+data = newdata
 
 env_loaded = load_dotenv()
 
@@ -132,6 +153,7 @@ if not data['skip_status_check']:
             logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
     except:
         logger.debug('Failed to get Discord status')
+
 
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):

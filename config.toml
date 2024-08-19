@@ -1,47 +1,56 @@
-# Unifier config TOML v1
-# Right now this is in no way sorted, and it's still very messy.
-# We'll sort them for Unifier 3.1.0 or something.
+# Unifier config TOML
 
+[system]
 debug = false
 package = "unifier"
+language = "english"
+skip_status_check = false
+
+[roles]
 owner = -1
 owner_external = {}
-language = "english"
+admin_ids = []
+
+[bot]
 prefix = "u!"
-skip_status_check = false
 ping = 0
+main_color = "ed4545"
+
+[backups]
+compress_cache = true
 periodic_backup = 0
 periodic_backup_cloud = 0
 cloud_backup_endpoint = ""
 cloud_backup_salt = 12
-safe_filetypes = true
-main_color = "ed4545"
+
+[plugin]
 branch = "main"
 repo = "https://github.com/UnifierHQ/unifier"
 check_endpoint = "https://github.com/UnifierHQ/unifier-version.git"
 files_endpoint = "https://github.com/UnifierHQ"
-admin_ids = []
+
+[moderation]
 enable_logging = false
 enable_rtt = true
 home_guild = -1
 logs_channel = -1
 reports_channel = -1
 moderator_role = -1
+
+[bridge]
+external = ["revolt", "guilded"]
 allow_posts = true
 enable_exp = true
 exp_cooldown = 30
 enable_emoji_tags = true
-enable_threads = false
 enable_ctx_commands = true
 enable_rotating_status = true
-enable_squads = false
+safe_filetypes = true
 suppress_filesize_warning = false
+permanent_invites = false
+enable_private_rooms = true
+private_rooms_limit = 0
 main_room = "main"
 alerts_room = "alerts"
 posts_room = "posts"
 posts_ref_room = "post-comments"
-compress_cache = true
-external = ["revolt", "guilded"]
-permanent_invites = false
-enable_private_rooms = true
-private_rooms_limit = 0
