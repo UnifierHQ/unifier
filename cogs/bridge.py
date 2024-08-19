@@ -2312,6 +2312,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not self.bot.config['enable_logging']:
             return await ctx.send('Modping is disabled, contact your instance\'s owner.')
 
+        if ctx.guild.id in self.bot.db['underattack']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} This server is in Under Attack mode. Some functionality is unavailable.')
+
         found = False
         room = None
 
