@@ -1430,17 +1430,17 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed = nextcord.Embed(
                 title=f'{self.bot.ui_emojis.warning} Disable Under Attack mode?',
                 description=(
-                        'Users will be able to send messages in Unifier rooms again. Only disable this mode if you\'re ' +
-                        'absolutely sure your server is in the clear.'
+                    'Users will be able to send messages in Unifier rooms again. Only disable this mode if you\'re ' +
+                    'absolutely sure your server is in the clear.'
                 )
             )
         else:
             embed = nextcord.Embed(
                 title=f'{self.bot.ui_emojis.warning} Enable Under Attack mode?',
                 description=(
-                        'Users will not be able to send messages in Unifier rooms. Only enable this mode if your ' +
-                        'server is under attack or is likely to be attacked.\n\n**WARNING**: You will not be able to ' +
-                        'disable this mode without the Manage Channels permission.'
+                    'Users will not be able to send messages in Unifier rooms. Only enable this mode if your ' +
+                    'server is under attack or is likely to be attacked.\n\n**WARNING**: You will not be able to ' +
+                    'disable this mode without the Manage Channels permission.'
                 )
             )
             embed.set_footer(text='Make sure you\'ve warned this instance\'s moderators if you need their help.')
