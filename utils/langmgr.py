@@ -33,8 +33,20 @@ class LanguageManager:
         self.__loaded = True
 
     def load(self):
-        with open('languages/english.json', 'r') as file:
-            self.language_base = json.load(file)
+        try:
+            with open('languages/english.json', 'r') as file:
+                self.language_base = json.load(file)
+        except:
+            # probably didn't carry over from v2 => v3 upgrade
+            with open('update/languages/english.json', 'r') as file:
+                self.language_base = json.load(file)
+
+            if not os.path.isdir('languages'):
+                # create languages folder
+                os.mkdir('languages')
+
+            with open('languages/english.json', 'w+') as file:
+                json.dump(self.language_base, file, indent=4)
         if self.bot:
             for language in os.listdir('languages'):
                 if language=='english.json':
