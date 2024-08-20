@@ -1676,7 +1676,7 @@ class UnifierBridge:
 
         # Broadcast message
         for guild in list(guilds.keys()):
-            if source=='discord':
+            if platform=='discord':
                 reply_v2 = self.get_reply_style(int(guild)) == 1
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
             else:
