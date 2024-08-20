@@ -498,18 +498,32 @@ class UnifierBridge:
         except:
             return None
 
-    def can_manage_room(self, room, user) -> bool:
+    def can_manage_room(self, room, user, platform='discord') -> bool:
         roominfo = self.get_room(room)
+
+        if platform == 'discord':
+            manage_guild = user.guild_permissions.manage_guild
+        else:
+            support = self.__bot.platforms[platform]
+            manage_guild = support.permissions(user).manage_server
+
         if roominfo['meta']['private']:
             if user:
                 if user.id in self.__bot.moderators and not self.moderator_override:
                     return True
-            return user.guild.id == roominfo['meta']['private_meta']['server'] and user.guild_permissions.manage_guild
+            return user.guild.id == roominfo['meta']['private_meta']['server'] and manage_guild
         else:
             return user.id in self.__bot.admins
 
-    def can_join_room(self, room, user) -> bool:
+    def can_join_room(self, room, user, platform='discord') -> bool:
         roominfo = self.get_room(room)
+
+        if platform == 'discord':
+            manage_channels = user.guild_permissions.manage_channels
+        else:
+            support = self.__bot.platforms[platform]
+            manage_channels = support.permissions(user).manage_channels
+
         if roominfo['meta']['private']:
             if user:
                 if user.id in self.__bot.moderators and not self.moderator_override:
@@ -517,9 +531,9 @@ class UnifierBridge:
             return (
                     user.guild.id == roominfo['meta']['private_meta']['server'] or
                     user.guild.id in roominfo['meta']['private_meta']['allowed']
-            ) and user.guild_permissions.manage_channels
+            ) and manage_channels
         else:
-            return user.guild_permissions.manage_channels
+            return manage_channels
 
     def can_access_room(self, room, user, ignore_mod=False) -> bool:
         roominfo = self.get_room(room)
@@ -2967,7 +2981,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     role = self.bot.config["moderator_role"]
                 except:
                     return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_moderator")}')
-                await ch.send(f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.author.id})}',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
+                await ch.send(f'<@&{role}> {selector.fget("needhelp",values={
+                    "username":author,"userid":ctx.author.id,"guildname":ctx.guild.name,"guildid":ctx.guild.id
+                })}',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
                 return await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
         await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("bad_config")}')

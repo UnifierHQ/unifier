@@ -27,6 +27,12 @@ class MissingImplementation(Exception):
     The bot will gracefully handle this exception"""
     pass
 
+class Permissions:
+    """NUPS Permissions class."""
+    def __init__(self):
+        self.ban_members = False
+        self.manage_channels = False
+
 class PlatformBase:
     def __init__(self, bot, parent):
         self.bot = bot
@@ -100,6 +106,11 @@ class PlatformBase:
 
     def avatar(self, user):
         """Returns the avatar URL of a user object."""
+        raise MissingImplementation()
+
+    def permissions(self, user, channel=False):
+        """Returns the permissions of a user object.
+        If channel is True, return channel permissions rather than server permissions."""
         raise MissingImplementation()
 
     def is_bot(self, user):
