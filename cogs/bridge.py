@@ -1676,15 +1676,18 @@ class UnifierBridge:
 
         # Broadcast message
         for guild in list(guilds.keys()):
+            if source == 'discord':
+                compare_guild = message.guild
+            else:
+                compare_guild = source_support.server(message)
             if platform=='discord':
                 reply_v2 = self.get_reply_style(int(guild)) == 1
-                sameguild = (guild == str(message.guild.id)) if message.guild else False
+                if source == 'discord':
+                    sameguild = (guild == str(message.guild.id)) if message.guild else False
+                else:
+                    sameguild = (guild == source_support.get_id(compare_guild)) if compare_guild else False
             else:
                 reply_v2 = False
-                if source == 'discord':
-                    compare_guild = message.guild
-                else:
-                    compare_guild = source_support.server(message)
                 if not compare_guild:
                     sameguild = False
                 else:
