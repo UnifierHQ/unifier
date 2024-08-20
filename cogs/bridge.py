@@ -2990,9 +2990,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     role = self.bot.config["moderator_role"]
                 except:
                     return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_moderator")}')
-                await ch.send(f'<@&{role}> {selector.fget("needhelp",values={
-                    "username":author,"userid":ctx.author.id,"guildname":ctx.guild.name,"guildid":ctx.guild.id
-                })}',allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False))
+                await ch.send(
+                    f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.author.id,"guildname":ctx.guild.name,"guildid":ctx.guild.id})}',
+                    allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False)
+                )
                 return await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
         await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("bad_config")}')
