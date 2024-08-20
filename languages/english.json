@@ -481,13 +481,13 @@
     },
     "bridge": {
       "color": {
-        "description": "Sets Revolt color.",
-        "title": "Your Revolt color",
+        "description": "Sets user color.",
+        "title": "Your user color",
         "default": "Default",
         "inherit": "Inherit from role",
         "invalid": "Invalid hex code!",
-        "success_inherit": "Your Revolt messages will now inherit your Discord role color.",
-        "success_custom": "Your Revolt messages will now inherit the custom color."
+        "success_inherit": "Messages on supported platforms will now inherit your Discord role color.",
+        "success_custom": "Messages on supported platforms will now inherit the custom color."
       },
       "nickname": {
         "description": "Sets a nickname. An empty provided nickname will reset it.",
