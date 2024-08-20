@@ -683,7 +683,7 @@ class UnifierBridge:
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
 
-        if not self.can_join_room(room, user):
+        if not self.can_join_room(room, user, platform=platform):
             raise self.RoomNotFoundError('cannot join room')
 
         if self.check_duplicate(channel):
