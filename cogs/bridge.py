@@ -1681,11 +1681,17 @@ class UnifierBridge:
                 sameguild = (guild == str(message.guild.id)) if message.guild else False
             else:
                 reply_v2 = False
-                compare_guild = source_support.server(message)
+                if source == 'discord':
+                    compare_guild = message.guild
+                else:
+                    compare_guild = source_support.server(message)
                 if not compare_guild:
                     sameguild = False
                 else:
-                    guild_id = source_support.get_id(compare_guild)
+                    if source == 'discord':
+                        guild_id = compare_guild.id
+                    else:
+                        guild_id = source_support.get_id(compare_guild)
                     sameguild = (guild == str(guild_id))
 
             try:
