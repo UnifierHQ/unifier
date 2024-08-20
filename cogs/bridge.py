@@ -686,7 +686,7 @@ class UnifierBridge:
         if not self.can_join_room(room, user, platform=platform):
             raise self.RoomNotFoundError('cannot join room')
 
-        if self.check_duplicate(channel):
+        if self.check_duplicate(channel, platform=platform):
             raise restrictions.AlreadyConnected()
 
         if not platform=='discord':
