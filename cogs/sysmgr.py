@@ -1971,7 +1971,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await self.copy('plugin_install/' + module, 'cogs/' + module)
                 for util in utilities:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + util)
-                    await self.copy('plugin_install/' + util, '/utils/' + util)
+                    await self.copy('plugin_install/' + util, 'utils/' + util)
                 if 'emojis' in services:
                     self.logger.info('Uninstalling previous Emoji Pack')
                     home_guild = self.bot.get_guild(self.bot.config['home_guild'])
