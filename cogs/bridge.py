@@ -1643,7 +1643,7 @@ class UnifierBridge:
 
         message_ids = {}
         urls = {}
-        trimmed = ''
+        trimmed = None
         replying = False
         global_reply_v2 = False
 
