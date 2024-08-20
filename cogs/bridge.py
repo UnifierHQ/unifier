@@ -2244,13 +2244,13 @@ class UnifierBridge:
                     if reply_msg:
                         if reply_msg.source==platform:
                             try:
-                                msg = await dest_support.fetch_message(ch, await reply_msg.fetch_id(destguild.id))
+                                msg = await source_support.fetch_message(ch, await reply_msg.fetch_id(destguild.id))
                                 reply = msg
                             except:
                                 reply = None
                         else:
                             msg_ref = await reply_msg.fetch_external(platform, destguild.id)
-                            msg = source_support.fetch_message(ch, msg_ref.id)
+                            msg = await dest_support.fetch_message(ch, msg_ref.id)
                             reply = msg
                     else:
                         reply = None
