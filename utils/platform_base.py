@@ -61,6 +61,14 @@ class PlatformBase:
         """Gets a channel from cache."""
         raise MissingImplementation()
 
+    def get_user(self, user_id):
+        """Gets a user from cache."""
+        raise MissingImplementation()
+
+    def get_member(self, server, user_id):
+        """Gets a server member from cache."""
+        raise MissingImplementation()
+
     def channel(self, message):
         """Returns the channel object from a message."""
         raise MissingImplementation()
