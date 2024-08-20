@@ -953,6 +953,9 @@ class UnifierBridge:
                     return message
         raise ValueError("No message found")
 
+    async def delete_message(self,message):
+        self.bridged.remove(message)
+
     async def indexof(self,message_id,prehook=False,not_prehook=False):
         if prehook and not_prehook:
             raise ValueError('Conflicting arguments')
@@ -4488,6 +4491,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await ch.send(embed=embed)
         except:
             pass
+
+        await self.bot.bridge.delete_message(msg)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, event):

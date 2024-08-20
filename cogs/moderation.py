@@ -929,6 +929,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
+                await self.bot.bridge.delete_message(msg)
                 return await ctx.send(f'Deleted message ({deleted} copies deleted)')
             except:
                 traceback.print_exc()
@@ -979,6 +980,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
+                await self.bot.bridge.delete_message(msg)
                 return await interaction.edit_original_message(
                     content=f'Deleted message ({deleted} copies deleted)'
                 )
