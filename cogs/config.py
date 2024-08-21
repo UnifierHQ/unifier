@@ -213,33 +213,24 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
             if panel == 0:
                 was_searching = False
-                roomlist = list(self.bot.db['rooms'].keys())
-                offset = 0
-                for x in range(len(roomlist)):
+                search_roomlist = self.bot.bridge.rooms
+                roomlist = []
+                for search_room in search_roomlist:
                     # yes, this logic is messy.
                     # but it doesn't overwrite the origin server thing so i'm keeping it for now
                     if private:
-                        if not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        if not self.bot.db['rooms'][search_room]['meta']['private']:
                             continue
-                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author, ignore_mod=ignore_mod):
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        elif not self.bot.bridge.can_access_room(search_room, ctx.author, ignore_mod=ignore_mod):
                             continue
                     else:
-                        if self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        if self.bot.db['rooms'][search_room]['meta']['private']:
                             continue
-                        elif not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db):
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        elif not show_restricted and self.is_room_restricted(search_room, self.bot.db):
                             continue
-                        elif not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db):
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        elif not show_locked and self.is_room_locked(search_room, self.bot.db):
                             continue
+                    roomlist.append(search_room)
 
                 maxpage = math.ceil(len(roomlist) / limit) - 1
                 if interaction:
@@ -340,7 +331,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     )
             elif panel == 1:
                 was_searching = True
-                roomlist = list(self.bot.db['rooms'].keys())
+                search_roomlist = list(self.bot.db['rooms'].keys())
 
                 def search_filter(query, query_cmd):
                     if match == 0:
@@ -368,35 +359,23 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                                  ) and descmatch or not descmatch)
                         )
 
-                offset = 0
-                for x in range(len(roomlist)):
-                    room = roomlist[x - offset]
-                    if not search_filter(query, room):
-                        roomlist.pop(x - offset)
-                        offset += 1
-                        continue
-                    elif private:
-                        if not self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
-                            roomlist.pop(x - offset)
-                            offset += 1
+                roomlist = []
+                for search_room in search_roomlist:
+                    # yes, this logic is messy.
+                    # but it doesn't overwrite the origin server thing so i'm keeping it for now
+                    if private:
+                        if not self.bot.db['rooms'][search_room]['meta']['private']:
                             continue
-                        elif not self.bot.bridge.can_access_room(roomlist[x - offset], ctx.author, ignore_mod=ignore_mod):
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        elif not self.bot.bridge.can_access_room(search_room, ctx.author, ignore_mod=ignore_mod):
                             continue
                     else:
-                        if self.bot.db['rooms'][roomlist[x - offset]]['meta']['private']:
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        if self.bot.db['rooms'][search_room]['meta']['private']:
                             continue
-                        elif not show_restricted and self.is_room_restricted(roomlist[x - offset], self.bot.db):
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        elif not show_restricted and self.is_room_restricted(search_room, self.bot.db):
                             continue
-                        elif not show_locked and self.is_room_locked(roomlist[x - offset], self.bot.db):
-                            roomlist.pop(x - offset)
-                            offset += 1
+                        elif not show_locked and self.is_room_locked(search_room, self.bot.db):
                             continue
+                    roomlist.append(search_room)
 
                 embed.title = f'{self.bot.ui_emojis.rooms} {self.bot.user.global_name or self.bot.user.name} rooms / search'
                 embed.description = 'Choose a room to view its info!'
