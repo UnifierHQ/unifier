@@ -81,6 +81,18 @@ class PlatformBase:
         """Returns the content from a message."""
         raise MissingImplementation()
 
+    def reply(self, message):
+        """Returns the reply from a message."""
+        raise MissingImplementation()
+
+    def roles(self, member):
+        """Returns the roles of a member."""
+        raise MissingImplementation()
+
+    def get_hex(self, role):
+        """Returns the hex value of a role's color."""
+        raise MissingImplementation()
+
     def author(self, message):
         """Returns the author object from a message."""
         raise MissingImplementation()

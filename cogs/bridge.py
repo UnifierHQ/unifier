@@ -2261,8 +2261,14 @@ class UnifierBridge:
                 if str(author_id) in list(self.__bot.db['colors'].keys()):
                     color = self.__bot.db['colors'][str(author_id)]
                     if color == 'inherit':
-                        roles = source_support.roles(source_support.author(message))
-                        color = source_support.get_hex(roles[len(roles)-1])
+                        try:
+                            if source == 'discord':
+                                color = message.author.roles[len(message.author.roles) - 1].colour.replace('#', '')
+                            else:
+                                roles = source_support.roles(source_support.author(message))
+                                color = source_support.get_hex(roles[len(roles)-1])
+                        except:
+                            pass
 
                 if alert:
                     friendly_content = msg_content = alert_text
