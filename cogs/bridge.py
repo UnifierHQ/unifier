@@ -2263,7 +2263,8 @@ class UnifierBridge:
                     if color == 'inherit':
                         try:
                             if source == 'discord':
-                                color = message.author.roles[len(message.author.roles) - 1].colour.replace('#', '')
+                                color_obj = message.author.roles[len(message.author.roles) - 1].colour
+                                color = f'{color_obj.r:02x}{color_obj.g:02x}{color_obj.b:02x}'
                             else:
                                 roles = source_support.roles(source_support.author(message))
                                 color = source_support.get_hex(roles[len(roles)-1])
