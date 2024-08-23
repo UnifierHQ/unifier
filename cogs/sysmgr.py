@@ -1165,15 +1165,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
 
-        if os.name == "nt":
-            embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.error} Can\'t install Plugins',
-                description=('Unifier cannot install Plugins on Windows. Please use an OS with the bash console (Linux'+
-                             '/macOS/etc).'),
-                color=self.bot.colors.error
-            )
-            return await ctx.send(embed=embed)
-
         if url.endswith('/'):
             url = url[:-1]
         if not url.endswith('.git'):
@@ -1503,14 +1494,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if self.bot.update:
             return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
-
-        if os.name == "nt":
-            embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.error} {selector.get("windows_title")}',
-                description=selector.get('windows_body'),
-                color=self.bot.colors.error
-            )
-            return await ctx.send(embed=embed)
 
         args = args.split(' ')
         force = False

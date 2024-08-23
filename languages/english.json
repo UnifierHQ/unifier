@@ -129,8 +129,6 @@
       },
       "install": {
         "description": "Installs a plugin.",
-        "windows_title": "Can't install Plugins",
-        "windows_body": "Unifier cannot install Plugins on Windows. Please use an OS with the bash console (Linux/macOS/etc).",
         "downloading_title": "Downloading extension...",
         "downloading_body": "Getting extension files from remote",
         "trust": "Only install plugins from trusted sources!",
@@ -175,8 +173,6 @@
       },
       "upgrade": {
         "description": "Upgrades Unifier or a plugin.",
-        "windows_title": "Can't upgrade Unifier",
-        "windows_body": "Unifier cannot upgrade itself on Windows. Please use an OS with the bash console (Linux/macOS/etc).",
         "checking_title": "Checking for upgrades...",
         "checking_body": "Getting latest version from remote",
         "checkfail_title": "Failed to check for updates",
