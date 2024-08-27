@@ -203,7 +203,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             title=f'You\'ve been __banned__ by {mod}!',
             description=reason,
             color=self.bot.colors.error,
-            timestamp=self.bot.datetime_utc()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         set_author(embed,name=mod,icon_url=ctx.author.avatar)
         if rtt_msg:
