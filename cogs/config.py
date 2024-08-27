@@ -1821,6 +1821,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(aliases=['guilds'], description='Lists all servers connected to a given room.')
     @commands.guild_only()
     async def servers(self, ctx, *, room='main'):
+        room = room.lower()
+        if not room in self.bot.bridge.rooms:
+            raise restrictions.UnknownRoom()
+
+        if not self.can_join(ctx.author, room):
+            raise restrictions.NoRoomJoin()
+
         try:
             data = self.bot.db['rooms'][room]
         except:
