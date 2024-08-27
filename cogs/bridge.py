@@ -4304,6 +4304,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
         else:
             ch = self.bot.get_channel(payload.channel_id)
+            if not ch:
+                try:
+                    ch = await self.bot.fetch_channel(payload.channel_id)
+                except:
+                    return
             message = await ch.fetch_message(payload.message_id)
 
             if message.author.id in self.bot.db['fullbanned']:
