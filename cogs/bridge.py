@@ -1195,13 +1195,13 @@ class UnifierBridge:
             try:
                 if source == 'revolt':
                     user = self.__bot.revolt_client.get_user(userid)
-                    display_name = user.display_name
+                    display_name = user.display_name or user.name
                 elif source == 'guilded':
                     user = self.__bot.guilded_client.get_user(userid)
-                    display_name = user.display_name
+                    display_name = user.display_name or user.name
                 else:
                     user = self.__bot.get_user(userid)
-                    display_name = user.global_name
+                    display_name = user.global_name or user.name
                 if not user:
                     raise ValueError()
             except:
