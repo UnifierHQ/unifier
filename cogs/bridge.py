@@ -4085,7 +4085,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not ']' in content_split[i]:
                     continue
 
-                emojiname = content_split[i].replace(': ',':',1).split(':')[1]
+                emojiname = content_split[i].replace(': ',':',1).split(':')[1].split(']')[0]
                 emoji = nextcord.utils.find(
                     lambda e: e.name == emojiname and not e.id in skip and e.guild_id in self.bot.db['emojis'],
                     self.bot.emojis
@@ -4096,7 +4096,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
                 skip.append(emoji.id)
 
-        if is_pr or is_pr_ref or len(skip) > 1:
+        if is_pr or is_pr_ref or len(skip) >= 1:
             multisend = False
             should_resend = True
             emojified = True
