@@ -2599,7 +2599,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not ']' in content_split[i]:
                     continue
 
-                emojiname = content_split[i].replace(': ',':',1).split(':')[1]
+                emojiname = content_split[i].replace(': ',':',1).split(':')[1].split(']')[0]
                 emoji = discord.utils.find(
                     lambda e: e.name == emojiname and not e.id in skip and e.guild_id in self.bot.db['emojis'],
                     self.bot.emojis
