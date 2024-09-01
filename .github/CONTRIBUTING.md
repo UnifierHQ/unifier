@@ -22,15 +22,17 @@ If you have feedback for us, please open a GitHub issue using the **Feature requ
 - If your feature request is related to a bug in an existing issue (e.g. suggesting a potential solution to a problem),
   please add on to the bug report instead.
 
-## Contributing code
-If you wish to contribute your code to the project, please **fork the repository**, add your changes there, then open a 
-Pull request.
+## Contributing code/localization
+If you wish to contribute your code to the project or help us translate Unifier,, please **fork the repository**, add your
+changes to your fork, then open a Pull request.
 - If your PR fixes a bug or addresses a feature request, please reference the relevant issues. This way, people (including
   us) can know if we need to do work to fix an issue, or if we just need to merge a PR.
   If your changes are **purely cosmetic**, please don't open a PR, unless the changes **significantly improve** the
   readability of the source code.
 - Please make sure you've tested your code. Include screenshots/screen recordings in the PR so we know how your changes will
   work.
+  - **This includes your language JSON files.** Please make sure they have the correct syntax. Also, check that all of your
+    translated strings load properly.
 
 ### Testing Unifier
 To test the modifications you have made, you will need to install Unifier. Please follow [this 
@@ -43,3 +45,8 @@ unifier.py core`.
 
 If your changes modify other system extensions, please review your code. If you're absolutely sure the crash isn't caused by
 your code, but rather ours, let us know.
+
+## Low-quality submissions
+We reserve all rights to reject any contributions to our project. When you create a low-quality submission, it will be
+closed/rejected, and we may restrict you from contributing any further to our repository. So please don't waste our time by
+doing this.
