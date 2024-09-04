@@ -88,7 +88,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         selector = language.get_selector(ctx)
 
         if user.id in self.bot.trusted_group:
-            await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+            return await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
 
         self.bot.trusted_group.append(user.id)
 
@@ -103,7 +103,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         selector = language.get_selector(ctx)
 
         if not user.id in self.bot.trusted_group:
-            await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+            return await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
 
         self.bot.trusted_group.remove(user.id)
 
