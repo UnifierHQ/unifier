@@ -1733,10 +1733,7 @@ class UnifierBridge:
                     try:
                         if reply_msg.source == 'revolt':
                             user = self.bot.revolt_client.get_user(reply_msg.author_id)
-                            if not user.display_name:
-                                author_text = f'@{user.name}'
-                            else:
-                                author_text = f'@{user.display_name}'
+                            author_text = f'@{user.display_name or user.name}'
                         elif reply_msg.source == 'guilded':
                             user = self.bot.guilded_client.get_user(reply_msg.author_id)
                             author_text = f'@{user.name}'
