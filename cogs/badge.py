@@ -99,7 +99,8 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
         await ctx.send(
             f'{self.bot.ui_emojis.success} ' + (
-                f'<@{user.id}> is now a verified user!' if added else f'<@{user.id}> is no longer a verified user!'
+                f'**@{user.name}** is now a verified user!' if added else
+                f'**@{user.name}** is no longer a verified user!'
             )
         )
 
