@@ -1126,7 +1126,8 @@ class UnifierBridge:
         for attachment in message.attachments:
             if system:
                 break
-            size_total += attachment.size
+            if not source == 'guilded':
+                size_total += attachment.size
             if size_total > 25000000:
                 if not self.bot.config['suppress_filesize_warning']:
                     if source == platform == 'revolt':
