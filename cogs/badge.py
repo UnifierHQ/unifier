@@ -84,32 +84,24 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
     @commands.command(hidden=True,aliases=['trust'],description=language.desc('badge.verify'))
     @restrictions.admin()
-    async def verify(self, ctx, action, user: nextcord.User):
+    async def verify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)
-        action = action.lower()
-        if action not in ['add', 'remove']:
-            return await ctx.send(selector.get('invalid_action'))
+        added = False
 
-        if action == 'add':
-            if user.id not in self.bot.trusted_group:
-                self.bot.trusted_group.append(user.id)
-        elif action == 'remove':
-            if user.id in self.bot.trusted_group:
-                self.bot.trusted_group.remove(user.id)
+        if not user.id in self.bot.trusted_group:
+            added = True
+            self.bot.trusted_group.append(user.id)
+        else:
+            self.bot.trusted_group.remove(user.id)
 
         self.bot.db['trusted'] = self.bot.trusted_group
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-        user_role = UserRole.TRUSTED if action == 'add' else UserRole.USER
-        embed = nextcord.Embed(
-            title="Unifier",
-            description=(
-                selector.fget('added',values={'user':user.mention}) if action=='add' else
-                selector.fget('removed',values={'user':user.mention})
-            ),
-            color=self.embed_colors[user_role],
+        await ctx.send(
+            f'{self.bot.ui_emojis.success} ' + (
+                f'<@{user.id}> is now a verified user!' if added else f'<@{user.id}> is no longer a verified user!'
+            )
         )
-        await ctx.send(embed=embed)
 
     def get_user_role(self, user_id):
         if user_id == self.bot.config['owner']:
@@ -124,6 +116,9 @@ class Badge(commands.Cog, name=':medal: Badge'):
             return UserRole.BANNED
         else:
             return UserRole.USER
+
+    async def cog_command_error(self, ctx, error):
+        await self.bot.exhandler.handle(ctx, error)
 
 def setup(bot):
     bot.add_cog(Badge(bot))
