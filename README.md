@@ -6,34 +6,34 @@ Inspired by matrix-t2bot</p>
 <p align=center><a href='#setup'>🔧 Setup</a> •
   <a href='https://unifier-wiki.pixels.onl'>📘 Wiki</a> • <a href='#support'>⛑️ Support</a></sub>
 
-## What is Unifier?
+## ✨ Meet Unifier!
 Unifier is a bot written in Python that allows communities to connect together to form global chat rooms, even across
 multiple platforms. It is made to be fast, versatile, and flexible.
 
 We built Unifier to create a free, safe, and open conversing space, where the things we could talk about are limitless, as 
 long as they are safe topics.
 
-## Features
-### Basic features
+## 🎨 Features
+### 🤖 Basic features
 Like most bridge bots, Unifier has basic commands such as link, unlink, etc., so you can do most of what you'd need to do 
 all on your messaging app of choice.
 
-### Fast and responsive bridge
+### 🚄 Fast and responsive bridge
 Using threading and optimizations, Unifier has been tested to be able to send up to 33 messages a second through webhooks, so 
 nobody needs to wait to see your messages. Do note that this speed will vary depending on lots of factors.
 
-### External platforms support
+### 🖇️ External platforms support
 With support for external platforms, you can bring your communities outside of Discord together, or get a break from Discord 
 without losing your community. Unifier supports virtually any platform with the help of support Plugins, so the possibilities
 are endless.
 
 We've written a platform support Plugin for [Revolt](https://github.com/UnifierHQ/unifier-revolt), so give that a try!
 
-### Moderation commands
+### 🛡️ Moderation commands
 After you assign bot admins, they can assign moderators, who can help moderate the chat and take action against bad actors. 
 Server moderators can also block members and servers from bridging messages to their servers should they find it necessary.
 
-### And more!
+### ✌️ And more!
 - **Message cache backups**: Unifier's message cache is backed up on graceful shutdowns, so it remembers message IDs between
   reboots for replying, editing, and deleting.
 - **Easy management**: Unifier comes with a built-in upgrader, so upgrading your instance is a breeze. Even new configuration
@@ -48,34 +48,34 @@ Server moderators can also block members and servers from bridging messages to t
   [matrix-t2bot](https://github.com/t2bot/matrix-appservice-discord), so you can connect platforms beyond what we can cover and
   avoid reconfiguring too much.
 
-## Setup
-### Guided setup
+## 📚 Setup
+### ⏩ Guided setup
 You can use Installer to install Unifier through a user interface on Discord. You can download Installer
 [here](https://github.com/UnifierHQ/unifier-installer).
 
-### Manual setup
+### 🔧 Manual setup
 Please follow our guides on GitBook to set up Unifier.
 
 - [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
 
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
 
-### Managing updates
+### ⏫ Managing updates
 From v1.2.0, System Manager now manages updates. Please refer to [this 
 guide](https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier) for managing updates.
 
-### Revolt and Guilded support
+### 🌐 Revolt and Guilded support
 To install support plugins for Revolt and Guilded, please refer to [this 
 guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-revolt-support) for Revolt, and
 [this guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-guilded-support) for Guilded.
 
-## License
+## 📜 License
 Unifier is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before doing so.
 
-## Support
+## ⛑️ Support
 Need support? We're always available at our [Discord server](https://discord.gg/a4KpNcARzK).
 
-## Acknowledgments
+## 🙏 Acknowledgments
 We want to thank:
 - [**Nextcord**](https://github.com/nextcord), for continuing the discord.py project as Nextcord when it was discontinued, and also
   supporting context menu commands in a Cog
@@ -89,7 +89,7 @@ We want to thank:
 We also use the logging logger formatting code from discord.py, which is licensed under the MIT license. You can find more info in 
 the `EXTERNAL_LICENSES.txt` file.
 
-## Special thanks
+## 🫂 Special thanks
 As the project founder and leader, I want to give my special thanks to:
 - [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for joining the team and helping me fix my shitty Python and
   adding a lot of amazing features to Unifier
