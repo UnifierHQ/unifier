@@ -10,8 +10,7 @@
     "config.py",
     "bridge.py",
     "moderation.py",
-    "badge.py",
-    "setup.py"
+    "badge.py"
   ],
   "utils": [
     "log.py"
