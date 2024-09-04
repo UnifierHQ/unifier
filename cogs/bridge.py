@@ -1475,7 +1475,17 @@ class UnifierBridge:
                     if system:
                         break
                     if source == 'guilded':
-                        if not attachment.file_type.image and not attachment.file_type.video:
+                        gfiletype = attachment.file_type
+                        if not type(gfiletype) is guilded.FileType:
+                            # file_type is probably namedtuple, thank guilded.py for making my life hard
+                            for value in list(gfiletype):
+                                if type(value) is guilded.FileType:
+                                    gfiletype = value
+                                    break
+
+                        if (
+                                not gfiletype.image and not gfiletype.video and self.bot.config['safe_filetypes']
+                        ) or attachment.size > 25000000:
                             continue
                     else:
                         if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
