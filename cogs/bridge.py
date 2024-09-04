@@ -779,6 +779,19 @@ class UnifierBridge:
             text = text.replace(f'<a:{emojiname}:{emojiafter}', f':{emojiname}\\:')
             offset += 1
 
+        if source == 'guilded':
+            lines = text.split('\n')
+            for line in lines:
+                if line.startswith('![](https://cdn.gilcdn.com/ContentMediaGenericFiles'):
+                    try:
+                        lines.remove(line)
+                    except:
+                        pass
+            if len(lines) == 0:
+                text = ''
+            else:
+                text = '\n'.join(lines)
+
         return text
 
     async def edit(self, message, content):
@@ -1475,17 +1488,21 @@ class UnifierBridge:
                     if system:
                         break
                     if source == 'guilded':
-                        gfiletype = attachment.file_type
-                        if not type(gfiletype) is guilded.FileType:
+                        g_is_safe = False
+                        if not type(attachment.file_type) is guilded.FileType:
                             # file_type is probably namedtuple, thank guilded.py for making my life hard
-                            for value in list(gfiletype):
-                                if type(value) is guilded.FileType:
-                                    gfiletype = value
+                            for value in list(attachment.file_type):
+                                if value == guilded.FileType.image or value == guilded.FileType.video:
+                                    g_is_safe = True
                                     break
+                        else:
+                            g_is_safe = attachment.file_type.image or attachment.file_type.video
 
-                        if (
-                                not gfiletype.image and not gfiletype.video and self.bot.config['safe_filetypes']
-                        ) or attachment.size > 25000000:
+                        gsize = attachment.size
+                        if not gsize:
+                            gsize = 0
+
+                        if (not g_is_safe and self.bot.config['safe_filetypes']) or gsize > 25000000:
                             continue
                     else:
                         if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
