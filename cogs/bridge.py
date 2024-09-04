@@ -1268,6 +1268,19 @@ class UnifierBridge:
             text = text.replace(f'<a:{emojiname}:{emojiafter}', f':{emojiname}\\:')
             offset += 1
 
+        if source == 'guilded':
+            lines = text.split('\n')
+            for line in lines:
+                if line.startswith('![](https://cdn.gilcdn.com/ContentMediaGenericFiles'):
+                    try:
+                        lines.remove(line)
+                    except:
+                        pass
+            if len(lines) == 0:
+                text = ''
+            else:
+                text = '\n'.join(lines)
+
         return text
 
     async def edit(self, message, content):
