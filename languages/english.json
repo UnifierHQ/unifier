@@ -789,9 +789,13 @@
       },
       "verify": {
         "description" : "Verifies a user.",
-        "invalid_action": "Invalid action. Please use `add` or `remove`.",
-        "added": "Verified {user}!",
-        "removed": "Unverified {user}!"
+        "success": "**@{user}** is now a verified user!",
+        "failed": "**@{user}** is already verified."
+      },
+      "unverify": {
+        "description" : "Unverifies a user.",
+        "success": "**@{user}** is no longer a verified user!",
+        "failed": "**@{user}** is not verified."
       }
     },
     "lockdown": {

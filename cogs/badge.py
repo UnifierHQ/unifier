@@ -86,23 +86,31 @@ class Badge(commands.Cog, name=':medal: Badge'):
     @restrictions.admin()
     async def verify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)
-        added = False
 
-        if not user.id in self.bot.trusted_group:
-            added = True
-            self.bot.trusted_group.append(user.id)
-        else:
-            self.bot.trusted_group.remove(user.id)
+        if user.id in self.bot.trusted_group:
+            await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+
+        self.bot.trusted_group.append(user.id)
 
         self.bot.db['trusted'] = self.bot.trusted_group
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-        await ctx.send(
-            f'{self.bot.ui_emojis.success} ' + (
-                f'**@{user.name}** is now a verified user!' if added else
-                f'**@{user.name}** is no longer a verified user!'
-            )
-        )
+        await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
+
+    @commands.command(hidden=True, aliases=['trust'], description=language.desc('badge.unverify'))
+    @restrictions.admin()
+    async def unverify(self, ctx, user: nextcord.User):
+        selector = language.get_selector(ctx)
+
+        if not user.id in self.bot.trusted_group:
+            await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+
+        self.bot.trusted_group.remove(user.id)
+
+        self.bot.db['trusted'] = self.bot.trusted_group
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+
+        await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
 
     def get_user_role(self, user_id):
         if user_id == self.bot.config['owner']:
