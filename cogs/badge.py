@@ -97,7 +97,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
         await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
 
-    @commands.command(hidden=True, aliases=['trust'], description=language.desc('badge.unverify'))
+    @commands.command(hidden=True, aliases=['untrust'], description=language.desc('badge.unverify'))
     @restrictions.admin()
     async def unverify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)
