@@ -59,6 +59,8 @@ dedupe_emojis = [
 ]
 arrow_unicode = '\U0000250C'
 
+arrow_unicode = '\U0000250C'
+
 def encrypt_string(hash_string):
     sha_signature = \
         hashlib.sha256(hash_string.encode()).hexdigest()
@@ -1270,12 +1272,21 @@ class UnifierBridge:
 
         if source == 'guilded':
             lines = text.split('\n')
-            for line in lines:
+            offset = 0
+            for index in range(len(lines)):
+                try:
+                    line = lines[index-offset]
+                except:
+                    break
                 if line.startswith('![](https://cdn.gilcdn.com/ContentMediaGenericFiles'):
                     try:
-                        lines.remove(line)
+                        lines.pop(index-offset)
+                        offset += 1
                     except:
                         pass
+                elif line.startswith('![](') and line.endswith(')'):
+                    lines[index-offset] = line.replace('![](','',1)[:-1]
+
             if len(lines) == 0:
                 text = ''
             else:
