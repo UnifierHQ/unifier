@@ -1365,8 +1365,7 @@ class UnifierBridge:
                                 pr_actionrow,
                                 ui.ActionRow(
                                     nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.url,
-                                        label=f'{arrow_unicode} Replying to {author_text}',
+                                        style=nextcord.ButtonStyle.url, label=f'Replying to {author_text}',
                                         url=await reply_msg.fetch_url(guild)
                                     )
                                 ),
@@ -1380,9 +1379,7 @@ class UnifierBridge:
                                 pr_actionrow,
                                 ui.ActionRow(
                                     nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.gray,
-                                        label=f'{arrow_unicode} Replying to [unknown]',
-                                        disabled=True
+                                        style=nextcord.ButtonStyle.gray, label='Replying to [unknown]', disabled=True
                                     )
                                 )
                             )
@@ -1766,9 +1763,9 @@ class UnifierBridge:
                         pass
 
                     try:
-                        replytext = f'**[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
+                        replytext = f'{arrow_unicode} **[Replying to {author_text}]({reply_msg.urls[destguild.id]})** - *{trimmed}*\n'
                     except:
-                        replytext = f'**Replying to [unknown]**\n'
+                        replytext = f'{arrow_unicode} **Replying to [unknown]**\n'
 
                 if len(replytext+message.content)==0:
                     replytext = '[empty message]'
