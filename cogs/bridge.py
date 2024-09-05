@@ -781,12 +781,21 @@ class UnifierBridge:
 
         if source == 'guilded':
             lines = text.split('\n')
-            for line in lines:
+            offset = 0
+            for index in range(len(lines)):
+                try:
+                    line = lines[index-offset]
+                except:
+                    break
                 if line.startswith('![](https://cdn.gilcdn.com/ContentMediaGenericFiles'):
                     try:
-                        lines.remove(line)
+                        lines.pop(index-offset)
+                        offset += 1
                     except:
                         pass
+                elif line.startswith('![](') and line.endswith(')'):
+                    lines[index-offset] = line.replace('![](','',1)[:-1]
+
             if len(lines) == 0:
                 text = ''
             else:
@@ -1489,6 +1498,12 @@ class UnifierBridge:
                         break
                     if source == 'guilded':
                         g_is_safe = False
+                        if (
+                                not attachment.url.startswith('http://cdn.gilcdn.com') and
+                                not attachment.url.startswith('https://cdn.gilcdn.com')
+                        ):
+                            # not a guilded attachment
+                            continue
                         if not type(attachment.file_type) is guilded.FileType:
                             # file_type is probably namedtuple, thank guilded.py for making my life hard
                             for value in list(attachment.file_type):
