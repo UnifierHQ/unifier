@@ -1501,8 +1501,8 @@ class UnifierBridge:
                     if source == 'guilded':
                         g_is_safe = False
                         if (
-                                not attachment.url.startswith('http://cdn.gilcdn.com') and
-                                not attachment.url.startswith('https://cdn.gilcdn.com')
+                                not attachment.url.startswith('http://cdn.gilcdn.com/') and
+                                not attachment.url.startswith('https://cdn.gilcdn.com/')
                         ):
                             # not a guilded attachment
                             continue
