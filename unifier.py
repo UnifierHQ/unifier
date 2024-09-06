@@ -34,6 +34,17 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 try:
+    with open('.install.json') as file:
+        install_info = json.load(file)
+
+    if not install_info['product'] == 'unifier':
+        print('This installation is not compatible with Unifier.')
+        sys.exit(1)
+except:
+    print('To start the bot, please run "./run.sh" instead.')
+    sys.exit(1)
+
+try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
     if os.name == "win32":
