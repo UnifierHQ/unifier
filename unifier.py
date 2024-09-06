@@ -29,6 +29,7 @@ import logging
 import requests
 import traceback
 import threading
+import shutil
 from utils import log
 from dotenv import load_dotenv
 from pathlib import Path
@@ -41,7 +42,20 @@ try:
         print('This installation is not compatible with Unifier.')
         sys.exit(1)
 except:
-    print('To start the bot, please run "./run.sh" instead.')
+    # copy bootloader if needed
+    if not os.path.isdir('boot'):
+        os.mkdir('boot')
+        for file in os.listdir('update/boot'):
+            shutil.copy2(f'update/boot/{file}', f'boot/{file}')
+    if not 'run.sh' in os.listdir():
+        shutil.copy2('update/run.sh', 'run.sh')
+    if not 'run.bat' in os.listdir():
+        shutil.copy2('update/run.bat', 'run.bat')
+
+    if sys.platform == 'win32':
+        print('To start the bot, please run "run.bat" instead.')
+    else:
+        print('To start the bot, please run "./run.sh" instead.')
     sys.exit(1)
 
 try:
