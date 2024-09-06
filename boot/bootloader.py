@@ -81,6 +81,10 @@ last_boot = time.time()
 
 print(f'\x1b[36;1mStarting {internal["product_name"]}...\x1b[0m')
 
+if '.restart' in os.listdir():
+    os.remove('.restart')
+    print('\x1b[33;1mAn incomplete restart was detected.\x1b[0m')
+
 while True:
     exit_code = os.system(f'{binary} {boot_file}{options}')
 
