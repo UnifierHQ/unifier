@@ -33,6 +33,14 @@ if not '.install.json' in os.listdir():
     if os.path.isdir('update'):
         # unifier was likely updated from v2 or older
         print('\x1b[31;1mLegacy installation detected, skipping installer.\x1b[0m')
+        with open('.install.json', 'w+') as file:
+            json.dump(
+                {
+                    'product': internal["product"],
+                    'setup': False
+                },
+                file
+            )
     else:
         # this installation is fresh
         print('\x1b[31;1mInstallation not detected, running installer...\x1b[0m')
