@@ -56,6 +56,7 @@ except:
         print('To start the bot, please run "run.bat" instead.')
     else:
         print('To start the bot, please run "./run.sh" instead.')
+        print('If you get a "Permission denied" error, run "chmod +x run.sh" and try again.')
     sys.exit(1)
 
 try:
