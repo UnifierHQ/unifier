@@ -105,3 +105,6 @@ while True:
 
     first_boot = True
     last_boot = time.time()
+
+    # sleep to prevent 429s
+    time.sleep(5)
