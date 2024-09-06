@@ -201,6 +201,13 @@ attribution = {
         'repo': 'https://github.com/hukkin/tomli-w',
         'license': 'MIT',
         'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+    },
+    'setuptools': {
+        'author': 'Python Packaging Authority',
+        'description': 'Official project repository for the Setuptools build system',
+        'repo': 'https://github.com/pypa/setuptools',
+        'license': 'MIT',
+        'license_url': 'https://github.com/pypa/setuptools/blob/master/LICENSE'
     }
 }
 
