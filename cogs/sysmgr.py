@@ -1930,7 +1930,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("notfound_title")}'
                 embed.description = selector.get("notfound_body")
                 if plugin=='force':
-                    embed.description = embed.description + selector.fget('hint_force',values={'prefix':self.bot.command_prefix})
+                    embed.description = embed.description + '\n' + selector.fget('hint_force',values={'prefix':self.bot.command_prefix})
                 embed.colour = self.bot.colors.error
                 await ctx.send(embed=embed)
                 return
