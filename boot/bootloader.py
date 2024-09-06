@@ -44,6 +44,18 @@ if not '.install.json' in os.listdir():
     else:
         # this installation is fresh
         print('\x1b[31;1mInstallation not detected, running installer...\x1b[0m')
+        print('\x1b[31;1mPlease review the following before continuing:\x1b[0m')
+        print(f'- Product to install: {internal["product_name"]}')
+        print(f'- Install directory: {os.getcwd()}')
+        print(f'- Python command/binary: {binary}\n')
+        print('\x1b[31;1mProceed with installation? (y/n)\x1b[0m')
+
+        answer = input().lower()
+
+        if not answer == 'y':
+            print(f'\x1b[31;1mAborting.\x1b[0m')
+            sys.exit(1)
+
         exit_code = os.system(f'{binary} boot/dep_installer.py{options}')
         if not exit_code == 0:
             sys.exit(exit_code)
