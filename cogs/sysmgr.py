@@ -726,7 +726,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = f'{self.bot.ui_emojis.success} Restarting...'
                 embed.description = 'Bot will now restart.'
             else:
-                embed.title = f'{self.bot.ui_emojis.success} Shutdown success'
+                embed.title = f'{self.bot.ui_emojis.success} Shutting down...'
                 embed.description = 'Bot will now shut down.'
             embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
