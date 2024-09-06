@@ -14,7 +14,7 @@ with open('boot/internal.json') as file:
 boot_config = {}
 try:
     with open('boot_config.json') as file:
-        config = json.load(file)
+        boot_config = json.load(file)
 except:
     pass
 
