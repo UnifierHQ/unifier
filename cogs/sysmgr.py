@@ -661,6 +661,98 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         script = importlib.import_module('utils.' + plugin_name + '_check')
         await script.check(self.bot)
 
+    async def bot_shutdown(self, ctx, restart=False):
+        selector = language.get_selector(ctx)
+
+        embed = nextcord.Embed(color=self.bot.colors.warning)
+
+        if restart:
+            embed.title = f'{self.bot.ui_emojis.warning} Restart the bot?'
+            embed.description = 'The bot will automatically restart in 60 seconds.'
+        else:
+            embed.title = f'{self.bot.ui_emojis.warning} Shut the bot down?'
+            embed.description = 'The bot will automatically shut down in 60 seconds.'
+
+        components = ui.MessageComponents()
+        components.add_rows(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Shut down',
+                    custom_id='shutdown'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Nevermind',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed)
+
+        def check(interaction):
+            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            await interaction.response.edit_message(components=None)
+
+            if interaction.data['custom_id'] == 'cancel':
+                return
+        except:
+            await msg.edit(components=None)
+
+        self.logger.info("Attempting graceful shutdown...")
+        if not self.bot.coreboot:
+            self.bot.bridge.backup_lock = True
+        try:
+            if not self.bot.coreboot:
+                if self.bot.bridge.backup_running:
+                    self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
+                    try:
+                        while self.bot.bridge.backup_running:
+                            await asyncio.sleep(1)
+                    except KeyboardInterrupt:
+                        pass
+                for extension in self.bot.extensions:
+                    await self.preunload(extension)
+                self.logger.info("Backing up message cache...")
+                self.bot.db.save_data()
+                self.bot.bridge.backup_lock = False
+                await self.bot.bridge.backup(limit=10000)
+                self.logger.info("Backup complete")
+            if restart:
+                embed.title = f'{self.bot.ui_emojis.success} Restarting...'
+                embed.description = 'Bot will now restart.'
+            else:
+                embed.title = f'{self.bot.ui_emojis.success} Shutdown success'
+                embed.description = 'Bot will now shut down.'
+            embed.colour = self.bot.colors.success
+            await msg.edit(embed=embed)
+        except:
+            self.logger.exception("Graceful shutdown failed")
+            if restart:
+                embed.title = f'{self.bot.ui_emojis.error} Restart failed'
+                embed.description = 'The restart failed.'
+            else:
+                embed.title = f'{self.bot.ui_emojis.error} Shutdown failed'
+                embed.description = 'The shutdown failed.'
+            embed.colour = self.bot.colors.error
+            await msg.edit(embed=embed)
+            return
+
+        if restart:
+            x = open('.restart', 'w+')
+            x.write(f'{time.time()}')
+            x.close()
+
+        self.logger.info("Closing bot session")
+        await self.bot.session.close()
+        self.logger.info("Shutdown complete")
+        await self.bot.close()
+        sys.exit(0)
+
     @tasks.loop(seconds=300)
     async def changestatus(self):
         status_messages = [
@@ -869,36 +961,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
     async def shutdown(self, ctx):
-        selector = language.get_selector(ctx)
-        self.logger.info("Attempting graceful shutdown...")
-        if not self.bot.coreboot:
-            self.bot.bridge.backup_lock = True
-        try:
-            if not self.bot.coreboot:
-                if self.bot.bridge.backup_running:
-                    self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
-                    try:
-                        while self.bot.bridge.backup_running:
-                            await asyncio.sleep(1)
-                    except KeyboardInterrupt:
-                        pass
-                for extension in self.bot.extensions:
-                    await self.preunload(extension)
-                self.logger.info("Backing up message cache...")
-                self.bot.db.save_data()
-                self.bot.bridge.backup_lock = False
-                await self.bot.bridge.backup(limit=10000)
-                self.logger.info("Backup complete")
-            await ctx.send(selector.get('success'))
-        except:
-            self.logger.exception("Graceful shutdown failed")
-            await ctx.send(selector.get('failed'))
-            return
-        self.logger.info("Closing bot session")
-        await self.bot.session.close()
-        self.logger.info("Shutdown complete")
-        await self.bot.close()
-        sys.exit(0)
+        await self.bot_shutdown(ctx)
+
+    @commands.command(aliases=['reboot'], hidden=True, description=language.desc('sysmgr.restart'))
+    @restrictions.owner()
+    async def restart(self, ctx):
+        await self.bot_shutdown(ctx, restart=True)
 
     @commands.command(hidden=True,description=language.desc('sysmgr.plugins'))
     @restrictions.owner()

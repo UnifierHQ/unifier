@@ -97,6 +97,9 @@
         "success": "Shutting down...",
         "failed": "Shutdown failed"
       },
+      "restart": {
+        "description": "Gracefully restarts the bot."
+      },
       "plugins": {
         "description": "Lists all installed plugins.",
         "title": "Unifier Plugins",
