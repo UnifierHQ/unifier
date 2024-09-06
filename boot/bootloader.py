@@ -59,6 +59,8 @@ if not boot_file in os.listdir():
 first_boot = False
 last_boot = time.time()
 
+print(f'\x1b[36;1mStarting {internal["product_name"]}...\x1b[0m')
+
 while True:
     exit_code = os.system(f'{binary} {boot_file}{options}')
 
@@ -78,7 +80,7 @@ while True:
 
         print(f'\x1b[33;1mRestarting {internal["product_name"]}...\x1b[0m')
     else:
-        print(f'\x1b[32;1m{internal["product_name"]} shutdown successful.\x1b[0m')
+        print(f'\x1b[36;1m{internal["product_name"]} shutdown successful.\x1b[0m')
         sys.exit(0)
 
     first_boot = True
