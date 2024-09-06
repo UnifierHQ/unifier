@@ -67,7 +67,7 @@ while True:
     crash_reboot = False
     if not exit_code == 0:
         diff = time.time() - last_boot
-        if autoreboot and first_boot or diff < threshold:
+        if autoreboot and first_boot and diff > threshold:
             print(f'\x1b[31;1m{internal["product_name"]} has crashed, restarting...\x1b[0m')
             crash_reboot = True
         else:
