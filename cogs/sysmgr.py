@@ -678,7 +678,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.red,
-                    label='Shut down',
+                    label='Restart' if restart else 'Shut down',
                     custom_id='shutdown'
                 ),
                 nextcord.ui.Button(
