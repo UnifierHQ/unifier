@@ -689,19 +689,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             )
         )
 
-        msg = await ctx.send(embed=embed)
+        msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
         try:
             interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
-            await interaction.response.edit_message(components=None)
+            await interaction.response.edit_message(view=None)
 
             if interaction.data['custom_id'] == 'cancel':
                 return
         except:
-            await msg.edit(components=None)
+            await msg.edit(view=None)
 
         self.logger.info("Attempting graceful shutdown...")
         if not self.bot.coreboot:
