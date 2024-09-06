@@ -2,12 +2,17 @@ import asyncio
 import sys
 import getpass
 import json
+
+import nextcord
 import tomli
 import tomli_w
 import traceback
 from nextcord.ext import commands
 
-bot = commands.Bot(command_prefix='u!')
+bot = commands.Bot(
+    command_prefix='u!',
+    intents=nextcord.Intents.all()
+)
 
 user_id = 0
 
@@ -95,6 +100,7 @@ try:
 except:
     traceback.print_exc()
     print('\x1b[31;49mLogin failed. Perhaps your token is invalid?\x1b[0m')
+    print('\x1b[31;49mMake sure all privileged intents are enabled for the bot.\x1b[0m')
     sys.exit(1)
 
 file = open('.env','w+')
