@@ -859,7 +859,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 #  here, cause is if haves value
                 await ctx.send('```%s```' % value)
 
-    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description=language.desc('sysmgr.shutdown'))
+    @commands.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
     async def shutdown(self, ctx):
         selector = language.get_selector(ctx)
