@@ -11,7 +11,7 @@ bot = commands.Bot(command_prefix='u!')
 
 user_id = 0
 
-with open('internal.json') as file:
+with open('boot/internal.json') as file:
     internal = json.load(file)
 
 if sys.version_info.minor < internal['required_py_version']:

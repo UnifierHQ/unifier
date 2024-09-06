@@ -8,7 +8,7 @@ if os.getcwd().endswith('/boot'):
     print('\x1b[31;1mYou are running the bootloader directly. Please run the run.sh file instead.\x1b[0m')
     sys.exit(1)
 
-with open('internal.json') as file:
+with open('boot/internal.json') as file:
     internal = json.load(file)
 
 boot_config = {}
