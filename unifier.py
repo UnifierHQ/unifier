@@ -402,9 +402,6 @@ async def on_message(message):
 
 try:
     bot.run(os.environ.get('TOKEN'))
-except KeyboardInterrupt:
-    logger.info(f'Process interrupted, exiting with code 0')
-    sys.exit(0)
 except SystemExit as e:
     try:
         code = int(f'{e}')
