@@ -29,7 +29,7 @@ if not options:
 else:
     options = ' ' + ' '.join(options)
 
-if not '.install' in os.listdir():
+if not '.install.json' in os.listdir():
     if os.path.isdir('update'):
         # unifier was likely updated from v2 or older
         print('\x1b[31;1mLegacy installation detected, skipping installer.\x1b[0m')
