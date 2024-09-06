@@ -32,7 +32,7 @@ else:
 if not '.install.json' in os.listdir():
     if os.path.isdir('update'):
         # unifier was likely updated from v2 or older
-        print('\x1b[31;1mLegacy installation detected, skipping installer.\x1b[0m')
+        print('\x1b[33;1mLegacy installation detected, skipping installer.\x1b[0m')
         with open('.install.json', 'w+') as file:
             json.dump(
                 {
@@ -43,12 +43,12 @@ if not '.install.json' in os.listdir():
             )
     else:
         # this installation is fresh
-        print('\x1b[31;1mInstallation not detected, running installer...\x1b[0m')
-        print('\x1b[31;1mPlease review the following before continuing:\x1b[0m')
+        print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
+        print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
         print(f'- Product to install: {internal["product_name"]}')
         print(f'- Install directory: {os.getcwd()}')
         print(f'- Python command/binary: {binary}\n')
-        print('\x1b[31;1mProceed with installation? (y/n)\x1b[0m')
+        print('\x1b[33;1mProceed with installation? (y/n)\x1b[0m')
 
         answer = input().lower()
 
@@ -68,7 +68,7 @@ if not '.install.json' in os.listdir():
 
 if not boot_file in os.listdir():
     if os.path.isdir('update'):
-        print(f'\x1b[31;1m{boot_file} is missing, copying from update folder.\x1b[0m')
+        print(f'\x1b[33;1m{boot_file} is missing, copying from update folder.\x1b[0m')
         try:
             shutil.copy2(f'update/{boot_file}', boot_file)
         except:
