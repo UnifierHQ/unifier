@@ -41,7 +41,7 @@ async def on_ready():
 
     while True:
         try:
-            await user.send('If you can see this message, installer should continue doing its thing.')
+            await user.send('If you can see this message, please return to the console, then type "y".')
             break
         except:
             tries += 1
