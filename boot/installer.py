@@ -74,6 +74,9 @@ while True:
     try:
         user_id = int(input())
         break
+    except KeyboardInterrupt:
+        print('\x1b[31;49mAborted.\x1b[0m')
+        sys.exit(1)
     except:
         print('\x1b[31;49mThis isn\'t an integer, try again.\x1b[0m')
 
