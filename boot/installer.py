@@ -53,6 +53,7 @@ async def on_ready():
                 print(f'\x1b[33;1mCould not DM user. Please enable your DMs for a server you and the bot share.\x1b[0m')
             else:
                 print(f'\x1b[33;1mCould not find user. Please add the bot to a server you are in.\x1b[0m')
+                print(f'Use this link to add the bot: https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=537259008&scope=bot')
             print(f'\x1b[33;1mTrying again in 30 seconds, {available-tries} tries remaining. Press Ctrl+C to abort.\x1b[0m')
 
             try:
