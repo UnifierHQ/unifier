@@ -66,6 +66,9 @@ if not '.install.json' in os.listdir():
             print('\x1b[31;1mInstaller has crashed or has been aborted.\x1b[0m')
             sys.exit(exit_code)
 
+        # sleep to prevent 429s
+        time.sleep(5)
+
 if not boot_file in os.listdir():
     if os.path.isdir('update'):
         print(f'\x1b[33;1m{boot_file} is missing, copying from update folder.\x1b[0m')
