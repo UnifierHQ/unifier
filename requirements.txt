@@ -16,3 +16,4 @@ orjson
 tomli
 tomli-w
 setuptools
+aiomultiprocess

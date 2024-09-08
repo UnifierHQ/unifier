@@ -35,6 +35,10 @@ import os
 from utils import log, langmgr, ui, platform_base, restrictions as r
 import importlib
 import emoji as pymoji
+import aiomultiprocess
+import aiohttp
+from aiomultiprocess import Worker
+aiomultiprocess.set_start_method("fork")
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=True)
@@ -57,8 +61,6 @@ dedupe_emojis = [
     '\U00002B1C',
     '\U00002B1B'
 ]
-arrow_unicode = '\U0000250C'
-
 arrow_unicode = '\U0000250C'
 
 def encrypt_string(hash_string):
@@ -2216,10 +2218,19 @@ class UnifierBridge:
                                 )
                             )
                         files = await get_files(message.attachments)
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=tosend_content, files=files, allowed_mentions=mentions, view=(
-                                                     components if components and not system else ui.MessageComponents()
-                                                 ), wait=True)
+                        if self.__bot.config['use_multicore']:
+                            async with aiohttp.ClientSession() as session:
+                                webhook.session = session
+                                msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                         content=tosend_content, files=files, allowed_mentions=mentions, view=(
+                                                             components if components and not system else ui.MessageComponents()
+                                                         ), wait=True)
+                        else:
+                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                                                     content=tosend_content, files=files, allowed_mentions=mentions,
+                                                     view=(
+                                                         components if components and not system else ui.MessageComponents()
+                                                     ), wait=True)
                     except:
                         return None
                     tbresult = [
@@ -2231,9 +2242,23 @@ class UnifierBridge:
                     return tbresult
 
                 if tb_v2 and not alert:
-                    threads.append(asyncio.create_task(tbsend(webhook,url,msg_author_dc,embeds,message,
-                                                              touse_mentions,components,sameguild,
-                                                              destguild)))
+                    if self.__bot.config['use_multicore']:
+                        # noinspection PyTypeChecker
+                        threads.append(
+                            Worker(
+                                target=tbsend,
+                                args=(
+                                    webhook, url, msg_author_dc, embeds, message,
+                                    touse_mentions, components, sameguild,
+                                    destguild
+                                )
+                            )
+                        )
+                        threads[len(threads) - 1].start()
+                    else:
+                        threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_dc, embeds, message,
+                                                                  touse_mentions, components, sameguild,
+                                                                  destguild)))
                 else:
                     try:
                         tosend_content = replytext + alert_pings + (friendly_content if friendlified else msg_content)

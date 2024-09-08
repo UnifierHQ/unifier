@@ -43,6 +43,7 @@ moderator_role = -1
 
 [bridge]
 external = ["revolt", "guilded"]
+use_multicore = true
 allow_posts = false
 enable_exp = false
 exp_cooldown = 30
