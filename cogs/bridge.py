@@ -1703,6 +1703,62 @@ class UnifierBridge:
                 break
             max_files += 1
 
+        # Attachment processing
+        async def get_files(attachments):
+            files = []
+
+            async def to_file(source_file):
+                if platform == 'discord':
+                    if source == 'discord':
+                        try:
+                            return await source_file.to_file(use_cached=True, spoiler=source_file.is_spoiler(), force_close=False)
+                        except:
+                            try:
+                                return await source_file.to_file(use_cached=True, spoiler=False, force_close=False)
+                            except:
+                                return await source_file.to_file(use_cached=False, spoiler=False, force_close=False)
+                    else:
+                        return await source_support.to_discord_file(source_file)
+                else:
+                    if source == 'discord':
+                        return await dest_support.to_platform_file(source_file)
+                    else:
+                        # use nextcord.File as a universal file object
+                        return await dest_support.to_platform_file(
+                            await source_support.to_discord_file(source_file)
+                        )
+
+            index = 0
+            for attachment in attachments:
+                if system:
+                    break
+                if source == 'discord':
+                    if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
+                            not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
+                            self.__bot.config['safe_filetypes']
+                    ) or attachment.size > 25000000:
+                        continue
+                else:
+                    attachment_size = source_support.attachment_size(attachment)
+                    content_type = source_support.attachment_size(attachment)
+                    if (
+                            not 'audio' in content_type and not 'video' in content_type and not 'image' in content.type
+                            and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
+                    ) or attachment_size > 25000000 or not dest_support.attachment_type_allowed(content_type):
+                        continue
+
+                try:
+                    files.append(await to_file(attachment))
+                except platform_base.MissingImplementation:
+                    continue
+                index += 1
+                if index >= max_files:
+                    break
+
+            return files
+
+        files = await get_files(message.attachments)
+
         # Broadcast message
         for guild in list(guilds.keys()):
             if source == 'discord':
@@ -2070,59 +2126,6 @@ class UnifierBridge:
                             pr_actionrow
                         )
 
-            # Attachment processing
-            async def get_files(attachments):
-                files = []
-
-                async def to_file(source_file):
-                    if platform == 'discord':
-                        if source == 'discord':
-                            try:
-                                return await source_file.to_file(use_cached=True, spoiler=source_file.is_spoiler())
-                            except:
-                                try:
-                                    return await source_file.to_file(use_cached=True, spoiler=False)
-                                except:
-                                    return await source_file.to_file(use_cached=False, spoiler=False)
-                        else:
-                            return await source_support.to_discord_file(source_file)
-                    else:
-                        if source == 'discord':
-                            return await dest_support.to_platform_file(source_file)
-                        else:
-                            # use nextcord.File as a universal file object
-                            return await dest_support.to_platform_file(
-                                await source_support.to_discord_file(source_file)
-                            )
-
-                index = 0
-                for attachment in attachments:
-                    if system:
-                        break
-                    if source == 'discord':
-                        if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
-                                not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
-                                self.__bot.config['safe_filetypes']) or attachment.size > 25000000:
-                            continue
-                    else:
-                        attachment_size = source_support.attachment_size(attachment)
-                        content_type = source_support.attachment_size(attachment)
-                        if (
-                                not 'audio' in content_type and not 'video' in content_type and not 'image' in content.type
-                                and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
-                        ) or attachment_size > 25000000 or not dest_support.attachment_type_allowed(content_type):
-                            continue
-
-                    try:
-                        files.append(await to_file(attachment))
-                    except platform_base.MissingImplementation:
-                        continue
-                    index += 1
-                    if index >= max_files:
-                        break
-
-                return files
-
             # Avatar
             try:
                 if f'{author_id}' in self.__bot.db['avatars']:
@@ -2202,7 +2205,7 @@ class UnifierBridge:
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
-                async def tbsend(webhook,url,msg_author_dc,embeds,message,mentions,components,sameguild,
+                async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
                                  destguild):
                     try:
                         tosend_content = replytext+(friendly_content if friendlified else msg_content)
@@ -2217,7 +2220,6 @@ class UnifierBridge:
                                     )
                                 )
                             )
-                        files = await get_files(message.attachments)
                         if self.__bot.config['use_multicore']:
                             async with aiohttp.ClientSession() as session:
                                 webhook.session = session
@@ -2273,7 +2275,6 @@ class UnifierBridge:
                                     )
                                 )
                             )
-                        files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=tosend_content,
                                                  files=files, allowed_mentions=touse_mentions, view=(
@@ -2405,6 +2406,9 @@ class UnifierBridge:
                         urls.update({str(dest_support.get_id(destguild)): dest_support.url(msg)})
                     except platform_base.MissingImplementation:
                         pass
+
+        # Free up memory
+        del files
 
         # Update cache
         tbv2_results = []
