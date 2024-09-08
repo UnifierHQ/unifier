@@ -840,10 +840,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
     @commands.command(aliases=['find'], description='Identifies the origin of a message.')
     async def identify(self, ctx):
-        # use legacy permissions check because check_any is broken
-        if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
-                ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
-            return
         try:
             msg = ctx.message.reference.cached_message
             if msg == None:
@@ -882,6 +878,44 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 guildname = '[unknown]'
         await ctx.send(
+            f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
+
+    @nextcord.message_command(name='Identify origin')
+    async def identify_ctx(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
+            return
+        try:
+            msg_obj = await self.bot.bridge.fetch_message(msg.id)
+        except:
+            return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
+        if msg_obj.source == 'discord':
+            try:
+                username = self.bot.get_user(int(msg_obj.author_id)).name
+            except:
+                username = '[unknown]'
+            try:
+                guildname = self.bot.get_guild(int(msg_obj.guild_id)).name
+            except:
+                guildname = '[unknown]'
+        elif msg_obj.source == 'revolt':
+            try:
+                username = self.bot.revolt_client.get_user(msg_obj.author_id).name
+            except:
+                username = '[unknown]'
+            try:
+                guildname = self.bot.revolt_client.get_server(msg_obj.guild_id).name
+            except:
+                guildname = '[unknown]'
+        else:
+            try:
+                username = self.bot.guilded_client.get_user(msg_obj.author_id).name
+            except:
+                username = '[unknown]'
+            try:
+                guildname = self.bot.guilded_client.get_server(msg_obj.guild_id).name
+            except:
+                guildname = '[unknown]'
+        await interaction.response.send_message(
             f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
 
     @commands.command(description='Deletes a message.')
