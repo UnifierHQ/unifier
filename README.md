@@ -49,11 +49,6 @@ Server moderators can also block members and servers from bridging messages to t
   avoid reconfiguring too much.
 
 ## 📚 Setup
-### Guided setup
-You can use Installer to install Unifier through a user interface on Discord. You can download Installer
-[here](https://github.com/UnifierHQ/unifier-installer).
-
-### Manual setup
 Please follow our guides on GitBook to set up Unifier.
 
 - [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
