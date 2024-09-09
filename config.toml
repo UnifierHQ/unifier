@@ -5,6 +5,7 @@ debug = false
 package = "unifier"
 language = "english"
 skip_status_check = false
+enable_ptero_support = false
 
 [roles]
 owner = -1
