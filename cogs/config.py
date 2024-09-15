@@ -1280,19 +1280,26 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not data:
             raise restrictions.UnknownRoom()
 
-        hooks = await ctx.guild.webhooks()
-        if f'{ctx.guild.id}' in list(data.keys()):
-            hook_ids = data[f'{ctx.guild.id}']
+        hook_deleted = True
+        try:
+            hooks = await ctx.guild.webhooks()
+            if f'{ctx.guild.id}' in list(data.keys()):
+                hook_ids = data[f'{ctx.guild.id}']
+            else:
+                hook_ids = []
+            for webhook in hooks:
+                if webhook.id in hook_ids:
+                    await webhook.delete()
+                    break
+        except:
+            hook_deleted = False
+
+        await self.bot.bridge.leave_room(ctx.guild, room)
+
+        if hook_deleted:
+            await ctx.send(f'{self.bot.ui_emojis.success} Channel has been unbinded.')
         else:
-            hook_ids = []
-        for webhook in hooks:
-            if webhook.id in hook_ids:
-                await webhook.delete()
-                break
-        data['discord'].pop(f'{ctx.guild.id}')
-        self.bot.bridge.update_room(room, data)
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'{self.bot.ui_emojis.success} Channel has been unbinded.')
+            await ctx.send(f'{self.bot.ui_emojis.warning} Channel has been unbinded, but the webhook could not be deleted.')
 
     @commands.command(description='Kicks a server from the room.')
     @restrictions.not_banned()
