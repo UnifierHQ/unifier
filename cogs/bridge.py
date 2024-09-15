@@ -454,6 +454,15 @@ class UnifierBridge:
             'warns': len(actions_recent['warns']), 'bans': len(actions_recent['bans'])
         }
 
+    def get_channel_room(self, channel, platform='discord'):
+        """Alias for check_duplicate, except it returns None instead of False if no rooms are found"""
+        room = self.check_duplicate(channel, platform=platform)
+
+        if not room:
+            return None
+
+        return room
+
     def check_duplicate(self, channel, platform='discord'):
         support = None
         if not platform=='discord':
@@ -1101,7 +1110,7 @@ class UnifierBridge:
                     except:
                         try:
                             webhook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][msg.room]['discord'][key][0])
-                            self.__bot.bridge.webhook_cache.store_webhook(webhook)
+                            self.__bot.bridge.webhook_cache.store_webhook(webhook, webhook.id, guild.id)
                         except:
                             continue
                 except:
@@ -2179,7 +2188,8 @@ class UnifierBridge:
                 except:
                     # It'd be better to fetch all instead of individual webhooks here, so they can all be cached
                     hooks = await destguild.webhooks()
-                    self.__bot.bridge.webhook_cache.store_webhooks(hooks)
+                    identifiers = [hook.id for hook in hooks]
+                    self.__bot.bridge.webhook_cache.store_webhooks(hooks, identifiers, [int(guild)] * len(hooks))
                     for hook in hooks:
                         if hook.id in self.__bot.db['rooms'][room]['discord'][guild]:
                             webhook = hook
