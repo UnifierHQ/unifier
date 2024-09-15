@@ -104,6 +104,12 @@ except:
     with open(config_file, 'wb+') as file:
         tomli_w.dump(data, file)
 
+try:
+    with open('boot_config.json', 'r') as file:
+        boot_data = json.load(file)
+except:
+    boot_data = {}
+
 newdata = {}
 
 for key in data:
@@ -254,6 +260,7 @@ class DiscordBot(commands.Bot):
         self.__ready = False
         self.__update = False
         self.__config = None
+        self.__boot_config = None
         self.__safemode = None
         self.__coreboot = None
         self.__devmode = None
@@ -269,11 +276,21 @@ class DiscordBot(commands.Bot):
     def config(self):
         return self.__config
 
+    @property
+    def boot_config(self):
+        return self.__boot_config
+
     @config.setter
     def config(self, config):
         if self.__config:
             raise RuntimeError('Config already set')
         self.__config = config
+
+    @boot_config.setter
+    def boot_config(self, config):
+        if self.__boot_config:
+            raise RuntimeError('Boot config already set')
+        self.__boot_config = config
 
     @property
     def ready(self):
@@ -328,6 +345,7 @@ class DiscordBot(commands.Bot):
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
 bot.config = data
+bot.boot_config = boot_data
 bot.coreboot = 'core' in sys.argv
 bot.safemode = 'safemode' in sys.argv and not bot.coreboot
 bot.devmode = 'devmode' in sys.argv

@@ -1409,13 +1409,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     newdeps = new['requirements']
                     if len(newdeps) > 0:
                         self.logger.debug('Installing: ' + ' '.join(newdeps))
+                        bootloader_config = self.bot.boot_config.get('bootloader', {})
                         if sys.platform == 'win32':
+                            binary = bootloader_config.get('binary', 'py -3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system('py -3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
                             ))
                         else:
+                            binary = bootloader_config.get('binary', 'python3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system('python3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
                             ))
             except:
                 self.logger.exception('Dependency installation failed')
@@ -1442,6 +1445,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 emojipack['installed'] = True
                 with open(f'emojis/{plugin_id}.json', 'w+') as file:
                     json.dump(emojipack, file, indent=2)
+            if 'config.toml' in os.listdir('plugin_install'):
+                self.logger.debug('Installing config.toml')
+                if not os.path.exists('plugin_config'):
+                    os.mkdir('plugin_config')
+                await self.copy('plugin_install/config.toml', 'plugin_config/' + plugin_id + '.toml')
             self.logger.info('Registering plugin')
             await self.copy('plugin_install/plugin.json', 'plugins/' + plugin_id + '.json')
             with open('plugins/' + plugin_id + '.json') as file:
@@ -1801,13 +1809,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         pass
                 if len(newdeps) > 0:
                     self.logger.debug('Installing: ' + ' '.join(newdeps))
+                    bootloader_config = self.bot.boot_config.get('bootloader', {})
                     if sys.platform == 'win32':
+                        binary = bootloader_config.get('binary', 'py -3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system('py -3 -m pip install -U ' + ' '.join(newdeps))
+                            os.system(f'{binary} -m pip install -U ' + ' '.join(newdeps))
                         ))
                     else:
+                        binary = bootloader_config.get('binary', 'python3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system('python3 -m pip install -U ' + ' '.join(newdeps))
+                            os.system(f'{binary} -m pip install -U ' + ' '.join(newdeps))
                         ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
@@ -2012,13 +2023,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 newdeps.remove(dep)
                         if len(newdeps) > 0:
                             self.logger.debug('Installing: ' + ' '.join(newdeps))
+                            bootloader_config = self.bot.boot_config.get('bootloader', {})
                             if sys.platform == 'win32':
+                                binary = bootloader_config.get('binary', 'py -3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system('py -3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
                                 ))
                             else:
+                                binary = bootloader_config.get('binary', 'python3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system('python3 -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
                                 ))
                 except:
                     self.logger.exception('Dependency installation failed')
@@ -2079,6 +2093,43 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         with open(f'emojis/current.json', 'w+') as file:
                             json.dump(emojipack, file, indent=2)
                         self.bot.ui_emojis = Emojis(data=emojipack)
+
+                if 'config.toml' in os.listdir('plugin_install'):
+                    if f'{plugin_id}.toml' in os.listdir('plugin_config'):
+                        self.logger.debug('Updating config.toml')
+                        with open(f'plugin_config/{plugin_id}.toml', 'rb') as file:
+                            oldcfg = tomli.load(file)
+                        with open('plugin_install/config.toml', 'rb') as file:
+                            newcfg = tomli.load(file)
+
+                        newdata = {}
+
+                        for key in oldcfg:
+                            if type(oldcfg[key]) is dict:
+                                for newkey in oldcfg[key]:
+                                    newdata.update({newkey: oldcfg[key][newkey]})
+                            else:
+                                newdata.update({key: oldcfg[key]})
+
+                        oldcfg = newdata
+
+                        def update_toml(old, new):
+                            for key in new:
+                                for newkey in new[key]:
+                                    if newkey in old.keys():
+                                        new[key].update({newkey: old[newkey]})
+                            return new
+
+                        oldcfg = update_toml(oldcfg, newcfg)
+
+                        with open(f'plugin_config/{plugin_id}.toml', 'wb+') as file:
+                            tomli_w.dump(oldcfg, file)
+                    else:
+                        self.logger.debug('Installing config.toml')
+                        if not os.path.exists('plugin_config'):
+                            os.mkdir('plugin_config')
+                        await self.copy('plugin_install/config.toml', 'plugin_config/' + plugin_id + '.toml')
+
                 self.logger.info('Registering plugin')
                 await self.copy('plugin_install/plugin.json', 'plugins/' + plugin_id + '.json')
                 with open('plugins/' + plugin_id + '.json') as file:
