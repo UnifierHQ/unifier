@@ -82,7 +82,8 @@ class PlatformBase:
         raise MissingImplementation()
 
     def reply(self, message):
-        """Returns the reply from a message."""
+        """Returns the reply from a message.
+        If the message replied to does not exist in cache, this should return its ID instead."""
         raise MissingImplementation()
 
     def roles(self, member):
@@ -128,9 +129,9 @@ class PlatformBase:
         """Returns the avatar URL of a user object."""
         raise MissingImplementation()
 
-    def permissions(self, user, channel=False):
+    def permissions(self, user, channel=None):
         """Returns the permissions of a user object.
-        If channel is True, return channel permissions rather than server permissions."""
+        If channel exists, return channel permissions rather than server permissions."""
         raise MissingImplementation()
 
     def is_bot(self, user):
@@ -150,10 +151,10 @@ class PlatformBase:
         If allowed_content_types is empty, this will always return True."""
         return len(self.allowed_content_types) == 0 or content_type in self.allowed_content_types
 
-    def convert_embeds(self, embeds):
+    def convert_embeds(self, embeds: list):
         raise MissingImplementation()
 
-    def convert_embeds_discord(self, embeds):
+    def convert_embeds_discord(self, embeds: list):
         raise MissingImplementation()
 
     def webhook_id(self, message):
