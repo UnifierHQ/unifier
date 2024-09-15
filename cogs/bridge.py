@@ -2503,43 +2503,49 @@ class WebhookCacheStore:
         self.__bot = bot
         self.__webhooks = {}
 
-    def store_webhook(self, webhook: nextcord.Webhook):
-        if not webhook.guild.id in self.__webhooks.keys():
-            self.__webhooks.update({webhook.guild.id: {webhook.id: webhook}})
-        self.__webhooks[webhook.guild.id].update({webhook.id: webhook})
-        return len(self.__webhooks[webhook.guild.id])
+    def store_webhook(self, webhook, identifier, server):
+        if not server in self.__webhooks.keys():
+            self.__webhooks.update({server: {identifier: webhook}})
+        self.__webhooks[server].update({identifier: webhook})
+        return len(self.__webhooks[server])
 
-    def store_webhooks(self, webhooks: list):
-        for webhook in webhooks:
-            if not webhook.guild.id in self.__webhooks.keys():
-                self.__webhooks.update({webhook.guild.id: {webhook.id: webhook}})
-            self.__webhooks[webhook.guild.id].update({webhook.id: webhook})
+    def store_webhooks(self, webhooks: list, identifiers: list, servers: list):
+        if not len(webhooks) == len(identifiers) == len(servers):
+            raise ValueError('webhooks, identifiers, and servers must be the same length')
+
+        for index in range(len(webhooks)):
+            webhook = webhooks[index]
+            identifier = identifiers[index]
+            server = servers[index]
+            if not server in self.__webhooks.keys():
+                self.__webhooks.update({server: {identifier: webhook}})
+            self.__webhooks[server].update({identifier: webhook})
         return len(self.__webhooks)
 
-    def get_webhooks(self, guild: int or str):
+    def get_webhooks(self, server: int or str):
         try:
-            guild = int(guild)
+            server = int(server)
         except:
             pass
-        if len(self.__webhooks[guild].values())==0:
+        if len(self.__webhooks[server].values())==0:
             raise ValueError('no webhooks')
-        return list(self.__webhooks[guild].values())
+        return list(self.__webhooks[server].values())
 
-    def get_webhook(self, webhook: int or str):
+    def get_webhook(self, identifier: int or str):
         try:
-            webhook = int(webhook)
+            identifier = int(identifier)
         except:
             pass
         for guild in self.__webhooks.keys():
-            if webhook in self.__webhooks[guild].keys():
-                return self.__webhooks[guild][webhook]
+            if identifier in self.__webhooks[guild].keys():
+                return self.__webhooks[guild][identifier]
         raise ValueError('invalid webhook')
 
-    def clear(self, guild: int or str = None):
-        if not guild:
+    def clear(self, server: int or str = None):
+        if not server:
             self.__webhooks = {}
         else:
-            self.__webhooks[guild] = {}
+            self.__webhooks[server] = {}
         return
 
 class Bridge(commands.Cog, name=':link: Bridge'):
