@@ -13,19 +13,19 @@ install_option = sys.argv[1] if len(sys.argv) > 1 else None
 install_options = [
     {
         'id': 'optimized',
-        'name': 'Optimized',
+        'name': '\U000026A1 Optimized',
         'description': 'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.',
         'default': True,
         'prefix': '',
-        'color': '\x1b[35m'
+        'color': '\x1b[35'
     },
     {
         'id': 'stable',
-        'name': 'Stable',
+        'name': '\U0001F48E Stable',
         'description': 'Uses the latest stable Nextcord version without performance optimizations for best stability.',
         'default': False,
         'prefix': 'stable',
-        'color': '\x1b[32m'
+        'color': '\x1b[32'
     }
 ]
 

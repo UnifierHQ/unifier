@@ -7,7 +7,7 @@ import time
 install_options = [
     {
         'id': 'optimized',
-        'name': 'Optimized',
+        'name': '\U000026A1 Optimized',
         'description': 'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.',
         'default': True,
         'prefix': '',
@@ -15,7 +15,7 @@ install_options = [
     },
     {
         'id': 'stable',
-        'name': 'Stable',
+        'name': '\U0001F48E Stable',
         'description': 'Uses the latest stable Nextcord version without performance optimizations for best stability.',
         'default': False,
         'prefix': 'stable',
