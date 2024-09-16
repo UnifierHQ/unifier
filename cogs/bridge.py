@@ -776,30 +776,34 @@ class UnifierBridge:
         self.__bot.db['rooms'][room][platform].pop(guild_id)
         self.__bot.db.save_data()
 
-    async def optimize(self):
+    async def optimize(self, platform='discord'):
         """Optimizes data to avoid having to fetch webhooks.
         This decreases latency incuded by message bridging prep."""
+        support = None
+        if not platform == 'discord':
+            support = self.__bot.platforms[platform]
+
         for room in self.__bot.db['rooms']:
-            if not 'discord' in self.__bot.db['rooms'][room].keys():
-                continue
-            for guild in self.__bot.db['rooms'][room]['discord']:
-                if len(self.__bot.db['rooms'][room]['discord'][guild])==1:
-                    try:
-                        hook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][room]['discord'][guild][0])
-                    except:
-                        continue
-                    self.__bot.db['rooms'][room]['discord'][guild].append(hook.channel_id)
-            for platform in self.__bot.platforms.keys():
-                support = self.__bot.platforms[platform]
+            if platform == 'discord':
+                if 'discord' in self.__bot.db['rooms'][room].keys():
+                    for guild in self.__bot.db['rooms'][room]['discord']:
+                        if len(self.__bot.db['rooms'][room]['discord'][guild])==1:
+                            try:
+                                hook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][room]['discord'][guild][0])
+                            except:
+                                continue
+                            self.__bot.db['rooms'][room]['discord'][guild].append(hook.channel_id)
+            else:
                 if not support.uses_webhooks:
                     continue
-                for guild in self.__bot.db['rooms'][room][platform]:
-                    if len(self.__bot.db['rooms'][room][platform][guild])==1:
-                        try:
-                            hook = await support.fetch_webhook(self.__bot.db['rooms'][room][platform][guild][0], guild)
-                        except:
-                            continue
-                        self.__bot.db['rooms'][room][platform][guild].append(support.get_id(support.channel(hook)))
+                if platform in self.__bot.db['rooms'][room].keys():
+                    for guild in self.__bot.db['rooms'][room][platform]:
+                        if len(self.__bot.db['rooms'][room][platform][guild])==1:
+                            try:
+                                hook = await support.fetch_webhook(self.__bot.db['rooms'][room][platform][guild][0], guild)
+                            except:
+                                continue
+                            self.__bot.db['rooms'][room][platform][guild].append(support.get_id(support.channel(hook)))
         self.__bot.db.save_data()
 
     async def convert_1(self):
