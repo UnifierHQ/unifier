@@ -789,6 +789,17 @@ class UnifierBridge:
                     except:
                         continue
                     self.__bot.db['rooms'][room]['discord'][guild].append(hook.channel_id)
+            for platform in self.__bot.platforms.keys():
+                support = self.__bot.platforms[platform]
+                if not support.uses_webhooks:
+                    continue
+                for guild in self.__bot.db['rooms'][room][platform]:
+                    if len(self.__bot.db['rooms'][room][platform][guild])==1:
+                        try:
+                            hook = await support.fetch_webhook(self.__bot.db['rooms'][room][platform][guild][0], guild)
+                        except:
+                            continue
+                        self.__bot.db['rooms'][room][platform][guild].append(support.get_id(support.channel(hook)))
         self.__bot.db.save_data()
 
     async def convert_1(self):
