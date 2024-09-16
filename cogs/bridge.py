@@ -792,7 +792,7 @@ class UnifierBridge:
         self.__bot.db.save_data()
 
     async def convert_1(self):
-        """Converts data structure to be v2.1.0-compatible.
+        """Converts data structure to be v3.0.0-compatible.
         Eliminates the need for a lot of unneeded keys."""
         if not 'rules' in self.__bot.db.keys():
             # conversion is not needed
@@ -809,7 +809,7 @@ class UnifierBridge:
                     'invites': [],
                     'platform': 'discord'
                 },
-                'emoji': self.__bot.db['roomemoji'][room] if room in self.__bot.db['roomemoji'].keys() else None,
+                'emoji': self.__bot.db['roomemojis'][room] if room in self.__bot.db['roomemojis'].keys() else None,
                 'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None,
                 'display_name': None
             },'discord': self.__bot.db['rooms'][room]}

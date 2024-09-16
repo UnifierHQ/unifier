@@ -36,7 +36,10 @@ try:
     with open('boot_config.json') as file:
         boot_config = json.load(file)
 except:
-    pass
+    if os.path.exists('update'):
+        shutil.copy2('update/boot_config.json', 'boot_config.json')
+    with open('boot_config.json') as file:
+        boot_config = json.load(file)
 
 binary = boot_config['bootloader'].get('binary', 'py -3' if sys.platform == 'win32' else 'python3')
 options = boot_config['bootloader'].get('options')
