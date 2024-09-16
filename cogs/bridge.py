@@ -2477,10 +2477,10 @@ class UnifierBridge:
                 copies = message_ids
             else:
                 external_copies = {platform: message_ids}
-            if source == 'revolt':
-                server_id = message.server.id
-            else:
+            if source == 'discord':
                 server_id = message.guild.id
+            else:
+                server_id = source_support.get_id(source_support.server(message))
             if extbridge:
                 try:
                     hook = await self.__bot.fetch_webhook(message.webhook_id)
