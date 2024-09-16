@@ -2157,6 +2157,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             json.dump(emojipack, file, indent=2)
                         self.bot.ui_emojis = Emojis(data=emojipack)
 
+                if not os.path.exists('plugin_config'):
+                    os.mkdir('plugin_config')
+
                 if 'config.toml' in os.listdir('plugin_install'):
                     if f'{plugin_id}.toml' in os.listdir('plugin_config'):
                         self.logger.debug('Updating config.toml')
