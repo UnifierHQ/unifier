@@ -298,7 +298,7 @@ class UnifierBridge:
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                      external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
-                     reactions=None, thread=None, reply_v2=False):
+                     reactions=None, thread=None):
             self.author_id = author_id
             self.guild_id = guild_id
             self.channel_id = channel_id
@@ -314,7 +314,6 @@ class UnifierBridge:
             self.reply = reply
             self.external_bridged = external_bridged,
             self.thread = thread
-            self.reply_v2 = reply_v2
             if not reactions or not type(reactions) is dict:
                 self.reactions = {}
             else:
@@ -902,8 +901,7 @@ class UnifierBridge:
                 external_urls=data['messages'][f'{x}']['external_urls'],
                 webhook=data['messages'][f'{x}']['webhook'],
                 prehook=data['messages'][f'{x}']['prehook'],
-                reactions=data['messages'][f'{x}']['reactions'] if 'reactions' in list(data['messages'][f'{x}'].keys()) else {},
-                reply_v2=data['messages'][f'{x}']['reply_v2'] if 'reply_v2' in list(data['messages'][f'{x}'].keys()) else False
+                reactions=data['messages'][f'{x}']['reactions'] if 'reactions' in list(data['messages'][f'{x}'].keys()) else {}
             )
             self.bridged.append(msg)
 
@@ -1687,7 +1685,6 @@ class UnifierBridge:
         urls = {}
         trimmed = None
         replying = False
-        global_reply_v2 = False
 
         # Threading
         thread_urls = {}
@@ -1782,13 +1779,11 @@ class UnifierBridge:
             else:
                 compare_guild = source_support.server(message)
             if platform=='discord':
-                reply_v2 = self.get_reply_style(int(guild)) == 1
                 if source == 'discord':
                     sameguild = (guild == str(message.guild.id)) if message.guild else False
                 else:
                     sameguild = (guild == source_support.get_id(compare_guild)) if compare_guild else False
             else:
-                reply_v2 = False
                 if not compare_guild:
                     sameguild = False
                 else:
@@ -1844,7 +1839,6 @@ class UnifierBridge:
             reply_msg = None
             components = None
             pr_actionrow = None
-            replytext = ''
 
             try:
                 if source=='revolt':
@@ -1914,19 +1908,12 @@ class UnifierBridge:
                                 raise
                             content = msg.content
 
-                        if source=='discord':
-                            used_reply_v2 = self.get_reply_style(message.reference.guild_id) == 1
-                            if reply_msg.reply_v2 and (
-                                    str(message.reference.guild_id) in reply_msg.copies.keys() or
-                                    reply_msg.webhook
-                            ) and used_reply_v2:
-                                # remove "replying to" text
-                                content_comp = content.split('\n')
-                                if len(content_comp) == 1:
-                                    content = ''
-                                else:
-                                    content_comp.pop(0)
-                                    content = '\n'.join(content_comp)
+                        if not source=='discord':
+                            if source_support.reply_using_text:
+                                # remove reply display
+                                split = content.split('\n')
+                                split.pop(0)
+                                content = '\n'.join(split)
 
                         clean_content = nextcord.utils.remove_markdown(content)
                         msg_components = clean_content.split('<@')
@@ -1996,98 +1983,69 @@ class UnifierBridge:
                         content_btn = nextcord.ui.Button(
                             style=button_style,label=f'x{count}', emoji='\U0001F3DE', disabled=True
                         )
-                        replytext = f'*:park: x{count}*'
                     else:
                         content_btn = nextcord.ui.Button(
                             style=button_style, label=trimmed, disabled=True
                         )
-                        replytext = f'*{trimmed}*'
-
-                    global_reply_v2 = True
 
                     # Add PR buttons too.
                     if is_pr or is_pr_ref:
                         components = ui.View()
                         try:
-                            if not reply_v2:
-                                components.add_rows(
-                                    pr_actionrow,
-                                    ui.ActionRow(
-                                        nextcord.ui.Button(
-                                            style=nextcord.ButtonStyle.url,
-                                            label=selector.fget('replying',values={'user': author_text}),
-                                            url=await reply_msg.fetch_url(guild)
-                                        )
-                                    ),
-                                    ui.ActionRow(
-                                        content_btn
+                            components.add_rows(
+                                pr_actionrow,
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url,
+                                        label=selector.fget('replying',values={'user': author_text}),
+                                        url=await reply_msg.fetch_url(guild)
                                     )
+                                ),
+                                ui.ActionRow(
+                                    content_btn
                                 )
-                            else:
-                                components.add_row(
-                                    pr_actionrow
-                                )
-                            replytext = (
-                                f'-# {arrow_unicode} ' +
-                                f'[{selector.fget("replying", values={"user": author_text})}](<{await reply_msg.fetch_url(guild)}>)' +
-                                f' - {replytext}'
                             )
                         except:
-                            if not reply_v2:
-                                components.add_rows(
-                                    pr_actionrow,
-                                    ui.ActionRow(
-                                        nextcord.ui.Button(
-                                            style=nextcord.ButtonStyle.gray,
-                                            label=selector.fget('replying',values={'user': '[unknown]'}),
-                                            disabled=True
-                                        )
+                            components.add_rows(
+                                pr_actionrow,
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray,
+                                        label=selector.fget('replying',values={'user': '[unknown]'}),
+                                        disabled=True
                                     )
                                 )
-                            else:
-                                components.add_row(
-                                    pr_actionrow
-                                )
-                            replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[unknown"})}\n'
+                            )
                     else:
                         try:
-                            if not reply_v2:
-                                components = ui.View()
-                                components.add_rows(
-                                    ui.ActionRow(
-                                        nextcord.ui.Button(
-                                            style=nextcord.ButtonStyle.url,
-                                            label=selector.fget('replying',values={'user': author_text}),
-                                            url=await reply_msg.fetch_url(guild)
-                                        )
-                                    ),
-                                    ui.ActionRow(
-                                        content_btn
+                            components = ui.View()
+                            components.add_rows(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url,
+                                        label=selector.fget('replying',values={'user': author_text}),
+                                        url=await reply_msg.fetch_url(guild)
                                     )
+                                ),
+                                ui.ActionRow(
+                                    content_btn
                                 )
-                            replytext = (
-                                f'-# {arrow_unicode} '+
-                                f'[{selector.fget("replying",values={"user": author_text})}](<{await reply_msg.fetch_url(guild)}>)'+
-                                f' - {replytext}\n'
                             )
                         except:
-                            if not reply_v2:
-                                components = ui.View()
-                                components.add_rows(
-                                    ui.ActionRow(
-                                        nextcord.ui.Button(
-                                            style=nextcord.ButtonStyle.gray,
-                                            label=selector.fget('replying',values={'user': '[unknown]'}),
-                                            disabled=True
-                                        )
-                                    ),
-                                    ui.ActionRow(
-                                        content_btn
+                            components = ui.View()
+                            components.add_rows(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.gray,
+                                        label=selector.fget('replying',values={'user': '[unknown]'}),
+                                        disabled=True
                                     )
+                                ),
+                                ui.ActionRow(
+                                    content_btn
                                 )
-                            replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[unknown]"})}\n'
+                            )
                 elif replying:
-                    global_reply_v2 = True
                     try:
                         if source == 'discord':
                             if message.reference.cached_message:
@@ -2117,29 +2075,21 @@ class UnifierBridge:
                                                label=selector.fget('replying',values={'user': '[system]'}),
                                                disabled=True)
                         )
-                        replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[system]"})}\n'
                     else:
                         reply_row = ui.ActionRow(
                             nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
                                                label=selector.fget('replying',values={'user': '[unknown]'}),
                                                disabled=True)
                         )
-                        replytext = f'-# {arrow_unicode} {selector.fget("replying", values={"user": "[unknown]"})}\n'
-                    if not reply_v2:
-                        if pr_actionrow:
-                            components = ui.MessageComponents()
-                            components.add_rows(
-                                pr_actionrow,reply_row
-                            )
-                        else:
-                            components = ui.MessageComponents()
-                            components.add_rows(
-                                reply_row
-                            )
-                    elif pr_actionrow:
+                    if pr_actionrow:
                         components = ui.MessageComponents()
                         components.add_rows(
-                            pr_actionrow
+                            pr_actionrow,reply_row
+                        )
+                    else:
+                        components = ui.MessageComponents()
+                        components.add_rows(
+                            reply_row
                         )
 
             # Avatar
@@ -2176,8 +2126,6 @@ class UnifierBridge:
                 msg_author = '[hidden username]'
 
             if platform=='discord':
-                if not reply_v2:
-                    replytext = ''
                 msg_author_dc = msg_author
                 if len(msg_author) > 35:
                     msg_author_dc = msg_author[:-(len(msg_author) - 35)]
@@ -2225,7 +2173,7 @@ class UnifierBridge:
                 async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
                                  destguild):
                     try:
-                        tosend_content = replytext+(friendly_content if friendlified else msg_content)
+                        tosend_content = friendly_content if friendlified else msg_content
                         if len(tosend_content) > 2000:
                             tosend_content = tosend_content[:-(len(tosend_content)-2000)]
                             if not components:
@@ -2255,8 +2203,7 @@ class UnifierBridge:
                     tbresult = [
                         {f'{destguild.id}': [webhook.channel.id, msg.id]},
                         {f'{destguild.id}': f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'},
-                        [sameguild, msg.id],
-                        reply_v2
+                        [sameguild, msg.id]
                     ]
                     return tbresult
 
@@ -2280,7 +2227,7 @@ class UnifierBridge:
                                                                   destguild)))
                 else:
                     try:
-                        tosend_content = replytext + alert_pings + (friendly_content if friendlified else msg_content)
+                        tosend_content = alert_pings + (friendly_content if friendlified else msg_content)
                         if len(tosend_content) > 2000:
                             tosend_content = tosend_content[:-(len(tosend_content) - 2000)]
                             if not components:
@@ -2355,7 +2302,7 @@ class UnifierBridge:
                     }
                     if reply and not alert:
                         special.update({'reply': reply})
-                    if replytext:
+                    if trimmed:
                         special.update({'reply_content': trimmed})
                     msg = await dest_support.send(
                         ch, content, special=special
@@ -2402,8 +2349,8 @@ class UnifierBridge:
                         }
                         if reply and not alert:
                             special.update({'reply': reply})
-                        if replytext:
-                            special.update({'reply_content': replytext})
+                        if trimmed:
+                            special.update({'reply_content': trimmed})
                         msg = await dest_support.send(
                             ch, friendly_content if friendlified else msg_content, special=special
                         )
@@ -2469,7 +2416,6 @@ class UnifierBridge:
                 except:
                     self.bridged[index].external_copies.update({platform: message_ids})
             self.bridged[index].urls = self.bridged[index].urls | urls
-            self.bridged[index].reply_v2 = global_reply_v2 if not self.bridged[index].reply_v2 else self.bridged[index].reply_v2
         except:
             copies = {}
             external_copies = {}
@@ -2501,7 +2447,6 @@ class UnifierBridge:
                 room=room,
                 reply=replying,
                 external_bridged=extbridge,
-                reply_v2=global_reply_v2
             ))
             if datetime.datetime.now().day != self.msg_stats_reset:
                 self.msg_stats = {}
