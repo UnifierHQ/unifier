@@ -2302,13 +2302,17 @@ class UnifierBridge:
                     message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
             else:
+                ch_id = self.__bot.db['rooms'][room][platform][guild][0]
+                if len(self.__bot.db['rooms'][room][platform][guild]) > 1:
+                    ch_id = self.__bot.db['rooms'][room][platform][guild][1]
+
                 try:
-                    ch = dest_support.get_channel(self.__bot.db['rooms'][room][platform][guild][0])
+                    ch = dest_support.get_channel(ch_id)
 
                     if not ch:
                         raise Exception() # runs fetch_channel if ch is none
                 except:
-                    ch = await dest_support.fetch_channel(self.__bot.db['rooms'][room][platform][guild][0])
+                    ch = await dest_support.fetch_channel(ch_id)
 
                 try:
                     if reply_msg:
