@@ -121,13 +121,6 @@ attribution = {
         'license': 'LGPLv2.1',
         'license_url': 'https://github.com/barseghyanartur/tld/blob/master/LICENSE_LGPL_2.1.txt'
     },
-    'jellyfish': {
-        'author': 'James Turk',
-        'description': '\U0001FABC a python library for doing approximate and phonetic matching of strings.',
-        'repo': 'https://github.com/jamesturk/jellyfish',
-        'license': 'MIT',
-        'license_url': 'https://github.com/jamesturk/jellyfish/blob/main/LICENSE'
-    },
     'uvloop': {
         'author': 'magicstack',
         'description': 'Ultra fast asyncio event loop.',
