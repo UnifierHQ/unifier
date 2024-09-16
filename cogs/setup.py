@@ -448,6 +448,7 @@ class Setup(commands.Cog):
             install_data = json.load(file)
 
         if not install_data['setup']:
+            self.bot.setup_lock = True
             self.bot.setup_task = asyncio.create_task(self.setup())
 
     async def setup(self):
@@ -685,5 +686,13 @@ class Setup(commands.Cog):
 
         with open('config.toml', 'wb') as file:
             tomli_w.dump(config, file)
+
+        with open('.install.json') as file:
+            install_data = json.load(file)
+
+        install_data['setup'] = True
+
+        with open('.install.json', 'w') as file:
+            json.dump(install_data, file)
 
         return await setup_dialog.finish()

@@ -270,6 +270,7 @@ class DiscordBot(commands.Bot):
         self.__safemode = None
         self.__coreboot = None
         self.__devmode = None
+        self.__setup_lock = False
         self.bridge = None
         self.pyversion = sys.version_info
         self.db = AutoSaveDict({})
@@ -307,6 +308,16 @@ class DiscordBot(commands.Bot):
         if self.__ready:
             raise RuntimeError('Bot is already ready')
         self.__ready = ready
+
+    @property
+    def setup_lock(self):
+        return self.__setup_lock
+
+    @setup_lock.setter
+    def setup_lock(self, lock):
+        if self.__setup_lock:
+            raise RuntimeError('Bot is already locked')
+        self.__setup_lock = lock
 
     @property
     def update(self):
@@ -432,7 +443,7 @@ async def on_command_error(_ctx, _command):
 
 @bot.event
 async def on_message(message):
-    if not bot.ready:
+    if not bot.ready or bot.setup_lock:
         return
 
     if not message.webhook_id==None:
