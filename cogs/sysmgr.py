@@ -135,6 +135,13 @@ attribution = {
         'license': 'MIT',
         'license_url': 'https://github.com/MagicStack/uvloop/blob/master/LICENSE-MIT'
     },
+    'winloop': {
+        'author': 'Vizonex',
+        'description': 'An Alternative library for uvloop compatability with windows',
+        'repo': 'https://github.com/Vizonex/Winloop',
+        'license': 'MIT',
+        'license_url': 'https://github.com/Vizonex/winloop/blob/main/LICENSE-MIT'
+    },
     'compress_json': {
         'author': 'Luca Cappelletti',
         'description': 'The missing Python utility to read and write large compressed JSONs.',
@@ -214,6 +221,34 @@ attribution = {
         'repo': 'https://github.com/pypa/setuptools',
         'license': 'MIT',
         'license_url': 'https://github.com/pypa/setuptools/blob/master/LICENSE'
+    },
+    'aiomultiprocess': {
+        'author': 'The Omnilib Project',
+        'description': 'Take a modern Python codebase to the next level of performance.',
+        'repo': 'https://github.com/omnilib/aiomultiprocess',
+        'license': 'MIT',
+        'license_url': 'https://github.com/omnilib/aiomultiprocess/blob/main/LICENSE'
+    },
+    'aiodns': {
+        'author': 'aio-libs',
+        'description': 'Simple DNS resolver for asyncio',
+        'repo': 'https://github.com/aio-libs/aiodns',
+        'license': 'MIT',
+        'license_url': 'https://github.com/aio-libs/aiodns/blob/master/LICENSE'
+    },
+    'brotli': {
+        'author': 'Google',
+        'description': 'Brotli compression format',
+        'repo': 'https://github.com/google/brotli',
+        'license': 'MIT',
+        'license_url': 'https://github.com/google/brotli/blob/master/LICENSE'
+    },
+    'brotlicffi': {
+        'author': 'Hyper',
+        'description': 'Python bindings to the Brotli compression library',
+        'repo': 'https://github.com/python-hyper/brotlicffi',
+        'license': 'MIT',
+        'license_url': 'https://github.com/python-hyper/brotlicffi/blob/main/LICENSE'
     }
 }
 
