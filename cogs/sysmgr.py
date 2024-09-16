@@ -1753,10 +1753,54 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     os.mkdir(folder)
                 except:
                     pass
+                folder = os.getcwd() + '/old/utils'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
+                folder = os.getcwd() + '/old/languages'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
+                folder = os.getcwd() + '/old/plugins'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
+                folder = os.getcwd() + '/old/boot'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
                 for file in os.listdir(os.getcwd() + '/cogs'):
                     self.logger.debug('Backing up: ' + os.getcwd() + '/cogs/' + file)
                     try:
                         await self.copy('cogs/' + file, 'old/cogs/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/utils'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/utils/' + file)
+                    try:
+                        await self.copy('utils/' + file, 'old/utils/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/plugins'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/plugins/' + file)
+                    try:
+                        await self.copy('plugins/' + file, 'old/plugins/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/languages'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/languages/' + file)
+                    try:
+                        await self.copy('languages/' + file, 'old/languages/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/boot'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/boot/' + file)
+                    try:
+                        await self.copy('boot/' + file, 'old/boot/' + file)
                     except IsADirectoryError:
                         continue
                 self.logger.debug('Backing up: ' + os.getcwd() + '/unifier.py')
@@ -1764,7 +1808,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Backing up: ' + os.getcwd() + '/data.json')
                 await self.copy('data.json', 'old/data.json')
                 self.logger.debug('Backing up: ' + os.getcwd() + '/config.toml')
-                await self.copy('config.toml', 'old/config.json')
+                await self.copy('config.toml', 'old/config.toml')
+                self.logger.debug('Backing up: ' + os.getcwd() + '/boot_config.json')
+                await self.copy('boot_config.json', 'old/boot_config.json')
             except:
                 if no_backup:
                     self.logger.warning('Backup skipped, requesting final confirmation.')
@@ -1884,7 +1930,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = f':white_check_mark: {selector.get("downloading")}\n:hourglass_flowing_sand: {selector.get("installing")}\n:x: {selector.get("reloading")}'
                 await msg.edit(embed=embed)
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/unifier.py')
-                await self.copy('update/unifier.py ', 'unifier.py')
+                await self.copy('update/unifier.py', 'unifier.py')
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements.txt')
                 await self.copy('update/requirements.txt', 'requirements.txt')
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements_stable.txt')
