@@ -1755,7 +1755,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     pass
                 for file in os.listdir(os.getcwd() + '/cogs'):
                     self.logger.debug('Backing up: ' + os.getcwd() + '/cogs/' + file)
-                    await self.copy('cogs/' + file, 'old/cogs/' + file)
+                    try:
+                        await self.copy('cogs/' + file, 'old/cogs/' + file)
+                    except IsADirectoryError:
+                        continue
                 self.logger.debug('Backing up: ' + os.getcwd() + '/unifier.py')
                 await self.copy('unifier.py ', 'old/unifier.py')
                 self.logger.debug('Backing up: ' + os.getcwd() + '/data.json')
