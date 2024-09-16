@@ -2314,22 +2314,7 @@ class UnifierBridge:
                 except:
                     ch = await dest_support.fetch_channel(ch_id)
 
-                try:
-                    if reply_msg:
-                        if reply_msg.source==platform:
-                            try:
-                                msg = await source_support.fetch_message(ch, await reply_msg.fetch_id(destguild.id))
-                                reply = msg
-                            except:
-                                reply = None
-                        else:
-                            msg_ref = await reply_msg.fetch_external(platform, destguild.id)
-                            msg = await dest_support.fetch_message(ch, msg_ref.id)
-                            reply = msg
-                    else:
-                        reply = None
-                except:
-                    reply = None
+                reply = reply_msg
 
                 color = None
                 if str(author_id) in list(self.__bot.db['colors'].keys()):
@@ -2370,6 +2355,8 @@ class UnifierBridge:
                     }
                     if reply and not alert:
                         special.update({'reply': reply})
+                    if replytext:
+                        special.update({'reply_content': replytext})
                     msg = await dest_support.send(
                         ch, content, special=special
                     )
@@ -2415,6 +2402,8 @@ class UnifierBridge:
                         }
                         if reply and not alert:
                             special.update({'reply': reply})
+                        if replytext:
+                            special.update({'reply_content': replytext})
                         msg = await dest_support.send(
                             ch, friendly_content if friendlified else msg_content, special=special
                         )
