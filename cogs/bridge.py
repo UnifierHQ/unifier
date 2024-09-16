@@ -2304,6 +2304,9 @@ class UnifierBridge:
             else:
                 try:
                     ch = dest_support.get_channel(self.__bot.db['rooms'][room][platform][guild][0])
+
+                    if not ch:
+                        raise Exception() # runs fetch_channel if ch is none
                 except:
                     ch = await dest_support.fetch_channel(self.__bot.db['rooms'][room][platform][guild][0])
 
