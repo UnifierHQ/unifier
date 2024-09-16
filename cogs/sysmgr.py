@@ -1760,11 +1760,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     except IsADirectoryError:
                         continue
                 self.logger.debug('Backing up: ' + os.getcwd() + '/unifier.py')
-                await self.copy('unifier.py ', 'old/unifier.py')
+                await self.copy('unifier.py', 'old/unifier.py')
                 self.logger.debug('Backing up: ' + os.getcwd() + '/data.json')
-                await self.copy('data.json ', 'old/data.json')
+                await self.copy('data.json', 'old/data.json')
                 self.logger.debug('Backing up: ' + os.getcwd() + '/config.toml')
-                await self.copy('config.toml ', 'old/config.json')
+                await self.copy('config.toml', 'old/config.json')
             except:
                 if no_backup:
                     self.logger.warning('Backup skipped, requesting final confirmation.')
