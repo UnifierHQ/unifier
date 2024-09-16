@@ -2,6 +2,12 @@ import json
 import os
 import sys
 
+def clear():
+    if os.name == 'nt':
+        os.system('cls')
+    else:
+        os.system('clear')
+
 install_option = sys.argv[1] if len(sys.argv) > 1 else None
 
 install_options = [
@@ -46,7 +52,7 @@ except:
     pass
 
 binary = boot_config['bootloader'].get('binary', 'py -3' if sys.platform == 'win32' else 'python3')
-
+clear()
 print('\x1b[36;1mInstalling dependencies, this may take a while...\x1b[0m')
 
 if prefix:
@@ -55,8 +61,8 @@ else:
     code = os.system(f'{binary} -m pip install --user -U -r requirements.txt')
 
 if not code == 0:
-    print('\x1b[31;1mCould not install dependencies.\x1b[0m')
+    print('\x1b[31;1mCould not install dependencies due to a error.\x1b[0m')
     sys.exit(code)
-
+clear()
 print('\x1b[36;1mDependencies successfully installed.\x1b[0m')
 sys.exit(0)

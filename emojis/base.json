@@ -1,19 +1,119 @@
 {
-  "installed": false,
+  "installed": true,
   "emojis": {
-    "back": [":arrow_left:",0],
-    "prev": [":arrow_backward:",0],
-    "next": [":arrow_forward:",0],
-    "first": [":track_previous:",0],
-    "last": [":track_next:",0],
-    "search": [":mag:",0],
-    "command": [":keyboard:",0],
-    "install": [":package:",0],
-    "success": [":white_check_mark:",0],
-    "warning": [":warning:",0],
-    "error": [":x:",0],
-    "rooms": [":speech_balloon:",0],
-    "emoji": [":joy:",0],
-    "leaderboard": [":trophy:",0]
+    "back": [
+      "\u2b05\ufe0f",
+      0
+    ],
+    "prev": [
+      "\u25c0\ufe0f",
+      0
+    ],
+    "next": [
+      "\u25b6\ufe0f",
+      0
+    ],
+    "first": [
+      "\u23ee\ufe0f",
+      0
+    ],
+    "last": [
+      "\u23ed\ufe0f",
+      0
+    ],
+    "search": [
+      "\ud83d\udd0d",
+      0
+    ],
+    "command": [
+      "\u2328\ufe0f",
+      0
+    ],
+    "install": [
+      "\ud83d\udce6",
+      0
+    ],
+    "success": [
+      "\u2705",
+      0
+    ],
+    "warning": [
+      "\u26a0\ufe0f",
+      0
+    ],
+    "error": [
+      "\u274c",
+      0
+    ],
+    "rooms": [
+      "\ud83d\udcac",
+      0
+    ],
+    "emoji": [
+      "\ud83d\ude02",
+      0
+    ],
+    "leaderboard": [
+      "\ud83c\udfc6",
+      0
+    ]
+  },
+  "emojis_pre": {
+    "back": [
+      "\u2b05\ufe0f",
+      0
+    ],
+    "prev": [
+      "\u25c0\ufe0f",
+      0
+    ],
+    "next": [
+      "\u25b6\ufe0f",
+      0
+    ],
+    "first": [
+      "\u23ee\ufe0f",
+      0
+    ],
+    "last": [
+      "\u23ed\ufe0f",
+      0
+    ],
+    "search": [
+      "\ud83d\udd0d",
+      0
+    ],
+    "command": [
+      "\u2328\ufe0f",
+      0
+    ],
+    "install": [
+      "\ud83d\udce6",
+      0
+    ],
+    "success": [
+      "\u2705",
+      0
+    ],
+    "warning": [
+      "\u26a0\ufe0f",
+      0
+    ],
+    "error": [
+      "\u274c",
+      0
+    ],
+    "rooms": [
+      "\ud83d\udcac",
+      0
+    ],
+    "emoji": [
+      "\ud83d\ude02",
+      0
+    ],
+    "leaderboard": [
+      "\ud83c\udfc6",
+      0
+    ]
   }
 }

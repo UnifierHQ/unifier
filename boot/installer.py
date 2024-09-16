@@ -6,7 +6,14 @@ import nextcord
 import tomli
 import tomli_w
 import traceback
+import os
 from nextcord.ext import commands
+
+def clear():
+    if os.name == 'nt':
+        os.system('cls')
+    else:
+        os.system('clear')
 
 install_option = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -53,14 +60,14 @@ if sys.version_info.minor < internal['required_py_version']:
 @bot.event
 async def on_ready():
     global server_id
-
+    clear()
     print(f'\x1b[33;1mIs {bot.user.name} ({bot.user.id}) the correct bot? (y/n)\x1b[0m')
     answer = input().lower()
 
     if not answer == 'y':
         print(f'\x1b[31;1mAborting.\x1b[0m')
         sys.exit(1)
-
+    clear()
     print(f'\x1b[36;1mAttempting to DM user {user_id}...\x1b[0m')
 
     user = bot.get_user(user_id)
@@ -109,7 +116,7 @@ async def on_ready():
 
     print('\x1b[36;1mOwner verified successfully, closing bot.\x1b[0m')
     await bot.close()
-
+clear()
 print('\x1b[33;1mWe need the ID of the user who will be the instance owner. In most cases this is your user ID.\x1b[0m')
 print(f'\x1b[33;1mThe owner will have access to special commands for maintaining your {internal["product_name"]} instance.\x1b[0m')
 print('\x1b[33;1mTo copy your ID, go to your Discord settings, then Advanced, then enable Developer mode.\x1b[0m')
@@ -123,7 +130,7 @@ while True:
         sys.exit(1)
     except:
         print('\x1b[31;49mThis isn\'t an integer, try again.\x1b[0m')
-
+clear()
 print('\x1b[33;1mWe will now ask for your bot token.\x1b[0m')
 print('\x1b[33;1mThe user verifier will use this token to log on to Discord.\x1b[0m\n')
 print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS TOKEN, NOT EVEN WITH {internal["maintainer"].upper()}.\x1b[0m')
