@@ -65,25 +65,29 @@ if not '.install.json' in os.listdir():
     else:
         # this installation is fresh
         print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
-        print(f'\x1b[33;1mYou have {len(install_options)} install options available.\x1b[0m\n')
 
-        for index in range(len(install_options)):
-            option = install_options[index]
-            print(f'{option["color"]};1m{option["name"]} (option {index})\x1b[0m')
-            print(f'{option["color"]}m{option["description"]}\x1b[0m')
+        if len(install_options) == 1:
+            install_option = install_options[0]['id']
+        else:
+            print(f'\x1b[33;1mYou have {len(install_options)} install options available.\x1b[0m\n')
 
-        print(f'\n\x1b[33;1mWhich installation option would you like to install? (0-{len(install_options)-1})\x1b[0m')
+            for index in range(len(install_options)):
+                option = install_options[index]
+                print(f'{option["color"]};1m{option["name"]} (option {index})\x1b[0m')
+                print(f'{option["color"]}m{option["description"]}\x1b[0m')
 
-        try:
-            install_option = int(input())
+            print(f'\n\x1b[33;1mWhich installation option would you like to install? (0-{len(install_options)-1})\x1b[0m')
 
-            if install_option < 0 or install_option >= len(install_options):
-                raise ValueError()
-        except:
-            print(f'\x1b[31;1mAborting.\x1b[0m')
-            sys.exit(1)
+            try:
+                install_option = int(input())
 
-        install_option = install_options[install_option]['id']
+                if install_option < 0 or install_option >= len(install_options):
+                    raise ValueError()
+            except:
+                print(f'\x1b[31;1mAborting.\x1b[0m')
+                sys.exit(1)
+
+            install_option = install_options[install_option]['id']
 
         print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
         print(f'- Product to install: {internal["product_name"]}')
