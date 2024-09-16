@@ -17,10 +17,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from nextcord.ext import commands
-import ujson as json
+import json
 from typing import Union
 from utils import log
 import os
+
+# import ujson if installed
+try:
+    import ujson as json
+except:
+    pass
 
 class LanguageManager:
     def __init__(self, bot):

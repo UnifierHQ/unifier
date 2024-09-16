@@ -34,7 +34,7 @@ import textwrap
 from contextlib import redirect_stdout
 from utils import log, ui, langmgr, restrictions as r
 import logging
-import ujson as json
+import json
 import os
 import sys
 import traceback
@@ -58,6 +58,12 @@ import requests
 import time
 import shutil
 import datetime
+
+# import ujson if installed
+try:
+    import ujson as json
+except:
+    pass
 
 restrictions = r.Restrictions()
 language = langmgr.partial()

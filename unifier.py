@@ -20,7 +20,7 @@ import nextcord
 from nextcord.ext import commands
 import aiohttp
 import asyncio
-import ujson as json
+import json
 import tomli
 import tomli_w
 import os
@@ -33,6 +33,12 @@ import shutil
 from utils import log
 from dotenv import load_dotenv
 from pathlib import Path
+
+# import ujson if installed
+try:
+    import ujson as json
+except:
+    pass
 
 try:
     with open('.install.json') as file:

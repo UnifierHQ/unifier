@@ -1,0 +1,16 @@
+nextcord
+aiofiles
+py-cpuinfo
+tld
+jellyfish
+compress_json
+python-dotenv
+requests
+emoji
+discord-emoji
+pycryptodome
+orjson
+tomli
+tomli-w
+setuptools
+aiomultiprocess

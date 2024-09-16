@@ -26,7 +26,7 @@ import datetime
 import random
 import string
 import copy
-import ujson as json
+import json
 import compress_json
 import re
 import ast
@@ -38,6 +38,13 @@ import emoji as pymoji
 import aiomultiprocess
 import aiohttp
 from aiomultiprocess import Worker
+
+# import ujson if installed
+try:
+    import ujson as json
+except:
+    pass
+
 aiomultiprocess.set_start_method("fork")
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
