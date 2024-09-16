@@ -88,9 +88,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
         restrictions.attach_bot(self.bot)
 
-    @commands.command(aliases=['block'],description='Blocks a user or server from bridging messages to your server.')
+    @commands.command(description='Blocks a user or server from bridging messages to your server.')
     @commands.has_permissions(ban_members=True)
-    async def ban(self,ctx,*,target):
+    async def block(self,ctx,*,target):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
@@ -114,9 +114,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('User/server can no longer forward messages to this channel!')
 
-    @commands.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
+    @commands.command(aliases=['globalban'],hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
     @restrictions.moderator()
-    async def globalban(self, ctx, target, duration=None, *, reason=None):
+    async def ban(self, ctx, target, duration=None, *, reason=None):
         if not ctx.author.id in self.bot.moderators:
             return
         rtt_msg = None
@@ -383,9 +383,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self.bot.db['fullbanned'].append(target)
             await ctx.send(f'{self.bot.ui_emojis.success} User has been banned from the bot.')
 
-    @commands.command(aliases=['unblock'],description='Unblocks a user or server from bridging messages to your server.')
+    @commands.command(description='Unblocks a user or server from bridging messages to your server.')
     @commands.has_permissions(ban_members=True)
-    async def unban(self,ctx,target):
+    async def unblock(self,ctx,target):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
@@ -401,9 +401,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} User/server can now forward messages to this channel!')
 
-    @commands.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
+    @commands.command(aliases=['globalunban'],hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
     @restrictions.moderator()
-    async def globalunban(self,ctx,*,target):
+    async def unban(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
         try:
