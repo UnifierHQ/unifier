@@ -2356,7 +2356,7 @@ class UnifierBridge:
                     if reply and not alert:
                         special.update({'reply': reply})
                     if replytext:
-                        special.update({'reply_content': replytext})
+                        special.update({'reply_content': trimmed})
                     msg = await dest_support.send(
                         ch, content, special=special
                     )
