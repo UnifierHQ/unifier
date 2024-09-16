@@ -460,19 +460,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         language = self.bot.langmgr
 
-        if not hasattr(self.bot,'loaded_plugins'):
-            self.bot.loaded_plugins = {}
-            if not self.bot.safemode and not self.bot.coreboot:
-                for plugin in os.listdir('plugins'):
-                    with open('plugins/' + plugin) as file:
-                        extinfo = json.load(file)
-                        try:
-                            if not 'content_protection' in extinfo['services'] and not 'content_processing' in extinfo['services']:
-                                continue
-                        except:
-                            continue
-                    script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
-                    self.bot.loaded_plugins.update({plugin[:-5]: script})
         if not hasattr(self.bot,'platforms'):
             self.bot.platforms_former = {}
             self.bot.platforms = {}
@@ -491,6 +478,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             continue
                     script = importlib.import_module('utils.' + plugin[:-5] + '_bridge_platform')
                     self.bot.platforms_former.update({extinfo['bridge_platform']: script})
+        if not hasattr(self.bot,'loaded_plugins'):
+            self.bot.loaded_plugins = {}
+            if not self.bot.safemode and not self.bot.coreboot:
+                for plugin in os.listdir('plugins'):
+                    with open('plugins/' + plugin) as file:
+                        extinfo = json.load(file)
+                        try:
+                            if not 'content_protection' in extinfo['services'] and not 'content_processing' in extinfo['services']:
+                                continue
+                        except:
+                            continue
+                    script = importlib.import_module('utils.' + plugin[:-5] + '_content_protection')
+                    self.bot.loaded_plugins.update({plugin[:-5]: script})
         if not hasattr(self.bot, "ut_total"):
             self.bot.ut_total = round(time.time())
         if not hasattr(self.bot, "disconnects"):
