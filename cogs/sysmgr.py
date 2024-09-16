@@ -708,7 +708,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if len(newdeps) > 0:
                         self.logger.debug('Installing: ' + ' '.join(newdeps))
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system('python3 -m pip install --no-dependencies ' + ' '.join(newdeps))
+                            os.system('python3 -m pip install --no-dependencies ' + '"' + '" "'.join(newdeps) + '"')
                         ))
             except:
                 self.logger.exception('Dependency installation failed')
@@ -1064,7 +1064,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if len(newdeps) > 0:
                     self.logger.debug('Installing: ' + ' '.join(newdeps))
                     await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                        'python3 -m pip install ' + ' '.join(newdeps))
+                        'python3 -m pip install ' + '"' + '" "'.join(newdeps) + '"')
                     ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
@@ -1251,7 +1251,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if len(newdeps) > 0:
                             self.logger.debug('Installing: ' + ' '.join(newdeps))
                             await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                                'python3 -m pip install --no-dependencies ' + ' '.join(newdeps))
+                                'python3 -m pip install --no-dependencies ' + '"' + '" "'.join(newdeps) + '"')
                             ))
                 except:
                     self.logger.exception('Dependency installation failed')
