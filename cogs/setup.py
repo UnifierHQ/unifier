@@ -108,7 +108,7 @@ class SetupDialog:
             return True
         return False
 
-    async def finish(self):
+    async def finish(self, skipped=False):
         self.update(
             self.get('finish_title'),
             self.get('finish_body') + '\n' + self.get('finish_reboot')
@@ -123,7 +123,18 @@ class SetupDialog:
         )
         components.add_row(row)
 
+        if skipped:
+            self.update(
+                self.get('finish_title'),
+                self.get('finish_body')
+            )
+            components = None
+
         await self.message.edit(embed=self.embed, view=components)
+
+        if skipped:
+            return
+
         interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
         await interaction.response.edit_message(view=None)
 
@@ -450,19 +461,25 @@ class Setup(commands.Cog):
             install_data = json.load(file)
 
         if not install_data['setup']:
-            self.bot.setup_lock = True
             self.bot.setup_task = asyncio.create_task(self.setup())
 
     async def setup(self):
         self.logger.info('Running setup')
         ignore_error = False
         try:
+            can_skip = os.path.isdir('old') or os.path.isdir('update')
+            if not can_skip:
+                self.bot.setup_lock = True
+
             setup_dialog = SetupDialog(self.bot)
             skip = await setup_dialog.start()
 
             if skip:
                 ignore_error = True
-                return await setup_dialog.finish()
+                return await setup_dialog.finish(skipped=True)
+
+            if not self.bot.setup_lock:
+                self.bot.setup_lock = True
 
             server = self.bot.get_guild(self.bot.config['home_guild'])
 
