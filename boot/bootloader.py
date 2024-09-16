@@ -4,6 +4,8 @@ import shutil
 import json
 import time
 
+reinstall = '--reinstall' in sys.argv
+
 install_options = [
     {
         'id': 'optimized',
@@ -52,8 +54,8 @@ if not options:
 else:
     options = ' ' + ' '.join(options)
 
-if not '.install.json' in os.listdir():
-    if os.path.isdir('update'):
+if not '.install.json' in os.listdir() or reinstall:
+    if os.path.isdir('update') and not reinstall:
         # unifier was likely updated from v2 or older
         print('\x1b[33;1mLegacy installation detected, skipping installer.\x1b[0m')
         with open('.install.json', 'w+') as file:
@@ -67,7 +69,8 @@ if not '.install.json' in os.listdir():
             )
     else:
         # this installation is fresh
-        print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
+        if not reinstall:
+            print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
 
         if len(install_options) == 1:
             install_option = install_options[0]['id']

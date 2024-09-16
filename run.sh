@@ -7,4 +7,4 @@ if [[ -z $FILEPATH ]]; then
   exit 1
 fi
 
-python3 ./boot/bootloader.py
+python3 ./boot/bootloader.py "$@"

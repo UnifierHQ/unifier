@@ -5,5 +5,5 @@ if NOT ERRORLEVEL 0 (
   echo on
   echo Could not find a Python 3 installation.
 ) else (
-  py -3 boot/bootloader.py
+  py -3 boot/bootloader.py %*
 )
