@@ -150,6 +150,7 @@ with open('config.toml', 'rb') as file:
     config = tomli.load(file)
 
 config['roles']['owner'] = user_id
+config['moderation']['home_guild'] = server_id
 
 with open('config.toml', 'wb') as file:
     tomli_w.dump(config, file)
