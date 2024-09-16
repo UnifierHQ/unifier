@@ -811,7 +811,8 @@ class UnifierBridge:
                 },
                 'emoji': self.__bot.db['roomemojis'][room] if room in self.__bot.db['roomemojis'].keys() else None,
                 'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None,
-                'display_name': None
+                'display_name': None,
+                'banned': []
             },'discord': self.__bot.db['rooms'][room]}
             if room in self.__bot.db['rooms_revolt'].keys():
                 self.__bot.db['rooms'][room].update({'revolt': self.__bot.db['rooms_revolt'][room]})
