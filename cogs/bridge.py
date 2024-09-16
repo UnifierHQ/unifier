@@ -823,7 +823,7 @@ class UnifierBridge:
         self.__bot.db.pop('rules')
         self.__bot.db.pop('restricted')
         self.__bot.db.pop('locked')
-        self.__bot.db.pop('roomemoji')
+        self.__bot.db.pop('roomemojis')
         self.__bot.db.pop('descriptions')
 
         # not sure what to do about the data stored in rooms_revolt key now...
