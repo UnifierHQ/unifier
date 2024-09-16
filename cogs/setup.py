@@ -57,9 +57,7 @@ class SetupDialog:
         self.embed.colour = color or self.bot.colors.unifier
         self.embed.title = title
         self.embed.description = description
-
-        if image_url:
-            self.embed.set_image(url=image_url)
+        self.embed.set_image(url=image_url)
 
         if fields:
             for field in fields:
