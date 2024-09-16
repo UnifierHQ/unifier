@@ -1447,12 +1447,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if sys.platform == 'win32':
                             binary = bootloader_config.get('binary', 'py -3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
                         else:
                             binary = bootloader_config.get('binary', 'python3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
             except:
                 self.logger.exception('Dependency installation failed')
@@ -1862,12 +1862,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if sys.platform == 'win32':
                         binary = bootloader_config.get('binary', 'py -3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + ' '.join(newdeps))
+                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
                     else:
                         binary = bootloader_config.get('binary', 'python3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + ' '.join(newdeps))
+                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
@@ -2090,12 +2090,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             if sys.platform == 'win32':
                                 binary = bootloader_config.get('binary', 'py -3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                             else:
                                 binary = bootloader_config.get('binary', 'python3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + ' '.join(newdeps))
+                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                 except:
                     self.logger.exception('Dependency installation failed')
