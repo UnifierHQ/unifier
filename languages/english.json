@@ -13,7 +13,11 @@
         "accept": "Accept",
         "reject": "Reject",
         "yes": "Yes",
-        "no": "No"
+        "no": "No",
+        "confirm": "Confirm",
+        "select": "Select...",
+        "enter": "Enter value",
+        "restart": "Restart"
       },
       "search": {
         "search": "Search",
@@ -840,6 +844,7 @@
         "main_title": "Main room",
         "main_body": "Which room should be considered as the main room?",
         "main_name": "The room with the matching name will be used to receive automated system messages.",
+        "main_default": "Default value: `main`",
         "ctx_title": "Context menu commands",
         "ctx_body": "Enable context menu commands?",
         "ctx_required": "These are required for message reporting to work.",
@@ -867,12 +872,21 @@
         "proom_title": "Posts: Posts room",
         "proom_body": "Which room should be used for sharing Posts?",
         "proom_name": "The room with the matching name will be used for sharing Posts.",
+        "proom_default": "Default value: `posts`",
         "pcomment_title": "Posts: Comments room",
         "pcomment_body": "Which room should be used for Post comments?",
         "pcomment_name": "The room with the matching name will be used for commenting on Posts.",
+        "pcomment_default": "Default value: `posts-comments`",
+        "alerts_title": "Safety Alerts",
+        "alerts_body": "Enable Safety Alerts?",
+        "alerts_info": "Safety Alerts allow instance moderators to alert connected servers if there is a potential threat.",
+        "aroom_title": "Safety Alerts: Alerts room",
+        "aroom_body": "Which room should be used for Safety Alerts?",
+        "aroom_name": "The room with the matching name will be used for Safety Alerts.",
+        "aroom_default": "Default value: `alerts`",
         "finish_title": "Setup complete!",
         "finish_body": "Unifier is now ready for action!",
-        "finish_reboot": "Please press \"Reboot\" to complete setup."
+        "finish_reboot": "Please press \"Restart\" to complete setup."
       }
     }
   }

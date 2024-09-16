@@ -35,7 +35,10 @@ files_endpoint = "https://github.com/UnifierHQ"
 
 [moderation]
 enable_logging = false
+enable_reporting = false
 enable_rtt = true
+logging_edit = false
+logging_delete = false
 home_guild = -1
 logs_channel = -1
 reports_channel = -1
@@ -50,6 +53,7 @@ exp_cooldown = 30
 enable_emoji_tags = false
 enable_ctx_commands = true
 enable_rotating_status = true
+enable_safety_alerts = false
 safe_filetypes = true
 suppress_filesize_warning = false
 permanent_invites = false

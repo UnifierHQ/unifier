@@ -41,6 +41,7 @@ bot = commands.Bot(
 )
 
 user_id = 0
+server_id = 0
 
 with open('boot/internal.json') as file:
     internal = json.load(file)
@@ -51,6 +52,8 @@ if sys.version_info.minor < internal['required_py_version']:
 
 @bot.event
 async def on_ready():
+    global server_id
+
     print(f'\x1b[33;1mIs {bot.user.name} ({bot.user.id}) the correct bot? (y/n)\x1b[0m')
     answer = input().lower()
 
@@ -61,6 +64,15 @@ async def on_ready():
     print(f'\x1b[36;1mAttempting to DM user {user_id}...\x1b[0m')
 
     user = bot.get_user(user_id)
+
+    for guild in bot.guilds:
+        for member in guild.members:
+            if member.id == user_id:
+                server_id = guild.id
+                break
+
+        if not server_id == 0:
+            break
 
     available = 10
     tries = 0
