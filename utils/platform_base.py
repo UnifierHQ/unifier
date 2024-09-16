@@ -169,6 +169,11 @@ class PlatformBase:
         """Fetches the channel from the API."""
         raise MissingImplementation()
 
+    async def fetch_webhook(self, webhook_id, server_id):
+        """Fetches the webhook from the API.
+        server_id can be ignored if the API does not require it."""
+        raise MissingImplementation()
+
     async def make_friendly(self, text):
         """Converts the message so it's friendly with other platforms.
         For example, <@userid> should be converted to @username."""
