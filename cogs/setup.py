@@ -454,6 +454,7 @@ class Setup(commands.Cog):
             self.bot.setup_task = asyncio.create_task(self.setup())
 
     async def setup(self):
+        self.logger.info('Running setup')
         ignore_error = False
         try:
             setup_dialog = SetupDialog(self.bot)
