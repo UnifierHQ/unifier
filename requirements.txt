@@ -1,5 +1,8 @@
-nextcord[speed]
+git+https://github.com/nextcord/nextcord.git
 aiofiles
+aiodns; sys_platform != 'win32'
+Brotli
+brotlicffi
 py-cpuinfo
 tld
 jellyfish
