@@ -185,6 +185,12 @@ class PlatformBase:
     async def send(self, channel, content, special: dict = None):
         """Sends a message to a channel, then returns the message object.
         Special features, such as embeds and files, can be specified in special."""
+
+        # Note for replies:
+        # If the bridge key is present in special, reply will be a UnifierMessage.
+        # Otherwise, it will either be the message's ID or your platform's message object.
+        # Please handle both cases accordingly.
+
         raise MissingImplementation()
 
     async def edit(self, message, content, special: dict = None):
