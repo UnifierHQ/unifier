@@ -740,7 +740,7 @@ class UnifierBridge:
         else:
             ids = [channel_id]
             if webhook_id:
-                ids.append(webhook_id)
+                ids = [webhook_id, channel_id]
 
         if not platform in roominfo.keys():
             self.__bot.db['rooms'][room].update({platform:{}})
