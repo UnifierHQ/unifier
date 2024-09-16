@@ -182,6 +182,10 @@ class PlatformBase:
         server_id can be ignored if the API does not require it."""
         raise MissingImplementation()
 
+    async def fetch_message(self, channel, message_id):
+        """Fetches a message from the API."""
+        raise MissingImplementation()
+
     async def make_friendly(self, text):
         """Converts the message so it's friendly with other platforms.
         For example, <@userid> should be converted to @username."""
