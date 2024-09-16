@@ -2,12 +2,38 @@ import asyncio
 import sys
 import getpass
 import json
-
 import nextcord
 import tomli
 import tomli_w
 import traceback
 from nextcord.ext import commands
+
+install_option = sys.argv[1] if len(sys.argv) > 1 else None
+
+install_options = [
+    {
+        'id': 'optimized',
+        'name': 'Optimized',
+        'description': 'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.',
+        'default': True,
+        'prefix': '',
+        'color': '\x1b[35m'
+    },
+    {
+        'id': 'stable',
+        'name': 'Stable',
+        'description': 'Uses the latest stable Nextcord version without performance optimizations for best stability.',
+        'default': False,
+        'prefix': 'stable',
+        'color': '\x1b[32m'
+    }
+]
+
+if not install_option:
+    for option in install_options:
+        if option['default']:
+            install_option = option['id']
+            break
 
 bot = commands.Bot(
     command_prefix='u!',
@@ -120,7 +146,8 @@ with open('.install.json','w+') as file:
     json.dump(
         {
             'product': internal["product"],
-            'setup': False
+            'setup': False,
+            'option': install_option
         },
         file
     )

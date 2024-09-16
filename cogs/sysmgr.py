@@ -1833,13 +1833,28 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return
             try:
                 self.logger.debug('Installing dependencies')
-                x = open('update/requirements.txt')
-                newdeps = x.read().split('\n')
-                x.close()
-                try:
-                    x = open('requirements.txt')
-                    olddeps = x.read().split('\n')
+
+                with open('.install.json') as file:
+                    install_data = json.load(file)
+
+                if install_data == 'stable':
+                    x = open('update/requirements_stable.txt')
+                    newdeps = x.read().split('\n')
                     x.close()
+                else:
+                    x = open('update/requirements.txt')
+                    newdeps = x.read().split('\n')
+                    x.close()
+
+                try:
+                    if install_data == 'stable':
+                        x = open('requirements_stable.txt')
+                        olddeps = x.read().split('\n')
+                        x.close()
+                    else:
+                        x = open('requirements.txt')
+                        olddeps = x.read().split('\n')
+                        x.close()
                 except:
                     self.logger.warning('Could not find requirements.txt, installing all dependencies')
                     olddeps = []
@@ -1876,6 +1891,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await self.copy('update/unifier.py ', 'unifier.py')
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements.txt')
                 await self.copy('update/requirements.txt', 'requirements.txt')
+                self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements_stable.txt')
+                await self.copy('update/requirements_stable.txt', 'requirements_stable.txt')
                 self.logger.debug('Installing: ' + os.getcwd() + '/update_check/plugins/system.json')
                 if legacy:
                     current['version'] = version
@@ -1892,6 +1909,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for file in os.listdir(os.getcwd() + '/update/cogs'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/cogs/' + file)
                     await self.copy('update/cogs/' + file, 'cogs/' + file)
+                for file in os.listdir(os.getcwd() + '/update/utils'):
+                    self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
+                    await self.copy('update/utils/' + file, 'utils/' + file)
+                self.logger.debug('Installing: ' + os.getcwd() + '/update/emojis/base.json')
+                await self.copy('update/emojis/base.json', 'emojis/base.json')
+                self.logger.debug('Updating languages')
+                for file in os.listdir(os.getcwd() + '/update/languages'):
+                    if not file.endswith('.json'):
+                        continue
+
+                    self.logger.debug('Installing: ' + os.getcwd() + '/update/languages/' + file)
+                    await self.copy('update/languages/' + file, 'languages/' + file)
                 for file in os.listdir(os.getcwd() + '/update/utils'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
                     await self.copy('update/utils/' + file, 'utils/' + file)

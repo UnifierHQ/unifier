@@ -4,12 +4,32 @@ import shutil
 import json
 import time
 
+install_options = [
+    {
+        'id': 'optimized',
+        'name': 'Optimized',
+        'description': 'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.',
+        'default': True,
+        'prefix': '',
+        'color': '\x1b[35'
+    },
+    {
+        'id': 'stable',
+        'name': 'Stable',
+        'description': 'Uses the latest stable Nextcord version without performance optimizations for best stability.',
+        'default': False,
+        'prefix': 'stable',
+        'color': '\x1b[32'
+    }
+]
+
 if os.getcwd().endswith('/boot'):
     print('\x1b[31;1mYou are running the bootloader directly. Please run the run.sh file instead.\x1b[0m')
     sys.exit(1)
 
 with open('boot/internal.json') as file:
     internal = json.load(file)
+
 
 boot_config = {}
 try:
@@ -37,30 +57,56 @@ if not '.install.json' in os.listdir():
             json.dump(
                 {
                     'product': internal["product"],
-                    'setup': False
+                    'setup': False,
+                    'option': 'optimized'
                 },
                 file
             )
     else:
         # this installation is fresh
         print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
+        print(f'\x1b[33;1mYou have {len(install_options)} install options available.\x1b[0m\n')
+
+        for index in range(len(install_options)):
+            option = install_options[index]
+            print(f'{option["color"]};1m{option["name"]} (option {index})\x1b[0m')
+            print(f'{option["color"]}m{option["description"]}\x1b[0m')
+
+        print(f'\n\x1b[33;1mWhich installation option would you like to install? (0-{len(install_options)-1})\x1b[0m')
+
+        try:
+            install_option = int(input())
+
+            if install_option < 0 or install_option >= len(install_options):
+                raise ValueError()
+        except:
+            print(f'\x1b[31;1mAborting.\x1b[0m')
+            sys.exit(1)
+
+        install_option = install_options[install_option]['id']
+
         print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
         print(f'- Product to install: {internal["product_name"]}')
+        print(f'- Installation option: {install_option}')
         print(f'- Install directory: {os.getcwd()}')
         print(f'- Python command/binary: {binary}\n')
         print('\x1b[33;1mProceed with installation? (y/n)\x1b[0m')
 
-        answer = input().lower()
+        try:
+            answer = input().lower()
+        except:
+            print(f'\x1b[31;1mAborting.\x1b[0m')
+            sys.exit(1)
 
         if not answer == 'y':
             print(f'\x1b[31;1mAborting.\x1b[0m')
             sys.exit(1)
 
-        exit_code = os.system(f'{binary} boot/dep_installer.py{options}')
+        exit_code = os.system(f'{binary} boot/dep_installer.py {install_option}{options}')
         if not exit_code == 0:
             sys.exit(exit_code)
 
-        exit_code = os.system(f'{binary} boot/installer.py{options}')
+        exit_code = os.system(f'{binary} boot/installer.py {install_option}{options}')
 
         if not exit_code == 0:
             print('\x1b[31;1mInstaller has crashed or has been aborted.\x1b[0m')
