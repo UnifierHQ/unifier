@@ -1,3 +1,5 @@
+# Unifier config TOML
+
 [system]
 debug = false
 package = "unifier"
@@ -5,10 +7,11 @@ language = "english"
 skip_status_check = false
 
 [roles]
-owner = 730375236197023785
+owner = -1
 admin_ids = []
 
 [roles.owner_external]
+# For each platform, you can add your account's ID here.
 revolt = ""
 guilded = ""
 
@@ -36,16 +39,13 @@ enable_reporting = false
 enable_rtt = true
 logging_edit = false
 logging_delete = false
-home_guild = 1257928675039510548
+home_guild = -1
 logs_channel = -1
 reports_channel = -1
 moderator_role = -1
 
 [bridge]
-external = [
-    "revolt",
-    "guilded",
-]
+external = ["revolt", "guilded"]
 use_multicore = true
 allow_posts = false
 enable_exp = false
@@ -57,7 +57,7 @@ enable_safety_alerts = false
 safe_filetypes = true
 suppress_filesize_warning = false
 permanent_invites = false
-enable_private_rooms = false
+enable_private_rooms = false # WARNING: Private Rooms are experimental, privacy is not guaranteed. Use at your own risk.
 private_rooms_limit = 0
 main_room = "main"
 alerts_room = "alerts"

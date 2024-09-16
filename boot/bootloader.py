@@ -6,12 +6,6 @@ import time
 
 reinstall = '--reinstall' in sys.argv
 
-def clear():
-    if os.name == 'nt':
-        os.system('cls')
-    else:
-        os.system('clear')
-
 install_options = [
     {
         'id': 'optimized',
@@ -74,16 +68,13 @@ if not '.install.json' in os.listdir() or reinstall:
                 file
             )
     else:
-        clear()
         # this installation is fresh
         if not reinstall:
             print('\x1b[33;1mInstallation not detected, running installer...\x1b[0m')
-            time.sleep(2)
 
         if len(install_options) == 1:
             install_option = install_options[0]['id']
         else:
-            clear()
             print(f'\x1b[33;1mYou have {len(install_options)} install options available.\x1b[0m\n')
 
             for index in range(len(install_options)):
@@ -103,8 +94,6 @@ if not '.install.json' in os.listdir() or reinstall:
                 sys.exit(1)
 
             install_option = install_options[install_option]['id']
-
-        clear()
 
         print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
         print(f'- Product to install: {internal["product_name"]}')
@@ -128,7 +117,7 @@ if not '.install.json' in os.listdir() or reinstall:
             sys.exit(exit_code)
 
         exit_code = os.system(f'{binary} boot/installer.py {install_option}{options}')
-        clear()
+
         if not exit_code == 0:
             print('\x1b[31;1mInstaller has crashed or has been aborted.\x1b[0m')
             sys.exit(exit_code)
