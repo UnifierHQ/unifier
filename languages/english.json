@@ -213,8 +213,9 @@
         "rollback_fail": "The upgrade failed, and the bot may now be in a crippled state.\nPlease check console logs for more info.",
         "success_title": "Upgrade successful",
         "success_body": "The upgrade was successful! :partying_face:",
+        "success_rpossible": "To apply the changes, you may need to restart the bot.",
         "restart_title": "Restart to apply upgrade",
-        "restart_body": "The upgrade was successful. Please reboot the bot.",
+        "restart_body": "The upgrade was successful. Please restart the bot.",
         "notfound_title": "Plugin not found",
         "notfound_body": "The plugin could not be found.",
         "hint_force": "**Hint**: If you're trying to force upgrade, run `{prefix}upgrade system force`",
@@ -624,6 +625,9 @@
         "filesize_limit": "Your files passed the 25MB limit. Some files will not be sent.",
         "replying": "Replying to {user}",
         "deleted": "Message deleted from `{roomname}`",
+        "edited": "Message edited in `{roomname}`",
+        "original": "Original",
+        "new": "New",
         "embeds": "{count} embeds",
         "files": "{count} files"
       }

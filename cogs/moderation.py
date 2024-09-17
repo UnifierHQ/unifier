@@ -220,13 +220,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed.add_field(name='Did we make a mistake?',value=f'If you think we didn\'t make the right call, you can always appeal your ban using `{self.bot.command_prefix}!appeal`.',inline=False)
         user = self.bot.get_user(userid)
         if not user:
-            try:
-                user = self.bot.revolt_client.get_user(userid)
-                await user.send(f'## {embed.title}\n{embed.description}\n\n**Actions taken**\n{embed.fields[0].value}')
-                return await ctx.send('global banned <:nevheh:990994050607906816>')
-            except:
-                return await ctx.send('global banned <:nevheh:990994050607906816>')
-        if user:
+            # add NUPS support for this later
+            avatar = None
+            name = '[unknown]'
+            pass
+        else:
+            avatar = user.avatar.url if user.avatar else None
+            name = user.name
             try:
                 await user.send(embed=embed)
             except:
@@ -255,11 +255,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ctx.message.embeds = []
         ctx.message.content = content
 
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.add_modlog(1, user.id, reason, ctx.author.id))
-        actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(user.id)
+        try:
+            userid = int(userid)
+        except:
+            pass
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.add_modlog(1, userid, reason, ctx.author.id))
+        actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(userid)
         log_embed = nextcord.Embed(title='User banned', description=reason, color=self.bot.colors.error, timestamp=datetime.datetime.now(datetime.timezone.utc))
         log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
-        log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
+        log_embed.set_author(name=f'@{name}',icon_url=avatar)
         log_embed.add_field(
             name='User modlogs info',
             value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in ' +
@@ -283,6 +287,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             reference=ctx.message,
             view=components if rtt_msg else None
         )
+
+        try:
+            if not self.bot.config['enable_logging']:
+                raise RuntimeError()
+            ch = self.bot.get_channel(self.bot.config['logs_channel'])
+
+            await ch.send(embed=log_embed)
+        except:
+            pass
 
         if not rtt_msg:
             return

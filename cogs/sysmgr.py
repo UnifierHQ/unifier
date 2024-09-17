@@ -2250,6 +2250,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Upgrade complete')
                 embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                 embed.description = selector.get("success_body")
+
+                if 'bridge_platform' in plugin_info['services']:
+                    embed.description = embed.description + '\n' + selector.get('success_rpossible')
+
                 embed.colour = self.bot.colors.success
                 await msg.edit(embed=embed)
             except:

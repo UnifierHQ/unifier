@@ -1194,7 +1194,7 @@ class UnifierBridge:
                 ))
             else:
                 threads.append(asyncio.create_task(
-                    delete_others(msg.external_copies[msg.source],msg.source)
+                    delete_others(msg.external_copies[platform],platform)
                 ))
 
         results = await asyncio.gather(*threads)
@@ -2209,12 +2209,12 @@ class UnifierBridge:
                             async with aiohttp.ClientSession() as session:
                                 webhook.session = session
                                 msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                         content=tosend_content, files=files, allowed_mentions=mentions, view=(
+                                                         content=content_override or tosend_content, files=files, allowed_mentions=mentions, view=(
                                                              components if components and not system else ui.MessageComponents()
                                                          ), wait=True)
                         else:
                             msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                     content=tosend_content, files=files, allowed_mentions=mentions,
+                                                     content=content_override or tosend_content, files=files, allowed_mentions=mentions,
                                                      view=(
                                                          components if components and not system else ui.MessageComponents()
                                                      ), wait=True)
@@ -2248,6 +2248,10 @@ class UnifierBridge:
                 else:
                     try:
                         tosend_content = alert_pings + (friendly_content if friendlified else msg_content)
+
+                        if content_override:
+                            tosend_content = content_override
+
                         if len(tosend_content) > 2000:
                             tosend_content = tosend_content[:-(len(tosend_content) - 2000)]
                             if not components:
@@ -2260,7 +2264,7 @@ class UnifierBridge:
                                 )
                             )
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=tosend_content,
+                                                 content=content_override or tosend_content,
                                                  files=files, allowed_mentions=touse_mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
@@ -2325,7 +2329,7 @@ class UnifierBridge:
                     if trimmed:
                         special.update({'reply_content': trimmed})
                     msg = await dest_support.send(
-                        ch, content, special=special
+                        ch, content_override or content, special=special
                     )
                     tbresult = [
                         {f'{dest_support.get_id(destguild)}': [
@@ -2342,9 +2346,13 @@ class UnifierBridge:
                         pass
                     return tbresult
 
+                if content_override:
+                    friendly_content = content_override
+                    msg_content = content_override
+
                 if dest_support.enable_tb:
                     threads.append(asyncio.create_task(tbsend(
-                        msg_author,url,color,useremoji,reply,friendly_content if friendlified else msg_content
+                        msg_author,url,color,useremoji,reply,content_override or (friendly_content if friendlified else msg_content)
                     )))
                 else:
                     try:
@@ -2372,7 +2380,7 @@ class UnifierBridge:
                         if trimmed:
                             special.update({'reply_content': trimmed})
                         msg = await dest_support.send(
-                            ch, friendly_content if friendlified else msg_content, special=special
+                            ch, content_override or (friendly_content if friendlified else msg_content), special=special
                         )
                     except:
                         continue
@@ -4238,6 +4246,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
+        selector = language.get_selector('bridge.bridge', userid=after.author.id)
         if before.content == after.content:
             return
 
@@ -4331,6 +4340,38 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 raise ValueError()
         except:
             return
+
+        try:
+            if not self.bot.config['enable_logging'] or not self.bot.config['logging_edit']:
+                raise RuntimeError()
+            ch = self.bot.get_channel(self.bot.config['logs_channel'])
+
+            before_content = before.content
+            content = message.content
+
+            if len(before.content) == 0:
+                before_content = '[no content]'
+            if len(message.content) == 0:
+                content = '[no content]'
+            embed = nextcord.Embed(
+                title=selector.fget('edited', values={'roomname': roomname}), color=self.bot.colors.blurple
+            )
+            embed.add_field(name=selector.get('original'), value=before_content, inline=False)
+            embed.add_field(name=selector.get('new'), value=content, inline=False)
+            embed.add_field(name='IDs',
+                            value=f'MSG: {message.id}\nSVR: {message.guild.id}\nUSR: {message.author.id}',
+                            inline=False)
+            if message.author.discriminator == '0':
+                author = f'@{message.author.name}'
+            else:
+                author = f'{message.author.name}#{message.author.discriminator}'
+            try:
+                embed.set_author(name=author, icon_url=message.author.avatar.url)
+            except:
+                embed.set_author(name=author)
+            await ch.send(embed=embed)
+        except:
+            pass
 
         await self.bot.bridge.edit(msg.id,message.content)
 
@@ -4511,7 +4552,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.bridge.delete_copies(msg.id)
 
         try:
-            if not self.bot.config['enable_logging']:
+            if not self.bot.config['enable_logging'] or not self.bot.config['logging_delete']:
                 raise RuntimeError()
             ch = self.bot.get_channel(self.bot.config['logs_channel'])
 
@@ -4519,7 +4560,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             if len(message.content) == 0:
                 content = '[no content]'
-            embed = nextcord.Embed(title=selector.fget('deleted',values={'roomname':roomname}), description=content)
+            embed = nextcord.Embed(
+                title=selector.fget('deleted',values={'roomname':roomname}), description=content,
+                color=self.bot.colors.purple
+            )
             embed.add_field(name='Embeds',
                             value=selector.fget(
                                       'embeds',values={'count': len(message.embeds)}
