@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -32,9 +32,9 @@ from nextcord.ext import commands, tasks
 import inspect
 import textwrap
 from contextlib import redirect_stdout
-from utils import log, ui, restrictions as r
+from utils import log, ui, langmgr, restrictions as r
 import logging
-import ujson as json
+import json
 import os
 import sys
 import traceback
@@ -45,9 +45,9 @@ import importlib
 import math
 import asyncio
 import discord_emoji
-import threading
 import hashlib
 import orjson
+import tomli, tomli_w
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
 from Crypto import Random as CryptoRandom
@@ -56,9 +56,18 @@ import base64
 import random
 import requests
 import time
+import shutil
 import datetime
 
+# import ujson if installed
+try:
+    import ujson as json
+except:
+    pass
+
 restrictions = r.Restrictions()
+language = langmgr.partial()
+language.load()
 
 # Below are attributions to the works we used to build Unifier (including our own).
 # If you've modified Unifier to use more works, please add it here.
@@ -105,26 +114,19 @@ attribution = {
         'license': 'MIT',
         'license_url': 'https://github.com/workhorsy/py-cpuinfo/blob/master/LICENSE'
     },
-    'tld': {
-        'author': 'Artur Barseghyan',
-        'description': 'Extracts the top level domain (TLD) from the URL given.',
-        'repo': 'https://github.com/barseghyanartur/tld',
-        'license': 'LGPLv2.1',
-        'license_url': 'https://github.com/barseghyanartur/tld/blob/master/LICENSE_LGPL_2.1.txt'
-    },
-    'jellyfish': {
-        'author': 'James Turk',
-        'description': '\U0001FABC a python library for doing approximate and phonetic matching of strings.',
-        'repo': 'https://github.com/jamesturk/jellyfish',
-        'license': 'MIT',
-        'license_url': 'https://github.com/jamesturk/jellyfish/blob/main/LICENSE'
-    },
     'uvloop': {
         'author': 'magicstack',
         'description': 'Ultra fast asyncio event loop.',
         'repo': 'https://github.com/MagicStack/uvloop',
         'license': 'MIT',
         'license_url': 'https://github.com/MagicStack/uvloop/blob/master/LICENSE-MIT'
+    },
+    'winloop': {
+        'author': 'Vizonex',
+        'description': 'An Alternative library for uvloop compatability with windows',
+        'repo': 'https://github.com/Vizonex/Winloop',
+        'license': 'MIT',
+        'license_url': 'https://github.com/Vizonex/winloop/blob/main/LICENSE-MIT'
     },
     'compress_json': {
         'author': 'Luca Cappelletti',
@@ -184,6 +186,55 @@ attribution = {
         'repo': 'https://github.com/ijl/orjson',
         'license': 'MIT',
         'license_url': 'https://github.com/ijl/orjson/blob/master/LICENSE-MIT'
+    },
+    'tomli': {
+        'author': 'Taneli Hukkinen',
+        'description': 'A lil\' TOML parser',
+        'repo': 'https://github.com/hukkin/tomli',
+        'license': 'MIT',
+        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+    },
+    'tomli-w': {
+        'author': 'Taneli Hukkinen',
+        'description': 'A lil\' TOML writer (counterpart to https://github.com/hukkin/tomli)',
+        'repo': 'https://github.com/hukkin/tomli-w',
+        'license': 'MIT',
+        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+    },
+    'setuptools': {
+        'author': 'Python Packaging Authority',
+        'description': 'Official project repository for the Setuptools build system',
+        'repo': 'https://github.com/pypa/setuptools',
+        'license': 'MIT',
+        'license_url': 'https://github.com/pypa/setuptools/blob/master/LICENSE'
+    },
+    'aiomultiprocess': {
+        'author': 'The Omnilib Project',
+        'description': 'Take a modern Python codebase to the next level of performance.',
+        'repo': 'https://github.com/omnilib/aiomultiprocess',
+        'license': 'MIT',
+        'license_url': 'https://github.com/omnilib/aiomultiprocess/blob/main/LICENSE'
+    },
+    'aiodns': {
+        'author': 'aio-libs',
+        'description': 'Simple DNS resolver for asyncio',
+        'repo': 'https://github.com/aio-libs/aiodns',
+        'license': 'MIT',
+        'license_url': 'https://github.com/aio-libs/aiodns/blob/master/LICENSE'
+    },
+    'brotli': {
+        'author': 'Google',
+        'description': 'Brotli compression format',
+        'repo': 'https://github.com/google/brotli',
+        'license': 'MIT',
+        'license_url': 'https://github.com/google/brotli/blob/master/LICENSE'
+    },
+    'brotlicffi': {
+        'author': 'Hyper',
+        'description': 'Python bindings to the Brotli compression library',
+        'repo': 'https://github.com/python-hyper/brotlicffi',
+        'license': 'MIT',
+        'license_url': 'https://github.com/python-hyper/brotlicffi/blob/main/LICENSE'
     }
 }
 
@@ -202,9 +253,13 @@ class Colors: # format: 0xHEXCODE
     critical = 0xff0000
 
 class Emojis:
-    def __init__(self, data=None):
-        with open('emojis/base.json', 'r') as file:
-            base = json.load(file)
+    def __init__(self, data=None, devmode=False):
+        if devmode:
+            with open('emojis/devbase.json', 'r') as file:
+                base = json.load(file)
+        else:
+            with open('emojis/base.json', 'r') as file:
+                base = json.load(file)
 
         if data:
             for key in base['emojis'].keys():
@@ -227,64 +282,6 @@ class Emojis:
         self.rooms = data['emojis']['rooms'][0]
         self.emoji = data['emojis']['emoji'][0]
         self.leaderboard = data['emojis']['leaderboard'][0]
-
-class AutoSaveDict(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.file_path = 'data.json'
-        self.__save_lock = False
-
-        # Ensure necessary keys exist
-        self.update({'rules': {}, 'rooms': {}, 'rooms_revolt': {}, 'rooms_guilded': {}, 'emojis': [], 'nicknames': {},
-                     'descriptions': {}, 'restricted': [], 'locked': [], 'blocked': {}, 'banned': {}, 'moderators': [],
-                     'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {}, 'external_bridge': [],
-                     'modlogs': {}, 'spybot': [], 'trusted': [], 'report_threads': {}, 'fullbanned': [], 'exp': {},
-                     'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [], 'roomemojis': {},
-                     'underattack': []})
-        self.threads = []
-
-        # Load data
-        self.load_data()
-
-    @property
-    def save_lock(self):
-        return self.__save_lock
-
-    @save_lock.setter
-    def save_lock(self, save_lock):
-        if self.__save_lock:
-            raise RuntimeError('already locked')
-        self.__save_lock = save_lock
-
-    def load_data(self):
-        try:
-            with open(self.file_path, 'r') as file:
-                data = json.load(file)
-            self.update(data)
-        except FileNotFoundError:
-            pass  # If the file is not found, initialize an empty dictionary
-
-    def save(self):
-        if self.__save_lock:
-            return
-        with open(self.file_path, 'w') as file:
-            json.dump(self, file, indent=4)
-        return
-
-    def cleanup(self):
-        for thread in self.threads:
-            thread.join()
-        count = len(self.threads)
-        self.threads.clear()
-        return count
-
-    def save_data(self):
-        if self.__save_lock:
-            return
-        thread = threading.Thread(target=self.save)
-        thread.start()
-        self.threads.append(thread)
-
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -314,7 +311,7 @@ class CommandExceptionHandler:
 
     async def handle(self, ctx, error):
         try:
-            if isinstance(error, commands.MissingRequiredArgument):
+            if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, restrictions.CustomMissingArgument):
                 cmdname = ctx.command.name
                 cmd = self.bot.get_command(cmdname)
                 embed = nextcord.Embed(color=self.bot.colors.unifier)
@@ -335,9 +332,26 @@ class CommandExceptionHandler:
                     f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(
                         cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                                 )
-                await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
-            elif isinstance(error, commands.MissingPermissions):
+                if isinstance(error, commands.MissingRequiredArgument):
+                    await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
+                else:
+                    await ctx.send(f'{self.bot.ui_emojis.error} {error}', embed=embed)
+            elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.BotMissingPermissions):
                 await ctx.send(f'{self.bot.ui_emojis.error} {error}')
+            elif isinstance(error, commands.NoPrivateMessage):
+                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in servers.')
+            elif isinstance(error, commands.PrivateMessageOnly):
+                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in DMs.')
+            elif isinstance(error, restrictions.NoRoomManagement):
+                await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to manage this room.')
+            elif isinstance(error, restrictions.NoRoomJoin):
+                await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to join this room.')
+            elif isinstance(error, restrictions.UnknownRoom):
+                await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
+            elif isinstance(error, restrictions.GlobalBanned):
+                await ctx.send(f'{self.bot.ui_emojis.error} Your account or this server is currently global banned. Run `{self.bot.command_prefix}standing` for more info.')
+            elif isinstance(error, restrictions.UnderAttack):
+                await ctx.send(f'{self.bot.ui_emojis.error} This server is in Under Attack mode. Some functionality is unavailable.')
             elif isinstance(error, commands.CheckFailure):
                 await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
             elif isinstance(error, commands.CommandOnCooldown):
@@ -400,8 +414,6 @@ class CommandExceptionHandler:
             self.logger.exception('An error occurred!')
             await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
 
-
-# noinspection PyUnresolvedReferences
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
 
@@ -411,9 +423,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pass
 
     def __init__(self, bot):
+        global language
         self.bot = bot
-        if not hasattr(self.bot, 'db'):
-            self.bot.db = AutoSaveDict({})
 
         restrictions.attach_bot(self.bot)
 
@@ -437,32 +448,65 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if text.startswith(':') and text.endswith(':'):
                         base['emojis'][emoji][0] = discord_emoji.to_unicode(text)
                 base['installed'] = True
-                with open('emojis/base.json', 'w') as file:
-                    json.dump(base, file, indent=2)
+                if self.bot.devmode:
+                    with open('emojis/devbase.json', 'w+') as file:
+                        json.dump(base, file, indent=2)
+                else:
+                    with open('emojis/base.json', 'w+') as file:
+                        json.dump(base, file, indent=2)
             try:
+                if self.bot.coreboot or self.bot.devmode:
+                    raise RuntimeError()
                 with open('emojis/current.json', 'r') as file:
                     data = json.load(file)
                 self.bot.ui_emojis = Emojis(data=data)
             except:
-                self.bot.ui_emojis = Emojis()
+                self.bot.ui_emojis = Emojis(devmode=self.bot.devmode)
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
         if not hasattr(self.bot, 'loglevel'):
             self.bot.loglevel = logging.DEBUG if self.bot.config['debug'] else logging.INFO
         if not hasattr(self.bot, 'package'):
             self.bot.package = self.bot.config['package']
+        if not hasattr(self.bot, 'admins'):
+            self.bot.admins = self.bot.config['admin_ids']
+            self.bot.moderators = self.bot.admins + self.bot.db['moderators']
 
         self.bot.exhandler = CommandExceptionHandler(self.bot)
-
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
-        if not hasattr(self.bot,'loaded_plugins'):
-            self.bot.loaded_plugins = {}
-            if not self.bot.safemode:
+
+        if not hasattr(self.bot, 'langmgr'):
+            self.bot.langmgr = langmgr.LanguageManager(self.bot)
+            self.bot.langmgr.load()
+
+        language = self.bot.langmgr
+
+        if not hasattr(self.bot,'platforms'):
+            self.bot.platforms_former = {}
+            self.bot.platforms = {}
+
+            # This loads the entire plugin script to memory.
+            # Plugins will need to create the platform support object themselves when the
+            # bot is ready on the platform.
+            if not self.bot.safemode and not self.bot.coreboot:
                 for plugin in os.listdir('plugins'):
                     with open('plugins/' + plugin) as file:
                         extinfo = json.load(file)
                         try:
-                            if not 'content_protection' in extinfo['services']:
+                            if not 'bridge_platform' in extinfo['services']:
+                                continue
+                        except:
+                            continue
+                    script = importlib.import_module('utils.' + plugin[:-5] + '_bridge_platform')
+                    self.bot.platforms_former.update({extinfo['bridge_platform']: script})
+        if not hasattr(self.bot,'loaded_plugins'):
+            self.bot.loaded_plugins = {}
+            if not self.bot.safemode and not self.bot.coreboot:
+                for plugin in os.listdir('plugins'):
+                    with open('plugins/' + plugin) as file:
+                        extinfo = json.load(file)
+                        try:
+                            if not 'content_protection' in extinfo['services'] and not 'content_processing' in extinfo['services']:
                                 continue
                         except:
                             continue
@@ -473,7 +517,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not hasattr(self.bot, "disconnects"):
             self.bot.disconnects = 0
 
-        if not self.bot.ready:
+        if not self.bot.ready and not self.bot.coreboot:
             try:
                 with open('plugins/system.json') as file:
                     sysext = json.load(file)
@@ -481,7 +525,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.warning('plugins/system.json is missing. Copying update.json...')
                 if not os.path.exists('plugins'):
                     os.mkdir('plugins')
-                status(os.system('cp ' + os.getcwd() + '/update.json ' + os.getcwd() + '/plugins/system.json'))
+                shutil.copy2('update.json', 'plugins/system.json')
                 with open('plugins/system.json') as file:
                     sysext = json.load(file)
             for extension in sysext['modules']:
@@ -506,17 +550,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
 
-        if not hasattr(self.bot, 'status_rotation_task'):
+        if not hasattr(self.bot, 'status_rotation_task') and not self.bot.coreboot:
             self.bot.status_rotation_task = self.changestatus
             if not self.bot.status_rotation_task .is_running() and self.bot.config['enable_rotating_status']:
                 self.bot.status_rotation_task.start()
-        if not hasattr(self.bot, 'antisleep_task'):
+        if not hasattr(self.bot, 'antisleep_task') and not self.bot.coreboot:
             self.bot.antisleep_task = self.periodicping
             self.bot.antisleep_task.change_interval(seconds=round(self.bot.config['ping']))
             if not self.bot.antisleep_task.is_running() and round(self.bot.config['ping']) > 0:
                 self.bot.antisleep_task.start()
                 self.logger.debug(f'Pinging servers every {round(self.bot.config["ping"])} seconds')
-        if not hasattr(self.bot, 'backup_local_task'):
+        if not hasattr(self.bot, 'backup_local_task') and not self.bot.coreboot:
             self.bot.backup_local_task = self.periodic_backup
             self.bot.backup_local_task.change_interval(seconds=round(
                 self.bot.config['periodic_backup_local']
@@ -530,7 +574,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ) > 0:
                 self.bot.backup_local_task.start()
                 self.logger.debug(f'Backing up messages every {round(self.bot.config["ping"])} seconds')
-        if not hasattr(self.bot, 'backup_cloud_task'):
+        if not hasattr(self.bot, 'backup_cloud_task') and not self.bot.coreboot:
             self.bot.backup_cloud_task = self.periodic_backup_cloud
             self.bot.backup_cloud_task.change_interval(seconds=round(
                 self.bot.config['periodic_backup_cloud']
@@ -543,6 +587,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         sha_signature = \
             hashlib.sha256(hash_string.encode()).hexdigest()
         return sha_signature
+
+    async def copy(self, src, dst):
+        await self.bot.loop.run_in_executor(None, lambda: shutil.copy2(src,dst))
 
     async def encrypt(self, encoded, password, salt):
         __key = await self.bot.loop.run_in_executor(None, lambda: PBKDF2(password, salt, dkLen=32))
@@ -641,33 +688,128 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         script = importlib.import_module('utils.' + plugin_name + '_check')
         await script.check(self.bot)
 
+    async def bot_shutdown(self, ctx, restart=False):
+        selector = language.get_selector(ctx)
+
+        embed = nextcord.Embed(color=self.bot.colors.warning)
+
+        if restart:
+            embed.title = f'{self.bot.ui_emojis.warning} Restart the bot?'
+            embed.description = 'The bot will automatically restart in 60 seconds.'
+        else:
+            embed.title = f'{self.bot.ui_emojis.warning} Shut the bot down?'
+            embed.description = 'The bot will automatically shut down in 60 seconds.'
+
+        components = ui.MessageComponents()
+        components.add_rows(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Restart' if restart else 'Shut down',
+                    custom_id='shutdown'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Nevermind',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            await interaction.response.edit_message(view=None)
+
+            if interaction.data['custom_id'] == 'cancel':
+                return
+        except:
+            await msg.edit(view=None)
+
+        self.logger.info("Attempting graceful shutdown...")
+        if not self.bot.coreboot:
+            self.bot.bridge.backup_lock = True
+        try:
+            if not self.bot.coreboot:
+                if self.bot.bridge.backup_running:
+                    self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
+                    try:
+                        while self.bot.bridge.backup_running:
+                            await asyncio.sleep(1)
+                    except KeyboardInterrupt:
+                        pass
+                for extension in self.bot.extensions:
+                    await self.preunload(extension)
+                self.logger.info("Backing up message cache...")
+                self.bot.db.save_data()
+                self.bot.bridge.backup_lock = False
+                await self.bot.bridge.backup(limit=10000)
+                self.logger.info("Backup complete")
+            if restart:
+                embed.title = f'{self.bot.ui_emojis.success} Restarting...'
+                embed.description = 'Bot will now restart.'
+            else:
+                embed.title = f'{self.bot.ui_emojis.success} Shutting down...'
+                embed.description = 'Bot will now shut down.'
+            embed.colour = self.bot.colors.success
+            await msg.edit(embed=embed)
+        except:
+            self.logger.exception("Graceful shutdown failed")
+            if restart:
+                embed.title = f'{self.bot.ui_emojis.error} Restart failed'
+                embed.description = 'The restart failed.'
+            else:
+                embed.title = f'{self.bot.ui_emojis.error} Shutdown failed'
+                embed.description = 'The shutdown failed.'
+            embed.colour = self.bot.colors.error
+            await msg.edit(embed=embed)
+            return
+
+        if restart:
+            x = open('.restart', 'w+')
+            x.write(f'{time.time()}')
+            x.close()
+
+        self.logger.info("Closing bot session")
+        await self.bot.session.close()
+        self.logger.info("Shutdown complete")
+        await self.bot.close()
+        sys.exit(0)
+
     @tasks.loop(seconds=300)
     async def changestatus(self):
         status_messages = [
-            "with the ban hammer",
-            "with fire",
-            "with the API",
-            "hide and seek",
-            "with code",
-            "in debug mode",
-            "in a parallel universe",
-            "with commands",
-            "a game of chess",
-            "with electrons",
-            "with the matrix",
-            "with cookies",
-            "with the metaverse",
-            "with emojis",
-            "with Nevira",
-            "with green.",
-            "with ItsAsheer",
-            "webhooks",
+            ["playing","with the API"],
+            ["listening","my own code"],
+            ["playing","with commands"],
+            ["watching","the matrix"],
+            ["playing","with emojis"],
+            ["watching","webhooks"],
+            ["custom","Unifying servers like they're nothing"],
+            ["custom","Communities, connected."],
+            ["custom","Made for communities, by communities"],
+            ["custom", "it's unifying time"],
+            ["custom", "Made with \u2764\ufe0f by UnifierHQ"]
         ]
         new_stat = random.choice(status_messages)
-        if new_stat == "webhooks":
-            await self.bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.watching, name=new_stat))
-        else:
-            await self.bot.change_presence(activity=nextcord.Game(name=new_stat))
+        if new_stat[0] == "watching":
+            await self.bot.change_presence(activity=nextcord.Activity(
+                type=nextcord.ActivityType.watching, name=new_stat[1]
+            ))
+        elif new_stat[0] == "listening":
+            await self.bot.change_presence(activity=nextcord.Activity(
+                type=nextcord.ActivityType.listening, name=new_stat[1]
+            ))
+        elif new_stat[0] == "playing":
+            await self.bot.change_presence(activity=nextcord.Game(name=new_stat[1]))
+        elif new_stat[0] == "custom":
+            await self.bot.change_presence(activity=nextcord.CustomActivity(
+                name="Custom Status", state=new_stat[1]
+            ))
 
     @tasks.loop()
     async def periodic_backup(self):
@@ -739,9 +881,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def on_disconnect(self):
         self.bot.disconnects += 1
 
-    @commands.command(aliases=['reload-services'], hidden=True, description="Reloads bot services.")
+    @commands.command(aliases=['reload-services'], hidden=True, description=language.desc('sysmgr.reload_services'))
     @restrictions.owner()
     async def reload_services(self,ctx,*,services=None):
+        selector = language.get_selector(ctx)
         if not services:
             plugins = self.bot.loaded_plugins
         else:
@@ -750,7 +893,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         failed = []
         errors = []
         text = '```diff'
-        msg = await ctx.send('Reloading services...')
+        msg = await ctx.send(selector.get('in_progress'))
         for plugin in plugins:
             try:
                 importlib.reload(self.bot.loaded_plugins[plugin])
@@ -760,115 +903,91 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 failed.append(plugin)
                 errors.append(e)
                 text = text + f'\n- [FAIL] {plugin}'
-        await msg.edit(
-            content=f'Reload completed (`{len(plugins) - len(failed)}'f'/{len(plugins)}` successful)\n\n{text}```'
-        )
+        await msg.edit(selector.fget(
+            'completed', values={'success': len(plugins)-len(failed), 'total': len(plugins())}
+        ))
         text = ''
         index = 0
         for fail in failed:
             if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
+                text = f'{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+                text = f'\n\n{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**Fail logs**\n{text}')
+            await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
 
-    @commands.command(hidden=True,description='Evaluates code.')
+    @commands.command(hidden=True, description=language.desc('sysmgr.eval'))
     @restrictions.owner()
     async def eval(self, ctx, *, body):
-        if ctx.author.id == self.bot.config['owner']:
-            env = {
-                'ctx': ctx,
-                'channel': ctx.channel,
-                'author': ctx.author,
-                'guild': ctx.guild,
-                'message': ctx.message,
-                'source': inspect.getsource,
-                'session': self.bot.session,
-                'bot': self.bot
-            }
+        selector = language.get_selector(ctx)
+        env = {
+            'ctx': ctx,
+            'channel': ctx.channel,
+            'author': ctx.author,
+            'guild': ctx.guild,
+            'message': ctx.message,
+            'source': inspect.getsource,
+            'session': self.bot.session,
+            'bot': self.bot
+        }
 
-            env.update(globals())
+        env.update(globals())
 
-            body = cleanup_code(body)
-            stdout = io.StringIO()
+        body = cleanup_code(body)
+        stdout = io.StringIO()
 
-            to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
+        to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
 
-            try:
-                if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
-                    raise ValueError('Blocked phrase')
-                exec(to_compile, env)
-            except:
-                pass
+        try:
+            if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
+                raise ValueError('Blocked phrase')
+            exec(to_compile, env)
+        except:
+            pass
 
-            try:
-                func = env['func']
-            except Exception as e:
-                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
-                await ctx.author.send(
-                    f'```py\n{e.__class__.__name__}: {e}\n```\nIf this is a KeyError, it is most likely a SyntaxError.')
-                return
-            token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
-            try:
-                with redirect_stdout(stdout):
-                    # ret = await func() to return output
-                    await func()
-            except:
-                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                await ctx.send('An error occurred while executing the code.', reference=ctx.message)
-                if token_start in value:
-                    return await ctx.author.send('The error contained your bot\'s token, so it was not sent.')
-                await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
-            else:
-                value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-                if token_start in value:
-                    return await ctx.send('The output contained your bot\'s token, so it was not sent.')
-                if value == '':
-                    pass
-                else:
-                    #  here, cause is if haves value
-                    await ctx.send('```%s```' % value)
+        try:
+            func = env['func']
+        except Exception as e:
+            await ctx.send(selector.get('error'), reference=ctx.message)
+            await ctx.author.send(
+                f'```py\n{e.__class__.__name__}: {e}\n```\n{selector.get("syntaxerror")}')
+            return
+        token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
+        try:
+            with redirect_stdout(stdout):
+                # ret = await func() to return output
+                await func()
+        except:
+            value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+            await ctx.send(selector.get('error'), reference=ctx.message)
+            if token_start in value:
+                return await ctx.author.send(selector.get('blocked'))
+            await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
         else:
-            await ctx.send('Only the owner can execute code.')
+            value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
+            if token_start in value:
+                return await ctx.send(selector.get('blocked'))
+            if value == '':
+                pass
+            else:
+                #  here, cause is if haves value
+                await ctx.send('```%s```' % value)
 
-    @commands.command(aliases=['stop', 'poweroff', 'kill'], hidden=True, description='Gracefully shuts the bot down.')
+    @commands.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
     async def shutdown(self, ctx):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
-        self.logger.info("Attempting graceful shutdown...")
-        self.bot.bridge.backup_lock = True
-        try:
-            if self.bot.bridge.backup_running:
-                self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
-                try:
-                    while self.bot.bridge.backup_running:
-                        await asyncio.sleep(1)
-                except KeyboardInterrupt:
-                    pass
-            for extension in self.bot.extensions:
-                await self.preunload(extension)
-            self.logger.info("Backing up message cache...")
-            self.bot.db.save_data()
-            self.bot.bridge.backup_lock = False
-            await self.bot.bridge.backup(limit=10000)
-            self.logger.info("Backup complete")
-            await ctx.send('Shutting down...')
-        except:
-            self.logger.exception("Graceful shutdown failed")
-            await ctx.send('Shutdown failed')
-            return
-        self.logger.info("Closing bot session")
-        await self.bot.session.close()
-        self.logger.info("Shutdown complete")
-        await self.bot.close()
-        sys.exit(0)
+        await self.bot_shutdown(ctx)
 
-    @commands.command(hidden=True,description='Lists all installed plugins.')
+    @commands.command(aliases=['reboot'], hidden=True, description=language.desc('sysmgr.restart'))
+    @restrictions.owner()
+    async def restart(self, ctx):
+        await self.bot_shutdown(ctx, restart=True)
+
+    @commands.command(hidden=True,description=language.desc('sysmgr.plugins'))
     @restrictions.owner()
     async def plugins(self, ctx, *, plugin=None):
+        selector = language.get_selector(ctx)
         if plugin:
             plugin = plugin.lower()
         page = 0
@@ -882,7 +1001,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
         if not plugin:
             offset = page * 20
-            embed = nextcord.Embed(title='Unifier Plugins', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
             text = ''
             if offset > len(pluglist):
                 page = len(pluglist) // 20 - 1
@@ -897,7 +1016,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text = f'{text}\n- {pluginfo["name"]} (`{pluginfo["id"]}`)'
             embed.description = text
-            embed.set_footer(text="Page " + str(page + 1))
+            embed.set_footer(text=selector.rawfget(
+                'page', 'sysmgr.extensions', values={'page': page + 1}
+            ))
             return await ctx.send(embed=embed)
         found = False
         index = 0
@@ -910,15 +1031,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('plugins/' + plugin + '.json') as file:
                 pluginfo = json.load(file)
         else:
-            return await ctx.send('Could not find extension!')
+            return await ctx.send(selector.rawget('notfound', 'sysmgr.extensions'))
         embed = nextcord.Embed(
             title=pluginfo["name"],
-            description=("Version " + pluginfo['version'] + ' (`' + str(pluginfo['release']) + '`)\n\n' +
-                         pluginfo["description"]),
+            description=(selector.fget('version',values={'version':pluginfo['version'],'release':pluginfo['release']})
+                         + '\n\n' + pluginfo["description"]),
             color=self.bot.colors.unifier
         )
         if plugin == 'system':
-            embed.description = embed.description + '\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.'
+            embed.description = embed.description + selector.get('system_plugin')
         try:
             embed.url = str(pluginfo['repository'])[:-4]
         except:
@@ -929,19 +1050,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 modtext = '- ' + module
             else:
                 modtext = modtext + '\n- ' + module
-        embed.add_field(name='Modules',value=modtext,inline=False)
+        embed.add_field(name=selector.get('modules'),value=modtext,inline=False)
         modtext = 'None'
         for module in pluginfo['utils']:
             if modtext == 'None':
                 modtext = '- ' + module
             else:
                 modtext = modtext + '\n- ' + module
-        embed.add_field(name='Utilities', value=modtext, inline=False)
+        embed.add_field(name=selector.get('utilities'), value=modtext, inline=False)
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True, aliases=['cogs'], description='Lists all loaded extensions.')
+    @commands.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
     @restrictions.owner()
     async def extensions(self, ctx, *, extension=None):
+        selector = language.get_selector(ctx)
         if extension:
             extension = extension.lower()
         page = 0
@@ -954,7 +1076,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             pass
         if not extension:
             offset = page * 20
-            embed = nextcord.Embed(title='Unifier Extensions', color=self.bot.colors.unifier)
+            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
             text = ''
             extlist = list(self.bot.extensions)
             if offset > len(extlist):
@@ -970,7 +1092,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     text = f'{text}\n- {cog.qualified_name} (`{ext}`)'
             embed.description = text
-            embed.set_footer(text="Page " + str(page + 1))
+            embed.set_footer(text=selector.fget('page',values={'page':page + 1}))
             return await ctx.send(embed=embed)
         found = False
         index = 0
@@ -982,7 +1104,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if found:
             ext_info = self.bot.cogs[list(self.bot.cogs)[index]]
         else:
-            return await ctx.send('Could not find extension!')
+            return await ctx.send(selector.get('notfound'))
         embed = nextcord.Embed(
             title=ext_info.qualified_name,
             description=ext_info.description,
@@ -990,169 +1112,164 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         )
         if (extension == 'cogs.sysmgr' or extension == 'cogs.lockdown' or
                 extension == 'sysmgr' or extension == 'lockdown'):
-            embed.description = embed.description + '\n# SYSTEM MODULE\nThis module cannot be unloaded.'
+            embed.description = embed.description + selector.get('system_module')
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,description='Reloads an extension.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.reload'))
     @restrictions.owner()
     async def reload(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        selector = language.get_selector(ctx)
+        if self.bot.update:
+            return await ctx.send(selector.get('disabled'))
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Reloading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    if extension == 'lockdown':
-                        raise ValueError('Cannot unload lockdown extension for security purposes.')
-                    await self.preunload(extension)
-                    self.bot.reload_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Reload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send(selector.get('in_progress'))
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                if extension == 'lockdown':
+                    raise ValueError('Cannot unload lockdown extension for security purposes.')
+                await self.preunload(extension)
+                self.bot.reload_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can reload extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(content=selector.rawfget(
+            'completed', 'sysmgr.reload_services', values={
+                'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text
+            }
+        ))
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\n{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
-    @commands.command(hidden=True,description='Loads an extension.')
+    @commands.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions.owner()
     async def load(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        selector = language.get_selector(ctx)
+        if self.bot.update:
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Loading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    self.bot.load_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Load completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send(selector.get('in_progress'))
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                self.bot.load_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can load extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(content=selector.fget(
+            'completed',
+            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
+        ))
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
     @commands.command(hidden=True,description='Unloads an extension.')
     @restrictions.owner()
     async def unload(self, ctx, *, extensions):
-        if ctx.author.id == self.bot.config['owner']:
-            if self.bot.update:
-                return await ctx.send('Plugin management is disabled until restart.')
+        selector = language.get_selector(ctx)
+        if self.bot.update:
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
-            extensions = extensions.split(' ')
-            msg = await ctx.send('Unloading extensions...')
-            failed = []
-            errors = []
-            text = ''
-            for extension in extensions:
-                try:
-                    if extension == 'sysmgr':
-                        raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
-                    if extension == 'lockdown':
-                        raise ValueError('Cannot unload lockdown extension for security purposes.')
-                    await self.preunload(extension)
-                    self.bot.unload_extension(f'cogs.{extension}')
-                    if len(text) == 0:
-                        text = f'```diff\n+ [DONE] {extension}'
-                    else:
-                        text += f'\n+ [DONE] {extension}'
-                except Exception as e:
-                    failed.append(extension)
-                    errors.append(e)
-                    if len(text) == 0:
-                        text = f'```diff\n- [FAIL] {extension}'
-                    else:
-                        text += f'\n- [FAIL] {extension}'
-            await msg.edit(
-                content=f'Unload completed (`{len(extensions) - len(failed)}/{len(extensions)}` successful)\n\n{text}```')
-            text = ''
-            index = 0
-            for fail in failed:
+        extensions = extensions.split(' ')
+        msg = await ctx.send('Unloading extensions...')
+        failed = []
+        errors = []
+        text = ''
+        for extension in extensions:
+            try:
+                if extension == 'sysmgr':
+                    raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
+                if extension == 'lockdown':
+                    raise ValueError('Cannot unload lockdown extension for security purposes.')
+                await self.preunload(extension)
+                self.bot.unload_extension(f'cogs.{extension}')
                 if len(text) == 0:
-                    text = f'Extension `{fail}`\n```{errors[index]}```'
+                    text = f'```diff\n+ [DONE] {extension}'
                 else:
-                    text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-                index += 1
-            if not len(failed) == 0:
-                await ctx.author.send(f'**Fail logs**\n{text}')
-        else:
-            await ctx.send('Only the owner can unload extensions.')
+                    text += f'\n+ [DONE] {extension}'
+            except Exception as e:
+                failed.append(extension)
+                errors.append(e)
+                if len(text) == 0:
+                    text = f'```diff\n- [FAIL] {extension}'
+                else:
+                    text += f'\n- [FAIL] {extension}'
+        await msg.edit(content=selector.fget(
+            'completed',
+            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
+        ))
+        text = ''
+        index = 0
+        for fail in failed:
+            if len(text) == 0:
+                text = f'Extension `{fail}`\n```{errors[index]}```'
+            else:
+                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
+            index += 1
+        if not len(failed) == 0:
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
 
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions.owner()
     async def install(self, ctx, url):
-        if not ctx.author.id==self.bot.config['owner']:
-            return
-
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
+        selector = language.get_selector(ctx)
         if self.bot.update:
             return await ctx.send('Plugin management is disabled until restart.')
-
-        if os.name == "nt":
-            embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.error} Can\'t install Plugins',
-                description=('Unifier cannot install Plugins on Windows. Please use an OS with the bash console (Linux'+
-                             '/macOS/etc).'),
-                color=self.bot.colors.error
-            )
-            return await ctx.send(embed=embed)
 
         if url.endswith('/'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.get("downloading_title")}', description=selector.get("downloading_body"))
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
-            os.system('rm -rf ' + os.getcwd() + '/plugin_install')
+            try:
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('plugin_install'))
+            except:
+                pass
             await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                'git clone ' + url + ' ' + os.getcwd() + '/plugin_install')))
+                'git clone ' + url + ' plugin_install')))
             with open('plugin_install/plugin.json', 'r') as file:
                 new = json.load(file)
             if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
@@ -1176,6 +1293,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             minimum = new['minimum']
             modules = new['modules']
             utilities = new['utils']
+            try:
+                nups_platform = new['bridge_platform']
+                if nups_platform == '':
+                    nups_platform = None
+            except:
+                nups_platform = None
             try:
                 services = new['services']
             except:
@@ -1212,7 +1335,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = 'The repository URL or the plugin.json file is invalid.'
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
-            raise
+            return
         embed.title = f'{self.bot.ui_emojis.install} Install `{plugin_id}`?'
         embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
         embed.colour = 0xffcc00
@@ -1231,6 +1354,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     'The plugin will be able to modify message content and author information before bridging to '+
                     'other servers.'
                 )
+            elif service=='bridge_platform':
+                text = (
+                    ':handshake: **Bridge platform support**\n'+
+                    'The plugin will be able to provide native Unifier Bridgesupport for an external platform.'
+                )
+                if not nups_platform or nups_platform.lower()=='meta':
+                    embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
+                    embed.description = 'The plugin provided an invalid platform name.'
+                    embed.colour = self.bot.colors.error
+                    return await msg.edit(embed=embed)
             elif service=='emojis':
                 text = (
                     ':joy: **Emojis**\n'+
@@ -1247,10 +1380,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.colour = self.bot.colors.error
                     return await msg.edit(embed=embed)
             else:
-                text = (
-                    f':grey_question: `{service}`\n',
-                    'This is an unknown service.'
-                )
+                text = f':grey_question: `{service}`\n This is an unknown service.'
             if len(services_text)==0:
                 services_text = text
             else:
@@ -1295,21 +1425,27 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     newdeps = new['requirements']
                     if len(newdeps) > 0:
                         self.logger.debug('Installing: ' + ' '.join(newdeps))
-                        await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system('python3 -m pip install --no-dependencies ' + '"' + '" "'.join(newdeps) + '"')
-                        ))
+                        bootloader_config = self.bot.boot_config.get('bootloader', {})
+                        if sys.platform == 'win32':
+                            binary = bootloader_config.get('binary', 'py -3')
+                            await self.bot.loop.run_in_executor(None, lambda: status(
+                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                            ))
+                        else:
+                            binary = bootloader_config.get('binary', 'python3')
+                            await self.bot.loop.run_in_executor(None, lambda: status(
+                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                            ))
             except:
                 self.logger.exception('Dependency installation failed')
                 raise RuntimeError()
             self.logger.info('Installing Plugin')
             for module in modules:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+module)
-                status(os.system(
-                    'cp ' + os.getcwd() + '/plugin_install/' + module + ' ' + os.getcwd() + '/cogs/' + module))
+                await self.copy('plugin_install/' + module, 'cogs/' + module)
             for util in utilities:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+util)
-                status(os.system(
-                    'cp ' + os.getcwd() + '/plugin_install/' + util + ' ' + os.getcwd() + '/utils/' + util))
+                await self.copy('plugin_install/' + util, 'utils/' + util)
             if 'emojis' in services:
                 self.logger.info('Installing Emoji Pack')
                 home_guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -1325,9 +1461,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 emojipack['installed'] = True
                 with open(f'emojis/{plugin_id}.json', 'w+') as file:
                     json.dump(emojipack, file, indent=2)
+            if 'config.toml' in os.listdir('plugin_install'):
+                self.logger.debug('Installing config.toml')
+                if not os.path.exists('plugin_config'):
+                    os.mkdir('plugin_config')
+                await self.copy('plugin_install/config.toml', 'plugin_config/' + plugin_id + '.toml')
             self.logger.info('Registering plugin')
-            status(
-                os.system('cp ' + os.getcwd() + '/plugin_install/plugin.json' + ' ' + os.getcwd() + '/plugins/' + plugin_id + '.json'))
+            await self.copy('plugin_install/plugin.json', 'plugins/' + plugin_id + '.json')
             with open('plugins/' + plugin_id + '.json') as file:
                 plugin_info = json.load(file)
                 plugin_info.update({'repository':url})
@@ -1337,7 +1477,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for module in modules:
                 modname = 'cogs.' + module[:-3]
                 self.logger.debug('Activating extension: '+modname)
-                self.bot.load_extension(modname)
+                try:
+                    self.bot.load_extension(modname)
+                except:
+                    self.logger.warning(modname + ' could not be activated.')
+                    embed.set_footer(text=':warning: Some extensions could not be activated.')
             self.logger.debug('Installation complete')
             embed.title = f'{self.bot.ui_emojis.success} Installation successful'
             embed.description = 'The installation was successful! :partying_face:'
@@ -1354,6 +1498,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Uninstalls a plugin.')
     @restrictions.owner()
     async def uninstall(self, ctx, plugin):
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
         if not ctx.author.id == self.bot.config['owner']:
             return
 
@@ -1438,20 +1584,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description='Upgrades Unifier or a plugin.')
     @restrictions.owner()
     async def upgrade(self, ctx, plugin='system', *, args=''):
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
         if not ctx.author.id == self.bot.config['owner']:
             return
 
-        if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+        selector = language.get_selector(ctx)
 
-        if os.name == "nt":
-            embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.error} Can\'t upgrade Unifier',
-                description=('Unifier cannot upgrade itself on Windows. Please use an OS with the bash console (Linux/'+
-                             'macOS/etc).'),
-                color=self.bot.colors.error
-            )
-            return await ctx.send(embed=embed)
+        if self.bot.update:
+            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
 
         args = args.split(' ')
         force = False
@@ -1468,16 +1609,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if plugin=='system':
             embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.install} Checking for upgrades...',
-                description='Getting latest version from remote'
+                title=f'{self.bot.ui_emojis.install} {selector.get("checking_title")}',
+                description=selector.get('checking_body')
             )
             msg = await ctx.send(embed=embed)
             available = []
             try:
-                os.system('rm -rf ' + os.getcwd() + '/update_check')
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update_check'))
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
                     'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config[
-                        'check_endpoint'] + ' ' + os.getcwd() + '/update_check'))
+                        'check_endpoint'] + ' update_check'))
                 with open('plugins/system.json', 'r') as file:
                     current = json.load(file)
                 with open('update_check/update.json', 'r') as file:
@@ -1497,13 +1638,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 update_available = len(available) >= 1
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to check for updates'
-                embed.description = 'Could not find a valid update.json file on remote'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("checkfail_title")}'
+                embed.description = selector.get("checkfail_body")
                 embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
             if not update_available:
-                embed.title = f'{self.bot.ui_emojis.success} No updates available'
-                embed.description = 'Unifier is up-to-date.'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("noupdates_title")}'
+                embed.description = selector.get("noupdates_body")
                 embed.colour = self.bot.colors.success
                 return await msg.edit(embed=embed)
             selected = 0
@@ -1513,8 +1654,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 version = available[selected][0]
                 legacy = available[selected][3] > -1
                 reboot = available[selected][4]
-                embed.title = f'{self.bot.ui_emojis.install} Update available'
-                embed.description = f'An update is available for Unifier!\n\nCurrent version: {current["version"]} (`{current["release"]}`)\nNew version: {version} (`{release}`)'
+                embed.title = f'{self.bot.ui_emojis.install} {selector.get("available_title")}'
+                embed.description = selector.fget('available_body',values={
+                    'current_ver':current['version'],'current_rel':current['release'],'new_ver':version,'new_rel':release
+                })
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
@@ -1523,9 +1666,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     should_reboot = reboot >= current['release']
                 if should_reboot:
-                    embed.set_footer(text='The bot will need to reboot to apply the new update.')
+                    embed.set_footer(text=selector.get("reboot_required"))
                 selection = nextcord.ui.StringSelect(
-                    placeholder='Select version...',
+                    placeholder=selector.get("version"),
                     max_values=1,
                     min_values=1,
                     custom_id='selection',
@@ -1542,15 +1685,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.green, label='Upgrade', custom_id=f'accept',
+                        style=nextcord.ButtonStyle.green, label=selector.get("upgrade"), custom_id=f'accept',
                         disabled=False
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject',
+                        style=nextcord.ButtonStyle.gray, label=selector.rawget('nevermind','sysmgr.install'), custom_id=f'reject',
                         disabled=False
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.link, label='More info',
+                        style=nextcord.ButtonStyle.link, label=selector.get("moreinfo"),
                         url=f'https://github.com/UnifierHQ/unifier/releases/tag/{version}'
                     )
                 )
@@ -1576,8 +1719,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     selected = int(interaction.data['values'][0])
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
-                embed.title = f'{self.bot.ui_emojis.install} Backing up...'
-                embed.description = 'Your data is being backed up.'
+                embed.title = f'{self.bot.ui_emojis.install} {selector.get("backup_title")}'
+                embed.description = selector.get("backup_body")
                 await interaction.response.edit_message(embed=embed, view=None)
             try:
                 if no_backup:
@@ -1592,35 +1735,82 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     os.mkdir(folder)
                 except:
                     pass
+                folder = os.getcwd() + '/old/utils'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
+                folder = os.getcwd() + '/old/languages'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
+                folder = os.getcwd() + '/old/plugins'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
+                folder = os.getcwd() + '/old/boot'
+                try:
+                    os.mkdir(folder)
+                except:
+                    pass
                 for file in os.listdir(os.getcwd() + '/cogs'):
                     self.logger.debug('Backing up: ' + os.getcwd() + '/cogs/' + file)
-                    os.system('cp ' + os.getcwd() + '/cogs/' + file + ' ' + os.getcwd() + '/old/cogs/' + file)
+                    try:
+                        await self.copy('cogs/' + file, 'old/cogs/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/utils'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/utils/' + file)
+                    try:
+                        await self.copy('utils/' + file, 'old/utils/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/plugins'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/plugins/' + file)
+                    try:
+                        await self.copy('plugins/' + file, 'old/plugins/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/languages'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/languages/' + file)
+                    try:
+                        await self.copy('languages/' + file, 'old/languages/' + file)
+                    except IsADirectoryError:
+                        continue
+                for file in os.listdir(os.getcwd() + '/boot'):
+                    self.logger.debug('Backing up: ' + os.getcwd() + '/boot/' + file)
+                    try:
+                        await self.copy('boot/' + file, 'old/boot/' + file)
+                    except IsADirectoryError:
+                        continue
                 self.logger.debug('Backing up: ' + os.getcwd() + '/unifier.py')
-                os.system('cp ' + os.getcwd() + '/unifier.py ' + os.getcwd() + '/old/unifier.py')
+                await self.copy('unifier.py', 'old/unifier.py')
                 self.logger.debug('Backing up: ' + os.getcwd() + '/data.json')
-                os.system('cp ' + os.getcwd() + '/data.json ' + os.getcwd() + '/old/data.json')
-                self.logger.debug('Backing up: ' + os.getcwd() + '/config.json')
-                os.system('cp ' + os.getcwd() + '/config.json ' + os.getcwd() + '/old/config.json')
-                self.logger.debug('Backing up: ' + os.getcwd() + '/update.json')
-                os.system('cp ' + os.getcwd() + '/update.json ' + os.getcwd() + '/old/update.json')
+                await self.copy('data.json', 'old/data.json')
+                self.logger.debug('Backing up: ' + os.getcwd() + '/config.toml')
+                await self.copy('config.toml', 'old/config.toml')
+                self.logger.debug('Backing up: ' + os.getcwd() + '/boot_config.json')
+                await self.copy('boot_config.json', 'old/boot_config.json')
             except:
                 if no_backup:
                     self.logger.warning('Backup skipped, requesting final confirmation.')
-                    embed.description = '- :x: Your files have **NOT BEEN BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
+                    embed.description = f'- :x: {selector.get("skipped_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
                 elif ignore_backup:
                     self.logger.warning('Backup failed, continuing anyways')
-                    embed.description = '- :x: Your files **COULD NOT BE BACKED UP**! Data loss or system failures may occur if the upgrade fails!\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
+                    embed.description = f'- :x: {selector.get("failed_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
                 else:
                     self.logger.error('Backup failed, abort upgrade.')
-                    embed.title = f'{self.bot.ui_emojis.error} Backup failed'
-                    embed.description = 'Unifier could not create a backup. The upgrade has been aborted.'
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.get("backupfail_title")}'
+                    embed.description = selector.get("backupfail_body")
                     embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     raise
             else:
                 self.logger.info('Backup complete, requesting final confirmation.')
-                embed.description = '- :inbox_tray: Your files have been backed up to `[Unifier root directory]/old.`\n- :wrench: Any modifications you made to Unifier will be wiped, unless they are a part of the new upgrade.\n- :warning: Once started, you cannot abort the upgrade.'
-            embed.title = f'{self.bot.ui_emojis.install} Start the upgrade?'
+                embed.description = f'- :inbox_tray: {selector.get("normal_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.get("start")}'
             components = ui.MessageComponents()
             components.add_row(btns)
             if no_backup:
@@ -1642,17 +1832,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components.add_row(btns)
                 return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
-            embed.title = f'{self.bot.ui_emojis.install} Upgrading Unifier'
-            embed.description = ':hourglass_flowing_sand: Downloading updates\n:x: Installing updates\n:x: Reloading modules'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.get("upgrading")}'
+            embed.description = f':hourglass_flowing_sand: {selector.get("downloading")}\n:x: {selector.get("installing")}\n:x: {selector.get("reloading")}'
             await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
             try:
                 self.logger.debug('Purging old update files')
-                os.system('rm -rf ' + os.getcwd() + '/update')
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update'))
                 self.logger.info('Downloading from remote repository...')
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
                     'git clone --branch ' + new['version'] + ' --single-branch --depth 1 ' + self.bot.config[
-                        'files_endpoint'] + '/unifier.git ' + os.getcwd() + '/update'
+                        'files_endpoint'] + '/unifier.git update'
                 ))
                 self.logger.debug('Confirming download...')
                 x = open(os.getcwd() + '/update/plugins/system.json', 'r')
@@ -1660,20 +1850,35 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.debug('Download confirmed, proceeding with upgrade')
             except:
                 self.logger.exception('Download failed, no rollback required')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'Could not download updates. No rollback is required.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("download_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             try:
                 self.logger.debug('Installing dependencies')
-                x = open('update/requirements.txt')
-                newdeps = x.read().split('\n')
-                x.close()
-                try:
-                    x = open('requirements.txt')
-                    olddeps = x.read().split('\n')
+
+                with open('.install.json') as file:
+                    install_data = json.load(file)
+
+                if install_data == 'stable':
+                    x = open('update/requirements_stable.txt')
+                    newdeps = x.read().split('\n')
                     x.close()
+                else:
+                    x = open('update/requirements.txt')
+                    newdeps = x.read().split('\n')
+                    x.close()
+
+                try:
+                    if install_data == 'stable':
+                        x = open('requirements_stable.txt')
+                        olddeps = x.read().split('\n')
+                        x.close()
+                    else:
+                        x = open('requirements.txt')
+                        olddeps = x.read().split('\n')
+                        x.close()
                 except:
                     self.logger.warning('Could not find requirements.txt, installing all dependencies')
                     olddeps = []
@@ -1684,133 +1889,169 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         pass
                 if len(newdeps) > 0:
                     self.logger.debug('Installing: ' + ' '.join(newdeps))
-                    await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                        'python3 -m pip install ' + '"' + '" "'.join(newdeps) + '"')
-                    ))
+                    bootloader_config = self.bot.boot_config.get('bootloader', {})
+                    if sys.platform == 'win32':
+                        binary = bootloader_config.get('binary', 'py -3')
+                        await self.bot.loop.run_in_executor(None, lambda: status(
+                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                        ))
+                    else:
+                        binary = bootloader_config.get('binary', 'python3')
+                        await self.bot.loop.run_in_executor(None, lambda: status(
+                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                        ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'Could not install dependencies. No rollback is required.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("dependency_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             try:
                 self.logger.info('Installing upgrades')
-                embed.description = ':white_check_mark: Downloading updates\n:hourglass_flowing_sand: Installing updates\n:x: Reloading modules'
+                embed.description = f':white_check_mark: {selector.get("downloading")}\n:hourglass_flowing_sand: {selector.get("installing")}\n:x: {selector.get("reloading")}'
                 await msg.edit(embed=embed)
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/unifier.py')
-                status(os.system('cp ' + os.getcwd() + '/update/unifier.py ' + os.getcwd() + '/unifier.py'))
+                await self.copy('update/unifier.py', 'unifier.py')
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements.txt')
-                status(os.system('cp ' + os.getcwd() + '/update/requirements.txt ' + os.getcwd() + '/requirements.txt'))
-                self.logger.debug('Installing: ' + os.getcwd() + '/update_check/update.json')
+                await self.copy('update/requirements.txt', 'requirements.txt')
+                self.logger.debug('Installing: ' + os.getcwd() + '/update/requirements_stable.txt')
+                await self.copy('update/requirements_stable.txt', 'requirements_stable.txt')
+                self.logger.debug('Installing: ' + os.getcwd() + '/update_check/plugins/system.json')
                 if legacy:
                     current['version'] = version
                     current['legacy'] = release
                     with open('plugins/system.json', 'w+') as file:
                         json.dump(current,file)
                 else:
-                    status(os.system('cp ' + os.getcwd() + '/update_check/update.json ' + os.getcwd() + '/plugins/system.json'))
-                    with open('plugins/system.json', 'r') as file:
-                        newcurrent = json.load(file)
-                    newcurrent.pop('legacy')
-                    with open('plugins/system.json', 'w+') as file:
-                        json.dump(newcurrent, file)
+                    await self.copy('update/plugins/system.json', 'plugins/system.json')
                 for file in os.listdir(os.getcwd() + '/update/cogs'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/cogs/' + file)
-                    status(
-                        os.system('cp ' + os.getcwd() + '/update/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file))
+                    await self.copy('update/cogs/' + file, 'cogs/' + file)
                 for file in os.listdir(os.getcwd() + '/update/utils'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
-                    status(
-                        os.system('cp ' + os.getcwd() + '/update/utils/' + file + ' ' + os.getcwd() + '/utils/' + file))
-                self.logger.debug('Updating config.json')
-                with open('config.json', 'r') as file:
-                    oldcfg = json.load(file)
-                with open('update/config.json', 'r') as file:
-                    newcfg = json.load(file)
-                for key in newcfg:
-                    if not key in list(oldcfg.keys()):
-                        oldcfg.update({key: newcfg[key]})
-                with open('config.json', 'w') as file:
-                    json.dump(oldcfg, file, indent=4)
+                    await self.copy('update/utils/' + file, 'utils/' + file)
+                self.logger.debug('Installing: ' + os.getcwd() + '/update/emojis/base.json')
+                await self.copy('update/emojis/base.json', 'emojis/base.json')
+                self.logger.debug('Updating languages')
+                for file in os.listdir(os.getcwd() + '/update/languages'):
+                    if not file.endswith('.json'):
+                        continue
+
+                    self.logger.debug('Installing: ' + os.getcwd() + '/update/languages/' + file)
+                    await self.copy('update/languages/' + file, 'languages/' + file)
+                for file in os.listdir(os.getcwd() + '/update/utils'):
+                    self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
+                    await self.copy('update/utils/' + file, 'utils/' + file)
+                self.logger.debug('Updating config.toml')
+                with open('config.toml','rb') as file:
+                    oldcfg = tomli.load(file)
+                with open('update/config.toml', 'rb') as file:
+                    newcfg = tomli.load(file)
+
+                newdata = {}
+
+                for key in oldcfg:
+                    if type(oldcfg[key]) is dict:
+                        for newkey in oldcfg[key]:
+                            newdata.update({newkey: oldcfg[key][newkey]})
+                    else:
+                        newdata.update({key: oldcfg[key]})
+
+                oldcfg = newdata
+
+                def update_toml(old, new):
+                    for key in new:
+                        for newkey in new[key]:
+                            if newkey in old.keys():
+                                new[key].update({newkey: old[newkey]})
+                    return new
+
+                oldcfg = update_toml(oldcfg, newcfg)
+
+                with open('config.toml', 'wb+') as file:
+                    tomli_w.dump(oldcfg, file)
                 if should_reboot:
                     self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')
-                    embed.title = f'{self.bot.ui_emojis.success} Restart to apply upgrade'
-                    embed.description = f'The upgrade was successful. Please reboot the bot.'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("restart_title")}'
+                    embed.description =selector.get("restart_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                 else:
-                    self.logger.info('Restarting extensions')
-                    embed.description = ':white_check_mark: Downloading updates\n:white_check_mark: Installing updates\n:hourglass_flowing_sand: Reloading modules'
+                    self.logger.info('Reloading extensions')
+                    f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n:hourglass_flowing_sand: {selector.get("reloading")}'
                     await msg.edit(embed=embed)
                     for cog in list(self.bot.extensions):
-                        self.logger.debug('Restarting extension: ' + cog)
-                        await self.preunload(cog)
-                        self.bot.reload_extension(cog)
+                        self.logger.debug('Reloading extension: ' + cog)
+                        try:
+                            await self.preunload(cog)
+                            self.bot.reload_extension(cog)
+                        except:
+                            self.logger.warning(cog+' could not be reloaded.')
+                            embed.set_footer(text=':warning: Some extensions could not be reloaded.')
                     self.logger.info('Upgrade complete')
-                    embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
-                    embed.description = 'The upgrade was successful! :partying_face:'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+                    embed.description = selector.get("success_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed, attempting rollback')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
                 embed.colour = self.bot.colors.error
                 try:
                     self.logger.debug('Reverting: ' + os.getcwd() + '/unifier.py')
-                    status(os.system('cp ' + os.getcwd() + '/old/unifier.py ' + os.getcwd() + '/unifier.py'))
+                    await self.copy('old/unifier.py', 'unifier.py')
                     self.logger.debug('Reverting: ' + os.getcwd() + '/data.json')
-                    status(os.system('cp ' + os.getcwd() + '/old/data.json ' + os.getcwd() + '/data.json'))
+                    await self.copy('old/data.json', 'data.json')
                     self.logger.debug('Reverting: ' + os.getcwd() + '/plugins/system.json')
-                    status(os.system('cp ' + os.getcwd() + '/old/plugins/system.json ' + os.getcwd() + '/plugins/system.json'))
-                    self.logger.debug('Reverting: ' + os.getcwd() + '/config.json')
-                    status(os.system('cp ' + os.getcwd() + '/old/config.json ' + os.getcwd() + '/config.json'))
+                    await self.copy('old/plugins/system.json', 'plugins/system.json')
+                    self.logger.debug('Reverting: ' + os.getcwd() + '/config.toml')
+                    await self.copy('old/config.toml', 'config.toml')
                     for file in os.listdir(os.getcwd() + '/old/cogs'):
                         self.logger.debug('Reverting: ' + os.getcwd() + '/cogs/' + file)
-                        status(
-                            os.system('cp ' + os.getcwd() + '/old/cogs/' + file + ' ' + os.getcwd() + '/cogs/' + file))
+                        await self.copy('old/cogs/' + file, 'cogs/' + file)
                     self.logger.info('Rollback success')
-                    embed.description = 'The upgrade failed, and all files have been rolled back.'
+                    embed.description = selector.get("rollback")
                 except:
                     self.logger.exception('Rollback failed')
                     self.logger.critical(
                         'The rollback failed. Visit https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier/manual-rollback for recovery steps.')
-                    embed.description = 'The upgrade failed, and the bot may now be in a crippled state.\nPlease check console logs for more info.'
+                    embed.description = selector.get("rollback_fail")
                 await msg.edit(embed=embed)
                 return
         else:
-            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} Downloading extension...', description='Getting extension files from remote')
+            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.rawget("downloading_title","sysmgr.install")}', description=selector.rawget("downloading_body",'sysmgr.install'))
 
             try:
                 with open('plugins/'+plugin+'.json') as file:
                     plugin_info = json.load(file)
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Plugin not found'
-                embed.description = 'The plugin could not be found.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("notfound_title")}'
+                embed.description = selector.get("notfound_body")
                 if plugin=='force':
-                    embed.description = embed.description + f'\n\n**Hint**: If you\'re trying to force upgrade, run `{self.bot.command_prefix}upgrade system force`'
+                    embed.description = embed.description + '\n' + selector.fget('hint_force',values={'prefix':self.bot.command_prefix})
                 embed.colour = self.bot.colors.error
                 await ctx.send(embed=embed)
                 return
-            embed.set_footer(text='Only install plugins from trusted sources!')
+            embed.set_footer(text=selector.rawget("trust",'sysmgr.install'))
             msg = await ctx.send(embed=embed)
             url = plugin_info['repository']
             try:
-                os.system('rm -rf ' + os.getcwd() + '/plugin_install')
+                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('plugin_install'))
                 await self.bot.loop.run_in_executor(None, lambda: status(os.system(
-                    'git clone ' + url + ' ' + os.getcwd() + '/plugin_install')))
+                    'git clone ' + url + ' plugin_install')))
                 with open('plugin_install/plugin.json', 'r') as file:
                     new = json.load(file)
                 if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
-                    embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
-                    embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.rawget("alphanumeric_title","sysmgr.install")}'
+                    embed.description = selector.rawget("alphanumeric_body",'sysmgr.install')
                     embed.colour = self.bot.colors.error
                     await msg.edit(embed=embed)
                     return
                 if new['release'] <= plugin_info['release'] and not force:
-                    embed.title = f'{self.bot.ui_emojis.success} Plugin up to date'
-                    embed.description = f'This plugin is already up to date!'
+                    embed.title = f'{self.bot.ui_emojis.success} {selector.get("pnoupdates_title")}'
+                    embed.description = selector.get("pnoupdates_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                     return
@@ -1822,17 +2063,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 utilities = new['utils']
                 services = new['services'] if 'services' in new.keys() else []
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to update plugin'
-                embed.description = 'The repository URL or the plugin.json file is invalid.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("pfailed")}'
+                embed.description = selector.rawget("invalid_repo",'sysmgr.install')
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 raise
-            embed.title = f'{self.bot.ui_emojis.install} Update `{plugin_id}`?'
-            embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
+            embed.title = f'{self.bot.ui_emojis.install} {selector.fget("question",values={"plugin":plugin_id})}'
+            embed.description = selector.rawfget('plugin_info','sysmgr.install',values={'name':name,'version':version,'desc':desc})
             embed.colour = 0xffcc00
             btns = ui.ActionRow(
-                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Update', custom_id=f'accept', disabled=False),
-                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+                nextcord.ui.Button(style=nextcord.ButtonStyle.green, label=selector.get("upgrade"), custom_id=f'accept', disabled=False),
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=selector.rawfget("nevermind","sysmgr.install"), custom_id=f'reject', disabled=False)
             )
             components = ui.MessageComponents()
             components.add_row(btns)
@@ -1871,21 +2112,27 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 newdeps.remove(dep)
                         if len(newdeps) > 0:
                             self.logger.debug('Installing: ' + ' '.join(newdeps))
-                            await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system('python3 -m pip install --no-dependencies ' + '"' + '" "'.join(newdeps) + '"')
-                            ))
+                            bootloader_config = self.bot.boot_config.get('bootloader', {})
+                            if sys.platform == 'win32':
+                                binary = bootloader_config.get('binary', 'py -3')
+                                await self.bot.loop.run_in_executor(None, lambda: status(
+                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                ))
+                            else:
+                                binary = bootloader_config.get('binary', 'python3')
+                                await self.bot.loop.run_in_executor(None, lambda: status(
+                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                ))
                 except:
                     self.logger.exception('Dependency installation failed')
                     raise RuntimeError()
                 self.logger.info('Upgrading Plugin')
                 for module in modules:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + module)
-                    status(os.system(
-                        'cp ' + os.getcwd() + '/plugin_install/' + module + ' ' + os.getcwd() + '/cogs/' + module))
+                    await self.copy('plugin_install/' + module, 'cogs/' + module)
                 for util in utilities:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + util)
-                    status(os.system(
-                        'cp ' + os.getcwd() + '/plugin_install/' + util + ' ' + os.getcwd() + '/utils/' + util))
+                    await self.copy('plugin_install/' + util, 'utils/' + util)
                 if 'emojis' in services:
                     self.logger.info('Uninstalling previous Emoji Pack')
                     home_guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -1935,10 +2182,48 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         with open(f'emojis/current.json', 'w+') as file:
                             json.dump(emojipack, file, indent=2)
                         self.bot.ui_emojis = Emojis(data=emojipack)
+
+                if not os.path.exists('plugin_config'):
+                    os.mkdir('plugin_config')
+
+                if 'config.toml' in os.listdir('plugin_install'):
+                    if f'{plugin_id}.toml' in os.listdir('plugin_config'):
+                        self.logger.debug('Updating config.toml')
+                        with open(f'plugin_config/{plugin_id}.toml', 'rb') as file:
+                            oldcfg = tomli.load(file)
+                        with open('plugin_install/config.toml', 'rb') as file:
+                            newcfg = tomli.load(file)
+
+                        newdata = {}
+
+                        for key in oldcfg:
+                            if type(oldcfg[key]) is dict:
+                                for newkey in oldcfg[key]:
+                                    newdata.update({newkey: oldcfg[key][newkey]})
+                            else:
+                                newdata.update({key: oldcfg[key]})
+
+                        oldcfg = newdata
+
+                        def update_toml(old, new):
+                            for key in new:
+                                for newkey in new[key]:
+                                    if newkey in old.keys():
+                                        new[key].update({newkey: old[newkey]})
+                            return new
+
+                        oldcfg = update_toml(oldcfg, newcfg)
+
+                        with open(f'plugin_config/{plugin_id}.toml', 'wb+') as file:
+                            tomli_w.dump(oldcfg, file)
+                    else:
+                        self.logger.debug('Installing config.toml')
+                        if not os.path.exists('plugin_config'):
+                            os.mkdir('plugin_config')
+                        await self.copy('plugin_install/config.toml', 'plugin_config/' + plugin_id + '.toml')
+
                 self.logger.info('Registering plugin')
-                status(
-                    os.system(
-                        'cp ' + os.getcwd() + '/plugin_install/plugin.json' + ' ' + os.getcwd() + '/plugins/' + plugin_id + '.json'))
+                await self.copy('plugin_install/plugin.json', 'plugins/' + plugin_id + '.json')
                 with open('plugins/' + plugin_id + '.json') as file:
                     plugin_info = json.load(file)
                     plugin_info.update({'repository': url})
@@ -1949,17 +2234,25 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     modname = 'cogs.' + module[:-3]
                     if modname in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + modname)
-                        await self.preunload(modname)
-                        self.bot.reload_extension(modname)
+                        try:
+                            await self.preunload(modname)
+                            self.bot.reload_extension(modname)
+                        except:
+                            self.logger.warning(modname+' could not be reloaded.')
+                            embed.set_footer(text=':warning: Some extensions could not be reloaded.')
                 self.logger.debug('Upgrade complete')
-                embed.title = f'{self.bot.ui_emojis.success} Upgrade successful'
-                embed.description = 'The upgrade was successful! :partying_face:'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+                embed.description = selector.get("success_body")
+
+                if 'bridge_platform' in plugin_info['services']:
+                    embed.description = embed.description + '\n' + selector.get('success_rpossible')
+
                 embed.colour = self.bot.colors.success
                 await msg.edit(embed=embed)
             except:
                 self.logger.exception('Upgrade failed')
-                embed.title = f'{self.bot.ui_emojis.error} Upgrade failed'
-                embed.description = 'The upgrade failed.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.get("plugin_fail")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
@@ -1970,14 +2263,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     )
     @restrictions.owner()
     async def uiemojis(self, ctx, *, emojipack):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
+        if self.bot.devmode:
+            return await ctx.send('Command unavailable in devmode')
+        selector = language.get_selector(ctx)
 
         emojipack = emojipack.lower()
         if emojipack=='base':
             os.remove('emojis/current.json')
             self.bot.ui_emojis = Emojis()
-            await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack reset to default.')
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("reset")}')
         else:
             try:
                 with open(f'emojis/{emojipack}.json', 'r') as file:
@@ -1991,8 +2285,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.exception('An error occurred!')
                 await ctx.send(f'{self.bot.ui_emojis.error} Could not activate emoji pack.')
 
-    @commands.command(description='Shows this command.')
-    async def help(self,ctx):
+    @commands.command(description=language.desc('sysmgr.help'))
+    async def help(self,ctx,query=None):
+        selector = language.get_selector(ctx)
         panel = 0
         limit = 20
         page = 0
@@ -2001,9 +2296,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         descmatch = False
         cogname = ''
         cmdname = ''
-        query = ''
         msg = None
         interaction = None
+        if not query:
+            query = ''
+        else:
+            panel = 1
+            cogname = 'search'
+            namematch = True
+            descmatch = True
+            match = 0
 
         # Command overrides - these commands will be shown regardless of permissions.
         # Useful if cooldowns cause checks to fail
@@ -2132,15 +2434,22 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 offset = 0
 
+                def in_aliases(query, query_cmd):
+                    for alias in query_cmd.aliases:
+                        if query.lower() in alias.lower():
+                            return True
+
                 def search_filter(query, query_cmd):
                     if match==0:
                         return (
-                            query.lower() in query_cmd.qualified_name and namematch or
+                            (query.lower() in query_cmd.qualified_name.lower() or
+                             in_aliases(query,query_cmd)) and namematch or
                             query.lower() in query_cmd.description.lower() and descmatch
                         )
                     elif match==1:
                         return (
-                            ((query.lower() in query_cmd.qualified_name and namematch) or not namematch) and
+                            (((query.lower() in query_cmd.qualified_name.lower() or
+                               in_aliases(query,query_cmd)) and namematch) or not namematch) and
                             ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
                         )
 
@@ -2335,7 +2644,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             try:
                 interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
             except:
-                await msg.edit(view=None)
+                try:
+                    await msg.edit(view=None)
+                except:
+                    pass
                 break
             if interaction.type==nextcord.InteractionType.component:
                 if interaction.data['custom_id']=='selection':
@@ -2380,6 +2692,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         descmatch = True
             elif interaction.type==nextcord.InteractionType.modal_submit:
                 panel = 1
+                page = 0
                 cogname = 'search'
                 query = interaction.data['components'][0]['components'][0]['value']
                 namematch = True

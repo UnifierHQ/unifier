@@ -11,7 +11,8 @@ security updates after being superseded by a newer series. All EoL dates
 are in dd/mm/yyyy format.
 | Version                      | Type     | Supported                    | EoL        |
 | ---------------------------- | -------- | ---------------------------- | ---------- |
-| 2.x   (`daring-dragonfruit`) | release  | :white_check_mark: Supported | Not legacy |
+| 3.x   (`elegant-elderberry`) | release  | :white_check_mark: Supported | Not legacy |
+| 2.x   (`daring-dragonfruit`) | legacy   | :white_check_mark: Supported | 17/03/2025 |
 | 1.2.x (`cheerful-cranberry`) | legacy   | :white_check_mark: Supported | 05/12/2024 |
 | < 1.2                        | eol      | :x: Unsupported              | EoL        |
 

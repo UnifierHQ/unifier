@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -22,17 +22,10 @@ import hashlib
 import datetime
 from nextcord.ext import commands
 import traceback
-import ujson as json
 from utils import log, ui
 from utils import restrictions as r
 
 override_st = False
-
-with open('config.json', 'r') as file:
-    data = json.load(file)
-
-externals = data["external"]
-
 restrictions = r.Restrictions()
 
 def encrypt_string(hash_string):
@@ -95,9 +88,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
         restrictions.attach_bot(self.bot)
 
-    @commands.command(aliases=['ban'],description='Blocks a user or server from bridging messages to your server.')
+    @commands.command(description='Blocks a user or server from bridging messages to your server.')
     @commands.has_permissions(ban_members=True)
-    async def restrict(self,ctx,*,target):
+    async def block(self,ctx,*,target):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.author.id:
@@ -121,9 +114,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send('User/server can no longer forward messages to this channel!')
 
-    @commands.command(hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
+    @commands.command(aliases=['globalban'],hidden=True,description='Blocks a user or server from bridging messages through Unifier.')
     @restrictions.moderator()
-    async def globalban(self, ctx, target, duration=None, *, reason=None):
+    async def ban(self, ctx, target, duration=None, *, reason=None):
         if not ctx.author.id in self.bot.moderators:
             return
         rtt_msg = None
@@ -227,20 +220,19 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed.add_field(name='Did we make a mistake?',value=f'If you think we didn\'t make the right call, you can always appeal your ban using `{self.bot.command_prefix}!appeal`.',inline=False)
         user = self.bot.get_user(userid)
         if not user:
-            try:
-                user = self.bot.revolt_client.get_user(userid)
-                await user.send(f'## {embed.title}\n{embed.description}\n\n**Actions taken**\n{embed.fields[0].value}')
-                return await ctx.send('global banned <:nevheh:990994050607906816>')
-            except:
-                return await ctx.send('global banned <:nevheh:990994050607906816>')
-        if user:
+            # add NUPS support for this later
+            avatar = None
+            name = '[unknown]'
+            pass
+        else:
+            avatar = user.avatar.url if user.avatar else None
+            name = user.name
             try:
                 await user.send(embed=embed)
             except:
                 pass
 
         content = ctx.message.content
-        ctx.message.content = ''
         embed = nextcord.Embed(description='A user was recently banned from Unifier!',color=self.bot.colors.error)
         if disclose:
             if not user:
@@ -256,18 +248,22 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ctx.message.embeds = [embed]
         
         if not discreet:
-            await self.bot.bridge.send("main", ctx.message, 'discord', system=True)
-        for platform in externals:
-            await self.bot.bridge.send("main", ctx.message, platform, system=True)
+            await self.bot.bridge.send("main", ctx.message, 'discord', system=True, content_override='')
+        for platform in self.bot.config["external"]:
+            await self.bot.bridge.send("main", ctx.message, platform, system=True, content_override='')
 
         ctx.message.embeds = []
         ctx.message.content = content
 
-        await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.add_modlog(1, user.id, reason, ctx.author.id))
-        actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(user.id)
+        try:
+            userid = int(userid)
+        except:
+            pass
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.add_modlog(1, userid, reason, ctx.author.id))
+        actions_count, actions_count_recent = self.bot.bridge.get_modlogs_count(userid)
         log_embed = nextcord.Embed(title='User banned', description=reason, color=self.bot.colors.error, timestamp=datetime.datetime.now(datetime.timezone.utc))
         log_embed.add_field(name='Expiry', value=f'never' if forever else f'<t:{nt}:R>', inline=False)
-        log_embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url if user.avatar else None)
+        log_embed.set_author(name=f'@{name}',icon_url=avatar)
         log_embed.add_field(
             name='User modlogs info',
             value=f'This user has **{actions_count_recent["warns"]}** recent warnings ({actions_count["warns"]} in ' +
@@ -291,6 +287,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             reference=ctx.message,
             view=components if rtt_msg else None
         )
+
+        try:
+            if not self.bot.config['enable_logging']:
+                raise RuntimeError()
+            ch = self.bot.get_channel(self.bot.config['logs_channel'])
+
+            await ch.send(embed=log_embed)
+        except:
+            pass
 
         if not rtt_msg:
             return
@@ -391,9 +396,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self.bot.db['fullbanned'].append(target)
             await ctx.send(f'{self.bot.ui_emojis.success} User has been banned from the bot.')
 
-    @commands.command(aliases=['unban'],description='Unblocks a user or server from bridging messages to your server.')
+    @commands.command(description='Unblocks a user or server from bridging messages to your server.')
     @commands.has_permissions(ban_members=True)
-    async def unrestrict(self,ctx,target):
+    async def unblock(self,ctx,target):
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
@@ -409,9 +414,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} User/server can now forward messages to this channel!')
 
-    @commands.command(hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
+    @commands.command(aliases=['globalunban'],hidden=True,description='Unblocks a user or server from bridging messages through Unifier.')
     @restrictions.moderator()
-    async def globalunban(self,ctx,*,target):
+    async def unban(self,ctx,*,target):
         if not ctx.author.id in self.bot.moderators:
             return
         try:
@@ -846,34 +851,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             elif interaction.data['custom_id'] == 'next':
                 page += 1
 
-    @commands.command(aliases=['guilds'],description='Lists all servers connected to a given room.')
-    async def servers(self,ctx,*,room='main'):
-        try:
-            data = self.bot.db['rooms'][room]
-        except:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This isn\'t a valid room. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
-        text = ''
-        for guild_id in data:
-            try:
-                name = self.bot.get_guild(int(guild_id)).name
-            except:
-                continue
-            if len(text)==0:
-                text = f'- {name} (`{guild_id}`)'
-            else:
-                text = f'{text}\n- {name} (`{guild_id}`)'
-        embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.rooms} Servers connected to `{room}`',description=text,
-            color=self.bot.colors.unifier
-        )
-        await ctx.send(embed=embed)
-
     @commands.command(aliases=['find'], description='Identifies the origin of a message.')
     async def identify(self, ctx):
-        # use legacy permissions check because check_any is broken
-        if not (ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.kick_members or
-                ctx.author.guild_permissions.ban_members) and not ctx.author.id in self.bot.moderators:
-            return
         try:
             msg = ctx.message.reference.cached_message
             if msg == None:
@@ -912,6 +891,44 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 guildname = '[unknown]'
         await ctx.send(
+            f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
+
+    @nextcord.message_command(name='Identify origin')
+    async def identify_ctx(self, interaction, msg: nextcord.Message):
+        if interaction.user.id in self.bot.db['fullbanned']:
+            return
+        try:
+            msg_obj = await self.bot.bridge.fetch_message(msg.id)
+        except:
+            return await interaction.response.send_message('Could not find message in cache!',ephemeral=True)
+        if msg_obj.source == 'discord':
+            try:
+                username = self.bot.get_user(int(msg_obj.author_id)).name
+            except:
+                username = '[unknown]'
+            try:
+                guildname = self.bot.get_guild(int(msg_obj.guild_id)).name
+            except:
+                guildname = '[unknown]'
+        elif msg_obj.source == 'revolt':
+            try:
+                username = self.bot.revolt_client.get_user(msg_obj.author_id).name
+            except:
+                username = '[unknown]'
+            try:
+                guildname = self.bot.revolt_client.get_server(msg_obj.guild_id).name
+            except:
+                guildname = '[unknown]'
+        else:
+            try:
+                username = self.bot.guilded_client.get_user(msg_obj.author_id).name
+            except:
+                username = '[unknown]'
+            try:
+                guildname = self.bot.guilded_client.get_server(msg_obj.guild_id).name
+            except:
+                guildname = '[unknown]'
+        await interaction.response.send_message(
             f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
 
     @commands.command(description='Deletes a message.')
@@ -959,6 +976,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
+                await self.bot.bridge.delete_message(msg)
                 return await ctx.send(f'Deleted message ({deleted} copies deleted)')
             except:
                 traceback.print_exc()
@@ -1009,6 +1027,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
+                await self.bot.bridge.delete_message(msg)
                 return await interaction.edit_original_message(
                     content=f'Deleted message ({deleted} copies deleted)'
                 )
@@ -1360,27 +1379,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return
 
         self.logger.warn(f'Bridge lockdown issued by {ctx.author.id}!')
-
-        try:
-            self.logger.info("Shutting down Revolt client...")
-            await self.bot.revolt_session.close()
-            del self.bot.revolt_client
-            del self.bot.revolt_session
-            self.bot.unload_extension('cogs.bridge_revolt')
-            self.logger.info("Revolt client has been shut down.")
-        except Exception as e:
-            if not isinstance(e, AttributeError):
-                self.logger.exception("Shutdown failed.")
-        try:
-            self.logger.info("Shutting down Guilded client...")
-            await self.bot.guilded_client.close()
-            self.bot.guilded_client_task.cancel()
-            del self.bot.guilded_client
-            self.bot.unload_extension('cogs.bridge_guilded')
-            self.logger.info("Guilded client has been shut down.")
-        except Exception as e:
-            if not isinstance(e, AttributeError):
-                self.logger.exception("Shutdown failed.")
         self.logger.info("Backing up message cache...")
         await self.bot.bridge.backup()
         self.logger.info("Backup complete")
@@ -1407,25 +1405,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self.logger.info('Restored ' + str(len(self.bot.bridge.bridged)) + ' messages')
         except:
             traceback.print_exc()
-        if 'revolt' in externals:
-            try:
-                self.bot.load_extension('cogs.bridge_revolt')
-            except Exception as e:
-                if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
-                    traceback.print_exc()
-        if 'guilded' in externals:
-            try:
-                self.bot.load_extension('cogs.bridge_guilded')
-            except Exception as e:
-                if not isinstance(e, nextcord.ext.commands.errors.ExtensionAlreadyLoaded):
-                    traceback.print_exc()
         await ctx.send(f'{self.bot.ui_emojis.success} Lockdown removed')
 
     @commands.command(
         name='under-attack', aliases=['underattack'], hidden=True, description='Toggles Under Attack mode.'
     )
     @restrictions.under_attack()
-    async def under_attack(self, ctx):
+    async def under_attack(self,ctx):
         if f'{ctx.guild.id}' in self.bot.db['underattack']:
             embed = nextcord.Embed(
                 title=f'{self.bot.ui_emojis.warning} Disable Under Attack mode?',
@@ -1491,6 +1477,156 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             'Under Attack mode is now disabled. Your members can now chat in Unifier rooms again.' if was_attack else
             'Under Attack mode is now enabled. Your members can no longer chat in Unifier rooms.'
         )
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+
+    @commands.command(hidden=True, description='Sends a safety-related alert.')
+    @restrictions.moderator()
+    async def alert(self, ctx, risk_type, level, *, message):
+        risk_type = risk_type.lower()
+        if not risk_type in self.bot.bridge.alert.titles.keys():
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid risk type.')
+        level = level.lower()
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Are you sure you want to send this alert?',
+            description=f'You are sending a **{level}** alert.',
+            color=self.bot.colors.warning
+        )
+        if not level == 'advisory':
+            embed.set_footer(
+                text='Server moderators will be pinged. The main channel will also receive a notification.'
+            )
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Send alert',
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        alert = {
+            'type': risk_type,
+            'severity': level,
+            'description': message
+        }
+
+        parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'], ctx.message, alert=alert)
+
+        parent_id_2 = None
+        if not level == 'advisory':
+            parent_id_2 = await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, alert=alert)
+
+        for platform in self.bot.platforms.keys():
+            if parent_id:
+                await self.bot.bridge.send(
+                    self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
+                )
+            if not level == 'advisory' and parent_id_2:
+                await self.bot.bridge.send(
+                    self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
+                )
+
+        await interaction.delete_original_message()
+
+        embed.title = f'{self.bot.ui_emojis.success} Alert issued'
+        embed.description = 'Alert was issued to Unifier network.'
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+
+    @commands.command(hidden=True, description='Sends a safety-related alert.')
+    @restrictions.moderator()
+    @restrictions.not_banned()
+    async def advisory(self, ctx, risk_type, *, message):
+        risk_type = risk_type.lower()
+        if not risk_type in self.bot.bridge.alert.titles.keys():
+            return await ctx.send(f'{self.bot.ui_emojis.error} This is not a valid risk type.')
+        if risk_type == 'drill':
+            return await ctx.send(f'{self.bot.ui_emojis.error} You cannot issue drill advisories.')
+        level = 'advisory'
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} Are you sure you want to send this alert?',
+            description=f'You are sending an **advisory** alert.',
+            color=self.bot.colors.warning
+        )
+        embed.set_footer(
+            text='Misuse will be sanctioned with a 1 month minimum global ban from Unifier.'
+        )
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label='Send alert',
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label='Cancel',
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        alert = {
+            'type': risk_type,
+            'severity': level,
+            'description': message
+        }
+
+        parent_id = await self.bot.bridge.send(self.bot.config['alerts_room'], ctx.message, alert=alert)
+
+        for platform in self.bot.platforms.keys():
+            if parent_id:
+                await self.bot.bridge.send(
+                    self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
+                )
+
+        await interaction.delete_original_message()
+
+        embed.title = f'{self.bot.ui_emojis.success} Alert issued'
+        embed.description = 'Alert was issued to Unifier network.'
         embed.colour = self.bot.colors.success
 
         await msg.edit(embed=embed)

@@ -1,0 +1,8 @@
+{
+  "maintainer": "UnifierHQ",
+  "product": "unifier",
+  "product_name": "Unifier",
+  "base_bootfile": "unifier.py",
+  "repo": "https://github.com/UnifierHQ/unifier",
+  "required_py_version": 9
+}

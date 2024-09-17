@@ -2,15 +2,16 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v2.1.7",
-  "release": 74,
+  "version": "v3.0.0",
+  "release": 75,
   "minimum": 0,
   "shutdown": false,
   "modules": [
     "config.py",
     "bridge.py",
     "moderation.py",
-    "badge.py"
+    "badge.py",
+    "setup.py"
   ],
   "utils": [
     "log.py"

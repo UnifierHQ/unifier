@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -18,18 +18,21 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-from utils import log, restrictions as r
+from utils import log, langmgr, restrictions as r
 from enum import Enum
 
 restrictions = r.Restrictions()
+language = langmgr.partial()
+language.load()
 
 class UserRole(Enum):
-    OWNER = "the instance\'s **owner**"
-    ADMIN = "the instance\'s **admin**"
-    MODERATOR = "the instance\'s **moderator**"
-    TRUSTED = "a **verified user**"
-    BANNED = "**BANNED**"
-    USER = "a **user**"
+    # let values be None until set by langmgr
+    OWNER = language.get('owner','badge.roles')
+    ADMIN = language.get('admin','badge.roles')
+    MODERATOR = language.get('moderator','badge.roles')
+    TRUSTED = language.get('trusted','badge.roles')
+    BANNED = language.get('banned','badge.roles')
+    USER = language.get('user','badge.roles')
 
 class Badge(commands.Cog, name=':medal: Badge'):
     """Badge contains commands that show you your role in Unifier.
@@ -37,8 +40,10 @@ class Badge(commands.Cog, name=':medal: Badge'):
     Developed by Green and ItsAsheer"""
 
     def __init__(self, bot):
+        global language
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'badge', self.bot.loglevel)
+        language = self.bot.langmgr
         self.embed_colors = {
             UserRole.OWNER: (
                 self.bot.colors.greens_hair if self.bot.user.id==1187093090415149056 else self.bot.colors.unifier
@@ -51,9 +56,9 @@ class Badge(commands.Cog, name=':medal: Badge'):
         }
         restrictions.attach_bot(self.bot)
 
-    @commands.command()
+    @commands.command(description=language.desc('badge.badge'))
     async def badge(self, ctx, *, user=None):
-        """Shows your Unifier user badge."""
+        selector = language.get_selector(ctx)
         if user:
             try:
                 user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
@@ -63,7 +68,9 @@ class Badge(commands.Cog, name=':medal: Badge'):
             user = ctx.author
         user_role = self.get_user_role(user.id)
         embed = nextcord.Embed(
-            description=f"<@{user.id}> is {user_role.value}.",
+            description=selector.fget("easter_egg", values={
+                'mention':f"<@{user.id}>",'role': user_role.value
+            }),
             color=self.embed_colors[user_role]
         )
         embed.set_author(
@@ -71,34 +78,39 @@ class Badge(commands.Cog, name=':medal: Badge'):
             icon_url=user.avatar.url if user.avatar else None
         )
         if user_role==UserRole.BANNED:
-            embed.set_footer(text='L bozo')
+            embed.set_footer(text=selector.get("easter_egg"))
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,aliases=['trust'],description='Verifies a user.')
+    @commands.command(hidden=True,aliases=['trust'],description=language.desc('badge.verify'))
     @restrictions.admin()
-    async def verify(self, ctx, action, user: nextcord.User):
-        action = action.lower()
-        if action not in ['add', 'remove']:
-            return await ctx.send("Invalid action. Please use 'add' or 'remove'.")
+    async def verify(self, ctx, user: nextcord.User):
+        selector = language.get_selector(ctx)
 
-        if action == 'add':
-            if user.id not in self.bot.trusted_group:
-                self.bot.trusted_group.append(user.id)
-        elif action == 'remove':
-            if user.id in self.bot.trusted_group:
-                self.bot.trusted_group.remove(user.id)
+        if user.id in self.bot.trusted_group:
+            return await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+
+        self.bot.trusted_group.append(user.id)
 
         self.bot.db['trusted'] = self.bot.trusted_group
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-        user_role = UserRole.TRUSTED if action == 'add' else UserRole.USER
-        embed = nextcord.Embed(
-            title="Unifier",
-            description=f"{'Added' if action == 'add' else 'Removed'} user {user.mention} from the trust group.",
-            color=self.embed_colors[user_role],
-        )
-        await ctx.send(embed=embed)
+        await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
+
+    @commands.command(hidden=True, aliases=['untrust'], description=language.desc('badge.unverify'))
+    @restrictions.admin()
+    async def unverify(self, ctx, user: nextcord.User):
+        selector = language.get_selector(ctx)
+
+        if not user.id in self.bot.trusted_group:
+            return await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+
+        self.bot.trusted_group.remove(user.id)
+
+        self.bot.db['trusted'] = self.bot.trusted_group
+        await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+
+        await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
 
     def get_user_role(self, user_id):
         if user_id == self.bot.config['owner']:
@@ -113,6 +125,9 @@ class Badge(commands.Cog, name=':medal: Badge'):
             return UserRole.BANNED
         else:
             return UserRole.USER
+
+    async def cog_command_error(self, ctx, error):
+        await self.bot.exhandler.handle(ctx, error)
 
 def setup(bot):
     bot.add_cog(Badge(bot))

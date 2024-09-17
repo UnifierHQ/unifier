@@ -1,11 +1,11 @@
-nextcord[speed]
-guilded.py
-https://github.com/revoltchat/revolt.py/archive/master.zip
+git+https://github.com/nextcord/nextcord.git
 aiofiles
+aiodns; sys_platform != 'win32'
+Brotli
+brotlicffi
 py-cpuinfo
-tld
-jellyfish
-uvloop
+uvloop; sys_platform != 'win32'
+winloop; sys_platform == 'win32'
 compress_json
 python-dotenv
 requests
@@ -14,3 +14,7 @@ emoji
 discord-emoji
 pycryptodome
 orjson
+tomli
+tomli-w
+setuptools
+aiomultiprocess

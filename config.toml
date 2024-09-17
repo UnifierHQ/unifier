@@ -1,0 +1,65 @@
+# Unifier config TOML
+
+[system]
+debug = false
+package = "unifier"
+language = "english"
+skip_status_check = false
+
+[roles]
+owner = -1
+admin_ids = []
+
+[roles.owner_external]
+# For each platform, you can add your account's ID here.
+revolt = ""
+guilded = ""
+
+[bot]
+prefix = "u!"
+ping = 0
+main_color = "ed4545"
+
+[backups]
+compress_cache = true
+periodic_backup = 0
+periodic_backup_cloud = 0
+cloud_backup_endpoint = ""
+cloud_backup_salt = 12
+
+[plugin]
+branch = "main"
+repo = "https://github.com/UnifierHQ/unifier"
+check_endpoint = "https://github.com/UnifierHQ/unifier-version.git"
+files_endpoint = "https://github.com/UnifierHQ"
+
+[moderation]
+enable_logging = false
+enable_reporting = false
+enable_rtt = true
+logging_edit = false
+logging_delete = false
+home_guild = -1
+logs_channel = -1
+reports_channel = -1
+moderator_role = -1
+
+[bridge]
+external = ["revolt", "guilded"]
+use_multicore = true
+allow_posts = false
+enable_exp = false
+exp_cooldown = 30
+enable_emoji_tags = false
+enable_ctx_commands = true
+enable_rotating_status = true
+enable_safety_alerts = false
+safe_filetypes = true
+suppress_filesize_warning = false
+permanent_invites = false
+enable_private_rooms = false # WARNING: Private Rooms are experimental, privacy is not guaranteed. Use at your own risk.
+private_rooms_limit = 0
+main_room = "main"
+alerts_room = "alerts"
+posts_room = "posts"
+posts_ref_room = "post-comments"
