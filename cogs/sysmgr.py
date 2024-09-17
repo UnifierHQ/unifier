@@ -790,28 +790,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @tasks.loop(seconds=300)
     async def changestatus(self):
         status_messages = [
-            ["playing","with the ban hammer"],
-            ["playing","with fire"],
             ["playing","with the API"],
-            ["playing","hide and seek"],
             ["listening","my own code"],
-            ["playing","in debug mode"],
-            ["playing","in a parallel universe"],
             ["playing","with commands"],
-            ["playing","a game of chess"],
-            ["playing","with electrons"],
             ["watching","the matrix"],
-            ["watching","cookies bake"],
-            ["playing","with the metaverse"],
             ["playing","with emojis"],
-            ["playing","with Nevira"],
-            ["playing","with green."],
-            ["playing","with ItsAsheer"],
             ["watching","webhooks"],
             ["custom","Unifying servers like they're nothing"],
             ["custom","Communities, connected."],
             ["custom","Made for communities, by communities"],
-            ["custom","bro nevira stop stealing my code"]
+            ["custom", "it's unifying time"],
+            ["custom", "Made with \u2764\ufe0f by UnifierHQ"]
         ]
         new_stat = random.choice(status_messages)
         if new_stat[0] == "watching":
