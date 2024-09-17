@@ -249,7 +249,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     index = (page * limit) + x
                     if index >= len(roomlist):
                         break
-                    name = roomlist[index]
+                    try:
+                        # redundant try-except block
+                        name = roomlist[index]
+                    except:
+                        break
                     display_name = (
                             self.bot.db['rooms'][name]['meta']['display_name'] or name
                     )
