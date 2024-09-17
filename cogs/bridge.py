@@ -1418,6 +1418,8 @@ class UnifierBridge:
         if ignore is None:
             ignore = []
 
+        can_override = not content_override is None
+
         alert_embed = None
         alert_text = None
         if alert:
@@ -2209,12 +2211,12 @@ class UnifierBridge:
                             async with aiohttp.ClientSession() as session:
                                 webhook.session = session
                                 msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                         content=content_override or tosend_content, files=files, allowed_mentions=mentions, view=(
+                                                         content=content_override if can_override else tosend_content, files=files, allowed_mentions=mentions, view=(
                                                              components if components and not system else ui.MessageComponents()
                                                          ), wait=True)
                         else:
                             msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                     content=content_override or tosend_content, files=files, allowed_mentions=mentions,
+                                                     content=content_override if can_override else tosend_content, files=files, allowed_mentions=mentions,
                                                      view=(
                                                          components if components and not system else ui.MessageComponents()
                                                      ), wait=True)
@@ -2264,7 +2266,7 @@ class UnifierBridge:
                                 )
                             )
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                 content=content_override or tosend_content,
+                                                 content=content_override if can_override else tosend_content,
                                                  files=files, allowed_mentions=touse_mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
@@ -2329,7 +2331,7 @@ class UnifierBridge:
                     if trimmed:
                         special.update({'reply_content': trimmed})
                     msg = await dest_support.send(
-                        ch, content_override or content, special=special
+                        ch, content_override if can_override else content, special=special
                     )
                     tbresult = [
                         {f'{dest_support.get_id(destguild)}': [
@@ -2352,7 +2354,7 @@ class UnifierBridge:
 
                 if dest_support.enable_tb:
                     threads.append(asyncio.create_task(tbsend(
-                        msg_author,url,color,useremoji,reply,content_override or (friendly_content if friendlified else msg_content)
+                        msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content)
                     )))
                 else:
                     try:
@@ -2380,7 +2382,7 @@ class UnifierBridge:
                         if trimmed:
                             special.update({'reply_content': trimmed})
                         msg = await dest_support.send(
-                            ch, content_override or (friendly_content if friendlified else msg_content), special=special
+                            ch, content_override if can_override else (friendly_content if friendlified else msg_content), special=special
                         )
                     except:
                         continue
