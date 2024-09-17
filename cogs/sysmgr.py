@@ -114,13 +114,6 @@ attribution = {
         'license': 'MIT',
         'license_url': 'https://github.com/workhorsy/py-cpuinfo/blob/master/LICENSE'
     },
-    'tld': {
-        'author': 'Artur Barseghyan',
-        'description': 'Extracts the top level domain (TLD) from the URL given.',
-        'repo': 'https://github.com/barseghyanartur/tld',
-        'license': 'LGPLv2.1',
-        'license_url': 'https://github.com/barseghyanartur/tld/blob/master/LICENSE_LGPL_2.1.txt'
-    },
     'uvloop': {
         'author': 'magicstack',
         'description': 'Ultra fast asyncio event loop.',
