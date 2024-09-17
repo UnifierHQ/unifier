@@ -1,7 +1,6 @@
 nextcord
 aiofiles
 py-cpuinfo
-tld
 compress_json
 python-dotenv
 requests

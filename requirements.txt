@@ -4,7 +4,6 @@ aiodns; sys_platform != 'win32'
 Brotli
 brotlicffi
 py-cpuinfo
-tld
 uvloop; sys_platform != 'win32'
 winloop; sys_platform == 'win32'
 compress_json
