@@ -612,10 +612,10 @@ class Setup(commands.Cog):
             pcomment = 'posts-comments'
 
             if posts:
-                modal = nextcord.ui.Modal(title=setup_dialog.get('proom_name'), auto_defer=False)
+                modal = nextcord.ui.Modal(title=setup_dialog.get('proom_title'), auto_defer=False)
                 modal.add_item(
                     nextcord.ui.TextInput(
-                        label=setup_dialog.get('proom_name'),
+                        label=setup_dialog.get('proom_title'),
                         style=nextcord.TextInputStyle.short,
                         placeholder=setup_dialog.get('string'),
                         required=True,
@@ -662,10 +662,10 @@ class Setup(commands.Cog):
             aroom = 'alerts'
 
             if alerts:
-                modal = nextcord.ui.Modal(title=setup_dialog.get('proom_name'), auto_defer=False)
+                modal = nextcord.ui.Modal(title=setup_dialog.get('aroom_title'), auto_defer=False)
                 modal.add_item(
                     nextcord.ui.TextInput(
-                        label=setup_dialog.get('proom_name'),
+                        label=setup_dialog.get('aroom_title'),
                         style=nextcord.TextInputStyle.short,
                         placeholder=setup_dialog.get('string'),
                         required=True,
