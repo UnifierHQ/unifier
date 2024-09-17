@@ -1841,7 +1841,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update'))
                 self.logger.info('Downloading from remote repository...')
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
-                    'git clone --branch ' + new['version'] + ' --single-branch --depth 1 ' + self.bot.config[
+                    'git clone --branch ' + version + ' --single-branch --depth 1 ' + self.bot.config[
                         'files_endpoint'] + '/unifier.git update'
                 ))
                 self.logger.debug('Confirming download...')
