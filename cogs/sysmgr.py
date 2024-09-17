@@ -1942,12 +1942,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     with open('plugins/system.json', 'w+') as file:
                         json.dump(current,file)
                 else:
-                    await self.copy('update_check/update.json', 'plugins/system.json')
-                    with open('plugins/system.json', 'r') as file:
-                        newcurrent = json.load(file)
-                    newcurrent.pop('legacy')
-                    with open('plugins/system.json', 'w+') as file:
-                        json.dump(newcurrent, file)
+                    await self.copy('update/plugins/system.json', 'plugins/system.json')
                 for file in os.listdir(os.getcwd() + '/update/cogs'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/cogs/' + file)
                     await self.copy('update/cogs/' + file, 'cogs/' + file)
