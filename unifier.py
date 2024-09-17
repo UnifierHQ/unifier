@@ -58,6 +58,9 @@ except:
     if not 'run.bat' in os.listdir():
         shutil.copy2('update/run.bat', 'run.bat')
 
+    # we probably need to copy this too
+    shutil.copy2('update/plugins/system.json', 'plugins/system.json')
+
     if sys.platform == 'win32':
         print('To start the bot, please run "run.bat" instead.')
     else:
