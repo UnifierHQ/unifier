@@ -43,11 +43,13 @@ except:
     with open('boot_config.json') as file:
         boot_config = json.load(file)
 
-binary = boot_config['bootloader'].get('binary', 'py -3' if sys.platform == 'win32' else 'python3')
-options = boot_config['bootloader'].get('options')
-boot_file = boot_config['bootloader'].get('boot_file', internal["base_bootfile"])
-autoreboot = boot_config['bootloader'].get('autoreboot', False)
-threshold = boot_config['bootloader'].get('autoreboot_threshold', 60)
+bootloader_config = boot_config.get('bootloader', {})
+
+binary = bootloader_config.get('binary', 'py -3' if sys.platform == 'win32' else 'python3')
+options = bootloader_config.get('options')
+boot_file = bootloader_config.get('boot_file', internal["base_bootfile"])
+autoreboot = bootloader_config.get('autoreboot', False)
+threshold = bootloader_config.get('autoreboot_threshold', 60)
 
 if not options:
     options = ''
