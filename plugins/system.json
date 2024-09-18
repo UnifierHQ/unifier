@@ -14,6 +14,11 @@
     "setup.py"
   ],
   "utils": [
-    "log.py"
+    "langmgr.py",
+    "log.py",
+    "platform_base.py",
+    "restrictions.py",
+    "ui.py",
+    "webhook_cache.py"
   ]
 }
