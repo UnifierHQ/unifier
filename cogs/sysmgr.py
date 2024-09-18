@@ -1334,8 +1334,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
             embed.description = 'The repository URL or the plugin.json file is invalid.'
             embed.colour = self.bot.colors.error
-            await msg.edit(embed=embed)
-            return
+            return await msg.edit(embed=embed)
+
         embed.title = f'{self.bot.ui_emojis.install} Install `{plugin_id}`?'
         embed.description = f'Name: `{name}`\nVersion: `{version}`\n\n{desc}'
         embed.colour = 0xffcc00
