@@ -1899,6 +1899,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.warning('Could not find requirements.txt, installing all dependencies')
                     olddeps = []
                 for dep in olddeps:
+                    if dep.startswith('git+'):
+                        continue
                     try:
                         newdeps.remove(dep)
                     except:
