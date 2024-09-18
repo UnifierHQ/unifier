@@ -474,6 +474,15 @@ class Setup(commands.Cog):
 
             if skip:
                 ignore_error = True
+
+                with open('.install.json') as file:
+                    install_data = json.load(file)
+
+                install_data['setup'] = True
+
+                with open('.install.json', 'w') as file:
+                    json.dump(install_data, file)
+
                 return await setup_dialog.finish(skipped=True)
 
             if not self.bot.setup_lock:
