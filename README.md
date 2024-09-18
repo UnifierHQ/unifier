@@ -3,8 +3,8 @@
 Unifier</h1>
 <p align=center>A fast and versatile Discord bot uniting servers and platforms, brought to you by Green and ItsAsheer<br>
 Inspired by matrix-t2bot</p>
-<p align=center><a href='#setup'>🔧 Setup</a> •
-  <a href='https://wiki.unifierhq.org'>📘 Wiki</a> • <a href='#support'>⛑️ Support</a></sub>
+<p align=center><a href='#-setup'>🔧 Setup</a> •
+  <a href='https://wiki.unifierhq.org'>📘 Wiki</a> • <a href='#%EF%B8%8F-support'>⛑️ Support</a></sub>
 
 ## ✨ Meet Unifier!
 Unifier is a bot written in Python that allows communities to connect together to form global chat rooms, even across
