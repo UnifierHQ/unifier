@@ -2306,8 +2306,8 @@ class UnifierBridge:
                 if alert:
                     friendly_content = msg_content = alert_text
 
-                async def tbsend(msg_author,url,color,useremoji,reply,content):
-                    files = await get_files(message.attachments)
+                async def tbsend(msg_author,url,color,useremoji,reply,content, files, destguild):
+                    guild_id = dest_support.get_id(destguild)
                     special = {
                         'bridge': {
                             'name': msg_author,
@@ -2334,7 +2334,7 @@ class UnifierBridge:
                         ch, content_override if can_override else content, special=special
                     )
                     tbresult = [
-                        {f'{dest_support.get_id(destguild)}': [
+                        {f'{guild_id}': [
                             dest_support.get_id(dest_support.channel(msg)), dest_support.get_id(msg)
                         ]},
                         None,
@@ -2342,7 +2342,7 @@ class UnifierBridge:
                     ]
                     try:
                         tbresult[1] = {
-                            f'{dest_support.get_id(destguild)}': dest_support.url(msg)
+                            f'{guild_id}': dest_support.url(msg)
                         }
                     except platform_base.MissingImplementation:
                         pass
@@ -2354,11 +2354,10 @@ class UnifierBridge:
 
                 if dest_support.enable_tb:
                     threads.append(asyncio.create_task(tbsend(
-                        msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content)
+                        msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
                 else:
                     try:
-                        files = await get_files(message.attachments)
                         special = {
                             'bridge': {
                                 'name': msg_author,
