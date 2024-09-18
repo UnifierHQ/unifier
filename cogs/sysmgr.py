@@ -1331,6 +1331,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
         except:
+            try:
+                await self.bot.loop.run_in_executor(None, lambda: status(os.system('git -version')))
+            except:
+                embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
+                embed.description = 'Git is not installed.'
+                embed.colour = self.bot.colors.error
+                return await msg.edit(embed=embed)
+
             embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
             embed.description = 'The repository URL or the plugin.json file is invalid.'
             embed.colour = self.bot.colors.error
@@ -1638,6 +1646,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 update_available = len(available) >= 1
             except:
+                try:
+                    await self.bot.loop.run_in_executor(None, lambda: status(os.system('git -version')))
+                except:
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.get("checkfail_title")}'
+                    embed.description = 'Git is not installed.'
+                    embed.colour = self.bot.colors.error
+                    return await msg.edit(embed=embed)
+
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("checkfail_title")}'
                 embed.description = selector.get("checkfail_body")
                 embed.colour = self.bot.colors.error
@@ -2063,6 +2079,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 utilities = new['utils']
                 services = new['services'] if 'services' in new.keys() else []
             except:
+                try:
+                    await self.bot.loop.run_in_executor(None, lambda: status(os.system('git -version')))
+                except:
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.get("pfailed")}'
+                    embed.description = 'Git is not installed.'
+                    embed.colour = self.bot.colors.error
+                    return await msg.edit(embed=embed)
+
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("pfailed")}'
                 embed.description = selector.rawget("invalid_repo",'sysmgr.install')
                 embed.colour = self.bot.colors.error
