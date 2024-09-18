@@ -10,7 +10,10 @@ install_options = [
     {
         'id': 'optimized',
         'name': '\U000026A1 Optimized',
-        'description': 'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.',
+        'description': (
+            'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.\n'+
+            'Note: Due to an issue with Nextcord, this option temporarily uses the latest stable Nextcord version.'
+        ),
         'default': True,
         'prefix': '',
         'color': '\x1b[35'

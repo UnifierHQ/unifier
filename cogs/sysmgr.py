@@ -1949,6 +1949,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for file in os.listdir(os.getcwd() + '/update/utils'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
                     await self.copy('update/utils/' + file, 'utils/' + file)
+                for file in os.listdir(os.getcwd() + '/update/boot'):
+                    self.logger.debug('Installing: ' + os.getcwd() + '/update/boot/' + file)
+                    await self.copy('update/boot/' + file, 'boot/' + file)
+                self.logger.debug('Installing: ' + os.getcwd() + '/update/run.sh')
+                await self.copy('update/run.sh', 'run.sh')
+                self.logger.debug('Installing: ' + os.getcwd() + '/update/run.bat')
+                await self.copy('update/run.bat', 'run.bat')
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/emojis/base.json')
                 await self.copy('update/emojis/base.json', 'emojis/base.json')
                 self.logger.debug('Updating languages')
@@ -1958,9 +1965,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/languages/' + file)
                     await self.copy('update/languages/' + file, 'languages/' + file)
-                for file in os.listdir(os.getcwd() + '/update/utils'):
-                    self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
-                    await self.copy('update/utils/' + file, 'utils/' + file)
                 self.logger.debug('Updating config.toml')
                 with open('config.toml','rb') as file:
                     oldcfg = tomli.load(file)
