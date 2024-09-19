@@ -737,7 +737,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     emoji=self.bot.ui_emojis.safety
                 ),
                 nextcord.SelectOption(
-                    value='coreboot',
+                    value='core',
                     label='Coreboot restart',
                     description='Restarts the bot in coreboot with all Plugins and most system extensions disabled.',
                     emoji=self.bot.ui_emojis.gear
