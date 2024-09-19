@@ -89,7 +89,6 @@ for directory in directories:
             if directory == 'boot':
                 replaced_boot = True
 
-
 try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
