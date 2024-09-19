@@ -30,6 +30,7 @@ import requests
 import traceback
 import threading
 import shutil
+import filecmp
 from utils import log
 from dotenv import load_dotenv
 from pathlib import Path
@@ -67,6 +68,23 @@ except:
         print('To start the bot, please run "./run.sh" instead.')
         print('If you get a "Permission denied" error, run "chmod +x run.sh" and try again.')
     sys.exit(1)
+
+# upgrade files in directories not targeted by upgrader in previous versions
+directories = ['boot', 'languages', 'emojis']
+replaced_boot = False
+for directory in directories:
+    if os.path.exists('update/'+directory):
+        # upgrader is ok, no need to upgrade
+        continue
+
+    for file in os.listdir():
+        if os.path.exists(directory+'/'+file):
+            continue
+        if not filecmp.cmp(directory+'/'+file, 'update/'+directory+'/'+file):
+            shutil.copy2('update/'+directory+'/'+file, directory+'/'+file)
+            if directory == 'boot':
+                replaced_boot = True
+
 
 try:
     # as only winloop or uvloop will be installed depending on the system,
@@ -163,8 +181,8 @@ if not owner_valid:
         logger.critical('Please note that IDs should be integers and not strings.')
     sys.exit(1)
 
-if os.name == "win32":
-    logger.warning('You are using Windows, which is untested. Some features may not work.')
+if replaced_boot:
+    logger.warning('The bootloader was updated by core, as it was not updated by System Manager correctly. Please fully shut down the bot then reboot for bootloader changes to take effect.')
 
 if not '.welcome.txt' in os.listdir():
     x = open('.welcome.txt','w+')
