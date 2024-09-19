@@ -41,7 +41,7 @@ from aiomultiprocess import Worker
 
 # import ujson if installed
 try:
-    import ujson as json
+    import ujson as json  # pylint: disable=import-error
 except:
     pass
 

@@ -37,7 +37,7 @@ from pathlib import Path
 
 # import ujson if installed
 try:
-    import ujson as json
+    import ujson as json  # pylint: disable=import-error
 except:
     pass
 
