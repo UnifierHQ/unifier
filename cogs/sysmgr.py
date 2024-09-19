@@ -967,7 +967,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 importlib.reload(self.bot.loaded_plugins[plugin])
                 success.append(plugin)
                 text = text + f'\n+ [DONE] {plugin}'
-            except Exception as e:
+            except:
+                e = traceback.format_exc()
                 failed.append(plugin)
                 errors.append(e)
                 text = text + f'\n- [FAIL] {plugin}'
@@ -1205,7 +1206,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n+ [DONE] {extension}'
                 else:
                     text += f'\n+ [DONE] {extension}'
-            except Exception as e:
+            except:
+                e = traceback.format_exc()
                 failed.append(extension)
                 errors.append(e)
                 if len(text) == 0:
@@ -1247,7 +1249,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n+ [DONE] {extension}'
                 else:
                     text += f'\n+ [DONE] {extension}'
-            except Exception as e:
+            except:
+                e = traceback.format_exc()
                 failed.append(extension)
                 errors.append(e)
                 if len(text) == 0:
@@ -1293,7 +1296,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n+ [DONE] {extension}'
                 else:
                     text += f'\n+ [DONE] {extension}'
-            except Exception as e:
+            except:
+                e = traceback.format_exc()
                 failed.append(extension)
                 errors.append(e)
                 if len(text) == 0:
