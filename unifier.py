@@ -166,7 +166,7 @@ if not valid_toml:
 
 if not env_loaded or not os.path.isfile('.env'):
     logger.critical(
-        'Could not load .env file! More info: https://unifier-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#set-bot-token'
+        'Could not load .env file! More info: https://wiki.unifierhq.org/setup-selfhosted/getting-started/unifier#set-bot-token'
     )
     if not os.path.isfile('.env'):
         dotenv = open('.env', 'w+')
@@ -189,7 +189,7 @@ if not '.welcome.txt' in os.listdir():
     x.close()
     logger.info('Thank you for installing Unifier!')
     logger.info('Unifier is licensed under the AGPLv3, so if you would like to add your own twist to Unifier, you must follow AGPLv3 conditions.')
-    logger.info('You can learn more about modifying Unifier at https://unifier-wiki.pixels.onl/setup-selfhosted/modding-unifier')
+    logger.info('You can learn more about modifying Unifier at https://wiki.unifierhq.org/setup-selfhosted/modding-unifier')
 
 if not 'repo' in list(data.keys()):
     logger.critical('WARNING: THIS INSTANCE IS NOT AGPLv3 COMPLAINT!')
