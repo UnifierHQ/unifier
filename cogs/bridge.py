@@ -32,7 +32,7 @@ import re
 import ast
 import math
 import os
-from utils import log, langmgr, ui, platform_base, restrictions as r
+from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r
 import importlib
 import emoji as pymoji
 import aiomultiprocess
@@ -41,7 +41,7 @@ from aiomultiprocess import Worker
 
 # import ujson if installed
 try:
-    import ujson as json
+    import ujson as json  # pylint: disable=import-error
 except:
     pass
 
@@ -256,7 +256,7 @@ class UnifierBridge:
         self.__bot = bot
         self.bridged = []
         self.prs = {}
-        self.webhook_cache = webhook_cache or WebhookCacheStore(self.__bot)
+        self.webhook_cache = webhook_cache or wcache.WebhookCacheStore(self.__bot)
         self.restored = False
         self.raidbans = {}
         self.possible_raid = {}
@@ -2306,8 +2306,8 @@ class UnifierBridge:
                 if alert:
                     friendly_content = msg_content = alert_text
 
-                async def tbsend(msg_author,url,color,useremoji,reply,content):
-                    files = await get_files(message.attachments)
+                async def tbsend(msg_author,url,color,useremoji,reply,content, files, destguild):
+                    guild_id = dest_support.get_id(destguild)
                     special = {
                         'bridge': {
                             'name': msg_author,
@@ -2334,7 +2334,7 @@ class UnifierBridge:
                         ch, content_override if can_override else content, special=special
                     )
                     tbresult = [
-                        {f'{dest_support.get_id(destguild)}': [
+                        {f'{guild_id}': [
                             dest_support.get_id(dest_support.channel(msg)), dest_support.get_id(msg)
                         ]},
                         None,
@@ -2342,7 +2342,7 @@ class UnifierBridge:
                     ]
                     try:
                         tbresult[1] = {
-                            f'{dest_support.get_id(destguild)}': dest_support.url(msg)
+                            f'{guild_id}': dest_support.url(msg)
                         }
                     except platform_base.MissingImplementation:
                         pass
@@ -2354,11 +2354,10 @@ class UnifierBridge:
 
                 if dest_support.enable_tb:
                     threads.append(asyncio.create_task(tbsend(
-                        msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content)
+                        msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
                 else:
                     try:
-                        files = await get_files(message.attachments)
                         special = {
                             'bridge': {
                                 'name': msg_author,
@@ -2485,56 +2484,6 @@ class UnifierBridge:
             except:
                 self.msg_stats.update({room: 1})
         return parent_id
-
-class WebhookCacheStore:
-    def __init__(self, bot):
-        self.__bot = bot
-        self.__webhooks = {}
-
-    def store_webhook(self, webhook, identifier, server):
-        if not server in self.__webhooks.keys():
-            self.__webhooks.update({server: {identifier: webhook}})
-        self.__webhooks[server].update({identifier: webhook})
-        return len(self.__webhooks[server])
-
-    def store_webhooks(self, webhooks: list, identifiers: list, servers: list):
-        if not len(webhooks) == len(identifiers) == len(servers):
-            raise ValueError('webhooks, identifiers, and servers must be the same length')
-
-        for index in range(len(webhooks)):
-            webhook = webhooks[index]
-            identifier = identifiers[index]
-            server = servers[index]
-            if not server in self.__webhooks.keys():
-                self.__webhooks.update({server: {identifier: webhook}})
-            self.__webhooks[server].update({identifier: webhook})
-        return len(self.__webhooks)
-
-    def get_webhooks(self, server: int or str):
-        try:
-            server = int(server)
-        except:
-            pass
-        if len(self.__webhooks[server].values())==0:
-            raise ValueError('no webhooks')
-        return list(self.__webhooks[server].values())
-
-    def get_webhook(self, identifier: int or str):
-        try:
-            identifier = int(identifier)
-        except:
-            pass
-        for guild in self.__webhooks.keys():
-            if identifier in self.__webhooks[guild].keys():
-                return self.__webhooks[guild][identifier]
-        raise ValueError('invalid webhook')
-
-    def clear(self, server: int or str = None):
-        if not server:
-            self.__webhooks = {}
-        else:
-            self.__webhooks[server] = {}
-        return
 
 class Bridge(commands.Cog, name=':link: Bridge'):
     """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
@@ -3424,7 +3373,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 selector.fget("title_other", values={"username": user.global_name if user.global_name else user.name})
              ),
             description=(
-                f'{selector.fget("level", values={"level": data["level"]})} | {selector.fget("exp",values={"exp": {round(data["experience"],2)}})}\n\n'+
+                f'{selector.fget("level", values={"level": data["level"]})} | {selector.fget("exp",values={"exp": round(data["experience"],2)})}\n\n'+
                 f'`{progressbar}`\n{selector.fget("progress",values={"progress": round(data["progress"]*100)})}'
             ),
             color=self.bot.colors.unifier

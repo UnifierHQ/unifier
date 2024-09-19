@@ -856,7 +856,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         infinite_enabled = ''
         if self.bot.config['permanent_invites']:
-            infinite_enabled = ' Use `inf` instead for permanent invites.'
+            infinite_enabled = ' ' + 'Use `inf` instead for permanent invites.' # concatenated for future localization
 
         if expiry == 'inf':
             if not self.bot.config['permanent_invites']:

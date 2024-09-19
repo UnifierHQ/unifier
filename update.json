@@ -1,4 +1,5 @@
 {
+  "note": "This file is only for supporting upgrades from an earlier series. It will be removed once v1.2 is discontinued.",
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
