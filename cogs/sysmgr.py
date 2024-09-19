@@ -282,6 +282,8 @@ class Emojis:
         self.rooms = data['emojis']['rooms'][0]
         self.emoji = data['emojis']['emoji'][0]
         self.leaderboard = data['emojis']['leaderboard'][0]
+        self.safety = data['emojis']['safety'][0]
+        self.gear = data['emojis']['gear'][0]
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -701,34 +703,99 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = 'The bot will automatically shut down in 60 seconds.'
 
         components = ui.MessageComponents()
-        components.add_rows(
-            ui.ActionRow(
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.red,
-                    label='Restart' if restart else 'Shut down',
-                    custom_id='shutdown'
-                ),
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.gray,
-                    label='Nevermind',
-                    custom_id='cancel'
-                )
+
+        btns_row = ui.ActionRow(
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.red,
+                label='Restart' if restart else 'Shut down',
+                custom_id='shutdown'
+            ),
+            nextcord.ui.Button(
+                style=nextcord.ButtonStyle.gray,
+                label='Nevermind',
+                custom_id='cancel'
             )
         )
+
+        components.add_row(btns_row)
+
+        options = []
+
+        if restart:
+            options = [
+                nextcord.SelectOption(
+                    default=True,
+                    value='normal',
+                    label='Normal restart',
+                    description='Restarts the bot normally.',
+                    emoji=self.bot.ui_emojis.success
+                ),
+                nextcord.SelectOption(
+                    default=True,
+                    value='safemode',
+                    label='Safemode restart',
+                    description='Restarts the bot in safemode with all Plugins disabled.',
+                    emoji=self.bot.ui_emojis.safety
+                ),
+                nextcord.SelectOption(
+                    default=True,
+                    value='coreboot',
+                    label='Coreboot restart',
+                    description='Restarts the bot in coreboot with all Plugins and most system extensions disabled.',
+                    emoji=self.bot.ui_emojis.gear
+                )
+            ]
+            selection = nextcord.ui.StringSelect(
+                placeholder='Select restart mode...',
+                max_values=1,
+                min_values=1,
+                custom_id='selection',
+                options=options
+            )
+
+            components.add_row(
+                ui.ActionRow(selection)
+            )
 
         msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
             return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
 
-        try:
-            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
-            await interaction.response.edit_message(view=None)
+        mode = 'normal'
 
-            if interaction.data['custom_id'] == 'cancel':
-                return
-        except:
-            await msg.edit(view=None)
+        while True:
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+
+                if interaction.data['custom_id'] == 'cancel':
+                    await interaction.response.edit_message(view=None)
+                    return
+                elif interaction.data['custom_id'] == 'shutdown':
+                    await interaction.response.edit_message(view=None)
+                    break
+                else:
+                    mode = interaction.data['values'][0]
+                    for index in range(len(options)):
+                        option = options[index]
+                        if option.value == mode:
+                            options[index].default = True
+                        else:
+                            options[index].default = False
+
+                    selection = nextcord.ui.StringSelect(
+                        placeholder='Select restart mode...',
+                        max_values=1,
+                        min_values=1,
+                        custom_id='selection',
+                        options=options
+                    )
+
+                    components = ui.MessageComponents()
+                    components.add_rows(btns_row, ui.ActionRow(selection))
+                    await interaction.response.edit_message(view=components)
+            except:
+                await msg.edit(view=None)
 
         self.logger.info("Attempting graceful shutdown...")
         if not self.bot.coreboot:
@@ -771,7 +838,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if restart:
             x = open('.restart', 'w+')
-            x.write(f'{time.time()}')
+            if mode == 'normal':
+                x.write(f'{time.time()}')
+            else:
+                x.write(f'{time.time()} {mode}')
             x.close()
 
         self.logger.info("Closing bot session")

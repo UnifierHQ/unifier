@@ -149,8 +149,10 @@ if '.restart' in os.listdir():
     os.remove('.restart')
     print('\x1b[33;1mAn incomplete restart was detected.\x1b[0m')
 
+restart_options = ''
+
 while True:
-    exit_code = os.system(f'{binary} {boot_file}{options}')
+    exit_code = os.system(f'{binary} {boot_file}{restart_options}{options}')
 
     crash_reboot = False
     if not exit_code == 0:
@@ -164,6 +166,11 @@ while True:
 
     if crash_reboot or '.restart' in os.listdir():
         if '.restart' in os.listdir():
+            x = open('.restart', 'r', encoding='utf-8')
+            data = x.read().split(' ')
+            x.close()
+
+            restart_options = (' ' + data[1]) if len(data) > 1 else ''
             os.remove('.restart')
 
         print(f'\x1b[33;1mRestarting {internal["product_name"]}...\x1b[0m')
