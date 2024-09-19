@@ -731,14 +731,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     emoji=self.bot.ui_emojis.success
                 ),
                 nextcord.SelectOption(
-                    default=True,
                     value='safemode',
                     label='Safemode restart',
                     description='Restarts the bot in safemode with all Plugins disabled.',
                     emoji=self.bot.ui_emojis.safety
                 ),
                 nextcord.SelectOption(
-                    default=True,
                     value='coreboot',
                     label='Coreboot restart',
                     description='Restarts the bot in coreboot with all Plugins and most system extensions disabled.',
