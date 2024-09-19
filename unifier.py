@@ -77,8 +77,8 @@ for directory in directories:
         # upgrader is ok, no need to upgrade
         continue
 
-    for file in os.listdir():
-        if os.path.exists(directory+'/'+file):
+    for file in os.listdir(directory):
+        if os.path.exists(directory+'/'+file) or os.path.exists('update/'+directory+'/'+file):
             continue
         if not filecmp.cmp(directory+'/'+file, 'update/'+directory+'/'+file):
             shutil.copy2('update/'+directory+'/'+file, directory+'/'+file)
