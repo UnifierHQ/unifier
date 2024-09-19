@@ -73,6 +73,10 @@ except:
 directories = ['boot', 'languages', 'emojis']
 replaced_boot = False
 for directory in directories:
+    if os.path.exists('update'):
+        # upgrader never upgraded, no need to check
+        break
+
     if os.path.exists('update/'+directory):
         # upgrader is ok, no need to upgrade
         continue
