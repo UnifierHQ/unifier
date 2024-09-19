@@ -3373,7 +3373,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 selector.fget("title_other", values={"username": user.global_name if user.global_name else user.name})
              ),
             description=(
-                f'{selector.fget("level", values={"level": data["level"]})} | {selector.fget("exp",values={"exp": {round(data["experience"],2)}})}\n\n'+
+                f'{selector.fget("level", values={"level": data["level"]})} | {selector.fget("exp",values={"exp": round(data["experience"],2)})}\n\n'+
                 f'`{progressbar}`\n{selector.fget("progress",values={"progress": round(data["progress"]*100)})}'
             ),
             color=self.bot.colors.unifier
