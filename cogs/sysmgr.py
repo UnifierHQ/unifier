@@ -264,7 +264,7 @@ class Emojis:
         if data:
             for key in base['emojis'].keys():
                 if not key in data['emojis'].keys():
-                    data['emojis'].update({key: data['emojis'][key]})
+                    data['emojis'].update({key: base['emojis'][key]})
         else:
             data = base
 
