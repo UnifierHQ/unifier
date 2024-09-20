@@ -395,7 +395,8 @@ class DiscordBot(commands.Bot):
         self.__devmode = status
 
 
-bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
+is_v3 = int(nextcord.__version__.split('.',1)[0]) == 3 # disable lazy loading for v3
+bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all(),lazy_load_commands=not is_v3)
 bot.config = data
 bot.boot_config = boot_data
 bot.coreboot = 'core' in sys.argv
