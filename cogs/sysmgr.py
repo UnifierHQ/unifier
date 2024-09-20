@@ -499,8 +499,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 continue
                         except:
                             continue
-                    script = importlib.import_module('utils.' + plugin[:-5] + '_bridge_platform')
-                    self.bot.platforms_former.update({extinfo['bridge_platform']: script})
+                    try:
+                        script = importlib.import_module('utils.' + plugin[:-5] + '_bridge_platform')
+                        self.bot.platforms_former.update({extinfo['bridge_platform']: script})
+                    except:
+                        self.logger.warning('Platform support load failed! (' + extinfo["bridge_platform"] + ')')
         if not hasattr(self.bot,'loaded_plugins'):
             self.bot.loaded_plugins = {}
             if not self.bot.safemode and not self.bot.coreboot:
