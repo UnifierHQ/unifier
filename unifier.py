@@ -61,7 +61,14 @@ except:
 
     # we probably need to copy some extra files too
     shutil.copy2('update/plugins/system.json', 'plugins/system.json')
+
+    if not os.path.isdir('emojis'):
+        os.mkdir('emojis')
+
     shutil.copy2('update/emojis/base.json', 'emojis/base.json')
+
+    if not os.path.isdir('languages'):
+        os.mkdir('languages')
 
     for file in os.listdir('update/languages'):
         shutil.copy2(f'update/languages/{file}', f'languages/{file}')
