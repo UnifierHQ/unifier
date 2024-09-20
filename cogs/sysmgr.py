@@ -1226,12 +1226,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         index = 0
         for fail in failed:
             if len(text) == 0:
-                text = f'{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
+                text = f'{selector.rawget("extension","sysmgr.reload_services")} `{fail}`\n```{errors[index]}```'
             else:
-                text = f'\n\n{selector.rawget("extension","sysmgr.reload_servies")} `{fail}`\n```{errors[index]}```'
+                text = f'\n\n{selector.rawget("extension","sysmgr.reload_services")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
 
     @commands.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions.owner()
@@ -1273,7 +1273,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
 
     @commands.command(hidden=True,description='Unloads an extension.')
     @restrictions.owner()
@@ -1320,7 +1320,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_servies")}**\n{text}')
+            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
 
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions.owner()
