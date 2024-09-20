@@ -59,8 +59,12 @@ except:
     if not 'run.bat' in os.listdir():
         shutil.copy2('update/run.bat', 'run.bat')
 
-    # we probably need to copy this too
+    # we probably need to copy some extra files too
     shutil.copy2('update/plugins/system.json', 'plugins/system.json')
+    shutil.copy2('update/emojis/base.json', 'emojis/base.json')
+
+    for file in os.listdir('update/languages'):
+        shutil.copy2(f'update/languages/{file}', f'languages/{file}')
 
     if sys.platform == 'win32':
         print('To start the bot, please run "run.bat" instead.')
