@@ -1873,6 +1873,64 @@ class UnifierBridge:
                 reply_msg = await self.fetch_message(msgid)
             except:
                 pass
+
+            # Get reply message content if reply_msg exists
+            if reply_msg:
+                if not trimmed:
+                    try:
+                        if source == 'discord':
+                            content = message.reference.cached_message.content
+                        else:
+                            # for NUPS, plugins process the content, not unifier
+                            msg = source_support.reply(message)
+                            if type(msg) is str or type(msg) is int:
+                                msg = await source_support.fetch_message(
+                                    source_support.channel(message), msg
+                                )
+                            content = source_support.content(msg)
+                    except:
+                        if source == 'discord':
+                            msg = await message.channel.fetch_message(message.reference.message_id)
+                        else:
+                            raise
+                        content = msg.content
+
+                    if not source == 'discord':
+                        if source_support.reply_using_text:
+                            # remove reply display
+                            split = content.split('\n')
+                            split.pop(0)
+                            content = '\n'.join(split)
+
+                    clean_content = nextcord.utils.remove_markdown(content)
+                    msg_components = clean_content.split('<@')
+                    offset = 0
+                    if clean_content.startswith('<@'):
+                        offset = 1
+
+                    while offset < len(msg_components):
+                        try:
+                            userid = int(msg_components[offset].split('>', 1)[0])
+                        except:
+                            offset += 1
+                            continue
+                        if source == 'discord':
+                            user = self.__bot.get_user(userid)
+                            global_name = user.global_name or user.name
+                        else:
+                            user = source_support.get_user(userid)
+                            global_name = source_support.display_name(user)
+                        if user:
+                            clean_content = clean_content.replace(f'<@{userid}>',
+                                                                  f'@{global_name}').replace(
+                                f'<@!{userid}>', f'@{global_name}')
+                        offset += 1
+                    if len(clean_content) > 80:
+                        trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
+                    else:
+                        trimmed = clean_content
+                    trimmed = trimmed.replace('\n', ' ')
+
             if platform=='discord':
                 if is_pr or is_pr_ref:
                     if source == 'discord':
@@ -1910,57 +1968,8 @@ class UnifierBridge:
                     if pr_actionrow:
                         components = ui.View()
                         components.add_row(pr_actionrow)
+
                 if reply_msg:
-                    if not trimmed:
-                        try:
-                            if source=='discord':
-                                content = message.reference.cached_message.content
-                            else:
-                                # for NUPS, plugins process the content, not unifier
-                                msg = source_support.reply(message)
-                                if type(msg) is str or type(msg) is int:
-                                    msg = await source_support.fetch_message(
-                                        source_support.channel(message),msg
-                                    )
-                                content = source_support.content(msg)
-                        except:
-                            if source=='discord':
-                                msg = await message.channel.fetch_message(message.reference.message_id)
-                            else:
-                                raise
-                            content = msg.content
-
-                        if not source=='discord':
-                            if source_support.reply_using_text:
-                                # remove reply display
-                                split = content.split('\n')
-                                split.pop(0)
-                                content = '\n'.join(split)
-
-                        clean_content = nextcord.utils.remove_markdown(content)
-                        msg_components = clean_content.split('<@')
-                        offset = 0
-                        if clean_content.startswith('<@'):
-                            offset = 1
-
-                        while offset < len(msg_components):
-                            try:
-                                userid = int(msg_components[offset].split('>', 1)[0])
-                            except:
-                                offset += 1
-                                continue
-                            user = self.__bot.get_user(userid)
-                            if user:
-                                clean_content = clean_content.replace(f'<@{userid}>',
-                                                                      f'@{user.global_name}').replace(
-                                    f'<@!{userid}>', f'@{user.global_name}')
-                            offset += 1
-                        if len(clean_content) > 80:
-                            trimmed = clean_content[:-(len(clean_content) - 77)] + '...'
-                        else:
-                            trimmed = clean_content
-                        trimmed = trimmed.replace('\n', ' ')
-
                     author_text = '[unknown]'
                     if source == 'discord':
                         button_style = nextcord.ButtonStyle.blurple
@@ -2001,7 +2010,7 @@ class UnifierBridge:
                             raise
                         count = len(msg.embeds) + len(msg.attachments)
 
-                    if len(trimmed)==0:
+                    if len(str(trimmed))==0 or not trimmed:
                         content_btn = nextcord.ui.Button(
                             style=button_style,label=f'x{count}', emoji='\U0001F3DE', disabled=True
                         )
