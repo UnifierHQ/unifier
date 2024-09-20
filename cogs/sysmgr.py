@@ -261,6 +261,20 @@ class Emojis:
             with open('emojis/base.json', 'r') as file:
                 base = json.load(file)
 
+        if not base['installed']:
+            base.update({'emojis_pre': base['emojis']})
+            for emoji in base['emojis'].keys():
+                text = base['emojis'][emoji][0]
+                if text.startswith(':') and text.endswith(':'):
+                    base['emojis'][emoji][0] = discord_emoji.to_unicode(text)
+            base['installed'] = True
+            if devmode:
+                with open('emojis/devbase.json', 'w+') as file:
+                    json.dump(base, file, indent=2)
+            else:
+                with open('emojis/base.json', 'w+') as file:
+                    json.dump(base, file, indent=2)
+
         if data:
             for key in base['emojis'].keys():
                 if not key in data['emojis'].keys():
@@ -441,21 +455,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     base = json.load(file)
                 with open('emojis/base.json', 'w+') as file:
                     json.dump(base, file, indent=2)
-            with open('emojis/base.json', 'r') as file:
-                base = json.load(file)
-            if not base['installed']:
-                base.update({'emojis_pre': base['emojis']})
-                for emoji in base['emojis'].keys():
-                    text = base['emojis'][emoji][0]
-                    if text.startswith(':') and text.endswith(':'):
-                        base['emojis'][emoji][0] = discord_emoji.to_unicode(text)
-                base['installed'] = True
-                if self.bot.devmode:
-                    with open('emojis/devbase.json', 'w+') as file:
-                        json.dump(base, file, indent=2)
-                else:
-                    with open('emojis/base.json', 'w+') as file:
-                        json.dump(base, file, indent=2)
             try:
                 if self.bot.coreboot or self.bot.devmode:
                     raise RuntimeError()
