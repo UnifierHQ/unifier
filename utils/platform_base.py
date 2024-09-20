@@ -41,6 +41,7 @@ class PlatformBase:
         self.uses_webhooks = False # change this to True if webhooks are needed
         self.__available = False
         self.allowed_content_types = []
+        self.reply_using_text = False # change this to True if the platform needs to show message reply using text
 
     def is_available(self):
         return self.__available
