@@ -717,8 +717,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             )
         )
 
-        components.add_row(btns_row)
-
         options = []
 
         if restart:
@@ -755,6 +753,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 ui.ActionRow(selection)
             )
 
+        components.add_row(btns_row)
+
         msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
@@ -790,7 +790,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
 
                     components = ui.MessageComponents()
-                    components.add_rows(btns_row, ui.ActionRow(selection))
+                    components.add_rows(ui.ActionRow(selection), btns_row)
                     await interaction.response.edit_message(view=components)
             except:
                 await msg.edit(view=None)
