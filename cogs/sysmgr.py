@@ -1700,11 +1700,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             )
             msg = await ctx.send(embed=embed)
             available = []
+            clone_success = False
             try:
                 await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update_check'))
-                await self.bot.loop.run_in_executor(None, lambda: os.system(
+                await self.bot.loop.run_in_executor(None, lambda: status(os.system(
                     'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config[
-                        'check_endpoint'] + ' update_check'))
+                        'check_endpoint'] + ' update_check')))
+                clone_success = True
                 with open('plugins/system.json', 'r') as file:
                     current = json.load(file)
                 with open('update_check/update.json', 'r') as file:
@@ -1724,6 +1726,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     index += 1
                 update_available = len(available) >= 1
             except:
+                self.logger.exception('An error occurred!')
                 try:
                     await self.bot.loop.run_in_executor(None, lambda: status(os.system('git --version')))
                 except:
@@ -1734,6 +1737,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("checkfail_title")}'
                 embed.description = selector.get("checkfail_body")
+
+                if not clone_success:
+                    embed.description = 'Git clone failed, check console'
+
                 embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
             if not update_available:
@@ -1895,6 +1902,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.logger.warning('Backup failed, continuing anyways')
                     embed.description = f'- :x: {selector.get("failed_backup")}\n- :wrench: {selector.get("modification_wipe")}\n- :warning: {selector.get("no_abort")}'
                 else:
+                    self.logger.exception('An error occurred!')
                     self.logger.error('Backup failed, abort upgrade.')
                     embed.title = f'{self.bot.ui_emojis.error} {selector.get("backupfail_title")}'
                     embed.description = selector.get("backupfail_body")
