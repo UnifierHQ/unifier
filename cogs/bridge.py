@@ -1774,7 +1774,7 @@ class UnifierBridge:
                         continue
                 else:
                     attachment_size = source_support.attachment_size(attachment)
-                    content_type = source_support.attachment_size(attachment)
+                    content_type = source_support.attachment_type(attachment)
                     if (
                             not 'audio' in content_type and not 'video' in content_type and not 'image' in content.type
                             and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
