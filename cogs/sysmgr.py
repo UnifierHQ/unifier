@@ -1702,7 +1702,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             available = []
             clone_success = False
             try:
-                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update_check'))
+                try:
+                    await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update_check'))
+                except:
+                    pass
                 await self.bot.loop.run_in_executor(None, lambda: status(os.system(
                     'git clone --branch ' + self.bot.config['branch'] + ' ' + self.bot.config[
                         'check_endpoint'] + ' update_check')))
@@ -1940,7 +1943,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             self.logger.info('Starting upgrade')
             try:
                 self.logger.debug('Purging old update files')
-                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update'))
+                try:
+                    await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('update'))
+                except:
+                    pass
                 self.logger.info('Downloading from remote repository...')
                 await self.bot.loop.run_in_executor(None, lambda: os.system(
                     'git clone --branch ' + version + ' --single-branch --depth 1 ' + self.bot.config[
@@ -2148,7 +2154,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             msg = await ctx.send(embed=embed)
             url = plugin_info['repository']
             try:
-                await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('plugin_install'))
+                try:
+                    await self.bot.loop.run_in_executor(None, lambda: shutil.rmtree('plugin_install'))
+                except:
+                    pass
                 await self.bot.loop.run_in_executor(None, lambda: status(os.system(
                     'git clone ' + url + ' plugin_install')))
                 with open('plugin_install/plugin.json', 'r') as file:
