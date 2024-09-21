@@ -1198,6 +1198,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         failed = []
         errors = []
         text = ''
+        cmds = len(self.bot.get_application_commands())
         for extension in extensions:
             try:
                 if extension == 'lockdown':
@@ -1216,6 +1217,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n- [FAIL] {extension}'
                 else:
                     text += f'\n- [FAIL] {extension}'
+        if len(self.bot.get_all_application_commands()) < cmds and self.bot.uses_v3:
+            # update local commands
+            await self.bot.sync_application_commands(update_known=False, delete_unknown=False)
         await msg.edit(content=selector.rawfget(
             'completed', 'sysmgr.reload_services', values={
                 'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text
@@ -2076,7 +2080,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await msg.edit(embed=embed)
                 else:
                     self.logger.info('Reloading extensions')
-                    f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n:hourglass_flowing_sand: {selector.get("reloading")}'
+                    embed.description = f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n:hourglass_flowing_sand: {selector.get("reloading")}'
                     await msg.edit(embed=embed)
                     for cog in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + cog)
@@ -2086,6 +2090,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         except:
                             self.logger.warning(cog+' could not be reloaded.')
                             embed.set_footer(text=':warning: Some extensions could not be reloaded.')
+                    if self.bot.uses_v3:
+                        await self.bot.sync_application_commands(update_known=False, delete_unknown=False)
                     self.logger.info('Upgrade complete')
                     embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                     embed.description = selector.get("success_body")
@@ -2803,16 +2809,25 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 descmatch = True
                 match = 0
 
-    @commands.command(hidden=True, description='Registers commands.')
+    @commands.command(name='register-commands', hidden=True, description='Registers commands.')
     @restrictions.owner()
-    async def forcereg(self, ctx, *, args=''):
-        if not ctx.author.id == self.bot.config['owner']:
-            return
+    async def register_commands(self, ctx, *, args=''):
         if 'dereg' in args:
             await self.bot.delete_application_commands(*self.bot.get_all_application_commands())
             return await ctx.send('gone, reduced to atoms (hopefully)')
         await self.bot.sync_application_commands()
-        return await ctx.send(f'Registered commands to bot')
+        return await ctx.send('Registered commands to bot')
+
+    @commands.command(
+        name='fix-commands', hidden=True,
+        description='Fixes broken application commands. Does not fix standard text commands.'
+    )
+    @restrictions.owner()
+    async def fix_commands(self, ctx):
+        if not self.bot.uses_v3:
+            return await ctx.send('Your instance uses a Nextcord version older than v3, so this is not required.')
+        await self.bot.sync_application_commands(update_known=False, delete_unknown=False)
+        return await ctx.send('Fixed application commands')
 
     @commands.command(hidden=True, description='Views cloud backup status.')
     @restrictions.owner()

@@ -309,6 +309,7 @@ class DiscordBot(commands.Bot):
         self.bridge = None
         self.pyversion = sys.version_info
         self.db = AutoSaveDict({})
+        self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
 
     @property
     def owner(self):
@@ -394,9 +395,12 @@ class DiscordBot(commands.Bot):
             raise RuntimeError('Coreboot is set')
         self.__devmode = status
 
+    @property
+    def uses_v3(self):
+        return self.__uses_v3
 
-is_v3 = int(nextcord.__version__.split('.',1)[0]) == 3 # disable lazy loading for v3
-bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all(),lazy_load_commands=not is_v3)
+
+bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
 bot.config = data
 bot.boot_config = boot_data
 bot.coreboot = 'core' in sys.argv
