@@ -298,6 +298,7 @@ class Emojis:
         self.leaderboard = data['emojis']['leaderboard'][0]
         self.safety = data['emojis']['safety'][0]
         self.gear = data['emojis']['gear'][0]
+        self.loading = data['emojis']['loading'][0]
 
 def cleanup_code(content):
     if content.startswith('```') and content.endswith('```'):
@@ -1938,7 +1939,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
             embed.title = f'{self.bot.ui_emojis.install} {selector.get("upgrading")}'
-            embed.description = f':hourglass_flowing_sand: {selector.get("downloading")}\n:x: {selector.get("installing")}\n:x: {selector.get("reloading")}'
+            embed.description = f'{self.bot.ui_emojis.loading} {selector.get("downloading")}\n:x: {selector.get("installing")}\n:x: {selector.get("reloading")}'
             await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
             try:
@@ -2019,7 +2020,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return
             try:
                 self.logger.info('Installing upgrades')
-                embed.description = f':white_check_mark: {selector.get("downloading")}\n:hourglass_flowing_sand: {selector.get("installing")}\n:x: {selector.get("reloading")}'
+                embed.description = f':white_check_mark: {selector.get("downloading")}\n{self.bot.ui_emojis.loading} {selector.get("installing")}\n:x: {selector.get("reloading")}'
                 await msg.edit(embed=embed)
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/unifier.py')
                 await self.copy('update/unifier.py', 'unifier.py')
@@ -2094,7 +2095,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await msg.edit(embed=embed)
                 else:
                     self.logger.info('Reloading extensions')
-                    embed.description = f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n:hourglass_flowing_sand: {selector.get("reloading")}'
+                    embed.description = f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n{self.bot.ui_emojis.loading} {selector.get("reloading")}'
                     await msg.edit(embed=embed)
                     for cog in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + cog)
