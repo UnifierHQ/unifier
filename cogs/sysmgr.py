@@ -1343,7 +1343,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.get("downloading_title")}', description=selector.get("downloading_body"))
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.loading} {selector.get("downloading_title")}', description=selector.get("downloading_body"))
         embed.set_footer(text='Only install plugins from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
@@ -1507,6 +1507,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             components = ui.MessageComponents()
             components.add_row(btns)
             return await interaction.response.edit_message(view=components)
+
+        embed.title = embed.title.replace(self.bot.ui_emojis.install, self.bot.ui_emojis.loading, 1)
 
         await interaction.response.edit_message(embed=embed, view=None)
         try:
@@ -1700,7 +1702,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         if plugin=='system':
             embed = nextcord.Embed(
-                title=f'{self.bot.ui_emojis.install} {selector.get("checking_title")}',
+                title=f'{self.bot.ui_emojis.loading} {selector.get("checking_title")}',
                 description=selector.get('checking_body')
             )
             msg = await ctx.send(embed=embed)
@@ -1828,7 +1830,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     selected = int(interaction.data['values'][0])
             self.logger.info('Upgrade confirmed, preparing...')
             if not no_backup:
-                embed.title = f'{self.bot.ui_emojis.install} {selector.get("backup_title")}'
+                embed.title = f'{self.bot.ui_emojis.loading} {selector.get("backup_title")}'
                 embed.description = selector.get("backup_body")
                 await interaction.response.edit_message(embed=embed, view=None)
             try:
@@ -1942,7 +1944,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 components.add_row(btns)
                 return await interaction.response.edit_message(view=components)
             self.logger.debug('Upgrade confirmed, beginning upgrade')
-            embed.title = f'{self.bot.ui_emojis.install} {selector.get("upgrading")}'
+            embed.title = f'{self.bot.ui_emojis.loading} {selector.get("upgrading")}'
             embed.description = f'{self.bot.ui_emojis.loading} {selector.get("downloading")}\n:x: {selector.get("installing")}\n:x: {selector.get("reloading")}'
             await interaction.response.edit_message(embed=embed, view=None)
             self.logger.info('Starting upgrade')
@@ -2142,7 +2144,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
         else:
-            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.install} {selector.rawget("downloading_title","sysmgr.install")}', description=selector.rawget("downloading_body",'sysmgr.install'))
+            embed = nextcord.Embed(title=f'{self.bot.ui_emojis.loading} {selector.rawget("downloading_title","sysmgr.install")}', description=selector.rawget("downloading_body",'sysmgr.install'))
 
             try:
                 with open('plugins/'+plugin+'.json') as file:
