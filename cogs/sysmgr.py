@@ -799,7 +799,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 await msg.edit(view=None)
 
-        embed.description = embed.description.replace(self.bot.ui_emojis.warning, self.bot.ui_emojis.loading, 1)
+        embed.title = embed.title.replace(self.bot.ui_emojis.warning, self.bot.ui_emojis.loading, 1)
         await msg.edit(embed=embed)
 
         self.logger.info("Attempting graceful shutdown...")
@@ -2026,7 +2026,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return
             try:
                 self.logger.info('Installing upgrades')
-                embed.description = f':white_check_mark: {selector.get("downloading")}\n{self.bot.ui_emojis.loading} {selector.get("installing")}\n:x: {selector.get("reloading")}'
+                embed.description = f'{self.bot.ui_emojis.success} {selector.get("downloading")}\n{self.bot.ui_emojis.loading} {selector.get("installing")}\n:x: {selector.get("reloading")}'
                 await msg.edit(embed=embed)
                 self.logger.debug('Installing: ' + os.getcwd() + '/update/unifier.py')
                 await self.copy('update/unifier.py', 'unifier.py')
@@ -2096,12 +2096,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')
                     embed.title = f'{self.bot.ui_emojis.success} {selector.get("restart_title")}'
-                    embed.description =selector.get("restart_body")
+                    embed.description = selector.get("restart_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                 else:
                     self.logger.info('Reloading extensions')
-                    embed.description = f':white_check_mark: {selector.get("downloading")}\n:white_check_mark: {selector.get("installing")}\n{self.bot.ui_emojis.loading} {selector.get("reloading")}'
+                    embed.description = f'{self.bot.ui_emojis.success} {selector.get("downloading")}\n{self.bot.ui_emojis.success} {selector.get("installing")}\n{self.bot.ui_emojis.loading} {selector.get("reloading")}'
                     await msg.edit(embed=embed)
                     for cog in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + cog)
