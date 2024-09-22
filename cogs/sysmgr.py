@@ -799,6 +799,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 await msg.edit(view=None)
 
+        embed.description = embed.description.replace(self.bot.ui_emojis.warning, self.bot.ui_emojis.loading, 1)
+        await msg.edit(embed=embed)
+
         self.logger.info("Attempting graceful shutdown...")
         if not self.bot.coreboot:
             self.bot.bridge.backup_lock = True

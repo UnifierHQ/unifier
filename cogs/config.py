@@ -1170,7 +1170,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         text = '\n'.join(text)
 
         embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.warning} Checking if channel is already connected...',
+            title=f'{self.bot.ui_emojis.loading} Checking if channel is already connected...',
             description='We\'re checking if this channel is already connected. Give us a moment...',
             color=self.bot.colors.warning
         )
@@ -1423,7 +1423,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         # get using async because this property may take a while to get if there's lots of rooms
         public_rooms = await self.bot.loop.run_in_executor(None, lambda: self.bot.bridge.public_rooms)
 
-        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.warning} Checking bindable channels...',
+        embed = nextcord.Embed(title=f'{self.bot.ui_emojis.loading} Checking bindable channels...',
                                description='This may take a while.',
                                color=self.bot.colors.warning)
         msg = await ctx.send(embed=embed)
