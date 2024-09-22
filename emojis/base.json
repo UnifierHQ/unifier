@@ -17,6 +17,7 @@
     "info": [":information_source:",0],
     "leaderboard": [":trophy:",0],
     "safety": [":helmet_with_cross:",0],
-    "gear": [":gear:",0]
+    "gear": [":gear:",0],
+    "loading": [":hourglass:",0],
   }
 }
