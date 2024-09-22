@@ -296,6 +296,7 @@ class Emojis:
         self.rooms = data['emojis']['rooms'][0]
         self.emoji = data['emojis']['emoji'][0]
         self.leaderboard = data['emojis']['leaderboard'][0]
+        self.info = data['emojis']['info'][0]
         self.safety = data['emojis']['safety'][0]
         self.gear = data['emojis']['gear'][0]
         self.loading = data['emojis']['loading'][0]

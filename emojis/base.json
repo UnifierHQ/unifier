@@ -14,6 +14,7 @@
     "error": [":x:",0],
     "rooms": [":speech_balloon:",0],
     "emoji": [":joy:",0],
+    "info": [":information_source:",0],
     "leaderboard": [":trophy:",0],
     "safety": [":helmet_with_cross:",0],
     "gear": [":gear:",0]
