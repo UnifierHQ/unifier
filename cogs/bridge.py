@@ -3532,22 +3532,22 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not interaction.user.id in self.bot.moderators:
                     return await interaction.response.send_message('go away',ephemeral=True)
 
-                await interaction.response.defer(ephemeral=True,with_message=True)
+                await interaction.response.send_message(f'{self.bot.ui_emojis.loading} Deleting message...',ephemeral=True)
 
                 try:
                     await self.bot.bridge.delete_parent(msg_id)
                     if msg.webhook:
                         raise ValueError()
                     await interaction.message.edit(view=components)
-                    return await interaction.edit_original_message(language.get("parent_delete","moderation.delete",language=selector.language_set))
+                    return await interaction.edit_original_message(content=f'{self.bot.ui_emojis.success} ' + language.get("parent_delete","moderation.delete",language=selector.language_set))
                 except:
                     try:
                         deleted = await self.bot.bridge.delete_copies(msg_id)
                         await interaction.message.edit(view=components)
-                        return await interaction.edit_original_message(language.fget("children_delete","moderation.delete",values={"count": deleted},language=selector.language_set))
+                        return await interaction.edit_original_message(content=f'{self.bot.ui_emojis.success} ' + language.fget("children_delete","moderation.delete",values={"count": deleted},language=selector.language_set))
                     except:
                         traceback.print_exc()
-                        await interaction.edit_original_message(content=language.get("error","moderation.delete",language=selector.language_set))
+                        await interaction.edit_original_message(content=f'{self.bot.ui_emojis.error} ' + language.get("error","moderation.delete",language=selector.language_set))
             elif interaction.data["custom_id"].startswith('rpreview_'):
                 selector = language.get_selector('moderation.report',userid=interaction.user.id)
                 btns = ui.ActionRow(

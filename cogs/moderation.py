@@ -22,11 +22,12 @@ import hashlib
 import datetime
 from nextcord.ext import commands
 import traceback
-from utils import log, ui
-from utils import restrictions as r
+from utils import log, ui, langmgr, restrictions as r
 
 override_st = False
 restrictions = r.Restrictions()
+language = langmgr.partial()
+language.load()
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -84,7 +85,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     Developed by Green and ItsAsheer"""
 
     def __init__(self,bot):
+        global language
         self.bot = bot
+        language = self.bot.langmgr
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
         restrictions.attach_bot(self.bot)
 
@@ -246,7 +249,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.set_author(name='@hidden')
 
         ctx.message.embeds = [embed]
-        
+
         if not discreet:
             await self.bot.bridge.send("main", ctx.message, 'discord', system=True, content_override='')
         for platform in self.bot.config["external"]:
@@ -935,6 +938,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     async def delete(self, ctx, *, msg_id=None):
         """Deletes all bridged messages. Does not delete the original."""
 
+        selector = language.get_selector(ctx)
+
         gbans = self.bot.db['banned']
         ct = time.time()
         if f'{ctx.author.id}' in list(gbans.keys()):
@@ -966,24 +971,28 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             return await ctx.send('Could not find message in cache!')
 
         if not ctx.author.id == msg.author_id and not ctx.author.id in self.bot.moderators:
-            return await ctx.send('You didn\'t send this message!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} You didn\'t send this message!')
+
+        status_msg = await ctx.send(f'{self.bot.ui_emojis.loading} Deleting message...')
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
             if msg.webhook:
                 raise ValueError()
-            return await ctx.send('Deleted message (parent deleted, copies will follow)')
+            return await status_msg.edit(content=f'{self.bot.ui_emojis.success} ' + selector.get("parent_delete"))
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
                 await self.bot.bridge.delete_message(msg)
-                return await ctx.send(f'Deleted message ({deleted} copies deleted)')
+                return await status_msg.edit(content=f'{self.bot.ui_emojis.success} ' + selector.fget("children_delete",values={"count": deleted}))
             except:
                 traceback.print_exc()
-                await ctx.send('Something went wrong.')
+                await status_msg.edit(content=f'{self.bot.ui_emojis.error} ' + selector.get("error"))
 
     @nextcord.message_command(name='Delete message')
     async def delete_ctx(self, interaction, msg: nextcord.Message):
+        selector = language.get_selector('moderation.report', userid=interaction.user.id)
+
         if interaction.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
@@ -1015,26 +1024,26 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         if not interaction.user.id == msg.author_id and not interaction.user.id in self.bot.moderators:
             return await interaction.response.send_message('You didn\'t send this message!', ephemeral=True)
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.send_message(f'{self.bot.ui_emojis.loading} Deleting message...', ephemeral=True)
 
         try:
             await self.bot.bridge.delete_parent(msg_id)
             if msg.webhook:
                 raise ValueError()
             return await interaction.edit_original_message(
-                content='Deleted message (parent deleted, copies will follow)'
+                content=f'{self.bot.ui_emojis.success} ' + selector.get("parent_delete")
             )
         except:
             try:
                 deleted = await self.bot.bridge.delete_copies(msg_id)
                 await self.bot.bridge.delete_message(msg)
                 return await interaction.edit_original_message(
-                    content=f'Deleted message ({deleted} copies deleted)'
+                    content=f'{self.bot.ui_emojis.success} ' + selector.fget("children_delete",values={"count": deleted})
                 )
             except:
                 traceback.print_exc()
                 return await interaction.edit_original_message(
-                    content='Something went wrong.'
+                    content=f'{self.bot.ui_emojis.error} ' + selector.get("error")
                 )
 
     @commands.command(hidden=True,description='Warns a user.')
@@ -1523,11 +1532,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             return await msg.edit(view=None)
 
-        if interaction.data['custom_id'] == 'cancel':
-            return await interaction.response.edit_message(view=None)
+        await interaction.response.edit_message(view=None)
 
-        await msg.edit(view=None)
-        await interaction.response.defer(ephemeral=True, with_message=True)
+        if interaction.data['custom_id'] == 'cancel':
+            return
+
+        embed.title = embed.title.replace(self.bot.ui_emojis.warning, self.bot.ui_emojis.loading, 1)
+        await msg.edit(embed=embed)
 
         alert = {
             'type': risk_type,
@@ -1550,8 +1561,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 await self.bot.bridge.send(
                     self.bot.config['main_room'], ctx.message, platform=platform, id_override=parent_id_2, alert=alert
                 )
-
-        await interaction.delete_original_message()
 
         embed.title = f'{self.bot.ui_emojis.success} Alert issued'
         embed.description = 'Alert was issued to Unifier network.'
@@ -1603,11 +1612,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             return await msg.edit(view=None)
 
-        if interaction.data['custom_id'] == 'cancel':
-            return await interaction.response.edit_message(view=None)
+        await interaction.response.edit_message(view=None)
 
-        await msg.edit(view=None)
-        await interaction.response.defer(ephemeral=True, with_message=True)
+        if interaction.data['custom_id'] == 'cancel':
+            return
+
+        embed.title = embed.title.replace(self.bot.ui_emojis.warning, self.bot.ui_emojis.loading, 1)
+        await msg.edit(embed=embed)
 
         alert = {
             'type': risk_type,
@@ -1622,8 +1633,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 await self.bot.bridge.send(
                     self.bot.config['alerts_room'], ctx.message, platform=platform, id_override=parent_id, alert=alert
                 )
-
-        await interaction.delete_original_message()
 
         embed.title = f'{self.bot.ui_emojis.success} Alert issued'
         embed.description = 'Alert was issued to Unifier network.'
