@@ -993,7 +993,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
     @nextcord.message_command(name='Delete message')
     async def delete_ctx(self, interaction, msg: nextcord.Message):
-        selector = language.get_selector('moderation.report', userid=interaction.user.id)
+        selector = language.get_selector('moderation.delete', userid=interaction.user.id)
 
         if interaction.user.id in self.bot.db['fullbanned']:
             return
