@@ -336,7 +336,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 )
             )
             await resp_msg.edit(view=components)
-            await interaction.response.defer(ephemeral=True)
+
+            await interaction.response.send_message(f'{self.bot.ui_emojis.loading} Deleting message...',ephemeral=True)
+
             components = ui.MessageComponents()
             components.add_row(
                 ui.ActionRow(
@@ -1195,7 +1197,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 )
             )
             await resp_msg.edit(view=components)
-            await interaction.response.defer(ephemeral=True)
+            await interaction.response.send_message(f'{self.bot.ui_emojis.loading} Deleting message...',ephemeral=True)
             components = ui.MessageComponents()
             components.add_row(
                 ui.ActionRow(

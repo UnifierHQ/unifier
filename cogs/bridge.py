@@ -3690,7 +3690,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 return await interaction.response.send_message(selector.get('failed'), ephemeral=True)
 
-            await interaction.response.defer(ephemeral=True,with_message=False)
+            await interaction.response.send_message(f'{self.bot.ui_emojis.loading} Sending report...', ephemeral=True)
             cat = report[0]
             cat2 = report[1]
             content = report[2]

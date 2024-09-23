@@ -1229,7 +1229,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             embed.colour = self.bot.colors.error
             return await msg.edit(embed=embed,view=None)
 
-        await msg.edit(view=None)
+        embed.title = embed.title.replace(self.bot.ui_emojis.rooms, self.bot.ui_emojis.loading, 1)
+        await msg.edit(embed=embed, view=None)
         await interaction.response.defer(ephemeral=False, with_message=True)
 
         webhook = None
@@ -1563,6 +1564,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 return await msg.edit(view=ui.MessageComponents())
 
             if interaction.data['custom_id'].startswith('bind'):
+                embed.title = embed.title.replace(self.bot.ui_emojis.rooms, self.bot.ui_emojis.loading, 1)
                 await msg.edit(embed=embed, view=ui.MessageComponents())
                 await interaction.response.defer(with_message=True)
                 if 'restricted' in interaction.data['custom_id']:
@@ -1596,6 +1598,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                     self.bot.db['rooms'][roomname]['meta']['locked'] = True
             webhook = await channel.create_webhook(name='Unifier Bridge')
             await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel.id,webhook_id=webhook.id)
+
+        embed.title = f'{self.bot.ui_emojis.success} Channels mapped!'
+        embed.colour = self.bot.colors.success
+        await msg.edit(embed=embed)
 
         await interaction.edit_original_message(
             content=f'{self.bot.ui_emojis.success} Channels are now connected! Say hi!')
