@@ -2006,6 +2006,7 @@ class UnifierBridge:
                         if source == 'discord':
                             msg = await message.channel.fetch_message(message.reference.message_id)
                         else:
+                            # no need to attempt a refetch as that has already been done
                             raise
                         count = len(msg.embeds) + len(msg.attachments)
 
