@@ -2441,6 +2441,16 @@ class UnifierBridge:
         if id_override:
             parent_id = id_override
 
+        if source == 'discord':
+            urls.update({f'{message.guild.id}': message.jump_url})
+        else:
+            guild_id = source_support.get_id(source_support.server(message))
+            try:
+                msg_url = source_support.url(message)
+                urls.update({f'{guild_id}': msg_url})
+            except platform_base.MissingImplementation:
+                pass
+
         try:
             index = await self.indexof(parent_id)
             msg_object = await self.fetch_message(parent_id)
