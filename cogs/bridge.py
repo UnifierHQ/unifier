@@ -817,26 +817,30 @@ class UnifierBridge:
             # conversion is not needed
             return
         for room in self.__bot.db['rooms']:
-            self.__bot.db['rooms'][room] = {'meta':{
-                'rules': self.__bot.db['rules'][room],
-                'restricted': room in self.__bot.db['restricted'],
-                'locked': room in self.__bot.db['locked'],
-                'private': False,
-                'private_meta': {
-                    'server': None,
-                    'allowed': [],
-                    'invites': [],
-                    'platform': 'discord'
-                },
-                'emoji': self.__bot.db['roomemojis'][room] if room in self.__bot.db['roomemojis'].keys() else None,
-                'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None,
-                'display_name': None,
-                'banned': []
-            },'discord': self.__bot.db['rooms'][room]}
-            if room in self.__bot.db['rooms_revolt'].keys():
-                self.__bot.db['rooms'][room].update({'revolt': self.__bot.db['rooms_revolt'][room]})
-            if room in self.__bot.db['rooms_guilded'].keys():
-                self.__bot.db['rooms'][room].update({'guilded': self.__bot.db['rooms_guilded'][room]})
+            try:
+                self.__bot.db['rooms'][room] = {'meta':{
+                    'rules': self.__bot.db['rules'][room],
+                    'restricted': room in self.__bot.db['restricted'],
+                    'locked': room in self.__bot.db['locked'],
+                    'private': False,
+                    'private_meta': {
+                        'server': None,
+                        'allowed': [],
+                        'invites': [],
+                        'platform': 'discord'
+                    },
+                    'emoji': self.__bot.db['roomemojis'][room] if room in self.__bot.db['roomemojis'].keys() else None,
+                    'description': self.__bot.db['descriptions'][room] if room in self.__bot.db['descriptions'].keys() else None,
+                    'display_name': None,
+                    'banned': []
+                },'discord': self.__bot.db['rooms'][room]}
+                if room in self.__bot.db['rooms_revolt'].keys():
+                    self.__bot.db['rooms'][room].update({'revolt': self.__bot.db['rooms_revolt'][room]})
+                if room in self.__bot.db['rooms_guilded'].keys():
+                    self.__bot.db['rooms'][room].update({'guilded': self.__bot.db['rooms_guilded'][room]})
+            except:
+                # likely already converted
+                continue
 
         self.__bot.db.pop('rooms_revolt')
         self.__bot.db.pop('rooms_guilded')
@@ -861,6 +865,7 @@ class UnifierBridge:
     def raidban(self,userid):
         self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
+    # noinspection PyTypeChecker
     async def backup(self,filename='bridge.json',limit=10000):
         if self.backup_lock:
             return
