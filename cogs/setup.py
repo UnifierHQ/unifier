@@ -461,6 +461,24 @@ class Setup(commands.Cog):
         if not install_data['setup']:
             self.bot.setup_task = asyncio.create_task(self.setup())
 
+        if not hasattr(self.bot, 'tokenstore'):
+            self.bot.reminder_task = asyncio.create_task(self.encrypt_reminder())
+
+    async def encrypt_reminder(self):
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.install} Restart bootloader to complete the upgrade',
+            description=(
+                'As of v3.2.0, we\'re enforcing all stored tokens to be encrypted, even if they\'re stored as '+
+                'environment variables. Due to this, you must restart the bootloader to complete the upgrade.\n\n'+
+                'After restarting, you will be prompted to enter your encryption password. Please remember your '+
+                'password, as we will have no way of recovering it.\n\n**Note**: To restart the bootloader, you must '+
+                f'run `{self.bot.command_prefix}shutdown`, then run the run script again.'
+            ),
+            color=self.bot.colors.warning
+        )
+        owner = self.bot.get_user(self.bot.owner)
+        await owner.send(embed=embed)
+
     async def setup(self):
         self.logger.info('Running setup')
         ignore_error = False
@@ -481,6 +499,7 @@ class Setup(commands.Cog):
                 install_data['setup'] = True
 
                 with open('.install.json', 'w') as file:
+                    # noinspection PyTypeChecker
                     json.dump(install_data, file)
 
                 return await setup_dialog.finish(skipped=True)
@@ -723,6 +742,7 @@ class Setup(commands.Cog):
             install_data['setup'] = True
 
             with open('.install.json', 'w') as file:
+                # noinspection PyTypeChecker
                 json.dump(install_data, file)
 
             ignore_error = True

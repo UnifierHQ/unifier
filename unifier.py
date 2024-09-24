@@ -303,14 +303,11 @@ class DiscordBot(commands.Bot):
         self.pyversion = sys.version_info
         self.db = AutoSaveDict({})
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
-        self.__tokenstore = secrets.TokenStore(data['encrypted_env'] and not should_encrypt, os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'], data['debug'] or True)
+        self.__tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'], data['debug'])
 
         if should_encrypt:
             self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
-            if self.__tokenstore.debug:
-                print('\x1b[33;1mWARNING: Debug mode is enabled, unencrypted .env file will not be deleted.\x1b[0m')
-            else:
-                os.remove('.env')
+            os.remove('.env')
 
     @property
     def owner(self):

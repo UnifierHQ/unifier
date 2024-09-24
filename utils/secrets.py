@@ -133,6 +133,9 @@ class TokenStore:
 
         self.__data = encrypted_env
         self.__ivs = ivs
+        self.__password = password
+        self.__salt = salt
+        self.__is_encrypted = True
 
     def test_decrypt(self, password=None):
         if not self.__is_encrypted:
