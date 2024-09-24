@@ -161,8 +161,7 @@ data = newdata
 encrypted_env = {}
 ivs = {}
 
-should_encrypt = False
-choice = int(os.environ['UNIFIER_ENCOPTION'])
+should_encrypt = int(os.environ['UNIFIER_ENCOPTION']) == 1
 
 level = logging.DEBUG if data['debug'] else logging.INFO
 package = data['package']
