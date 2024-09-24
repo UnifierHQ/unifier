@@ -8,6 +8,7 @@ import getpass
 reinstall = '--reinstall' in sys.argv
 depinstall = '--install-deps' in sys.argv
 manage_tokens = '--tokens' in sys.argv
+clear_tokens = '--clear-tokens' in sys.argv
 
 install_options = [
     {
@@ -78,7 +79,7 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
             )
     else:
         # this installation is fresh
-        if manage_tokens:
+        if manage_tokens or clear_tokens:
             print(f'\x1b[31;1mNo Unifier installation was detected.\x1b[0m')
             sys.exit(1)
         elif not depinstall:
@@ -164,10 +165,36 @@ with open('config.toml', 'rb') as file:
     # noinspection PyTypeChecker
     bot_config = tomli.load(file)
 
+if clear_tokens:
+    print('\x1b[37;41;1mWARNING: ALL TOKENS WILL BE CLEARED!\x1b[0m')
+    print('\x1b[33;1mYou should only clear your tokens if you forgot your password.\x1b[0m')
+    print('\x1b[33;1mThis process is irreversible. Once it\'s done, there\'s no going back!\x1b[0m')
+    print()
+    print('\x1b[33;1mProceed anyways? (y/n)\x1b[0m')
+
+    try:
+        confirm = input().lower()
+        if not confirm == 'y':
+            raise ValueError()
+    except:
+        print('\x1b[31;1mAborting.\x1b[0m')
+        sys.exit(1)
+
+    encryption_password = getpass.getpass('New password: ')
+    confirm_password = getpass.getpass('Confirm new password: ')
+    if not encryption_password == confirm_password:
+        print('\x1b[31;1mPasswords do not match.\x1b[0m')
+        sys.exit(1)
+
+    os.remove('.encryptedenv')
+    os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
+    os.system(f'{binary} boot/tokenmgr.py')
+    sys.exit(0)
+
 if manage_tokens:
     encryption_password = getpass.getpass('Password: ')
     os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
-    os.system(f'{binary} boot/tokenmgr.py {os.getcwd()}')
+    os.system(f'{binary} boot/tokenmgr.py')
     sys.exit(0)
 
 if not boot_file in os.listdir():
