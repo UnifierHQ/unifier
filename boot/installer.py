@@ -2,11 +2,14 @@ import asyncio
 import sys
 import getpass
 import json
+from typing import TextIO
+
 import nextcord
 import tomli
 import tomli_w
 import traceback
 from nextcord.ext import commands
+from utils import secrets
 
 install_option = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -132,6 +135,42 @@ print('\x1b[31;49mFor security reasons, the installer will hide the input.\x1b[0
 
 token = getpass.getpass()
 
+print('\x1b[33;1mTo start the bot after installation, you will need to store your token on your host.\x1b[0m')
+print('\x1b[33;1mYou can choose to save this as plaintext or as an encrypted format.\x1b[0m')
+print('\x1b[33;1mIf encryption is enabled, you will need to enter your password every time you start the bot\'s bootloader.\x1b[0m')
+print()
+print('\x1b[33;1mEnable token encryption? (y/n)\x1b[0m')
+
+try:
+    encrypt = input().lower() == 'y'
+except KeyboardInterrupt:
+    print('\x1b[31;49mAborted.\x1b[0m')
+    sys.exit(1)
+
+encryption_password = ''
+salt = ''
+
+if encrypt:
+    print('\x1b[33;1mWe will now ask for the encryption salt. This must be an integer.\x1b[0m')
+    print('\x1b[33;1mPlease only change the salt if you\x1b[0m')
+
+    while True:
+        try:
+            salt = int(input())
+            break
+        except KeyboardInterrupt:
+            print('\x1b[31;49mAborted.\x1b[0m')
+            sys.exit(1)
+        except:
+            print('\x1b[31;49mThis isn\'t an integer, try again.\x1b[0m')
+
+    print('\x1b[33;1mWe will now ask for the encryption password. This is NOT your bot token.\x1b[0m')
+    print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS TOKEN, NOT EVEN WITH {internal["maintainer"].upper()}.\x1b[0m')
+    print(f'\x1b[31;49m{internal["maintainer"]} will NEVER ask for your encryption password. Please keep this password to yourself and only share it with trusted instance maintainers.\x1b[0m')
+    print('\x1b[31;49mFor security reasons, the installer will hide the input.\x1b[0m')
+
+    encryption_password = getpass.getpass()
+
 print('\x1b[36;1mStarting bot...\x1b[0m')
 
 try:
@@ -142,9 +181,14 @@ except:
     print('\x1b[31;49mMake sure all privileged intents are enabled for the bot.\x1b[0m')
     sys.exit(1)
 
-file = open('.env','w+')
-file.write(f'TOKEN={token}')
-file.close()
+if encrypt:
+    tokenstore = secrets.TokenStore(False, password=encryption_password, salt=salt, content_override={'TOKEN': token})
+    print('\x1b[36;1mYour tokens have been stored securely.\x1b[0m')
+
+else:
+    file = open('.env','w+')
+    file.write(f'TOKEN={token}')
+    file.close()
 
 with open('config.toml', 'rb') as file:
     config = tomli.load(file)
@@ -156,13 +200,7 @@ with open('config.toml', 'wb') as file:
     tomli_w.dump(config, file)
 
 with open('.install.json','w+') as file:
-    json.dump(
-        {
-            'product': internal["product"],
-            'setup': False,
-            'option': install_option
-        },
-        file
-    )
+    # noinspection PyTypeChecker
+    json.dump({'product': internal["product"],'setup': False,'option': install_option}, file)
 
 print(f'\x1b[36;1m{internal["product_name"]} installed successfully.\x1b[0m')

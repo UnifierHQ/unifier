@@ -5,6 +5,8 @@ debug = false
 package = "unifier"
 language = "english"
 skip_status_check = false
+encrypted_env = false
+encrypted_env_salt = 10
 
 [roles]
 owner = -1
