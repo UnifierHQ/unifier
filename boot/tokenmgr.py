@@ -17,10 +17,6 @@ with open('config.toml', 'rb') as file:
     # noinspection PyTypeChecker
     config = tomli.load(file)
 
-if not config['system']['encrypted_env']:
-    print('\x1b[31;1mTokens are not encrypted. Please manage them by editing the .env file instead.\x1b[0m')
-    sys.exit(1)
-
 salt = config['system']['encrypted_env_salt']
 
 tokenmgr = secrets.TokenStore(True, password=os.environ.get('UNIFIER_ENCPASS'), salt=salt)
