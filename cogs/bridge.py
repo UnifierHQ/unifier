@@ -978,18 +978,23 @@ class UnifierBridge:
                 return {thread: self.__bot.db['threads'][thread]}
         return None
 
-    async def fetch_message(self,message_id,prehook=False,not_prehook=False):
+    async def fetch_message(self,message_id,prehook=False,not_prehook=False,can_wait=False):
         if prehook and not_prehook:
             raise ValueError('Conflicting arguments')
-        for message in self.bridged:
-            if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
-                    str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
-                if prehook and str(message.prehook)==str(message_id) and not str(message.id) == str(message_id):
-                    return message
-                elif not_prehook and not str(message.prehook) == str(message_id):
-                    return message
-                elif not prehook:
-                    return message
+        waiting = self.__bot.config['existence_wait']
+        if waiting <= 0 or not can_wait:
+            waiting = 1
+        for waited in range(waiting):
+            for message in self.bridged:
+                if (str(message.id)==str(message_id) or str(message_id) in str(message.copies) or
+                        str(message_id) in str(message.external_copies) or str(message.prehook)==str(message_id)):
+                    if prehook and str(message.prehook)==str(message_id) and not str(message.id) == str(message_id):
+                        return message
+                    elif not_prehook and not str(message.prehook) == str(message_id):
+                        return message
+                    elif not prehook:
+                        return message
+            await asyncio.sleep(1)
         raise ValueError("No message found")
 
     async def delete_message(self,message):
@@ -1332,7 +1337,8 @@ class UnifierBridge:
         return text
 
     async def edit(self, message, content):
-        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
+        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
+
         threads = []
 
         async def edit_discord(msgs,friendly=False):
