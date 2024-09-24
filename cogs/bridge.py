@@ -1107,7 +1107,7 @@ class UnifierBridge:
         return self.dedupe[username].index(userid)-1
 
     async def delete_parent(self, message):
-        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
+        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
         if msg.source=='discord':
             ch = self.__bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
@@ -1122,7 +1122,7 @@ class UnifierBridge:
             await source_support.delete(todelete)
 
     async def delete_copies(self, message):
-        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message)
+        msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
         threads = []
 
         async def delete_discord(msgs):
