@@ -199,4 +199,3 @@ while True:
     except:
         traceback.print_exc()
         print('\x1b[31;1mAn error occurred.\x1b[0m')
-
