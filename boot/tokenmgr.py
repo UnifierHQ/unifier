@@ -165,7 +165,6 @@ def command_help():
     print('\x1b[36mdelete-token\x1b[0m')
     print('\x1b[36mlist-tokens\x1b[0m')
     print('\x1b[36mreencrypt-tokens\x1b[0m')
-    print('\x1b[36msave-changes\x1b[0m')
     print('\x1b[36mhelp\x1b[0m')
     print('\x1b[36mexit\x1b[0m')
 
@@ -175,7 +174,10 @@ list_tokens()
 print('Type "help" for a list of commands.')
 
 while True:
-    command = input('> ').lower()
+    try:
+        command = input('> ').lower()
+    except KeyboardInterrupt:
+        break
 
     try:
         if command == 'add-token':
@@ -192,6 +194,10 @@ while True:
             command_help()
         elif command == 'exit':
             break
+        else:
+            print('\x1b[33;1mInvalid command. Type "help" for a list of commands.\x1b[0m')
+    except KeyboardInterrupt:
+        pass
     except:
         traceback.print_exc()
         print('\x1b[31;1mAn error occurred.\x1b[0m')
