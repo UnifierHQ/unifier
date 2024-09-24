@@ -51,10 +51,14 @@ class TokenStore:
                 raise ValueError('encryption salt must be provided')
 
             # file is in json format
-            with open('.encryptedenv', 'r') as file:
-                self.__data = json.load(file)
-            with open('.ivs', 'r') as file:
-                self.__ivs = json.load(file)
+            try:
+                with open('.encryptedenv', 'r') as file:
+                    self.__data = json.load(file)
+                with open('.ivs', 'r') as file:
+                    self.__ivs = json.load(file)
+            except:
+                self.__data = {}
+                self.__ivs = {}
         else:
             # file is in dotenv format, load using load_dotenv
             # we will not encapsulate dotenv data for the sake of backwards compatibility
