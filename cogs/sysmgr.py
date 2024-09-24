@@ -270,9 +270,11 @@ class Emojis:
             base['installed'] = True
             if devmode:
                 with open('emojis/devbase.json', 'w+') as file:
+                    # noinspection PyTypeChecker
                     json.dump(base, file, indent=2)
             else:
                 with open('emojis/base.json', 'w+') as file:
+                    # noinspection PyTypeChecker
                     json.dump(base, file, indent=2)
 
         if data:
@@ -456,6 +458,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('update/emojis/base.json', 'r') as file:
                     base = json.load(file)
                 with open('emojis/base.json', 'w+') as file:
+                    # noinspection PyTypeChecker
                     json.dump(base, file, indent=2)
             try:
                 if self.bot.coreboot or self.bot.devmode:
@@ -797,7 +800,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     components.add_rows(ui.ActionRow(selection), btns_row)
                     await interaction.response.edit_message(view=components)
             except:
-                await msg.edit(view=None)
+                return await msg.edit(view=None)
 
         embed.title = embed.title.replace(self.bot.ui_emojis.warning, self.bot.ui_emojis.loading, 1)
         await msg.edit(embed=embed)
@@ -1553,6 +1556,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         emojiname][0] = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
                 emojipack['installed'] = True
                 with open(f'emojis/{plugin_id}.json', 'w+') as file:
+                    # noinspection PyTypeChecker
                     json.dump(emojipack, file, indent=2)
             if 'config.toml' in os.listdir('plugin_install'):
                 self.logger.debug('Installing config.toml')
@@ -1565,6 +1569,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 plugin_info = json.load(file)
                 plugin_info.update({'repository':url})
             with open('plugins/' + plugin_id + '.json', 'w') as file:
+                # noinspection PyTypeChecker
                 json.dump(plugin_info,file)
             self.logger.info('Activating extensions')
             for module in modules:
@@ -2039,6 +2044,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     current['version'] = version
                     current['legacy'] = release
                     with open('plugins/system.json', 'w+') as file:
+                        # noinspection PyTypeChecker
                         json.dump(current,file)
                 else:
                     await self.copy('update/plugins/system.json', 'plugins/system.json')
@@ -2308,12 +2314,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             emojipack['emojis'][emojiname][0] = oldemojipack['emojis'][emojiname][0]
                     emojipack['installed'] = True
                     with open(f'emojis/{plugin_id}.json', 'w+') as file:
+                        # noinspection PyTypeChecker
                         json.dump(emojipack, file, indent=2)
                     with open(f'emojis/current.json', 'r') as file:
                         currentdata = json.load(file)
                     if currentdata['id']==plugin_id:
                         emojipack.update({'id': plugin_id})
                         with open(f'emojis/current.json', 'w+') as file:
+                            # noinspection PyTypeChecker
                             json.dump(emojipack, file, indent=2)
                         self.bot.ui_emojis = Emojis(data=emojipack)
 
@@ -2362,6 +2370,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     plugin_info = json.load(file)
                     plugin_info.update({'repository': url})
                 with open('plugins/' + plugin_id + '.json', 'w') as file:
+                    # noinspection PyTypeChecker
                     json.dump(plugin_info, file)
                 self.logger.info('Reloading extensions')
                 for module in modules:
@@ -2412,6 +2421,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     data = json.load(file)
                 data.update({'id':emojipack})
                 with open('emojis/current.json', 'w+') as file:
+                    # noinspection PyTypeChecker
                     json.dump(data, file, indent=2)
                 self.bot.ui_emojis = Emojis(data=data)
                 await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack {emojipack} activated.')
@@ -2928,8 +2938,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             data_restored = orjson.loads(data_restored)
             config_restored = orjson.loads(config_restored)
             with open('data.json','w+') as file:
+                # noinspection PyTypeChecker
                 json.dump(data_restored, file, indent=2)
             with open('config.json','w+') as file:
+                # noinspection PyTypeChecker
                 json.dump(config_restored, file, indent=2)
 
             embed.title = f'{self.bot.ui_emojis.success} Restore completed'
