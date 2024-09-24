@@ -19,9 +19,15 @@ with open('config.toml', 'rb') as file:
 
 salt = config['system']['encrypted_env_salt']
 
-tokenmgr = secrets.TokenStore(True, password=os.environ.get('UNIFIER_ENCPASS'), salt=salt)
+try:
+    tokenmgr = secrets.TokenStore(True, password=os.environ.get('UNIFIER_ENCPASS'), salt=salt)
+except ValueError:
+    print('\x1b[31;1mYou must provide a password.\x1b[0m')
+    sys.exit(1)
+
 if not tokenmgr.test_decrypt():
     print('\x1b[31;1mInvalid password. Your encryption password is needed to manage tokens.\x1b[0m')
+    print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
     sys.exit(1)
 
 def add_token():
