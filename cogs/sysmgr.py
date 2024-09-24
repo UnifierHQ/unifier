@@ -1020,7 +1020,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         try:
             if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
-                raise ValueError('Blocked phrase')
+                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot use this phrase.')
             exec(to_compile, env)
         except:
             pass
@@ -1033,25 +1033,26 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 f'```py\n{e.__class__.__name__}: {e}\n```\n{selector.get("syntaxerror")}')
             return
         token_start = base64.b64encode(bytes(str(self.bot.user.id), 'utf-8')).decode('utf-8')
+        tstart = time.time()
         try:
             with redirect_stdout(stdout):
                 # ret = await func() to return output
                 await func()
         except:
             value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
-            await ctx.send(selector.get('error'), reference=ctx.message)
+            await ctx.send(f'{self.bot.ui_emojis.error} ' + selector.get('error'), reference=ctx.message)
             if token_start in value:
                 return await ctx.author.send(selector.get('blocked'))
             await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
         else:
+            exec_time = round(time.time() - tstart, 4)
             value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
             if token_start in value:
-                return await ctx.send(selector.get('blocked'))
+                return await ctx.send(f'{self.bot.ui_emojis.error} ' + selector.get('blocked'))
             if value == '':
-                pass
+                await ctx.send(f'{self.bot.ui_emojis.success} Evaluation completed in `{exec_time}` seconds.')
             else:
-                #  here, cause is if haves value
-                await ctx.send('```%s```' % value)
+                await ctx.send(f'{self.bot.ui_emojis.success} Evaluation completed in `{exec_time}` seconds.\n```\n{value}```')
 
     @commands.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
