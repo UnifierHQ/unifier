@@ -65,6 +65,7 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
         # unifier was likely updated from v2 or older
         print('\x1b[33;1mLegacy installation detected, skipping installer.\x1b[0m')
         with open('.install.json', 'w+') as file:
+            # noinspection PyTypeChecker
             json.dump(
                 {
                     'product': internal["product"],
