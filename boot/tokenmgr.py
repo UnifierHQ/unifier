@@ -61,7 +61,7 @@ def add_token():
         print('\x1b[31;1mToken already exists.\x1b[0m')
         return
 
-    print(f'\x1b[36;1mToken added successfully. You now have {tokens} tokens.\x1b[0m')
+    print(f'\x1b[36;1mToken added successfully. You now have {tokens-1} tokens.\x1b[0m')
 
 def replace_token():
     identifier = input('Token identifier: ').upper()
@@ -103,7 +103,7 @@ def delete_token():
         return
     password = getpass.getpass('Encryption password: ')
 
-    print('\x1b[37;41;1mWARNING: THIS TOKEN WILL BE REPLACED!\x1b[0m')
+    print('\x1b[37;41;1mWARNING: THIS TOKEN WILL BE DELETED!\x1b[0m')
     print('\x1b[33;1mThis process is irreversible. Once it\'s done, there\'s no going back!\x1b[0m')
     print()
     print('\x1b[33;1mProceed anyways? (y/n)\x1b[0m')
@@ -125,7 +125,7 @@ def delete_token():
         print('\x1b[31;1mInvalid password. Your encryption password is needed to replace or delete tokens.\x1b[0m')
         return
 
-    print(f'\x1b[36;1mToken deleted successfully. You now have {tokens} tokens.\x1b[0m')
+    print(f'\x1b[36;1mToken deleted successfully. You now have {tokens-1} tokens.\x1b[0m')
 
 def list_tokens():
     print(f'\x1b[36;1mYou have {len(tokenmgr.tokens)} tokens.\x1b[0m')
