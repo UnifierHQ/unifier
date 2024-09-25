@@ -1858,7 +1858,7 @@ class UnifierBridge:
                         urls.update({f'{message.guild.id}':f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'})
                     else:
                         try:
-                            urls.update({f'{source_support.server(message)}': source_support.url(message)})
+                            urls.update({f'{source_support.get_id(source_support.server(message))}': source_support.url(message)})
                         except platform_base.MissingImplementation:
                             pass
                     continue
