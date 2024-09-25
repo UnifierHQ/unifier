@@ -411,7 +411,8 @@ mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
 if not bot.tokenstore.test_decrypt():
     del os.environ['UNIFIER_ENCPASS']
-    logger.critical('An error occurred while testing decryption. Please check your password and try again.')
+    print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
+    print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
     sys.exit(1)
 
 if bot.coreboot:
