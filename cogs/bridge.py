@@ -1718,9 +1718,12 @@ class UnifierBridge:
         # Threading
         thread_urls = {}
         threads = []
-        tb_v2 = source=='discord'
         size_total = 0
         max_files = 0
+        if platform == 'discord':
+            tb_v2 = True
+        else:
+            tb_v2 = dest_support.enable_tb
 
         # Check attachments size
         if source=='discord':
@@ -1869,12 +1872,12 @@ class UnifierBridge:
             pr_actionrow = None
 
             try:
-                if source=='revolt':
-                    msgid = message.replies[0].id
-                elif source=='guilded':
-                    msgid = message.replied_to[0].id
-                else:
+                if source=='discord':
                     msgid = message.reference.message_id
+                else:
+                    msgid = source_support.reply(message)
+                    if not type(msgid) is int and not type(msgid) is str:
+                        msgid = source_support.get_id(msgid)
                 replying = True
                 reply_msg = await self.fetch_message(msgid)
             except:
@@ -1894,19 +1897,24 @@ class UnifierBridge:
                                     source_support.channel(message), msg
                                 )
                             content = source_support.content(msg)
+
+                            if source_support.reply_using_text and reply_msg.reply:
+                                # remove reply display if message is replying to another message
+                                # and the reply text exists
+                                if (
+                                        reply_msg.server_id == source_support.get_id(source_support.server(message)) and not
+                                        str(reply_msg.server_id) in reply_msg.copies.keys()
+                                ):
+                                    pass
+                                split = content.split('\n')
+                                split.pop(0)
+                                content = '\n'.join(split)
                     except:
                         if source == 'discord':
                             msg = await message.channel.fetch_message(message.reference.message_id)
                         else:
                             raise
                         content = msg.content
-
-                    if not source == 'discord':
-                        if source_support.reply_using_text:
-                            # remove reply display
-                            split = content.split('\n')
-                            split.pop(0)
-                            content = '\n'.join(split)
 
                     clean_content = nextcord.utils.remove_markdown(content)
                     msg_components = clean_content.split('<@')
@@ -1989,8 +1997,9 @@ class UnifierBridge:
                             user = self.__bot.get_user(int(reply_msg.author_id))
                             author_text = f'@{user.global_name or user.name}'
                         else:
-                            user = source_support.get_user(reply_msg.author_id)
-                            author_text = f'@{source_support.display_name(user)}'
+                            reply_support = self.__bot.platforms[reply_msg.source]
+                            user = reply_support.get_user(reply_msg.author_id)
+                            author_text = f'@{reply_support.display_name(user)}'
                         if f'{reply_msg.author_id}' in list(self.__bot.db['nicknames'].keys()):
                             author_text = '@'+self.__bot.db['nicknames'][f'{reply_msg.author_id}']
                     except:
