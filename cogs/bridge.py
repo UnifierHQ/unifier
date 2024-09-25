@@ -1801,7 +1801,12 @@ class UnifierBridge:
 
             return files
 
-        files = await get_files(message.attachments)
+        files = []
+        if platform == 'discord':
+            files = await get_files(message.attachments)
+        else:
+            if not dest_support.files_per_guild:
+                files = await get_files(message.attachments)
 
         # Broadcast message
         for guild in list(guilds.keys()):
@@ -2390,7 +2395,7 @@ class UnifierBridge:
                                 'color': color,
                                 'emoji': useremoji
                             },
-                            'files': files if not alert else None,
+                            'files': await get_files(message.attachments) if dest_support.files_per_guild else (files if not alert else None),
                             'embeds': (
                                 dest_support.convert_embeds(message.embeds) if source=='discord'
                                 else dest_support.convert_embeds(
