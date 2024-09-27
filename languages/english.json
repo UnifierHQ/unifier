@@ -104,11 +104,11 @@
       "restart": {
         "description": "Gracefully restarts the bot."
       },
-      "plugins": {
-        "description": "Lists all installed plugins.",
-        "title": "Unifier Plugins",
+      "modifiers": {
+        "description": "Lists all installed Modifiers.",
+        "title": "Unifier Modifiers",
         "version": "Version {version} (`{release}`)",
-        "system_plugin": "\n# SYSTEM PLUGIN\nThis plugin cannot be uninstalled.",
+        "system_plugin": "\n# SYSTEM MODIFIER\nThis Modifier cannot be uninstalled.",
         "modules": "Modules",
         "utilities": "Utilities"
       },
@@ -135,10 +135,10 @@
         "completed": "Unload completed (`{success}`/`{total}` successful)\n\n{text}```"
       },
       "install": {
-        "description": "Installs a plugin.",
+        "description": "Installs a Modifier.",
         "downloading_title": "Downloading extension...",
         "downloading_body": "Getting extension files from remote",
-        "trust": "Only install plugins from trusted sources!",
+        "trust": "Only install Modifiers from trusted sources!",
         "services": "Services",
         "install": "Install",
         "nevermind": "Nevermind",
@@ -575,8 +575,8 @@
       "serverstatus": {
         "description": "Shows your server's plugin restriction status.",
         "title": "Server status",
-        "body_ok": "Your server is not restricted by plugins.",
-        "body_restricted": "Your server is currently limited by a plugin."
+        "body_ok": "Your server is not restricted by Modifiers.",
+        "body_restricted": "Your server is currently limited by a Modifier."
       },
       "level": {
         "description": "Shows you or someone else's level and EXP.",
@@ -607,7 +607,7 @@
         "involved": "{count} users involved",
         "automated": "This is an automated action performed by a plugin, always double-check before taking action",
         "owner_immunity": "just as a fyi: this would have banned you",
-        "ban_reason": "Automatic action carried out by security plugins",
+        "ban_reason": "Automatic action carried out by security Modifiers",
         "cannot_appeal": "Unfortunately, this ban cannot be appealed using `{prefix}appeal`. You will need to ask moderators for help.",
         "limited_limit": "Your server is currently limited for security. The maximum character limit for now is **{count} characters**.",
         "limited_cooldown": "Your server is currently limited for security. Please wait before sending another message.",

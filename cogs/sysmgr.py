@@ -1064,9 +1064,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
 
-    @commands.command(hidden=True,description=language.desc('sysmgr.plugins'))
+    @commands.command(hidden=True,description=language.desc('sysmgr.modifiers'))
     @restrictions.owner()
-    async def plugins(self, ctx, *, plugin=None):
+    async def modifiers(self, ctx, *, plugin=None):
         selector = language.get_selector(ctx)
         if plugin:
             plugin = plugin.lower()
@@ -1348,7 +1348,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not url.endswith('.git'):
             url = url + '.git'
         embed = nextcord.Embed(title=f'{self.bot.ui_emojis.loading} {selector.get("downloading_title")}', description=selector.get("downloading_body"))
-        embed.set_footer(text='Only install plugins from trusted sources!')
+        embed.set_footer(text='Only install Modifiers from trusted sources!')
         msg = await ctx.send(embed=embed)
         try:
             try:
