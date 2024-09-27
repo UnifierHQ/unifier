@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # can be handled gracefully by the bot.
 
 import nextcord
+from typing import Union
 
 class MissingImplementation(Exception):
     """An exception used when something isn't implemented.
@@ -198,8 +199,8 @@ class PlatformBase:
         """Converts an attachment object to a nextcord.File object."""
         raise MissingImplementation()
 
-    async def to_platform_file(self, file: nextcord.Attachment):
-        """Converts a nextcord.Attachment object to the platform's file object."""
+    async def to_platform_file(self, file: Union[nextcord.Attachment, nextcord.File]):
+        """Converts a nextcord.Attachment or nextcord.File object to the platform's file object."""
         raise MissingImplementation()
 
     async def send(self, channel, content, special: dict = None):
