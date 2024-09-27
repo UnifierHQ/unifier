@@ -1206,30 +1206,22 @@ class UnifierBridge:
         results = await asyncio.gather(*threads)
         return sum(results)
 
-    async def make_friendly(self, text, source, server=None):
-        if source=='discord':
-            if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
-                try:
-                    emoji_name = text.split(':')[1]
-                    emoji_id = int(text.split(':')[2].replace('>','',1))
+    async def make_friendly(self, text, server=None, image_markdown=False):
+        if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
+            try:
+                emoji_name = text.split(':')[1]
+                emoji_id = int(text.split(':')[2].replace('>','',1))
+                if image_markdown:
+                    return f'![](https://cdn.discordapp.com/emojis/{emoji_id}.webp?size=48&quality=lossless)'
+                else:
                     return f'[emoji ({emoji_name})](https://cdn.discordapp.com/emojis/{emoji_id}.webp?size=48&quality=lossless)'
-                except:
-                    pass
-        elif source=='revolt':
-            if text.startswith(':') and text.endswith(':'):
-                try:
-                    emoji_id = text.replace(':','',1)[:-1]
-                    if len(emoji_id) == 26:
-                        return f'[emoji](https://autumn.revolt.chat/emojis/{emoji_id}?size=48)'
-                except:
-                    pass
+            except:
+                pass
 
         components = text.split('<@')
         offset = 0
         if text.startswith('<@'):
             offset = 1
-
-        source_support = self.__bot.platforms[source] if source != 'discord' else None
 
         while offset < len(components):
             if len(components) == 1 and offset == 0:
@@ -1246,21 +1238,12 @@ class UnifierBridge:
                     except:
                         pass
             try:
-                if source == 'discord':
-                    if is_role:
-                        role = server.get_role(userid)
-                        display_name = role.name
-                    else:
-                        user = self.__bot.get_user(userid)
-                        display_name = user.global_name or user.name
+                if is_role:
+                    role = server.get_role(userid)
+                    display_name = role.name
                 else:
-                    if is_role:
-                        # unsupported for now
-                        offset += 1
-                        continue
-                    else:
-                        user = source_support.get_user(userid)
-                        display_name = source_support.display_name(user)
+                    user = self.__bot.get_user(userid)
+                    display_name = user.global_name or user.name
             except:
                 offset += 1
                 continue
@@ -1283,19 +1266,8 @@ class UnifierBridge:
                 channelid = int(components[offset].split('>', 1)[0])
             except:
                 channelid = components[offset].split('>', 1)[0]
-            try:
-                if source == 'discord':
-                    channel = self.__bot.get_channel(channelid)
-                else:
-                    try:
-                        channel = source_support.get_channel(channelid)
-                        if not channel:
-                            raise Exception()
-                    except:
-                        channel = await source_support.fetch_channel(channelid)
-                if not channel:
-                    raise ValueError()
-            except:
+            channel = self.__bot.get_channel(channelid)
+            if not channel:
                 offset += 1
                 continue
             text = text.replace(f'<#{channelid}>', f'#{channel.name}').replace(
@@ -1328,28 +1300,6 @@ class UnifierBridge:
             text = text.replace(f'<a:{emojiname}:{emojiafter}', f':{emojiname}\\:')
             offset += 1
 
-        if source == 'guilded':
-            lines = text.split('\n')
-            offset = 0
-            for index in range(len(lines)):
-                try:
-                    line = lines[index-offset]
-                except:
-                    break
-                if line.startswith('![](https://cdn.gilcdn.com/ContentMediaGenericFiles'):
-                    try:
-                        lines.pop(index-offset)
-                        offset += 1
-                    except:
-                        pass
-                elif line.startswith('![](') and line.endswith(')'):
-                    lines[index-offset] = line.replace('![](','',1)[:-1]
-
-            if len(lines) == 0:
-                text = ''
-            else:
-                text = '\n'.join(lines)
-
         return text
 
     async def edit(self, message, content):
@@ -1359,11 +1309,19 @@ class UnifierBridge:
 
         server = self.__bot.get_guild(int(msg.guild_id))
 
+        source_support = self.__bot.platforms[msg.source] if msg.source != 'discord' else None
+
         async def edit_discord(msgs,friendly=False):
             threads = []
 
             if friendly:
-                text = await self.make_friendly(content, msg.source, server=server)
+                if msg.source == 'discord':
+                    text = await self.make_friendly(content, server=server)
+                else:
+                    try:
+                        text = await source_support.make_friendly(content)
+                    except platform_base.MissingImplementation:
+                        text = content
             else:
                 text = content
 
@@ -1388,13 +1346,16 @@ class UnifierBridge:
             await asyncio.gather(*threads)
 
         async def edit_others(msgs,target,friendly=False):
-            source_support = self.__bot.platforms[msg.source] if msg.source != 'discord' else None
             dest_support = self.__bot.platforms[target]
             if friendly:
                 if msg.source == 'discord':
-                    text = await self.make_friendly(content, msg.source, server=server)
+                    text = await self.make_friendly(content, server=server)
                 else:
-                    text = await source_support.make_friendly(content)
+                    try:
+                        text = await source_support.make_friendly(content)
+                    except platform_base.MissingImplementation:
+                        text = content
+
             else:
                 text = content
 
@@ -1721,7 +1682,7 @@ class UnifierBridge:
         if not source == platform:
             friendlified = True
             if source=='discord':
-                friendly_content = await self.make_friendly(msg_content, source, server=message.guild)
+                friendly_content = await self.make_friendly(msg_content, server=message.guild)
             else:
                 try:
                     friendly_content = await source_support.make_friendly(msg_content)
