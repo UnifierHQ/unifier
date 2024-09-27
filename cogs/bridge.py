@@ -1780,6 +1780,28 @@ class UnifierBridge:
 
             return files
 
+        async def stickers_to_urls(stickers):
+            urls = []
+            for sticker in stickers:
+                if sticker.format == nextcord.StickerFormatType.lottie:
+                    continue
+                elif sticker.format == nextcord.StickerFormatType.apng or sticker.format == nextcord.StickerFormatType.png:
+                    sticker_format = '.png'
+                else:
+                    sticker_format = '.gif'
+
+                url = f'https://media.discordapp.net/stickers/{sticker.id}{sticker_format}'
+
+                if platform == 'discord':
+                    urls.append(f'[sticker ({sticker.name})]({url})')
+                else:
+                    if dest_support.uses_image_markdown:
+                        urls.append(f'![]({url})')
+                    else:
+                        urls.append(f'[sticker ({sticker.name})]({url})')
+
+            return urls
+
         files = []
         if platform == 'discord':
             files = await get_files(message.attachments)
@@ -1791,6 +1813,7 @@ class UnifierBridge:
         stickertext = ''
         if source == 'discord':
             if len(message.stickers) > 0:
+                stickertext = await stickers_to_urls(message.stickers)
                 if platform == 'discord':
                     stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.url})' for sticker in message.stickers])
                 elif dest_support.uses_image_markdown:
