@@ -2962,7 +2962,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(description='Shows bot uptime.')
     async def uptime(self, ctx):
         embed = nextcord.Embed(
-            title=f'{self.bot.user.global_name} uptime',
+            title=f'{self.bot.user.global_name or self.bot.user.name} uptime',
             description=f'The bot has been up since <t:{self.bot.ut_total}:f>.',
             color=self.bot.colors.unifier
         )
