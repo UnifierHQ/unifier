@@ -1764,7 +1764,7 @@ class UnifierBridge:
                     attachment_size = source_support.attachment_size(attachment)
                     content_type = source_support.attachment_type(attachment)
                     if (
-                            not 'audio' in content_type and not 'video' in content_type and not 'image' in content.type
+                            not 'audio' in content_type and not 'video' in content_type and not 'image' in content_type
                             and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
                     ) or attachment_size > 25000000 or not dest_support.attachment_type_allowed(content_type):
                         continue
@@ -1812,13 +1812,10 @@ class UnifierBridge:
         stickertext = ''
         if source == 'discord':
             if len(message.stickers) > 0:
-                stickertext = await stickers_to_urls(message.stickers)
-                if platform == 'discord':
-                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.url})' for sticker in message.stickers])
-                elif dest_support.uses_image_markdown:
-                    stickertext = '\n'.join([f'![]({sticker.url})' for sticker in message.stickers])
-                else:
-                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.url})' for sticker in message.stickers])
+                stickertext = '\n'.join(await stickers_to_urls(message.stickers))
+
+        if len(stickertext) > 0:
+            stickertext = '\n' + stickertext
 
         # Broadcast message
         for guild in list(guilds.keys()):
