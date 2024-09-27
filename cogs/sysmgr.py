@@ -2120,6 +2120,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             embed.set_footer(text=':warning: Some extensions could not be reloaded.')
                     if self.bot.uses_v3:
                         await self.bot.sync_application_commands(update_known=False, delete_unknown=False)
+                    self.logger.info('Updating localization')
+                    self.bot.langmgr = langmgr.LanguageManager(self.bot)
+                    self.bot.langmgr.load()
                     self.logger.info('Upgrade complete')
                     embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                     embed.description = selector.get("success_body")
