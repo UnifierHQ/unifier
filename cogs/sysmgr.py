@@ -1064,7 +1064,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
 
-    @commands.command(hidden=True,description=language.desc('sysmgr.modifiers'))
+    @commands.command(aliases=['plugins'],hidden=True,description=language.desc('sysmgr.modifiers'))
     @restrictions.owner()
     async def modifiers(self, ctx, *, plugin=None):
         selector = language.get_selector(ctx)
