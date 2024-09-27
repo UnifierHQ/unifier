@@ -1229,23 +1229,29 @@ class UnifierBridge:
         if text.startswith('<@'):
             offset = 1
 
+        source_support = self.__bot.platforms[source] if source != 'discord' else None
+
         while offset < len(components):
             if len(components) == 1 and offset == 0:
                 break
+            is_role = False
             try:
                 userid = int(components[offset].split('>', 1)[0])
             except:
                 userid = components[offset].split('>', 1)[0]
+                if userid.startswith('&'):
+                    is_role = True
+                    try:
+                        userid = int(components[offset].split('>', 1)[0].replace('&','',1))
+                    except:
+                        pass
             try:
-                if source == 'revolt':
-                    user = self.__bot.revolt_client.get_user(userid)
-                    display_name = user.display_name or user.name
-                elif source == 'guilded':
-                    user = self.__bot.guilded_client.get_user(userid)
-                    display_name = user.display_name or user.name
-                else:
+                if source == 'discord':
                     user = self.__bot.get_user(userid)
                     display_name = user.global_name or user.name
+                else:
+                    user = source_support.get_user(userid)
+                    display_name = source_support.display_name(user)
                 if not user:
                     raise ValueError()
             except:
@@ -1268,15 +1274,15 @@ class UnifierBridge:
             except:
                 channelid = components[offset].split('>', 1)[0]
             try:
-                if source == 'revolt':
-                    try:
-                        channel = self.__bot.revolt_client.get_channel(channelid)
-                    except:
-                        channel = await self.__bot.revolt_client.fetch_channel(channelid)
-                elif source == 'guilded':
-                    channel = self.__bot.guilded_client.get_channel(channelid)
-                else:
+                if source == 'discord':
                     channel = self.__bot.get_channel(channelid)
+                else:
+                    try:
+                        channel = source_support.get_channel(channelid)
+                        if not channel:
+                            raise Exception()
+                    except:
+                        channel = await source_support.fetch_channel(channelid)
                 if not channel:
                     raise ValueError()
             except:
