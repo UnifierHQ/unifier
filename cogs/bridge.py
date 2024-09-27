@@ -1798,7 +1798,6 @@ class UnifierBridge:
                 else:
                     stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.image_url})' for sticker in message.stickers])
 
-
         # Broadcast message
         for guild in list(guilds.keys()):
             if source == 'discord':
@@ -3849,7 +3848,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.guild == None:
             return
 
-        if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0:
+        if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0 and len(message.stickers) == 0:
             return
 
         if message.content.startswith(self.bot.command_prefix) and not message.author.bot:
