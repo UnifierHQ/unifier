@@ -1815,11 +1815,10 @@ class UnifierBridge:
 
         # Process stickers
         stickertext = ''
-        if source == 'discord':
+        if source == 'discord' and not system:
             if len(message.stickers) > 0:
                 stickertext = '\n'.join(await stickers_to_urls(message.stickers))
-
-        if len(stickertext) > 0:
+        if (len(content) > 0 or len(content_override) > 0) and len(stickertext) > 0:
             stickertext = '\n' + stickertext
 
         # Broadcast message
