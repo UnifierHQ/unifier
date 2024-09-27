@@ -43,6 +43,7 @@ class PlatformBase:
         self.allowed_content_types = []
         self.reply_using_text = False # change this to True if the platform needs to show message reply using text
         self.files_per_guild = False # change this to True if the platform library wipes file objects' data after send
+        self.uses_image_markdown = False # change this to True if the platform uses media markdown (i.e. ![](image url))
 
     def is_available(self):
         return self.__available
