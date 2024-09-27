@@ -1357,11 +1357,13 @@ class UnifierBridge:
 
         threads = []
 
+        server = self.__bot.get_guild(int(msg.guild_id))
+
         async def edit_discord(msgs,friendly=False):
             threads = []
 
             if friendly:
-                text = await self.make_friendly(content, msg.source)
+                text = await self.make_friendly(content, msg.source, server=server)
             else:
                 text = content
 
@@ -1390,7 +1392,7 @@ class UnifierBridge:
             dest_support = self.__bot.platforms[target]
             if friendly:
                 if msg.source == 'discord':
-                    text = await self.make_friendly(content, msg.source)
+                    text = await self.make_friendly(content, msg.source, server=server)
                 else:
                     text = await source_support.make_friendly(content)
             else:
