@@ -1935,10 +1935,16 @@ class UnifierBridge:
                             continue
                         if source == 'discord':
                             user = self.__bot.get_user(userid)
-                            global_name = user.global_name or user.name
+                            if not user:
+                                global_name = 'unknown-user'
+                            else:
+                                global_name = user.global_name or user.name
                         else:
                             user = source_support.get_user(userid)
-                            global_name = source_support.display_name(user)
+                            if not user:
+                                global_name = 'unknown-user'
+                            else:
+                                global_name = source_support.display_name(user)
                         if user:
                             clean_content = clean_content.replace(f'<@{userid}>',
                                                                   f'@{global_name}').replace(
