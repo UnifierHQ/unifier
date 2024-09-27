@@ -3871,7 +3871,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.guild == None:
             return
 
-        if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0 and len(message.stickers) == 0:
+        bridgeable_stickers = [sticker for sticker in message.stickers if not sticker.StickerFormatType.lottie]
+
+        if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0 and len(bridgeable_stickers) == 0:
             return
 
         if message.content.startswith(self.bot.command_prefix) and not message.author.bot:
