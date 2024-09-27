@@ -1721,7 +1721,7 @@ class UnifierBridge:
         if not source == platform:
             friendlified = True
             if source=='discord':
-                friendly_content = await self.make_friendly(msg_content, source, server=message.server)
+                friendly_content = await self.make_friendly(msg_content, source, server=message.guild)
             else:
                 try:
                     friendly_content = await source_support.make_friendly(msg_content)
