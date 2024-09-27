@@ -1264,8 +1264,11 @@ class UnifierBridge:
             except:
                 offset += 1
                 continue
-            text = text.replace(f'<@{userid}>', f'@{display_name}').replace(
-                f'<@!{userid}>', f'@{display_name}')
+            if is_role:
+                text = text.replace(f'<@&{userid}>', f'@{display_name}')
+            else:
+                text = text.replace(f'<@{userid}>', f'@{display_name}').replace(
+                    f'<@!{userid}>', f'@{display_name}')
             offset += 1
 
         components = text.split('<#')
