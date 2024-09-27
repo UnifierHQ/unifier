@@ -1206,7 +1206,7 @@ class UnifierBridge:
         results = await asyncio.gather(*threads)
         return sum(results)
 
-    async def make_friendly(self, text, source):
+    async def make_friendly(self, text, source, server=None):
         if source=='discord':
             if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
                 try:
@@ -1247,18 +1247,25 @@ class UnifierBridge:
                         pass
             try:
                 if source == 'discord':
-                    user = self.__bot.get_user(userid)
-                    display_name = user.global_name or user.name
+                    if is_role:
+                        role = server.get_role(userid)
+                        display_name = role.name
+                    else:
+                        user = self.__bot.get_user(userid)
+                        display_name = user.global_name or user.name
                 else:
-                    user = source_support.get_user(userid)
-                    display_name = source_support.display_name(user)
-                if not user:
-                    raise ValueError()
+                    if is_role:
+                        # unsupported for now
+                        offset += 1
+                        continue
+                    else:
+                        user = source_support.get_user(userid)
+                        display_name = source_support.display_name(user)
             except:
                 offset += 1
                 continue
-            text = text.replace(f'<@{userid}>', f'@{display_name or user.name}').replace(
-                f'<@!{userid}>', f'@{display_name or user.name}')
+            text = text.replace(f'<@{userid}>', f'@{display_name}').replace(
+                f'<@!{userid}>', f'@{display_name}')
             offset += 1
 
         components = text.split('<#')
