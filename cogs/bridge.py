@@ -2375,6 +2375,18 @@ class UnifierBridge:
                         ) if not alert else None,
                         'reply': None
                     }
+
+                    if source == 'discord':
+                        if not message.author.bot:
+                            special['embeds'] = []
+                    else:
+                        try:
+                            if not dest_support.is_bot(dest_support.author(message)):
+                                special['embeds'] = []
+                        except platform_base.MissingImplementation:
+                            # assume user is not a bot
+                            special['embeds'] = []
+
                     if reply and not alert:
                         special.update({'reply': reply})
                     if trimmed:
@@ -2425,6 +2437,18 @@ class UnifierBridge:
                             ) if not alert else None,
                             'reply': None
                         }
+
+                        if source == 'discord':
+                            if not message.author.bot:
+                                special['embeds'] = []
+                        else:
+                            try:
+                                if not dest_support.is_bot(dest_support.author(message)):
+                                    special['embeds'] = []
+                            except platform_base.MissingImplementation:
+                                # assume user is not a bot
+                                special['embeds'] = []
+
                         if reply and not alert:
                             special.update({'reply': reply})
                         if trimmed:
