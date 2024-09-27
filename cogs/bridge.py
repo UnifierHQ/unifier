@@ -25,7 +25,6 @@ import time
 import datetime
 import random
 import string
-import copy
 import json
 import compress_json
 import re
@@ -3258,7 +3257,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         roomname = msgdata.room
         userid = msgdata.author_id
-        content = copy.deepcopy(msg.content)  # Prevent tampering w/ original content
+        content = str(msg.content)  # Prevent tampering w/ original content
 
         btns = ui.ActionRow(
             nextcord.ui.Button(style=nextcord.ButtonStyle.blurple, label=selector.get('spam'), custom_id=f'spam', disabled=False),
@@ -3449,7 +3448,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
             return await ctx.send(language.get('disabled','bridge.level',language=selector.language_set))
-        expdata = copy.copy(self.bot.db['exp'])
+        expdata = dict(self.bot.db['exp'])
         lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
                 expdata.items(),
                 key=lambda x: x[1]['level']+x[1]['progress'],
