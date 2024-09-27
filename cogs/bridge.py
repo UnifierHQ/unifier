@@ -3871,7 +3871,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.guild == None:
             return
 
-        bridgeable_stickers = [sticker for sticker in message.stickers if not sticker.StickerFormatType.lottie]
+        bridgeable_stickers = [sticker for sticker in message.stickers if not sticker.format == nextcord.StickerFormatType.lottie]
 
         if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0 and len(bridgeable_stickers) == 0:
             return
