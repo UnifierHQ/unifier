@@ -1763,10 +1763,15 @@ class UnifierBridge:
                 else:
                     attachment_size = source_support.attachment_size(attachment)
                     content_type = source_support.attachment_type(attachment)
+                    if platform == 'discord':
+                        # already checked for, so skip
+                        is_allowed = True
+                    else:
+                        is_allowed = dest_support.attachment_type_allowed(content_type)
                     if (
                             not 'audio' in content_type and not 'video' in content_type and not 'image' in content_type
                             and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
-                    ) or attachment_size > 25000000 or not dest_support.attachment_type_allowed(content_type):
+                    ) or attachment_size > 25000000 or not is_allowed:
                         continue
 
                 try:
