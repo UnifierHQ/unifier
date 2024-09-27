@@ -1787,6 +1787,18 @@ class UnifierBridge:
             if not dest_support.files_per_guild:
                 files = await get_files(message.attachments)
 
+        # Process stickers
+        stickertext = ''
+        if source == 'discord':
+            if len(message.stickers) > 0:
+                if platform == 'discord':
+                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.image_url})' for sticker in message.stickers])
+                elif dest_support.uses_image_markdown:
+                    stickertext = '\n'.join([f'![]({sticker.image_url})' for sticker in message.stickers])
+                else:
+                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.image_url})' for sticker in message.stickers])
+
+
         # Broadcast message
         for guild in list(guilds.keys()):
             if source == 'discord':
@@ -2210,7 +2222,7 @@ class UnifierBridge:
                 async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
                                  destguild):
                     try:
-                        tosend_content = friendly_content if friendlified else msg_content
+                        tosend_content = (friendly_content if friendlified else msg_content) + stickertext
                         if len(tosend_content) > 2000:
                             tosend_content = tosend_content[:-(len(tosend_content)-2000)]
                             if not components:
@@ -2264,7 +2276,7 @@ class UnifierBridge:
                                                                   destguild)))
                 else:
                     try:
-                        tosend_content = alert_pings + (friendly_content if friendlified else msg_content)
+                        tosend_content = alert_pings + (friendly_content if friendlified else msg_content) + stickertext
 
                         if content_override:
                             tosend_content = content_override
@@ -2346,7 +2358,7 @@ class UnifierBridge:
                     if trimmed:
                         special.update({'reply_content': trimmed})
                     msg = await dest_support.send(
-                        ch, content_override if can_override else content, special=special
+                        ch, content_override if can_override else (content + stickertext), special=special
                     )
                     tbresult = [
                         {f'{guild_id}': [
@@ -2396,7 +2408,8 @@ class UnifierBridge:
                         if trimmed:
                             special.update({'reply_content': trimmed})
                         msg = await dest_support.send(
-                            ch, content_override if can_override else (friendly_content if friendlified else msg_content), special=special
+                            ch,
+                            content_override if can_override else ((friendly_content + stickertext) if friendlified else (msg_content + stickertext)), special=special
                         )
                     except:
                         continue
