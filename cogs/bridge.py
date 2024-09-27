@@ -1792,11 +1792,11 @@ class UnifierBridge:
         if source == 'discord':
             if len(message.stickers) > 0:
                 if platform == 'discord':
-                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.image_url})' for sticker in message.stickers])
+                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.url})' for sticker in message.stickers])
                 elif dest_support.uses_image_markdown:
-                    stickertext = '\n'.join([f'![]({sticker.image_url})' for sticker in message.stickers])
+                    stickertext = '\n'.join([f'![]({sticker.url})' for sticker in message.stickers])
                 else:
-                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.image_url})' for sticker in message.stickers])
+                    stickertext = '\n'.join([f'[sticker ({sticker.name})]({sticker.url})' for sticker in message.stickers])
 
         # Broadcast message
         for guild in list(guilds.keys()):
