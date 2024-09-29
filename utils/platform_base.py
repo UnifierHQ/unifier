@@ -49,6 +49,11 @@ class PlatformBase:
     def is_available(self):
         return self.__available
 
+    def error_is_unavoidable(self, error):
+        """Checks if the error was unavoidable such as 5xx, 401, 403, etc.
+        Any other 4xx errors should be considered avoidable."""
+        raise MissingImplementation()
+
     def attach_bot(self, bot):
         """In case a bot object could not be provided, it can be attached here."""
         self.bot = bot
