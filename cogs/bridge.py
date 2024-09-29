@@ -2402,7 +2402,7 @@ class UnifierBridge:
                             ch, content_override if can_override else (content + stickertext), special=special
                         )
                     except Exception as e:
-                        if type(e) in dest_support.api_unavoidable_exceptions:
+                        if dest_support.error_is_unavoidable(e):
                             return None
                         raise
                     tbresult = [
@@ -2468,8 +2468,10 @@ class UnifierBridge:
                             ch,
                             content_override if can_override else ((friendly_content + stickertext) if friendlified else (msg_content + stickertext)), special=special
                         )
-                    except:
-                        continue
+                    except Exception as e:
+                        if dest_support.error_is_unavoidable(e):
+                            continue
+                        raise
 
                     message_ids.update({
                         str(dest_support.get_id(destguild)): [
