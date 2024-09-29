@@ -1281,9 +1281,12 @@ class UnifierBridge:
         while offset < len(components):
             if len(components) == 1 and offset == 0:
                 break
-            emojiname = components[offset].split(':', 1)[0]
-            emojiafter = components[offset].split(':', 1)[1].split('>')[0]+'>'
-            text = text.replace(f'<:{emojiname}:{emojiafter}', f':{emojiname}\\:')
+            try:
+                emojiname = components[offset].split(':', 1)[0]
+                emojiafter = components[offset].split(':', 1)[1].split('>')[0]+'>'
+                text = text.replace(f'<:{emojiname}:{emojiafter}', f':{emojiname}\\:')
+            except:
+                pass
             offset += 1
 
         components = text.split('<a:')
@@ -1306,9 +1309,12 @@ class UnifierBridge:
 
         threads = []
 
-        server = self.__bot.get_guild(int(msg.guild_id))
-
         source_support = self.__bot.platforms[msg.source] if msg.source != 'discord' else None
+
+        if msg.source == 'discord':
+            server = self.__bot.get_guild(int(msg.guild_id))
+        else:
+            server = source_support.get_server(msg.guild_id)
 
         async def edit_discord(msgs,friendly=False):
             threads = []
@@ -2391,9 +2397,14 @@ class UnifierBridge:
                         special.update({'reply': reply})
                     if trimmed:
                         special.update({'reply_content': trimmed})
-                    msg = await dest_support.send(
-                        ch, content_override if can_override else (content + stickertext), special=special
-                    )
+                    try:
+                        msg = await dest_support.send(
+                            ch, content_override if can_override else (content + stickertext), special=special
+                        )
+                    except Exception as e:
+                        if type(e) in dest_support.api_unavoidable_exceptions:
+                            return None
+                        raise
                     tbresult = [
                         {f'{guild_id}': [
                             dest_support.get_id(dest_support.channel(msg)), dest_support.get_id(msg)

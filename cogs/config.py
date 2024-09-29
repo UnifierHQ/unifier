@@ -574,10 +574,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 )
                 index = 0
                 text = ''
-                if roomname in list(self.bot.db['rules'].keys()):
-                    rules = self.bot.db['rules'][roomname]
-                else:
-                    rules = []
+                rules = self.bot.db['rooms'][roomname]['meta']['rules']
                 for rule in rules:
                     if text == '':
                         text = f'1. {rule}'
