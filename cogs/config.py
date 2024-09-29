@@ -1857,7 +1857,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         name = self.bot.get_guild(int(guild_id)).name
                     else:
                         support = self.bot.platforms[platform]
-                        name = support.name(support.server(guild_id))
+                        name = support.name(support.get_server(guild_id))
                 except:
                     continue
                 if len(text) == 0:
