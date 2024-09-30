@@ -1019,7 +1019,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
 
         try:
-            if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body:
+            if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body or 'tokenstore' in body:
                 return await ctx.send(f'{self.bot.ui_emojis.error} You cannot use this phrase.')
             exec(to_compile, env)
         except:
