@@ -48,4 +48,8 @@ And examples of what you **shouldn't** report to us:
   suggestion**)
 - Unprofessional moderation on Unifier instances (sort this out with your
   instance's admins)
+- Destructive actions that can be done using eval command (it is your
+  responsibility to know what you're doing, only report if there's a
+  missing permissions check or something that we should actually take
+  action on)
 - etc.
