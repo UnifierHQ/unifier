@@ -1137,6 +1137,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_permissions(manage_webhooks=True)
     @restrictions.not_banned()
+    @restrictions.no_admin_perms()
     async def bind(self,ctx,*,room=''):
         invite = False
         roominfo = self.bot.bridge.get_room(room.lower())
@@ -1273,6 +1274,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @commands.command(aliases=['unlink','disconnect'],description='Disconnects the server from a given room.')
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_permissions(manage_webhooks=True)
+    @restrictions.no_admin_perms()
     async def unbind(self,ctx,room=None):
         if not room:
             room = self.bot.bridge.check_duplicate(ctx.channel)
@@ -1413,6 +1415,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @commands.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
     @restrictions.admin()
+    @restrictions.no_admin_perms()
     async def map(self, ctx):
         channels = []
         channels_enabled = []
@@ -1667,79 +1670,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         self.bot.db['rooms'][room]['meta']['rules'].pop(rule-1)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} Removed rule!')
-
-    @commands.command(name='reply-layout', description="Sets the reply layout.")
-    @commands.has_guild_permissions(manage_channels=True)
-    async def reply_layout(self, ctx):
-        layout = self.bot.bridge.get_reply_style(ctx.guild.id)
-        embed = nextcord.Embed(
-            title='Reply layout',
-            description='Current layout: '+(
-                'Stylish\n\nA colored button will appear at the bottom of the message.' if layout==0
-                else 'Familiar\n\nSome text will be added on top of the message.'
-            )
-        )
-        components = ui.MessageComponents()
-        components.add_row(
-            ui.ActionRow(
-                nextcord.ui.StringSelect(
-                    options=[
-                        nextcord.SelectOption(
-                            label='Stylish',
-                            value='0',
-                            default=layout == 0,
-                            description='A colored button will appear at the bottom of the message.'
-                        ),
-                        nextcord.SelectOption(
-                            label='Familiar',
-                            value='1',
-                            default=layout == 1,
-                            description='Some text will be added on top of the message.'
-                        )
-                    ]
-                )
-            )
-        )
-
-        msg = await ctx.send(embed=embed,view=components)
-
-        def check(interaction):
-            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
-
-        while True:
-            try:
-                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
-            except:
-                return await msg.edit(view=None)
-
-            layout = int(interaction.data['values'][0])
-            self.bot.bridge.set_reply_style(ctx.guild.id, layout)
-            embed.description='Current layout: ' + (
-                'Stylish\n\nA colored button will appear at the bottom of the message.' if layout == 0
-                else 'Familiar\n\nSome text will be added on top of the message.'
-            )
-            components = ui.MessageComponents()
-            components.add_row(
-                ui.ActionRow(
-                    nextcord.ui.StringSelect(
-                        options=[
-                            nextcord.SelectOption(
-                                label='Stylish',
-                                value='0',
-                                default=layout == 0,
-                                description='A colored button will appear at the bottom of the message.'
-                            ),
-                            nextcord.SelectOption(
-                                label='Familiar',
-                                value='1',
-                                default=layout == 1,
-                                description='Some text will be added on top of the message.'
-                            )
-                        ]
-                    )
-                )
-            )
-            await interaction.response.edit_message(embed=embed,view=components)
 
     @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
     @restrictions.admin()

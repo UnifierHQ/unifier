@@ -937,6 +937,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             f'Sent by @{username} ({msg_obj.author_id}) in {guildname} ({msg_obj.guild_id}, {msg_obj.source})\n\nParent ID: {msg_obj.id}')
 
     @commands.command(description='Deletes a message.')
+    @restrictions.no_admin_perms()
     async def delete(self, ctx, *, msg_id=None):
         """Deletes all bridged messages. Does not delete the original."""
 
@@ -1494,6 +1495,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
     @commands.command(hidden=True, description='Sends a safety-related alert.')
     @restrictions.moderator()
+    @restrictions.no_admin_perms()
     async def alert(self, ctx, risk_type, level, *, message):
         risk_type = risk_type.lower()
         if not risk_type in self.bot.bridge.alert.titles.keys():
@@ -1573,6 +1575,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
     @commands.command(hidden=True, description='Sends a safety-related alert.')
     @restrictions.moderator()
     @restrictions.not_banned()
+    @restrictions.no_admin_perms()
     async def advisory(self, ctx, risk_type, *, message):
         risk_type = risk_type.lower()
         if not risk_type in self.bot.bridge.alert.titles.keys():

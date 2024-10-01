@@ -1110,6 +1110,11 @@ class UnifierBridge:
         if msg.source=='discord':
             ch = self.__bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
+
+            guild = self.__bot.get_guild(int(msg.guild_id))
+            if guild.me.guild_permissions.administrator:
+                raise restrictions.TooManyPermissions()
+
             await todelete.delete()
         else:
             source_support = self.__bot.platforms[msg.source]
@@ -1132,6 +1137,9 @@ class UnifierBridge:
                     continue
 
                 guild = self.__bot.get_guild(int(key))
+                if guild.me.guild_permissions.administrator:
+                    continue
+
                 try:
                     try:
                         webhook = self.__bot.bridge.webhook_cache.get_webhook([
@@ -3876,6 +3884,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(hidden=True,description=language.desc("bridge.system"))
     @restrictions.owner()
+    @restrictions.no_admin_perms()
     async def system(self, ctx, room, *, content):
         selector = language.get_selector(ctx)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True,content_override=content)
@@ -4318,6 +4327,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.guild == None:
             return
 
+        if message.guild.me.guild_permissions.administrator:
+            return
+
         gbans = self.bot.db['banned']
 
         if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
@@ -4455,6 +4467,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if message.guild == None:
                 return
 
+            if message.guild.me.guild_permissions.administrator:
+                return
+
             gbans = self.bot.db['banned']
 
             if f'{message.author.id}' in list(gbans.keys()) or f'{message.guild.id}' in list(gbans.keys()):
@@ -4550,6 +4565,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         if message.author.id == self.bot.user.id:
+            return
+
+        if message.guild.me.guild_permissions.administrator:
             return
 
         found = False
