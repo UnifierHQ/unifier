@@ -860,20 +860,60 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @tasks.loop(seconds=300)
     async def changestatus(self):
-        status_messages = [
-            ["playing","with the API"],
-            ["listening","my own code"],
-            ["playing","with commands"],
-            ["watching","the matrix"],
-            ["playing","with emojis"],
-            ["watching","webhooks"],
-            ["custom","Unifying servers like they're nothing"],
-            ["custom","Communities, connected."],
-            ["custom","Made for communities, by communities"],
-            ["custom", "it's unifying time"],
-            ["custom", "Made with \u2764\ufe0f by UnifierHQ"]
-        ]
-        new_stat = random.choice(status_messages)
+        dt = datetime.datetime.now(datetime.timezone.utc)
+        month = dt.month
+        status_messages = {
+            'regular': [
+                ["playing", "with the API"],
+                ["listening", "my own code"],
+                ["playing", "with commands"],
+                ["watching", "the matrix"],
+                ["playing", "with emojis"],
+                ["watching", "webhooks"],
+                ["custom", "Unifying servers like they're nothing"],
+                ["custom", "Communities, connected."],
+                ["custom", "Made for communities, by communities"],
+                ["custom", "it's unifying time"],
+                ["custom", "Made with \u2764\ufe0f by UnifierHQ"]
+            ],
+            'spooky': [
+                ["custom", "PUMP, IT IS DA SPOOKEH MONTH"],
+                ["custom", "ooooOOOOOOOooooo"],
+                ["custom", "spooky scary skeletons"],
+                ["custom", "no it's not christmas season yet"],
+                ["custom", "WARNING: messages may be haunted"]
+            ],
+            'christmas': [
+                ["custom", "ho ho ho"],
+                ["listening", "All I Want For Christmas Is You"],
+                ["playing", "with snow"],
+                ["watching", "a snowman"],
+                ["custom", "waiting for santa"],
+                ["custom", f"preparing for {dt.year + 1}"]
+                ["custom": "Fun fact: Unifier was born on Dec 20"]
+            ]
+        }
+
+        bounds = {
+            'spooky': {
+                'min': 10,
+                'max': 10
+            },
+            'christmas': {
+                'min': 12,
+                'max': 12
+            }
+        }
+
+        option = 'regular'
+
+        for key in bounds.keys():
+            bound = bounds[key]
+            if bound['min'] <= month <= bound['max']:
+                option = key
+                break
+
+        new_stat = random.choice(status_messages[option])
         if new_stat[0] == "watching":
             await self.bot.change_presence(activity=nextcord.Activity(
                 type=nextcord.ActivityType.watching, name=new_stat[1]
