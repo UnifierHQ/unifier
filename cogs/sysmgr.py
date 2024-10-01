@@ -889,8 +889,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 ["playing", "with snow"],
                 ["watching", "a snowman"],
                 ["custom", "waiting for santa"],
-                ["custom", f"preparing for {dt.year + 1}"]
-                ["custom": "Fun fact: Unifier was born on Dec 20"]
+                ["custom", f"preparing for {dt.year + 1}"],
+                ["custom", "Fun fact: Unifier was born on Dec 20"]
             ]
         }
 
