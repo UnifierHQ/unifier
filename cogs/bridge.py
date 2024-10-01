@@ -1206,6 +1206,10 @@ class UnifierBridge:
         return sum(results)
 
     async def make_friendly(self, text, server=None, image_markdown=False):
+        # Replace onboarding channel with placeholders
+        text = text.replace('<id:customize>','#Channels & Roles')
+
+        # Replace emoji with URL if text contains solely an emoji
         if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
             try:
                 emoji_name = text.split(':')[1]
@@ -1217,6 +1221,7 @@ class UnifierBridge:
             except:
                 pass
 
+        # Replace mentions with placeholders (handles both user and role mentions)
         components = text.split('<@')
         offset = 0
         if text.startswith('<@'):
@@ -1253,6 +1258,7 @@ class UnifierBridge:
                     f'<@!{userid}>', f'@{display_name}')
             offset += 1
 
+        # Replace channel mentions with placeholders
         components = text.split('<#')
         offset = 0
         if text.startswith('<#'):
@@ -1273,6 +1279,7 @@ class UnifierBridge:
                 f'<#!{channelid}>', f'#{channel.name}')
             offset += 1
 
+        # Replace static emojis with placeholders
         components = text.split('<:')
         offset = 0
         if text.startswith('<:'):
@@ -1289,6 +1296,7 @@ class UnifierBridge:
                 pass
             offset += 1
 
+        # Replace animated emojis with placeholders
         components = text.split('<a:')
         offset = 0
         if text.startswith('<a:'):
@@ -3883,6 +3891,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not type(message.channel) is nextcord.TextChannel:
             return
         if message.content.startswith(f'{self.bot.command_prefix}system'):
+            return
+        if message.guild.me.guild_permissions.administrator:
             return
         extbridge = False
         hook = None
