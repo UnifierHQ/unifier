@@ -46,7 +46,7 @@ reports_channel = -1
 moderator_role = -1
 
 [bridge]
-external = ["revolt", "guilded"]
+external = ["revolt", "guilded"] # To be removed in a future update.
 use_multicore = true
 allow_posts = false
 enable_exp = false
