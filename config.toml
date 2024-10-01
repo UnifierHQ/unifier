@@ -55,6 +55,7 @@ existence_wait = 0
 enable_emoji_tags = false
 enable_ctx_commands = true
 enable_rotating_status = true
+enable_seasonal_status = true # Rotating status must be enabled for this to have any effect.
 enable_safety_alerts = false
 safe_filetypes = true
 suppress_filesize_warning = false

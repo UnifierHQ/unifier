@@ -907,11 +907,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         option = 'regular'
 
-        for key in bounds.keys():
-            bound = bounds[key]
-            if bound['min'] <= month <= bound['max']:
-                option = key
-                break
+        if self.bot.config['enable_seasonal_status']:
+            for key in bounds.keys():
+                bound = bounds[key]
+                if bound['min'] <= month <= bound['max']:
+                    option = key
+                    break
 
         new_stat = random.choice(status_messages[option])
         if new_stat[0] == "watching":
