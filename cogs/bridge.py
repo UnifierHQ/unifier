@@ -1214,8 +1214,9 @@ class UnifierBridge:
         return sum(results)
 
     async def make_friendly(self, text, server=None, image_markdown=False):
-        # Replace onboarding channel with placeholders
+        # Replace community channels with placeholders
         text = text.replace('<id:customize>','#Channels & Roles')
+        text = text.replace('<id:browse>', '#Browse Channels')
 
         # Replace emoji with URL if text contains solely an emoji
         if (text.startswith('<:') or text.startswith('<a:')) and text.endswith('>'):
