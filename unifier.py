@@ -296,6 +296,7 @@ class DiscordBot(commands.Bot):
         super().__init__(*args, **kwargs)
         self.__ready = False
         self.__update = False
+        self.__b_update = False
         self.__config = None
         self.__boot_config = None
         self.__safemode = None
@@ -365,6 +366,16 @@ class DiscordBot(commands.Bot):
         if self.__update:
             raise RuntimeError('Update lock is set')
         self.__update = update
+
+    @property
+    def b_update(self):
+        return self.__b_update
+
+    @b_update.setter
+    def b_update(self, update):
+        if self.__b_update:
+            raise RuntimeError('Update lock is set')
+        self.__b_update = update
 
     @property
     def safemode(self):

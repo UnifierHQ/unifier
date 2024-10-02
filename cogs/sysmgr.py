@@ -703,8 +703,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed = nextcord.Embed(color=self.bot.colors.warning)
 
         if restart:
-            embed.title = f'{self.bot.ui_emojis.warning} Restart the bot?'
-            embed.description = 'The bot will automatically restart in 60 seconds.'
+            if self.bot.b_reboot:
+                embed.title = f'{self.bot.ui_emojis.error} Can\'t restart bot'
+                embed.description = 'The bootloader was upgraded. Please fully shut down the bot and start it again.'
+                return await ctx.send(embed=embed)
+            else:
+                embed.title = f'{self.bot.ui_emojis.warning} Restart the bot?'
+                embed.description = 'The bot will automatically restart in 60 seconds.'
         else:
             embed.title = f'{self.bot.ui_emojis.warning} Shut the bot down?'
             embed.description = 'The bot will automatically shut down in 60 seconds.'
@@ -1769,7 +1774,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('update_check/update.json', 'r') as file:
                     new = json.load(file)
                 if new['release'] > current['release'] or force:
-                    available.append([new['version'], 'Release version', new['release'], -1, new['reboot']])
+                    available.append(
+                        [new['version'], 'Release version', new['release'], -1, new['reboot'], new['b_reboot']]
+                    )
                 index = 0
                 for legacy in new['legacy']:
                     if (
@@ -1779,7 +1786,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 ) or force
                             )
                     ):
-                        available.append([legacy['version'], 'Legacy version', legacy['release'], index, legacy['reboot']])
+                        available.append(
+                            [legacy['version'], 'Legacy version', legacy['release'], index, legacy['reboot'], legacy['b_reboot']]
+                        )
                     index += 1
                 update_available = len(available) >= 1
             except:
@@ -1812,6 +1821,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 version = available[selected][0]
                 legacy = available[selected][3] > -1
                 reboot = available[selected][4]
+                b_reboot = available[selected][5]
                 embed.title = f'{self.bot.ui_emojis.install} {selector.get("available_title")}'
                 embed.description = selector.fget('available_body',values={
                     'current_ver':current['version'],'current_rel':current['release'],'new_ver':version,'new_rel':release
@@ -1821,8 +1831,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if legacy:
                     should_reboot = reboot >= (current['legacy'] if 'legacy' in current.keys() and
                                                type(current['legacy']) is int else -1)
+                    should_b_reboot = b_reboot >= (current['legacy'] if 'legacy' in current.keys() and
+                                                   type(current['legacy']) is int else -1)
                 else:
                     should_reboot = reboot >= current['release']
+                    should_b_reboot = b_reboot >= current['release']
                 if should_reboot:
                     embed.set_footer(text=selector.get("reboot_required"))
                 selection = nextcord.ui.StringSelect(
@@ -2144,7 +2157,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.bot.update = True
                     self.logger.info('Upgrade complete, reboot required')
                     embed.title = f'{self.bot.ui_emojis.success} {selector.get("restart_title")}'
-                    embed.description = selector.get("restart_body")
+                    if should_b_reboot:
+                        self.bot.b_update = True
+                        embed.description = 'The upgrade was successful. Please shut down the bot and start it again.'
+                    else:
+                        embed.description = selector.get("restart_body")
                     embed.colour = self.bot.colors.success
                     await msg.edit(embed=embed)
                 else:
