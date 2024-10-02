@@ -127,7 +127,7 @@ class TokenStore:
         ivs = {'test': None}
 
         test_value, test_iv = self.__encryptor.encrypt(str.encode(
-            'This can be anything, as long as it is a string. Otherwise, except decryption test to fail.'
+            'This can be anything, as long as it is a string. Otherwise, expect decryption test to fail.'
         ), password, salt)
 
         encrypted_env['test'] = base64.b64encode(test_value).decode('ascii')
@@ -196,6 +196,9 @@ class TokenStore:
         if not identifier in self.tokens:
             raise KeyError('token does not exist')
 
+        if identifier == 'test':
+            raise ValueError('cannot replace token, this is needed for password verification')
+
         encrypted, iv = self.__encryptor.encrypt(str.encode(token), self.__password, self.__salt)
         self.__data.update({identifier: base64.b64encode(encrypted).decode('ascii')})
         self.__ivs.update({identifier: iv})
@@ -208,6 +211,9 @@ class TokenStore:
 
         if not identifier in self.tokens:
             raise KeyError('token does not exist')
+
+        if identifier == 'test':
+            raise ValueError('cannot delete token, this is needed for password verification')
 
         del self.__data[identifier]
         del self.__ivs[identifier]
