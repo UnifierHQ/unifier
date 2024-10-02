@@ -31,6 +31,7 @@ import traceback
 import threading
 import shutil
 import filecmp
+import datetime
 from utils import log, secrets
 from pathlib import Path
 
@@ -447,6 +448,49 @@ print(asciiart)
 print('Version: '+vinfo['version'])
 print('Release '+str(vinfo['release']))
 print()
+dt = datetime.datetime.now()
+
+seasonal_strings = {
+    1: {
+        1: f'\U0001F973 {dt.year} is here! Happy new year!'
+    },
+    2: {
+        14: f'\U0001F49D Happy Valentine\'s Day!',
+        15: None
+    },
+    4: {
+        1: f'\U0001F608 time to get a lil mischievous hehe',
+        2: None
+    },
+    5: {
+        13: f'\U0001F914 Apparently it\'s Discord\'s birthday today.',
+        14: None
+    },
+    10: {
+        1: f'\U0001F383 ooooOOOOOooooo (ghost says: happy spooktober)'
+    },
+    11: {
+        1: f'\U0001F9CA the defrosting has begun. \x1b[1mstart running.\x1b[0m'
+    },
+    12: {
+        1: f'\U0001F384 Merry Christmas and a happy new year!',
+        20: f'\U0001F382 Happy birthday to the Unifier project!',
+        21: f'\U0001F384 Merry Christmas and a happy new year!'
+    }
+}
+
+seasonal_string = seasonal_strings.get(dt.month, None)
+if seasonal_string:
+    string_key = 1
+    for key in seasonal_string.keys():
+        if key > dt.day:
+            break
+        string_key = key
+
+    to_print = seasonal_string.get(string_key, None)
+    if to_print:
+        print(to_print)
+        print()
 
 @bot.event
 async def on_ready():
