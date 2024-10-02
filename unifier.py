@@ -206,7 +206,7 @@ if 'allow_prs' in list(data.keys()) and not 'allow_posts' in list(data.keys()):
     logger.warning('From v1.2.4, allow_prs is deprecated. Use allow_posts instead.')
 
 if 'external' in list(data.keys()):
-    logger.warning('From v3.2.9, external is deprecated. To disable a platform, please uninstall the support plugin.')
+    logger.warning('From v3.3.0, external is deprecated. To disable a platform, please uninstall the support plugin.')
 
 if 'token' in list(data.keys()):
     logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
