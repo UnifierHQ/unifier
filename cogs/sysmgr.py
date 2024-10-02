@@ -372,6 +372,8 @@ class CommandExceptionHandler:
                 await ctx.send(f'{self.bot.ui_emojis.error} Your account or this server is currently global banned. Run `{self.bot.command_prefix}standing` for more info.')
             elif isinstance(error, restrictions.UnderAttack):
                 await ctx.send(f'{self.bot.ui_emojis.error} This server is in Under Attack mode. Some functionality is unavailable.')
+            elif isinstance(error, restrictions.TooManyPermissions):
+                await ctx.send(f'{self.bot.ui_emojis.error} The bot should never have `{error}` permissions, please remove it.')
             elif isinstance(error, commands.CheckFailure):
                 await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
             elif isinstance(error, commands.CommandOnCooldown):

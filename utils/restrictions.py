@@ -131,7 +131,9 @@ class Restrictions:
 
     def no_admin_perms(self):
         async def predicate(ctx: commands.Context):
-            return not ctx.guild.me.guild_permissions.administrator
+            if ctx.guild.me.guild_permissions.administrator:
+                raise self.TooManyPermissions('Administrator')
+            return True
 
         return commands.check(predicate)
 
