@@ -1074,11 +1074,11 @@ class UnifierBridge:
                     else:
                         support = self.__bot.platforms[platform]
                         try:
-                            guild = support.get_server(int(guild_id))
+                            guild = support.get_server(guild_id)
                             if not guild:
                                 raise Exception()
                         except:
-                            guild = await support.fetch_server(int(guild_id))
+                            guild = await support.fetch_server(guild_id)
                     online += len(list(
                         filter(lambda x: (x.status != nextcord.Status.offline and x.status != nextcord.Status.invisible),
                                guild.members)))
