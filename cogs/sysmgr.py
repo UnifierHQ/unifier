@@ -705,7 +705,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         embed = nextcord.Embed(color=self.bot.colors.warning)
 
         if restart:
-            if self.bot.b_reboot:
+            if self.bot.b_update:
                 embed.title = f'{self.bot.ui_emojis.error} Can\'t restart bot'
                 embed.description = 'The bootloader was upgraded. Please fully shut down the bot and start it again.'
                 return await ctx.send(embed=embed)
