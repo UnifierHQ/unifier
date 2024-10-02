@@ -39,6 +39,7 @@ class Encryptor:
         pass
 
     def encrypt(self, encoded, password, salt):
+        """Encrypts a given bytes object."""
         __key = PBKDF2(password, salt, dkLen=32)
 
         iv = CryptoRandom.get_random_bytes(16)
@@ -49,6 +50,7 @@ class Encryptor:
         return result, base64.b64encode(iv).decode('ascii')
 
     def decrypt(self, encrypted, password, salt, iv_string):
+        """Decrypts a given encrypted bytes object."""
         iv = base64.b64decode(iv_string)
         __key = PBKDF2(password, salt, dkLen=32)
         __cipher = AES.new(__key, AES.MODE_CBC, iv=iv)
