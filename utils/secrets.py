@@ -20,7 +20,9 @@ import os
 import json
 import base64
 import traceback
+import string
 from dotenv import load_dotenv
+from Crypto.Random import random
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
 from Crypto import Random as CryptoRandom
@@ -127,7 +129,7 @@ class TokenStore:
         ivs = {'test': None}
 
         test_value, test_iv = self.__encryptor.encrypt(str.encode(
-            'This can be anything, as long as it is a string. Otherwise, expect decryption test to fail.'
+            ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(16)])
         ), password, salt)
 
         encrypted_env['test'] = base64.b64encode(test_value).decode('ascii')
@@ -237,6 +239,13 @@ class TokenStore:
     def save(self, filename, iv_filename):
         if not self.__is_encrypted:
             raise ValueError('cannot save unencrypted data')
+
+        test_value, test_iv = self.__encryptor.encrypt(str.encode(
+            ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(16)])
+        ), self.__password, self.__salt)
+
+        self.__data['test'] = base64.b64encode(test_value).decode('ascii')
+        self.__ivs['test'] = test_iv
 
         with open(filename, 'w+') as file:
             # noinspection PyTypeChecker
