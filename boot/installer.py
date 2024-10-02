@@ -29,24 +29,10 @@ from utils import secrets
 
 install_option = sys.argv[1] if len(sys.argv) > 1 else None
 
-install_options = [
-    {
-        'id': 'optimized',
-        'name': '\U000026A1 Optimized',
-        'description': 'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.',
-        'default': True,
-        'prefix': '',
-        'color': '\x1b[35'
-    },
-    {
-        'id': 'stable',
-        'name': '\U0001F48E Stable',
-        'description': 'Uses the latest stable Nextcord version without performance optimizations for best stability.',
-        'default': False,
-        'prefix': 'stable',
-        'color': '\x1b[32'
-    }
-]
+with open('boot/internal.json') as file:
+    internal = json.load(file)
+
+install_options = internal['options']
 
 if not install_option:
     for option in install_options:
@@ -61,9 +47,6 @@ bot = commands.Bot(
 
 user_id = 0
 server_id = 0
-
-with open('boot/internal.json') as file:
-    internal = json.load(file)
 
 if sys.version_info.minor < internal['required_py_version']:
     print(f'\x1b[31;49mCannot install {internal["product_name"]}. Python 3.{internal["required_py_version"]} or later is required.\x1b[0m')

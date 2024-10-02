@@ -28,28 +28,6 @@ depinstall = '--install-deps' in sys.argv
 manage_tokens = '--tokens' in sys.argv
 clear_tokens = '--clear-tokens' in sys.argv
 
-install_options = [
-    {
-        'id': 'optimized',
-        'name': '\U000026A1 Optimized',
-        'description': (
-            'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.\n'+
-            'Note: Due to an issue with Nextcord, this option temporarily uses the latest stable Nextcord version.'
-        ),
-        'default': True,
-        'prefix': '',
-        'color': '\x1b[35'
-    },
-    {
-        'id': 'stable',
-        'name': '\U0001F48E Stable',
-        'description': 'Uses the latest stable Nextcord version without performance optimizations for best stability.',
-        'default': False,
-        'prefix': 'stable',
-        'color': '\x1b[32'
-    }
-]
-
 if os.getcwd().endswith('/boot'):
     print('\x1b[31;1mYou are running the bootloader directly. Please run the run.sh file instead.\x1b[0m')
     sys.exit(1)
@@ -57,6 +35,7 @@ if os.getcwd().endswith('/boot'):
 with open('boot/internal.json') as file:
     internal = json.load(file)
 
+install_options = internal['options']
 
 boot_config = {}
 try:
