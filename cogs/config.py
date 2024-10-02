@@ -367,6 +367,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 for search_room in search_roomlist:
                     # yes, this logic is messy.
                     # but it doesn't overwrite the origin server thing so i'm keeping it for now
+                    if not search_filter(query,search_room):
+                        continue
                     if private:
                         if not self.bot.db['rooms'][search_room]['meta']['private']:
                             continue
