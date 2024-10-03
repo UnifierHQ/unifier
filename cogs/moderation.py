@@ -173,8 +173,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send(selector.get("self_target"))
         except:
             userid = target
-            if not len(userid) == 26:
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_user_or_server","commons.moderation")}')
         disclose = False
         if reason.startswith('-disclose'):
             reason = reason.replace('-disclose','',1)
