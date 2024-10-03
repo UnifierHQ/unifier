@@ -983,7 +983,7 @@
         "any": "Enter something...",
         "welcome_title": "Welcone to Unifier",
         "welcome_body": "Welcome to Unifier - an open source, fast, and versatile bridge bot.",
-        "welcome_continue": "First, let's choose your language, so we can get your Unifier set up and running!",
+        "welcome_continue": "First, let's choose your system language, so we can get your Unifier set up and running!",
         "welcome_upgraded": "An upgraded installation was detected. If you've used this Unifier instance before, press \"Skip\".",
         "prefix_title": "Command prefix",
         "prefix_body": "A prefix is the text that comes before the command. For example, if the prefix is `!`, users will need to run `!command`.",
