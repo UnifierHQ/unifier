@@ -44,6 +44,8 @@ class LanguageManager:
 
     @property
     def languages(self):
+        if not self.__loaded:
+            raise RuntimeError('language not loaded, run LanguageManager.load()')
         return ['english']+list(self.__language_custom.keys())
 
     def load(self):
@@ -76,6 +78,22 @@ class LanguageManager:
 
     def get_user_language(self, user):
         return self.__bot.db['languages'].get(f'{user}','english')
+
+    def get_language_meta(self, language):
+        if language == 'english':
+            return {
+                'language': self.__language_base['language'],
+                'language_english': self.__language_base['language_english'],
+                'emoji': self.__language_base['emoji'],
+                'author': self.__language_base['author']
+            }
+        else:
+            return {
+                'language': self.__language_custom[language]['language'],
+                'language_english': self.__language_custom[language]['language_english'],
+                'emoji': self.__language_custom[language]['emoji'],
+                'author': self.__language_custom[language]['author']
+            }
 
     def desc(self, parent):
         return self.get('description',parent)
