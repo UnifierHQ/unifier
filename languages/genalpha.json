@@ -1,0 +1,199 @@
+{
+  "language": "ohioskibidigyatt",
+  "language_english": "Gen Alpha language (we're sorry)",
+  "emoji": "\ud83e\udd2a",
+  "author": "Green",
+  "note": "what the hell am i doing with my life...",
+  "strings": {
+    "commons": {
+      "navigation": {
+        "back": "Bruh",
+        "cancel": "Cap",
+        "nevermind": "Noob",
+        "prev": "Reverse yeet",
+        "next": "Yeet",
+        "accept": "Skibidi",
+        "reject": "Cringe",
+        "timeout": "just put the fries in the bag bro",
+        "double_confirm": "STOP YAPPING"
+      },
+      "search": {
+        "search": "Simp",
+        "search_results": "Simping for: {query} (**{results}** pookies)",
+        "page": "Mewing session {page} of {maxpage}",
+        "result_count": "{lower}-{upper} of {total} pookies",
+        "search_title": "Simp...",
+        "query": "Simp query",
+        "query_prompt": "Simp for someone..."
+      },
+      "interaction": {
+        "invalid_message": "stop the cap, message is invalid",
+        "timeout": "just put the fries in the bag bro",
+        "banned": "your account or server is edging, L",
+        "not_found": "cache got no drip",
+        "cancel": "L",
+        "mod_unexpected": "no global moderator? negative aura points :speaking_head::fire:"
+      },
+      "moderation": {
+        "warning": "Yapping session",
+        "ban": "Edge",
+        "warnings": "Yapping sessions",
+        "bans": "Edges",
+        "invalid_user": "stop the cap, user is invalid",
+        "invalid_user_or_server": "stop the cap, user/server is invalid",
+        "invalid_duration": "nah we aint mewing for this duration :skull:",
+        "reason": "Reason",
+        "context": "Context",
+        "sender_id": "Sigma ID",
+        "room": "Tea room",
+        "message_id": "Tea ID",
+        "reporter_id": "Snitch ID",
+        "delete": "Delete tea",
+        "deleted": "Original tea deleted",
+        "mod_immunity": "cringe",
+        "admin_immunity": "cringe",
+        "warn_title": "you've been yapped on by {moderator}",
+        "ban_title": "...yeah no i'm not gonna say that",
+        "offending_message": "not-so-skibidi message",
+        "actions_taken": "Ls taken",
+        "appeal_title": "too much brain rot?",
+        "appeal_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`.\n\n...also please go back to english while you're at it"
+      },
+      "rooms": {
+        "invalid": "this room is not one of the many rizzlers in `{prefix}rooms`"
+      }
+    },
+    "sysmgr": {
+      "help": {
+        "description": "shows a list of skibidi commands in your area",
+        "title": "{botname} brain rot",
+        "search_nav": "simp",
+        "no_desc": "no gyatt provided",
+        "choose_cmd": "Choose a command to view its info!",
+        "noresults_title": "that's not skibidi",
+        "noresults_body_search": "There are no commands matching your search query.",
+        "noresults_body_ext": "There are no commands in this extension.",
+        "selection_cmd": "Command...",
+        "cmd_name": "command rizz",
+        "cmd_desc": "command gyatt",
+        "aliases": "Aliases",
+        "usage": "Usage",
+        "search_prompt": "Type a command..."
+      },
+      "uptime": {
+        "description": "Shows bot uptime.",
+        "title": "{botname} uptime",
+        "body": "The bot has been up since <t:{unix}:f>.",
+        "total_title": "Total uptime",
+        "total_body": "`{days}` days, `{hours}` hours, `{minutes}` minutes, `{seconds}` seconds",
+        "disconnects": "Disconnects/hr"
+      },
+      "about": {
+        "developers": "true sigmas",
+        "profile_pic": "the alpha",
+        "source_code": "View source code",
+        "oss_attrib": "Open source attribution",
+        "license": "{license} license",
+        "repo_link": "Source code"
+      }
+    },
+    "config": {
+      "bind": {
+        "description": "makes the channel have skibidi rizz",
+        "check_title": "Checking if channel has skibidi rizz...",
+        "check_body": "We're checking if this channel is already rizzed up. Give us a moment...",
+        "already_linked_title": "erm what the sigma",
+        "already_linked_body": "This channel already has skibidi rizz, it's connected with `{room}`!\nRun `{prefix}unbind {room}` to replace it with L rizz",
+        "join_title": "Grant {roomname} skibidi rizz?",
+        "disclaimer": "Failure to follow room rules may result in user or server restrictions. We're serious - please take it easy with the skibidi toilets if moderators ask you to.",
+        "accept": "W rizz",
+        "success": "the skibidi rizz is real"
+      },
+      "rooms": {
+        "description": "shows a list of the rizzlers",
+        "title": "{botname} rizzlers",
+        "title_private": "{botname} lowkey rizzlers",
+        "body": "choose a rizzler, each one hits different",
+        "selection_room": "Rizzler...",
+        "no_desc": "This rizzler has no gyatt, how the f-",
+        "noresults_title": "that's not skibidi",
+        "noresults_body_search": "There are no rooms matching your search query.",
+        "noresults_body_room": "There's no rooms here!",
+        "choose_room": "Choose a room to view its info!",
+        "room_name": "Room name",
+        "room_desc": "Room description",
+        "show_all": "Show all rooms",
+        "hide_inaccessible": "Hide inaccessible rooms",
+        "statistics": "Statistics",
+        "servers": "{count} servers",
+        "online": "{count} online",
+        "members": "{count} members",
+        "messages": "{count} messages sent today",
+        "rules_nav": "rules",
+        "view_rules": "View room rules",
+        "no_rules": "The room admins haven't added rules for this room yet.\nThough, do remember to use common sense and refrain from doing things that you shouldn't do."
+      },
+      "servers": {
+        "description": "Lists all sigmas connected to a given room.",
+        "title": "Sigmas connected to `{room}`"
+      },
+      "avatar": {
+        "no_avatar": "bro got no drip, use `{prefix}avatar <url>` to set one",
+        "custom_avatar": "nice drip, you can always use `{prefix}avatar <url>` to change it, or run `{prefix}avatar remove` to remove it",
+        "default_avatar": "ok drip, you can always use `{prefix}avatar <url>` to set a custom one",
+        "title": "drip scanner 69420",
+        "success_unset": "you removed your drip, that's not skibidi is it",
+        "success_set": "bro got the drip"
+      }
+    },
+    "moderation": {
+      "warn": {
+        "description": "Yap to a user.",
+        "warned": "yapped to user",
+        "success": "user fell victim to your yapping",
+        "success_nodm": "user has the yap repellent L"
+      },
+      "ban": {
+        "description": "\ud83d\ude33",
+        "no_reason": "no reason given",
+        "self_target": "well i guess you can do that...just irl",
+        "already_banned": "User/server already...yeah no",
+        "offending": "Offending message",
+        "actions_taken": "Ls taken",
+        "appeal_title": "too much brain rot?",
+        "appeal_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`.\n\n...also please go back to english while you're at it"
+        "recently_banned": "A user was recently banned from Unifier!",
+        "success": "when the edge \ud83d\ude33"
+      }
+    },
+    "badge": {
+      "roles": {
+        "owner": "a **true skibidi sigma**",
+        "admin": "a **skibidi sigma**",
+        "moderator": "a **yapper**",
+        "trusted": "**THE GOAT**",
+        "banned": "\ud83d\ude33",
+        "user": "a **sigma**"
+      },
+      "badge": {
+        "description": "Shows your Unifier user badge.",
+        "body": "{mention} is {role}.",
+        "easter_egg": "sticking out your gyatt for the rizzler~"
+      },
+      "verify": {
+        "success": "**@{user}** is now a goated",
+        "failed": "**@{user}** is already goated (W)"
+      },
+      "unverify": {
+        "success": "**@{user}** is no longer goated, womp womp",
+        "failed": "**@{user}** is not goated (L)"
+      }
+    },
+    "setup": {
+      "setup_menu": {
+        "welcome_body": "Welcome to Unifier - a very skibidi and goated bridge bot",
+        "welcome_continue": "WARNING: DO NOT SET THIS AS YOUR SYSTEM LANGUAGE UNLESS YOU ARE INTO BRAINROT, PLEASE I'M BEGGING YOU GO BACK WHILE YOU STILL CAN"
+      }
+    }
+  }
+}
