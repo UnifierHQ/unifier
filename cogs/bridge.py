@@ -2659,6 +2659,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @restrictions.not_banned_guild()
     async def color(self,ctx,*,color=''):
         selector = language.get_selector(ctx)
+
         if color=='':
             try:
                 current_color = self.bot.db['colors'][f'{ctx.author.id}']
@@ -3045,7 +3046,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await ctx.send(selector.get('disabled'))
 
         if ctx.guild.id in self.bot.db['underattack']:
-            return await ctx.send(f'{self.bot.ui_emojis.error} This server is in Under Attack mode. Some functionality is unavailable.')
+            raise restrictions.UnderAttack()
 
         found = False
         room = None
