@@ -70,7 +70,7 @@ class LanguageManager:
                     continue
                 if not language.endswith('.json'):
                     continue
-                with open(f'languages/{language}.json', 'r') as file:
+                with open(f'languages/{language}', 'r') as file:
                     new_lang = json.load(file)
                 self.__language_custom.update({language[:-5]: new_lang})
             self.__language_set = self.__bot.config['language']

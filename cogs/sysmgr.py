@@ -729,7 +729,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             ),
             nextcord.ui.Button(
                 style=nextcord.ButtonStyle.gray,
-                label=selector.rawget('nevermind','sysmgr.install'),
+                label=selector.rawget('nevermind','commons.navigation'),
                 custom_id='cancel'
             )
         )

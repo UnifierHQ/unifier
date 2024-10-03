@@ -144,7 +144,6 @@
         "select": "Select restart mode...",
         "success_title": "Shutting down...",
         "success_body": "The bot is shutting down.",
-        "success_restart": "Bot will now shut down.",
         "rsuccess_title": "Restarting...",
         "rsuccess_body": "Bot will now restart.",
         "failed_title": "Shutdown failed",
@@ -877,10 +876,6 @@
         "warning": "Warning #{id}",
         "ban": "Ban #{id}",
         "success": "Your account standing has been DMed to you."
-      },
-      "servers": {
-        "description": "Lists all servers connected to a given room.",
-        "title": "Servers connected to `{room}`"
       },
       "identify": {
         "description": "Identifies the origin of a message.",
