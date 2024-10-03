@@ -144,7 +144,6 @@
         "select": "Select restart mode...",
         "success_title": "Shutting down...",
         "success_body": "The bot is shutting down.",
-        "success_restart": "Bot will now shut down.",
         "rsuccess_title": "Restarting...",
         "rsuccess_body": "Bot will now restart.",
         "failed_title": "Shutdown failed",
