@@ -216,7 +216,7 @@
         "bridge_platform_desc": "Modifier가 Unifier Bridge 외부 플랫폼 지원을 제공할 수 있어요.",
         "emojis_title": "이모지",
         "emojis_desc": "Modifier에 이모지팩이 있어요. 설치 후 `{prefix}uiemojis {plugin_id}`를 실행해서 이모지팩을 활성화할 수 있어요.",
-        "unknown_desc": "미지의 서비스에요. 도대체 무엇일까..."
+        "unknown_desc": "미지의 서비스에요. 도대체 무엇일까요..."
       },
       "uninstall": {
         "description": "Modifier를 제거해요.",
