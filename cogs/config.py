@@ -1932,7 +1932,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 disabled=False
             ),
             nextcord.ui.Button(
-                style=nextcord.ButtonStyle.gray, label=selector.get("cancel","commons.navigation"), custom_id='cancel',
+                style=nextcord.ButtonStyle.gray, label=selector.rawget("cancel","commons.navigation"), custom_id='cancel',
                 disabled=False
             )
         )
