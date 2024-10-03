@@ -47,7 +47,8 @@ import asyncio
 import discord_emoji
 import hashlib
 import orjson
-import tomli, tomli_w
+import tomli
+import tomli_w
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
 from Crypto import Random as CryptoRandom
@@ -330,55 +331,57 @@ class CommandExceptionHandler:
         self.logger = log.buildlogger(self.bot.package, 'exc_handler', self.bot.loglevel)
 
     async def handle(self, ctx, error):
+        selector = language.get_selector('sysmgr.error_handler', userid=ctx.author.id)
         try:
             if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, restrictions.CustomMissingArgument):
                 cmdname = ctx.command.name
                 cmd = self.bot.get_command(cmdname)
                 embed = nextcord.Embed(color=self.bot.colors.unifier)
-                embed.title = (
-                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cmdname}'
-                )
+
+                helptext = selector.rawget("title", "sysmgr.help", values={"botname": self.bot.user.global_name or self.bot.user.name})
+
+                embed.title = f'{self.bot.ui_emojis.command} {helptext} / {cmdname}'
                 embed.description = (
-                    f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
+                    f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else selector.rawget("no_desc","sysmgr.help")}'
                 )
                 if len(cmd.aliases) > 0:
                     aliases = []
                     for alias in cmd.aliases:
                         aliases.append(f'`{self.bot.command_prefix}{alias}`')
                     embed.add_field(
-                        name='Aliases', value='\n'.join(aliases) if len(aliases) > 1 else aliases[0], inline=False
+                        name=selector.rawget("aliases","sysmgr.help"), value='\n'.join(aliases) if len(aliases) > 1 else aliases[0], inline=False
                     )
                 embed.add_field(name='Usage', value=(
                     f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(
                         cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                                 )
                 if isinstance(error, commands.MissingRequiredArgument):
-                    await ctx.send(f'{self.bot.ui_emojis.error} `{error.param}` is a required argument.',embed=embed)
+                    await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("argument",values={"arg": error.param})}',embed=embed)
                 else:
                     await ctx.send(f'{self.bot.ui_emojis.error} {error}', embed=embed)
             elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.BotMissingPermissions):
                 await ctx.send(f'{self.bot.ui_emojis.error} {error}')
             elif isinstance(error, commands.NoPrivateMessage):
-                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in servers.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("servers_only")}')
             elif isinstance(error, commands.PrivateMessageOnly):
-                await ctx.send(f'{self.bot.ui_emojis.error} You can only run this command in DMs.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dms_only")}')
             elif isinstance(error, restrictions.NoRoomManagement):
-                await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to manage this room.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_room_management")}')
             elif isinstance(error, restrictions.NoRoomJoin):
-                await ctx.send(f'{self.bot.ui_emojis.error} Your server does not have permissions to join this room.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_room_join")}')
             elif isinstance(error, restrictions.UnknownRoom):
-                await ctx.send(f'{self.bot.ui_emojis.error} This room does not exist. Run `{self.bot.command_prefix}rooms` for a full list of rooms.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawfget("invalid","commons.rooms",values={"prefix": self.bot.command_prefix})}')
             elif isinstance(error, restrictions.GlobalBanned):
-                await ctx.send(f'{self.bot.ui_emojis.error} Your account or this server is currently global banned. Run `{self.bot.command_prefix}standing` for more info.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("banned",values={"prefix": self.bot.command_prefix})}')
             elif isinstance(error, restrictions.UnderAttack):
-                await ctx.send(f'{self.bot.ui_emojis.error} This server is in Under Attack mode. Some functionality is unavailable.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("under_attack")}')
             elif isinstance(error, restrictions.TooManyPermissions):
-                await ctx.send(f'{self.bot.ui_emojis.error} The bot should never have `{error}` permissions, please remove it.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("too_many_perms",values={"permission": error})}')
             elif isinstance(error, commands.CheckFailure):
-                await ctx.send(f'{self.bot.ui_emojis.error} You do not have permissions to run this command.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("permissions")}')
             elif isinstance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
-                await ctx.send(f'{self.bot.ui_emojis.error} You\'re on cooldown. Try again in **{t // 60}** minutes and **{t % 60}** seconds.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("cooldown",values={"min":t//60,"sec":t%60})}')
             else:
                 error_tb = traceback.format_exc()
                 self.logger.exception('An error occurred!')
@@ -388,11 +391,11 @@ class CommandExceptionHandler:
                         ui.ActionRow(
                             nextcord.ui.Button(
                                 style=nextcord.ButtonStyle.gray,
-                                label='View error'
+                                label=selector.get("view")
                             )
                         )
                     )
-                msg = await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.',
+                msg = await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("unexpected")}',
                                      view=view)
 
                 def check(interaction):
@@ -409,7 +412,7 @@ class CommandExceptionHandler:
                         ui.ActionRow(
                             nextcord.ui.Button(
                                 style=nextcord.ButtonStyle.gray,
-                                label='View error',
+                                label=selector.get("view"),
                                 disabled=True
                             )
                         )
@@ -421,7 +424,7 @@ class CommandExceptionHandler:
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='View error',
+                            label=selector.get("view"),
                             disabled=True
                         )
                     )
@@ -431,10 +434,10 @@ class CommandExceptionHandler:
                 try:
                     await interaction.response.send_message(f'```\n{error_tb}```',ephemeral=True)
                 except:
-                    await interaction.response.send_message('Could not send traceback.', ephemeral=True)
+                    await interaction.response.send_message(selector.get("tb_sendfail"), ephemeral=True)
         except:
             self.logger.exception('An error occurred!')
-            await ctx.send(f'{self.bot.ui_emojis.error} An unexpected error occurred while running this command.')
+            await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("handler_error")}')
 
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
@@ -700,33 +703,33 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await script.check(self.bot)
 
     async def bot_shutdown(self, ctx, restart=False):
-        selector = language.get_selector(ctx)
+        selector = language.get_selector('sysmgr.shutdown', userid=ctx.author.id)
 
         embed = nextcord.Embed(color=self.bot.colors.warning)
 
         if restart:
             if self.bot.b_update:
-                embed.title = f'{self.bot.ui_emojis.error} Can\'t restart bot'
-                embed.description = 'The bootloader was upgraded. Please fully shut down the bot and start it again.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("restart_locked_title")}'
+                embed.description = selector.get('restart_locked_body')
                 return await ctx.send(embed=embed)
             else:
-                embed.title = f'{self.bot.ui_emojis.warning} Restart the bot?'
-                embed.description = 'The bot will automatically restart in 60 seconds.'
+                embed.title = f'{self.bot.ui_emojis.warning} {selector.get("restart_title")}'
+                embed.description = selector.get('restart_body')
         else:
-            embed.title = f'{self.bot.ui_emojis.warning} Shut the bot down?'
-            embed.description = 'The bot will automatically shut down in 60 seconds.'
+            embed.title = f'{self.bot.ui_emojis.warning} {selector.get("shutdown_title")}'
+            embed.description = selector.get('shutdown_body')
 
         components = ui.MessageComponents()
 
         btns_row = ui.ActionRow(
             nextcord.ui.Button(
                 style=nextcord.ButtonStyle.red,
-                label='Restart' if restart else 'Shut down',
+                label=selector.get('restart') if restart else selector.get('shutdown'),
                 custom_id='shutdown'
             ),
             nextcord.ui.Button(
                 style=nextcord.ButtonStyle.gray,
-                label='Nevermind',
+                label=selector.rawget('nevermind','sysmgr.install'),
                 custom_id='cancel'
             )
         )
@@ -738,25 +741,25 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 nextcord.SelectOption(
                     default=True,
                     value='normal',
-                    label='Normal restart',
-                    description='Restarts the bot normally.',
+                    label=selector.get('normal_title'),
+                    description=selector.get('normal_desc'),
                     emoji=self.bot.ui_emojis.success
                 ),
                 nextcord.SelectOption(
                     value='safemode',
-                    label='Safemode restart',
-                    description='Restarts the bot in safemode with all Plugins disabled.',
+                    label=selector.get('safemode_title'),
+                    description=selector.get('safemode_desc'),
                     emoji=self.bot.ui_emojis.safety
                 ),
                 nextcord.SelectOption(
                     value='core',
-                    label='Coreboot restart',
-                    description='Restarts the bot in coreboot with all Plugins and most system extensions disabled.',
+                    label=selector.get('core_title'),
+                    description=selector.get('core_desc'),
                     emoji=self.bot.ui_emojis.gear
                 )
             ]
             selection = nextcord.ui.StringSelect(
-                placeholder='Select restart mode...',
+                placeholder=selector.get('select'),
                 max_values=1,
                 min_values=1,
                 custom_id='selection',
@@ -796,7 +799,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             options[index].default = False
 
                     selection = nextcord.ui.StringSelect(
-                        placeholder='Select restart mode...',
+                        placeholder=selector.get('select'),
                         max_values=1,
                         min_values=1,
                         custom_id='selection',
@@ -818,7 +821,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         try:
             if not self.bot.coreboot:
                 if self.bot.bridge.backup_running:
-                    self.logger.info('Waiting for backups to complete...(Press Ctrl+C to abort)')
+                    self.logger.info('Waiting for backups to complete...(Press Ctrl+C to force stop)')
                     try:
                         while self.bot.bridge.backup_running:
                             await asyncio.sleep(1)
@@ -832,21 +835,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await self.bot.bridge.backup(limit=10000)
                 self.logger.info("Backup complete")
             if restart:
-                embed.title = f'{self.bot.ui_emojis.success} Restarting...'
-                embed.description = 'Bot will now restart.'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("rsuccess_title")}'
+                embed.description = selector.get('rsuccess_body')
             else:
-                embed.title = f'{self.bot.ui_emojis.success} Shutting down...'
-                embed.description = 'Bot will now shut down.'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("shutdown_title")}'
+                embed.description = selector.get('success_body')
             embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
         except:
             self.logger.exception("Graceful shutdown failed")
             if restart:
-                embed.title = f'{self.bot.ui_emojis.error} Restart failed'
-                embed.description = 'The restart failed.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("rfailed_title")}'
+                embed.description = selector.get('rfailed_body')
             else:
-                embed.title = f'{self.bot.ui_emojis.error} Shutdown failed'
-                embed.description = 'The shutdown failed.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed_title")}'
+                embed.description = selector.get('failed_body')
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
             return
@@ -921,6 +924,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     option = key
                     break
 
+        if len(self.bot.config['custom_status_messages']) > 0:
+            status_messages['regular'] = self.bot.config['custom_status_messages']
+
         new_stat = random.choice(status_messages[option])
         if new_stat[0] == "watching":
             await self.bot.change_presence(activity=nextcord.Activity(
@@ -965,7 +971,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         except:
             return
         try:
-            config_text, config_iv = await self.encrypt(orjson.dumps(self.bot.config), __pass, __salt)
+            x = open('config.toml','r',encoding='utf-8')
+            contents = x.read()
+            x.close()
+            config_text, config_iv = await self.encrypt(str.encode(contents), __pass, __salt)
             data_text, data_iv = await self.encrypt(orjson.dumps(self.bot.db), __pass, __salt)
         except:
             self.logger.exception('An error occurred!')
@@ -1068,7 +1077,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         try:
             if 'bot.token' in body or 'dotenv' in body or '.env' in body or 'environ' in body or 'tokenstore' in body:
-                return await ctx.send(f'{self.bot.ui_emojis.error} You cannot use this phrase.')
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("phrase_blocked")}')
             exec(to_compile, env)
         except:
             pass
@@ -1090,7 +1099,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             value = await self.bot.loop.run_in_executor(None, lambda: stdout.getvalue())
             await ctx.send(f'{self.bot.ui_emojis.error} ' + selector.get('error'), reference=ctx.message)
             if token_start in value:
-                return await ctx.author.send(selector.get('blocked'))
+                return await ctx.author.send(selector.get('output_blocked'))
             await ctx.author.send(f'```py\n{value}{traceback.format_exc()}\n```')
         else:
             exec_time = round(time.time() - tstart, 4)
@@ -1098,9 +1107,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if token_start in value:
                 return await ctx.send(f'{self.bot.ui_emojis.error} ' + selector.get('blocked'))
             if value == '':
-                await ctx.send(f'{self.bot.ui_emojis.success} Evaluation completed in `{exec_time}` seconds.')
+                await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"exec_time": exec_time})}')
             else:
-                await ctx.send(f'{self.bot.ui_emojis.success} Evaluation completed in `{exec_time}` seconds.\n```\n{value}```')
+                await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"exec_time": exec_time})}\n```\n{value}```')
 
     @commands.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions.owner()
@@ -1389,14 +1398,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return await ctx.send('Command unavailable in devmode')
         selector = language.get_selector(ctx)
         if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+            return await ctx.send(selector.rawget('locked','commons.plugins'))
 
         if url.endswith('/'):
             url = url[:-1]
         if not url.endswith('.git'):
             url = url + '.git'
         embed = nextcord.Embed(title=f'{self.bot.ui_emojis.loading} {selector.get("downloading_title")}', description=selector.get("downloading_body"))
-        embed.set_footer(text='Only install Modifiers from trusted sources!')
+        embed.set_footer(text=selector.get("trust"))
         msg = await ctx.send(embed=embed)
         try:
             try:
@@ -1408,16 +1417,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('plugin_install/plugin.json', 'r') as file:
                 new = json.load(file)
             if not bool(re.match("^[a-z0-9_-]*$", new['id'])):
-                embed.title = f'{self.bot.ui_emojis.error} Invalid plugin.json file'
-                embed.description = 'Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("alphanumeric_title")}'
+                embed.description = selector.get("alphanumeric_body")
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
             if new['id']+'.json' in os.listdir('plugins'):
                 with open('plugins/'+new['id']+'.json', 'r') as file:
                     current = json.load(file)
-                embed.title = f'{self.bot.ui_emojis.error} Plugin already installed'
-                embed.description = f'This plugin is already installed!\n\nName: `{current["name"]}`\nVersion: `{current["version"]}`'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("exists_title")}'
+                embed.description = selector.fget("exists_body", values={"name": current["name"], "version": current["version"]})
                 embed.colour = self.bot.colors.error
                 await msg.edit(embed=embed)
                 return
@@ -1443,8 +1452,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 vinfo = json.load(file)
 
             if vinfo['release'] < minimum:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
-                embed.description = f'Your Unifier does not support this plugin. Release `{minimum}` or later is required.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.fget('unsupported', values={'minimum': minimum})
                 embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
 
@@ -1469,13 +1478,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             try:
                 await self.bot.loop.run_in_executor(None, lambda: status(os.system('git --version')))
             except:
-                embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
-                embed.description = 'Git is not installed.'
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                embed.description = selector.rawget("git","commons.navigation")
                 embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
 
-            embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
-            embed.description = 'The repository URL or the plugin.json file is invalid.'
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+            embed.description = selector.get('invalid_repo')
             embed.colour = self.bot.colors.error
             return await msg.edit(embed=embed)
 
@@ -1486,56 +1495,44 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         services_text = ''
         for service in services:
             if service=='content_protection':
-                text = (
-                    ':shield: **Content protection**\n'+
-                    'The plugin will be able to analyze messages for malicious content, as well as ban users if '+
-                    'necessary. Non-permanent bans are reset on Bridge reload.'
-                )
+                text = f':shield: **{selector.get("content_protection_title")}**\n{selector.get("content_protection_desc")}'
             elif service=='content_processing':
-                text = (
-                    ':art: **Content stylizing**\n'+
-                    'The plugin will be able to modify message content and author information before bridging to '+
-                    'other servers.'
-                )
+                text = f':art: **{selector.get("content_processing_title")}**\n{selector.get("content_processing_desc")}'
             elif service=='bridge_platform':
-                text = (
-                    ':handshake: **Bridge platform support**\n'+
-                    'The plugin will be able to provide native Unifier Bridgesupport for an external platform.'
-                )
-                if not nups_platform or nups_platform.lower()=='meta':
-                    embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
-                    embed.description = 'The plugin provided an invalid platform name.'
+                text = f':handshake: **{selector.get("bridge_platform_title")}**\n{selector.get("bridge_platform_desc")}'
+                if not nups_platform or nups_platform.lower()=='meta' or not bool(re.match("^[a-z0-9_-]*$", nups_platform.lower())):
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                    embed.description = selector.get("invalid_platform")
                     embed.colour = self.bot.colors.error
                     return await msg.edit(embed=embed)
             elif service=='emojis':
                 text = (
-                    ':joy: **Emojis**\n'+
-                    'The plugin contains an emoji pack which will be installed onto the bot. You can enable the pack '+
-                    f'using `{self.bot.command_prefix}uiemojis {plugin_id}`.'
+                    f':joy: **{selector.get("emojis_title")}**\n'+
+                    selector.fget("emojis_desc",values={'prefix': self.bot.command_prefix, 'plugin_id':plugin_id})
                 )
                 with open('plugin_install/emoji.json', 'r') as file:
                     emojipack = json.load(file)
                 emojis = len(emojipack['emojis'].keys())
                 home_guild = self.bot.get_guild(self.bot.config['home_guild'])
                 if emojis > home_guild.emoji_limit - len(home_guild.emojis):
-                    embed.title = f'{self.bot.ui_emojis.error} Failed to install plugin'
-                    embed.description = f'Your home server does not have enough emoji slots available. {emojis} is required, but you only have {home_guild.emoji_limit - len(home_guild.emojis)}.'
+                    embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+                    embed.description = selector.fget("no_emoji_slots", values={"required": emojis, "available": home_guild.emoji_limit - len(home_guild.emojis)})
                     embed.colour = self.bot.colors.error
                     return await msg.edit(embed=embed)
             else:
-                text = f':grey_question: `{service}`\n This is an unknown service.'
+                text = f':grey_question: `{service}`\n{selector.get("unknown_desc")}'
             if len(services_text)==0:
                 services_text = text
             else:
                 services_text = f'{services_text}\n\n{text}'
 
         embed.add_field(
-            name='Services',
+            name=selector.get("services"),
             value=services_text
         )
         btns = ui.ActionRow(
-            nextcord.ui.Button(style=nextcord.ButtonStyle.green, label='Install', custom_id=f'accept', disabled=False),
-            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+            nextcord.ui.Button(style=nextcord.ButtonStyle.green, label=selector.get("install"), custom_id=f'accept', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=selector.rawget("nevermind", "commons.navigation"), custom_id=f'reject', disabled=False)
         )
         components = ui.MessageComponents()
         components.add_row(btns)
@@ -1628,16 +1625,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     self.bot.load_extension(modname)
                 except:
                     self.logger.warning(modname + ' could not be activated.')
-                    embed.set_footer(text=':warning: Some extensions could not be activated.')
+                    embed.set_footer(text=f':warning: {selector.get("load_failed")}')
             self.logger.debug('Installation complete')
-            embed.title = f'{self.bot.ui_emojis.success} Installation successful'
-            embed.description = 'The installation was successful! :partying_face:'
+            embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+            embed.description = selector.get("success_body")
             embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
         except:
             self.logger.exception('Install failed')
-            embed.title = f'{self.bot.ui_emojis.error} Installation failed'
-            embed.description = 'The installation failed.'
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("postfail_title")}'
+            embed.description = selector.get("postfail_body")
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
             return
@@ -1650,27 +1647,29 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not ctx.author.id == self.bot.config['owner']:
             return
 
+        selector = language.get_selector(ctx)
+
         if self.bot.update:
-            return await ctx.send('Plugin management is disabled until restart.')
+            return await ctx.send(selector.rawget('locked','commons.plugins'))
 
         plugin = plugin.lower()
         if plugin=='system':
-            return await ctx.send('System plugin cannot be uninstalled!')
-        embed = nextcord.Embed(title='placeholder', description='This will uninstall all of the plugin\'s files. This cannot be undone!')
+            return await ctx.send(selector.get("system"))
+        embed = nextcord.Embed(title='placeholder', description=selector.get("warning"))
         embed.colour = 0xffcc00
         try:
             with open('plugins/' + plugin + '.json') as file:
                 plugin_info = json.load(file)
         except:
-            embed.title = f'{self.bot.ui_emojis.error} Plugin not found'
-            embed.description = 'The plugin could not be found.'
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("notfound_title")}'
+            embed.description = selector.get("notfound_body")
             embed.colour = self.bot.colors.error
             await ctx.send(embed=embed)
             return
-        embed.title = f'{self.bot.ui_emojis.install} Uninstall plugin `'+plugin_info['id']+'`?'
+        embed.title = selector.fget("question", values={"plugin": plugin_info['id']})
         btns = ui.ActionRow(
-            nextcord.ui.Button(style=nextcord.ButtonStyle.red, label='Uninstall', custom_id=f'accept', disabled=False),
-            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label='Nevermind', custom_id=f'reject', disabled=False)
+            nextcord.ui.Button(style=nextcord.ButtonStyle.red, label=selector.get("uninstall"), custom_id=f'accept', disabled=False),
+            nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=selector.rawget("nevermind", "commons.navigation"), custom_id=f'reject', disabled=False)
         )
         components = ui.MessageComponents()
         components.add_row(btns)
@@ -1716,14 +1715,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await self.preunload(modname)
                     self.bot.unload_extension(modname)
             self.logger.debug('Uninstallation complete')
-            embed.title = f'{self.bot.ui_emojis.success} Uninstallation successful'
-            embed.description = 'The plugin was successfully uninstalled.'
+            embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+            embed.description = selector.get("success_body")
             embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
         except:
             self.logger.exception('Uninstall failed')
-            embed.title = f'{self.bot.ui_emojis.error} Uninstallation failed'
-            embed.description = 'The uninstallation failed.'
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("postfail_title")}'
+            embed.description = selector.get("postfail_body")
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
             return
@@ -1777,7 +1776,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     new = json.load(file)
                 if new['release'] > current['release'] or force:
                     available.append(
-                        [new['version'], 'Release version', new['release'], -1, new['reboot'], new['b_reboot']]
+                        [new['version'], selector.get("latest"), new['release'], -1, new['reboot'], new['b_reboot']]
                     )
                 index = 0
                 for legacy in new['legacy']:
@@ -1789,7 +1788,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             )
                     ):
                         available.append(
-                            [legacy['version'], 'Legacy version', legacy['release'], index, legacy['reboot'], legacy['b_reboot']]
+                            [legacy['version'], selector.get("legacy"), legacy['release'], index, legacy['reboot'], legacy['b_reboot']]
                         )
                     index += 1
                 update_available = len(available) >= 1
@@ -1799,7 +1798,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await self.bot.loop.run_in_executor(None, lambda: status(os.system('git --version')))
                 except:
                     embed.title = f'{self.bot.ui_emojis.error} {selector.get("checkfail_title")}'
-                    embed.description = 'Git is not installed.'
+                    embed.description = selector.rawget("git","commons.navigation")
                     embed.colour = self.bot.colors.error
                     return await msg.edit(embed=embed)
 
@@ -1807,7 +1806,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = selector.get("checkfail_body")
 
                 if not clone_success:
-                    embed.description = 'Git clone failed, check console'
+                    embed.description = selector.get('clonefail_body')
 
                 embed.colour = self.bot.colors.error
                 return await msg.edit(embed=embed)
@@ -2161,7 +2160,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.title = f'{self.bot.ui_emojis.success} {selector.get("restart_title")}'
                     if should_b_reboot:
                         self.bot.b_update = True
-                        embed.description = 'The upgrade was successful. Please shut down the bot and start it again.'
+                        embed.description = selector.get("shutdown_body")
                     else:
                         embed.description = selector.get("restart_body")
                     embed.colour = self.bot.colors.success
@@ -2177,7 +2176,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             self.bot.reload_extension(cog)
                         except:
                             self.logger.warning(cog+' could not be reloaded.')
-                            embed.set_footer(text=':warning: Some extensions could not be reloaded.')
+                            embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
                     if self.bot.uses_v3:
                         await self.bot.sync_application_commands(update_known=False, delete_unknown=False)
                     self.logger.info('Updating localization')
@@ -2209,7 +2208,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 except:
                     self.logger.exception('Rollback failed')
                     self.logger.critical(
-                        'The rollback failed. Visit https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier/manual-rollback for recovery steps.')
+                        'The rollback failed. Visit https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier/manual-rollback for recovery steps.'
+                    )
                     embed.description = selector.get("rollback_fail")
                 await msg.edit(embed=embed)
                 return
@@ -2277,7 +2277,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.colour = 0xffcc00
             btns = ui.ActionRow(
                 nextcord.ui.Button(style=nextcord.ButtonStyle.green, label=selector.get("upgrade"), custom_id=f'accept', disabled=False),
-                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=selector.rawfget("nevermind","sysmgr.install"), custom_id=f'reject', disabled=False)
+                nextcord.ui.Button(style=nextcord.ButtonStyle.gray, label=selector.rawfget("nevermind","commons.navigation"), custom_id=f'reject', disabled=False)
             )
             components = ui.MessageComponents()
             components.add_row(btns)
@@ -2446,7 +2446,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             self.bot.reload_extension(modname)
                         except:
                             self.logger.warning(modname+' could not be reloaded.')
-                            embed.set_footer(text=':warning: Some extensions could not be reloaded.')
+                            embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
                 self.logger.debug('Upgrade complete')
                 embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                 embed.description = selector.get("success_body")
@@ -2488,10 +2488,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     # noinspection PyTypeChecker
                     json.dump(data, file, indent=2)
                 self.bot.ui_emojis = Emojis(data=data)
-                await ctx.send(f'{self.bot.ui_emojis.success} Emoji pack {emojipack} activated.')
+                await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("activated",values={"emojipack":emojipack})}')
             except:
                 self.logger.exception('An error occurred!')
-                await ctx.send(f'{self.bot.ui_emojis.error} Could not activate emoji pack.')
+                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("error")}')
 
     @commands.command(description=language.desc('sysmgr.help'))
     async def help(self,ctx,query=None):
@@ -2534,6 +2534,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         elif ctx.author.id == self.bot.config['owner']:
             permissions = 'owner'
 
+        helptext = selector.fget("title", values={"botname": self.bot.user.global_name or self.bot.user.name})
+
         while True:
             embed = nextcord.Embed(color=self.bot.colors.unifier)
             maxpage = 0
@@ -2545,15 +2547,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if interaction:
                     if page > maxpage:
                         page = maxpage
-                embed.title = f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help'
-                embed.description = 'Choose an extension to get started!'
+                embed.title = f'{self.bot.ui_emojis.command} {helptext}'
+                embed.description = selector.get("choose_ext")
                 selection = nextcord.ui.StringSelect(
                     max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
                 )
 
                 selection.add_option(
-                    label='All commands',
-                    description='Shows commands from all extensions.',
+                    label=selector.get("all_title"),
+                    description=selector.get("all_body"),
                     value='all'
                 )
 
@@ -2563,13 +2565,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         break
                     cog = self.bot.cogs[list(self.bot.cogs)[index]]
                     ext = list(self.bot.extensions)[index]
+                    extname = ext.replace('cogs.','',1)
+
                     if not ext in extlist:
                         continue
                     if not cog.description:
-                        description = 'No description provided'
+                        description = selector.get("no_desc")
                     else:
                         split = False
                         description = cog.description
+
+                        try:
+                            description = selector.rawget('description', f'{extname}.cogmeta')
+                        except:
+                            pass
+
                         if '\n' in cog.description:
                             description = description.split('\n',1)[0]
                             split = True
@@ -2579,6 +2589,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             description = description + '\n...'
 
                     name = cog.qualified_name
+
+                    try:
+                        name = selector.rawget('name', f'{extname}.cogmeta')
+                    except:
+                        pass
+
                     parts = name.split(' ')
                     offset = 0
                     for i in range(len(parts)):
@@ -2611,21 +2627,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
+                            label=selector.rawget("prev","commons.navigation"),
                             custom_id='prev',
                             disabled=page <= 0,
                             emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Next',
+                            label=selector.rawget("next","commons.navigation"),
                             custom_id='next',
                             disabled=page >= maxpage,
                             emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label='Search',
+                            label=selector.rawget("search","commons.search"),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search
                         )
@@ -2675,31 +2691,31 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         offset += 1
 
                 embed.title = (
-                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cogname}' if not cogname == '' else
-                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / all'
+                    f'{self.bot.ui_emojis.command} {helptext} / {cogname}' if not cogname == '' else
+                    f'{self.bot.ui_emojis.command} {helptext} / {selector.get("all")}'
                 )
-                embed.description = 'Choose a command to view its info!'
+                embed.description = selector.get("choose_cmd")
 
                 if len(cmds)==0:
                     maxpage = 0
                     embed.add_field(
-                        name='No commands',
+                        name=selector.get("noresults_title"),
                         value=(
-                            'There are no commands matching your search query.' if cogname=='search' else
-                            'There are no commands in this extension.'
+                            selector.get("noresults_body_search") if cogname=='search' else
+                            selector.get("noresults_body_ext")
                         ),
                         inline=False
                     )
                     selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Command...',disabled=True
+                        max_values=1, min_values=1, custom_id='selection', placeholder=selector.get("selection_cmd"),disabled=True
                     )
-                    selection.add_option(
-                        label='No commands'
-                    )
+
+                    # this doesn't need to be localized, as it's merely a placeholder and can't be selected
+                    selection.add_option(label='No commands')
                 else:
                     maxpage = math.ceil(len(cmds) / limit) - 1
                     selection = nextcord.ui.StringSelect(
-                        max_values=1, min_values=1, custom_id='selection', placeholder='Command...'
+                        max_values=1, min_values=1, custom_id='selection', placeholder=selector.get("selection_cmd")
                     )
 
                     cmds = await self.bot.loop.run_in_executor(
@@ -2714,27 +2730,37 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if index >= len(cmds):
                             break
                         cmd = cmds[index]
+
+                        cmddesc = cmd.description if cmd.description else selector.get("no_desc")
+
+                        try:
+                            cmddesc = selector.desc_from_all(cmd.qualified_name)
+                        except:
+                            pass
+                        
                         embed.add_field(
                             name=f'`{cmd.qualified_name}`',
-                            value=cmd.description if cmd.description else 'No description provided',
+                            value=cmddesc,
                             inline=False
                         )
                         selection.add_option(
                             label=cmd.qualified_name,
-                            description=(cmd.description if len(
-                                cmd.description
-                            ) <= 100 else cmd.description[:-(len(cmd.description) - 97)] + '...'
-                                         ) if cmd.description else 'No description provided',
+                            description=(cmddesc if len(cmddesc) <= 100 else cmddesc[:-(len(cmddesc) - 97)] + '...'),
                             value=cmd.qualified_name
                         )
 
                 if cogname=='search':
-                    embed.description = f'Searching: {query} (**{len(cmds)}** results)'
+                    embed.description = selector.rawfget("search_results", "commons.search", values={"query": query, "results": len(cmds)})
                     maxcount = (page+1)*limit
                     if maxcount > len(cmds):
                         maxcount = len(cmds)
                     embed.set_footer(
                         text=f'Page {page + 1} of {maxpage + 1} | {page*limit+1}-{maxcount} of {len(cmds)} results'
+                    )
+                    embed.set_footer(
+                        text=f'{selector.rawfget("page","commons.search",calues={"page":page+1,"maxpage":maxpage+1})}'+
+                             '|'+
+                             f'{selector.rawfget("result_count","commons.search",values={"lower":page*limit+1,"upper":maxcount,"total":len(cmds)})}'
                     )
 
                 components.add_row(
@@ -2747,21 +2773,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
+                            label=selector.rawget('prev','commons.navigation'),
                             custom_id='prev',
                             disabled=page <= 0,
                             emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Next',
+                            label=selector.rawget('next','commons.navigation'),
                             custom_id='next',
                             disabled=page >= maxpage,
                             emoji=self.bot.ui_emojis.next
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label='Search',
+                            label=selector.rawget('search','commons.search'),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search
                         )
@@ -2773,8 +2799,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             nextcord.ui.Button(
                                 custom_id='match',
                                 label=(
-                                    'Matches any of' if match==0 else
-                                    'Matches both'
+                                    selector.rawget('match_any','commons.search') if match==0 else
+                                    selector.rawget('match_both','commons.search')
                                 ),
                                 style=(
                                     nextcord.ButtonStyle.green if match==0 else
@@ -2787,12 +2813,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             ),
                             nextcord.ui.Button(
                                 custom_id='name',
-                                label='Command name',
+                                label=selector.get("cmd_name"),
                                 style=nextcord.ButtonStyle.green if namematch else nextcord.ButtonStyle.gray
                             ),
                             nextcord.ui.Button(
                                 custom_id='desc',
-                                label='Command description',
+                                label=selector.get("cmd_desc"),
                                 style=nextcord.ButtonStyle.green if descmatch else nextcord.ButtonStyle.gray
                             )
                         )
@@ -2801,7 +2827,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='Back',
+                            label=selector.rawget('back','commons.navigation'),
                             custom_id='back',
                             emoji=self.bot.ui_emojis.back
                         )
@@ -2813,24 +2839,30 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cogname} / {cmdname}' if not cogname=='' else
                     f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
                 )
-                embed.description =(
-                    f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else "No description provided"}'
-                )
+
+                cmddesc = cmd.description if cmd.description else selector.get("no_desc")
+
+                try:
+                    cmddesc = selector.desc_from_all(cmd.qualified_name)
+                except:
+                    pass
+
+                embed.description =f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmddesc}'
                 if len(cmd.aliases) > 0:
                     aliases = []
                     for alias in cmd.aliases:
                         aliases.append(f'`{self.bot.command_prefix}{alias}`')
                     embed.add_field(
-                        name='Aliases',value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
+                        name=selector.get("aliases"),value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
                     )
-                embed.add_field(name='Usage', value=(
+                embed.add_field(name=selector.get("usage"), value=(
                     f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                 )
                 components.add_rows(
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='Back',
+                            label=selector.rawget('back','commons.navigation'),
                             custom_id='back',
                             emoji=self.bot.ui_emojis.back
                         )
@@ -2838,7 +2870,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
 
             if not cogname=='search' and panel==1:
-                embed.set_footer(text=f'Page {page+1} of {maxpage+1}')
+                embed.set_footer(text=selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1}))
             if not msg:
                 msg = await ctx.send(embed=embed,view=components,reference=ctx.message,mention_author=False)
             else:
@@ -2877,12 +2909,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 elif interaction.data['custom_id'] == 'next':
                     page += 1
                 elif interaction.data['custom_id'] == 'search':
-                    modal = nextcord.ui.Modal(title='Search...',auto_defer=False)
+                    modal = nextcord.ui.Modal(title=selector.get('search_title','commons.search'),auto_defer=False)
                     modal.add_item(
                         nextcord.ui.TextInput(
-                            label='Search query',
+                            label=selector.rawget('query','commons.search'),
                             style=nextcord.TextInputStyle.short,
-                            placeholder='Type a command...'
+                            placeholder=selector.get("search_prompt")
                         )
                     )
                     await interaction.response.send_modal(modal)
@@ -2910,56 +2942,47 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(name='register-commands', hidden=True, description='Registers commands.')
     @restrictions.owner()
     async def register_commands(self, ctx, *, args=''):
+        selector = language.get_selector(ctx)
         if 'dereg' in args:
             await self.bot.delete_application_commands(*self.bot.get_all_application_commands())
-            return await ctx.send('gone, reduced to atoms (hopefully)')
+            return await ctx.send(selector.get("atoms"))
         await self.bot.sync_application_commands()
-        return await ctx.send('Registered commands to bot')
-
-    @commands.command(
-        name='fix-commands', hidden=True,
-        description='Fixes broken application commands. Does not fix standard text commands.'
-    )
-    @restrictions.owner()
-    async def fix_commands(self, ctx):
-        if not self.bot.uses_v3:
-            return await ctx.send('Your instance uses a Nextcord version older than v3, so this is not required.')
-        await self.bot.sync_application_commands(update_known=False, delete_unknown=False)
-        return await ctx.send('Fixed application commands')
+        return await ctx.send(selector.get("registered"))
 
     @commands.command(hidden=True, description='Views cloud backup status.')
     @restrictions.owner()
     async def cloud(self, ctx):
+        selector = language.get_selector(ctx)
         embed = nextcord.Embed(
-            title='Fetching backup...',description='Getting backup information from backup servers'
+            title=selector.get("fetching_title"),description=selector.get("fetching_body")
         )
-        embed.set_footer(text='All your backups are encrypted in transit and at rest.')
+        embed.set_footer(text=selector.get("encrypted"))
         rootmsg = await ctx.send(embed=embed)
         try:
             response = (await self.check_backup())['data']
         except:
-            embed.title = f'{self.bot.ui_emojis.error} Failed to fetch backup'
-            embed.description = 'The server did not respond or returned an invalid response.'
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("invalid_title")}'
+            embed.description = selector.get("invalid_body")
             embed.colour = self.bot.colors.error
             return await rootmsg.edit(embed=embed)
         if not response:
-            embed.title = f'{self.bot.ui_emojis.error} No backups'
-            embed.description = 'There\'s no backups yet.'
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("nobackup_title")}'
+            embed.description = selector.get("nobackup_body")
             return await rootmsg.edit(embed=embed)
 
-        embed.title = f'Backup info'
-        embed.description = f'Saved at: <t:{response["time"]}:F>'
+        embed.title = selector.get("info_title")
+        embed.description = selector.fget("backup_body",values={"unix":response["time"]})
         components = ui.MessageComponents()
         components.add_row(
             ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.blurple,
-                    label='Restore',
+                    label=selector.get("restore"),
                     custom_id='restore'
                 ),
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.gray,
-                    label='Cancel',
+                    label=selector.rawget("cancel","commons.navigation"),
                     custom_id='cancel'
                 )
             )
@@ -2977,11 +3000,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if interaction.data['custom_id']=='cancel':
             return await interaction.response.edit_message(view=None)
 
-        embed.title = f'{self.bot.ui_emojis.warning} Restore this backup?'
+        embed.title = f'{self.bot.ui_emojis.warning} {selector.get("question")}'
         embed.description = (
-            '- :arrow_down: config.json and data.json files will be downloaded from the backup server.\n'+
-            '- :wastebasket: Existing config.json and data.json files will be **overwritten**.\n'+
-            '- :warning: You **cannot** undo this operation.'
+            f'- :arrow_down: {selector.get("download")}\n'+
+            f'- :wastebasket: {selector.get("overwrite")}\n'+
+            f'- :warning: {selector.get("noundo")}'
         )
         await interaction.response.edit_message(embed=embed)
 
@@ -3004,26 +3027,30 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('data.json','w+') as file:
                 # noinspection PyTypeChecker
                 json.dump(data_restored, file, indent=2)
-            with open('config.json','w+') as file:
-                # noinspection PyTypeChecker
-                json.dump(config_restored, file, indent=2)
 
-            embed.title = f'{self.bot.ui_emojis.success} Restore completed'
-            embed.description = 'Please reboot the bot for the changes to take effect.'
+            x = open('config.toml','w+')
+            x.write(config_restored)
+            x.close()
+
+            self.bot.db.load_data()
+
+            embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+            embed.description = selector.get("success_body")
             embed.colour = self.bot.colors.success
             await rootmsg.edit(embed=embed)
         except:
             self.logger.exception('An error occurred!')
-            embed.title = f'{self.bot.ui_emojis.error} Restore failed'
-            embed.description = 'Data could not be restored. Please ensure your encryption password and salt is correct.'
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed_title")}'
+            embed.description = selector.get("failed_body")
             embed.colour = self.bot.colors.error
             await rootmsg.edit(embed=embed)
 
     @commands.command(description='Shows bot uptime.')
     async def uptime(self, ctx):
+        selector = language.get_selector(ctx)
         embed = nextcord.Embed(
-            title=f'{self.bot.user.global_name or self.bot.user.name} uptime',
-            description=f'The bot has been up since <t:{self.bot.ut_total}:f>.',
+            title=selector.fget("title",values={"botname":self.bot.user.global_name or self.bot.user.name}),
+            description=selector.fget("body",values={"unix":self.bot.ut_total}),
             color=self.bot.colors.unifier
         )
         t = round(time.time()) - self.bot.ut_total
@@ -3031,12 +3058,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         d = td.days
         h, m, s = str(td).split(',')[len(str(td).split(',')) - 1].replace(' ', '').split(':')
         embed.add_field(
-            name='Total uptime',
-            value=f'`{d}` days, `{int(h)}` hours, `{int(m)}` minutes, `{int(s)}` seconds',
+            name=selector.get("total_title"),
+            value=selector.fget("total_body",values={"days":d,"hours":int(h),"minutes":int(m),"seconds":int(s)}),
             inline=False
         )
         embed.add_field(
-            name='Disconnects/hr',
+            name=selector.get("disconnects"),
             value=f'{round(self.bot.disconnects / (t / 3600), 2)}',
             inline=False
         )
@@ -3044,6 +3071,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @commands.command(description='Shows bot info.')
     async def about(self, ctx):
+        selector = language.get_selector(ctx)
         attr_limit = 10
         page = 0
         maxpage = math.ceil(len(attribution.keys())/attr_limit)-1
@@ -3061,11 +3089,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if self.bot.user.id == 1187093090415149056:
                 embed = nextcord.Embed(
                     title="Unifier",
-                    description="Unify servers, make worthwhile conversations.",
+                    description=selector.get("slogan"),
                     color=self.bot.colors.unifier)
             else:
                 embed = nextcord.Embed(
-                    title=self.bot.user.name,
+                    title=self.bot.user.global_name or self.bot.user.name,
                     description="Powered by Unifier",
                     color=self.bot.colors.unifier
                 )
@@ -3075,15 +3103,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.set_footer(text="Unknown version | Made with \u2764\ufe0f by UnifierHQ")
 
             if not show_attr:
-                embed.add_field(name="Developers", value="@green.\n@itsasheer", inline=False)
+                embed.add_field(name=selector.get("developers"), value="@green.\n@itsasheer", inline=False)
                 if self.bot.user.id == 1187093090415149056:
-                    embed.add_field(name="PFP made by", value="@green.\n@thegodlypenguin", inline=False)
-                embed.add_field(name="View source code", value=self.bot.config['repo'], inline=False)
+                    embed.add_field(name=selector.get("profile_pic"), value="@green.\n@thegodlypenguin", inline=False)
+                embed.add_field(name=selector.get("source_code"), value=self.bot.config['repo'], inline=False)
                 view = ui.MessageComponents()
                 view.add_row(
                     ui.ActionRow(
                         nextcord.ui.Button(
-                            label='Open source attribution',
+                            label=selector.get("oss_attrib"),
                             style=nextcord.ButtonStyle.gray,
                             custom_id='attribution'
                         )
@@ -3104,8 +3132,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.add_field(
                         name=f'{list(attribution.keys())[index]} by {attr_data["author"]}',
                         value=(
-                                  f'{attr_data["description"]}\n[Source code]({attr_data["repo"]}) • '+
-                                  f'[{attr_data["license"]} license]({attr_data["license_url"]})'
+                                  f'{attr_data["description"]}\n[{selector.get("repo_link")}]({attr_data["repo"]}) • '+
+                                  f'[{selector.fget("license",values={"license": attr_data["license"]})}]({attr_data["license_url"]})'
                         ),
                         inline=False
                     )
@@ -3114,14 +3142,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Previous',
+                            label=selector.rawget("prev","commons.navigation"),
                             custom_id='prev',
                             disabled=page <= 0,
                             emoji=self.bot.ui_emojis.prev
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label='Next',
+                            label=selector.rawget("next","commons.navigation"),
                             custom_id='next',
                             disabled=page >= maxpage,
                             emoji=self.bot.ui_emojis.next
@@ -3130,13 +3158,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
-                            label='Back',
+                            label=selector.rawget("back","commons.navigation"),
                             custom_id='back',
                             emoji=self.bot.ui_emojis.back
                         )
                     )
                 )
                 embed.set_footer(text=f'Page {page+1} of {maxpage+1 if maxpage >= 1 else 1} | '+embed.footer.text)
+                embed.set_footer(text=selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1})+' | '+embed.footer.text)
                 await interaction.response.edit_message(embed=embed, view=view)
 
             def check(interaction):

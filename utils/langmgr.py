@@ -52,6 +52,7 @@ class LanguageManager:
                 os.mkdir('languages')
 
             with open('languages/english.json', 'w+') as file:
+                # noinspection PyTypeChecker
                 json.dump(self.language_base, file, indent=4)
         if self.bot:
             for language in os.listdir('languages'):
@@ -67,6 +68,12 @@ class LanguageManager:
 
     def desc(self, parent):
         return self.get('description',parent)
+
+    def desc_from_all(self, command):
+        for key in self.language_base.keys():
+            if command in self.language_base[key].keys():
+                return self.get("description", f"{key}.{command}")
+        return None
 
     def get(self, string, parent: Union[commands.Context, str], default="[unknown string]", language=None):
         if not self.__loaded:

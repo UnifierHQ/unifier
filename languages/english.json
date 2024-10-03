@@ -8,6 +8,7 @@
       "navigation": {
         "back": "Back",
         "cancel": "Cancel",
+        "nevermind": "Nevermind",
         "prev": "Previous",
         "next": "Next",
         "accept": "Accept",
@@ -71,14 +72,33 @@
         "modlog_info_body": "This user has **{recent_warns}** recent warnings ({total_warns} in total) and **{recent_bans}** recent bans ({total_bans} in total) on record.",
         "appeal_title": "Did we make a mistake?",
         "appeal_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`."
+      },
+      "plugins": {
+        "locked": "Extensions and Modifier management is disabled until restart.",
+        "git": "Git is not installed."
+      },
+      "rooms": {
+        "invalid": "This room does not exist. Run `{prefix}rooms` for a full list of rooms."
       }
     },
     "sysmgr": {
+      "cogmeta": {
+        "name": ":wrench: System Manager",
+        "description": "An extension that oversees a lot of the bot system.\n\nDeveloped by Green"
+      },
       "error_handler": {
         "argument": "`{arg}` is a required argument.",
+        "servers_only": "You can only run this command in servers.",
+        "dms_only": "You can only run this command in DMs.",
+        "no_room_management": "You do not have permissions to manage this room.",
+        "no_room_join": "Your server does not have permissions to join this room.",
+        "banned": "Your account or this server is currently global banned. Run `{prefix}standing` for more info.",
+        "under_attack": "This server is in Under Attack mode. Some functionality is unavailable.",
+        "too_many_perms": "The bot should never have `{permission}` permissions, please remove it.",
         "permissions": "You do not have permissions to run this command.",
         "cooldown": "You're on cooldown. Try again in **{min}** minutes and **{sec}** seconds.",
         "unexpected": "An unexpected error occurred while running this command.",
+        "handler_error": "An unexpected error occurred while handling the error.",
         "view": "View error",
         "tb_sendfail": "Could not send traceback."
       },
@@ -92,14 +112,37 @@
       "eval": {
         "description": "Evaluates code.",
         "error": "An error occurred while executing the code.",
-        "blocked": "The error contained your bot's token, so it was not sent.",
-        "syntaxerror": "If this is a KeyError, it is most likely a SyntaxError.",
-        "nocode": "where code :thinking:"
+        "success": "Evaluation completed in `{exec_time}` seconds.",
+        "phrase_blocked": "You cannot use this phrase.",
+        "output_blocked": "The error contained your bot's token, so it was not sent.",
+        "syntaxerror": "If this is a KeyError, it is most likely a SyntaxError."
       },
       "shutdown": {
         "description": "Gracefully shuts the bot down.",
-        "success": "Shutting down...",
-        "failed": "Shutdown failed"
+        "restart_locked_title": "Can't restart bot",
+        "restart_locked_body": "The bootloader was upgraded. Please fully shut down the bot and start it again.",
+        "restart_title": "Restart the bot?",
+        "restart_body": "The bot will automatically restart in 60 seconds.",
+        "shutdown_title": "Shut the bot down?",
+        "shutdown_body": "The bot will automatically shut down in 60 seconds.",
+        "restart": "Restart",
+        "shutdown": "Shut down",
+        "normal_title": "Normal restart",
+        "normal_desc": "Restarts the bot normally.",
+        "safemode_title": "Safemode restart",
+        "safemode_desc": "Restarts the bot in safemode with all Modifiers disabled.",
+        "core_title": "Coreboot restart",
+        "core_desc": "Restarts the bot in coreboot with all Modifiers and most system extensions disabled.",
+        "select": "Select restart mode...",
+        "success_title": "Shutting down...",
+        "success_body": "The bot is shutting down.",
+        "success_restart": "Bot will now shut down.",
+        "rsuccess_title": "Restarting...",
+        "rsuccess_body": "Bot will now restart.",
+        "failed_title": "Shutdown failed",
+        "failed_body": "The shutdown failed.",
+        "rfailed_title": "Restart failed",
+        "rfailed_body": "The restart failed."
       },
       "restart": {
         "description": "Gracefully restarts the bot."
@@ -121,7 +164,7 @@
       },
       "reload": {
         "description": "Reloads an extension.",
-        "disabled": "Plugin management is disabled until restart.",
+        "disabled": "Extensions and Modifier management is disabled until restart.",
         "in_progress": "Reloading extensions..."
       },
       "load": {
@@ -136,58 +179,64 @@
       },
       "install": {
         "description": "Installs a Modifier.",
-        "downloading_title": "Downloading extension...",
-        "downloading_body": "Getting extension files from remote",
+        "downloading_title": "Downloading Modifier...",
+        "downloading_body": "Getting Modifier files from remote",
         "trust": "Only install Modifiers from trusted sources!",
         "services": "Services",
         "install": "Install",
-        "nevermind": "Nevermind",
-        "question": "Install plugin `{plugin}`?",
+        "question": "Install Modifier `{plugin}`?",
         "plugin_info": "Name: `{name}`\nVersion: `{version}`\n\n{desc}",
         "success_title": "Installation successful",
         "success_body": "The installation was successful! :partying_face:",
         "postfail_title": "Installation failed",
         "postfail_body": "The installation failed.",
-        "failed": "Failed to install plugin",
+        "load_failed": "Some extensions could not be activated.",
+        "failed": "Failed to install Modifier",
         "alphanumeric_title": "Invalid plugin.json file",
-        "alphanumeric_body": "Plugin IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.",
-        "exists_title": "Plugin already installed",
-        "exists_body": "This plugin is already installed!\n\nName: `{name}`\nVersion: `{version}`",
-        "unsupported": "Your Unifier does not support this plugin. Release `{minimum}` or later is required.",
+        "alphanumeric_body": "Modifier IDs must be alphanumeric and may only contain lowercase letters, numbers, dashes, and underscores.",
+        "exists_title": "Modifier already installed",
+        "exists_body": "This Modifier is already installed!\n\nName: `{name}`\nVersion: `{version}`",
+        "unsupported": "Your Unifier does not support this Modifier. Release `{minimum}` or later is required.",
         "conflict": "Conflicting files were found:",
         "invalid_repo": "The repository URL or the plugin.json file is invalid.",
+        "invalid_platform": "The plugin provided an invalid platform name.",
         "no_emoji_slots": "Your home server does not have enough emoji slots available. {required} is required, but you only have {available}.",
         "content_protection_title": "Content protection",
-        "content_protection_desc": "The plugin will be able to analyze messages for malicious content, as well as ban users if necessary. Non-permanent bans are reset on Bridge reload.",
+        "content_protection_desc": "The Modifier will be able to analyze messages for malicious content, as well as ban users if necessary. Non-permanent bans are reset on Bridge reload.",
         "content_processing_title": "Content stylizing",
-        "content_processing_desc": "The plugin will be able to modify message content and author information before bridging to other servers.",
+        "content_processing_desc": "The Modifier will be able to modify message content and author information before bridging to other servers.",
+        "bridge_platform_title": "Bridge platform support",
+        "bridge_platform_desc": "The plugin will be able to provide native Unifier Bridgesupport for an external platform.",
         "emojis_title": "Emojis",
-        "emojis_desc": "The plugin contains an emoji pack which will be installed onto the bot. You can enable the pack using `{prefix}uiemojis {plugin_id}`.",
+        "emojis_desc": "The Modifier contains an emoji pack which will be installed onto the bot. You can enable the pack using `{prefix}uiemojis {plugin_id}`.",
         "unknown_desc": "This is an unknown service."
       },
       "uninstall": {
-        "description": "Uninstalls a plugin.",
-        "system": "System plugin cannot be uninstalled!",
-        "warning": "This will uninstall all of the plugin's files. This cannot be undone!",
-        "notfound_title": "Plugin not found",
-        "notfound_body": "The plugin could not be found.",
-        "question": "Uninstall plugin `{plugin}`?",
+        "description": "Uninstalls a Modifier.",
+        "system": "System Modifiers cannot be uninstalled!",
+        "warning": "This will uninstall all of the Modifier's files. This cannot be undone!",
+        "notfound_title": "Modifier not found",
+        "notfound_body": "The Modifier could not be found.",
+        "question": "Uninstall Modifier `{plugin}`?",
         "uninstall": "Uninstall",
         "success_title": "Uninstallation successful",
-        "success_body": "The plugin was successfully uninstalled.",
+        "success_body": "The Modifier was successfully uninstalled.",
         "postfail_title": "Uninstallation failed",
         "postfail_body": "The uninstallation failed."
       },
       "upgrade": {
-        "description": "Upgrades Unifier or a plugin.",
+        "description": "Upgrades Unifier or a Modifier.",
         "checking_title": "Checking for upgrades...",
         "checking_body": "Getting latest version from remote",
         "checkfail_title": "Failed to check for updates",
         "checkfail_body": "Could not find a valid update.json file on remote",
+        "clonefail_body": "Git clone failed, check console",
         "noupdates_title": "No updates available",
         "noupdates_body": "Unifier is up-to-date.",
         "available_title": "Update available",
         "available_body": "An update is available for Unifier!\n\nCurrent version: {current_ver} (`{current_rel}`)\nNew version: {new_ver} (`{new_rel}`)",
+        "latest": "Latest version",
+        "legacy": "Legacy version",
         "reboot_required": "The bot will need to reboot to apply the new update.",
         "version": "Select version...",
         "upgrade": "Upgrade",
@@ -216,14 +265,16 @@
         "success_rpossible": "To apply the changes, you may need to restart the bot.",
         "restart_title": "Restart to apply upgrade",
         "restart_body": "The upgrade was successful. Please restart the bot.",
-        "notfound_title": "Plugin not found",
-        "notfound_body": "The plugin could not be found.",
+        "shutdown_body": "The upgrade was successful. Please shut down the bot and start it again.",
+        "notfound_title": "Modifier not found",
+        "notfound_body": "The Modifier could not be found.",
         "hint_force": "**Hint**: If you're trying to force upgrade, run `{prefix}upgrade system force`",
-        "pnoupdates_title": "Plugin up to date",
-        "pnoupdates_body": "This plugin is already up to date!",
-        "pfailed": "Failed to update plugin",
-        "question": "Upgrade plugin `{plugin}`?",
-        "plugin_fail": "The upgrade failed."
+        "pnoupdates_title": "Modifier up to date",
+        "pnoupdates_body": "This Modifier is already up to date!",
+        "pfailed": "Failed to update Modifier",
+        "question": "Upgrade Modifier `{plugin}`?",
+        "plugin_fail": "The upgrade failed.",
+        "reload_warning": "Some extensions could not be reloaded."
       },
       "uiemojis": {
         "description": "Activates an emoji pack. Activating the \"base\" emoji pack resets emojis back to vanilla.",
@@ -249,10 +300,11 @@
         "cmd_name": "Command name",
         "cmd_desc": "Command description",
         "aliases": "Aliases",
-        "usage": "Usage"
+        "usage": "Usage",
+        "search_prompt": "Type a command..."
       },
       "forcereg": {
-        "description": "Registers commands.",
+        "description": "Registers commands. Only to be used when automatic registration fails.",
         "atoms": "gone, reduced to atoms (hopefully)",
         "registered": "Registered commands to bot"
       },
@@ -269,7 +321,7 @@
         "backup_body": "Saved at <:t{unix}:F>",
         "restore": "Restore",
         "question": "Restore this backup?",
-        "download": "config.json and data.json files will be downloaded from the backup server.",
+        "download": "config.toml and data.json files will be downloaded from the backup server.",
         "overwrite": "Existing config.json and data.json files will be **overwritten**.",
         "noundo": "You **cannot** undo this operation.",
         "success_title": "Restore completed",
@@ -287,6 +339,7 @@
       },
       "about": {
         "description": "Shows bot info.",
+        "slogan": "Communities, connected.",
         "developers": "Developers",
         "profile_pic": "PFP made by",
         "source_code": "View source code",
@@ -573,7 +626,7 @@
         "failed": "Something went wrong while submitting the report."
       },
       "serverstatus": {
-        "description": "Shows your server's plugin restriction status.",
+        "description": "Shows your server's Modifier restriction status.",
         "title": "Server status",
         "body_ok": "Your server is not restricted by Modifiers.",
         "body_restricted": "Your server is currently limited by a Modifier."
@@ -605,7 +658,7 @@
         "blocked_report_title": "Content blocked - content is as follows",
         "punished": "Punished user IDs",
         "involved": "{count} users involved",
-        "automated": "This is an automated action performed by a plugin, always double-check before taking action",
+        "automated": "This is an automated action performed by a Modifier, always double-check before taking action",
         "owner_immunity": "just as a fyi: this would have banned you",
         "ban_reason": "Automatic action carried out by security Modifiers",
         "cannot_appeal": "Unfortunately, this ban cannot be appealed using `{prefix}appeal`. You will need to ask moderators for help.",
