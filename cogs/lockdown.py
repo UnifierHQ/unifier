@@ -18,7 +18,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
+import json
+import os
+import importlib
 from utils import log, ui, langmgr, restrictions as r
+
+try:
+    import ujson as json  # pylint: disable=import-error
+except:
+    pass
 
 restrictions = r.Restrictions()
 language = langmgr.partial()
@@ -37,6 +45,41 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
         if not hasattr(self.bot, "locked"):
             self.bot.locked = False
         self.logger = log.buildlogger(self.bot.package,'admin',self.bot.loglevel)
+
+    async def preunload(self, extension):
+        """Performs necessary steps before unloading."""
+        info = None
+        plugin_name = None
+        if extension.startswith('cogs.'):
+            extension = extension.replace('cogs.','',1)
+        for plugin in os.listdir('plugins'):
+            if extension + '.json' == plugin:
+                plugin_name = plugin[:-5]
+                try:
+                    with open('plugins/' + plugin) as file:
+                        info = json.load(file)
+                except:
+                    continue
+                break
+            else:
+                try:
+                    with open('plugins/' + plugin) as file:
+                        info = json.load(file)
+                except:
+                    continue
+                if extension + '.py' in info['modules']:
+                    plugin_name = plugin[:-5]
+                    break
+        if not plugin_name:
+            return
+        if plugin_name == 'system':
+            return
+        if not info:
+            raise ValueError('Invalid plugin')
+        if not info['shutdown']:
+            return
+        script = importlib.import_module('utils.' + plugin_name + '_check')
+        await script.check(self.bot)
 
     @commands.command(hidden=True,aliases=['globalkill'],description=language.desc('lockdown.lockdown'))
     @restrictions.owner()
@@ -92,27 +135,6 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
             return await interaction.response.edit_message(view=components_cancel)
 
         self.logger.critical(f'Bot lockdown issued by {ctx.author.id}!')
-
-        try:
-            self.logger.info("Shutting down Revolt client...")
-            await self.bot.revolt_session.close()
-            del self.bot.revolt_client
-            del self.bot.revolt_session
-            self.bot.unload_extension('cogs.bridge_revolt')
-            self.logger.info("Revolt client has been shut down.")
-        except Exception as e:
-            if not isinstance(e, AttributeError):
-                self.logger.exception("Shutdown failed.")
-        try:
-            self.logger.info("Shutting down Guilded client...")
-            await self.bot.guilded_client.close()
-            self.bot.guilded_client_task.cancel()
-            del self.bot.guilded_client
-            self.bot.unload_extension('cogs.bridge_guilded')
-            self.logger.info("Guilded client has been shut down.")
-        except Exception as e:
-            if not isinstance(e, AttributeError):
-                self.logger.exception("Shutdown failed.")
         self.logger.info("Backing up message cache...")
         await self.bot.bridge.backup()
         self.logger.info("Backup complete")
@@ -124,6 +146,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
         self.bot.locked = True
         for cog in list(self.bot.extensions):
             if not cog=='cogs.lockdown':
+                await self.preunload(cog)
                 self.bot.unload_extension(cog)
         self.logger.info("Lockdown complete")
 
