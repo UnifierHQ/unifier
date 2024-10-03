@@ -1,5 +1,7 @@
 {
   "language": "English",
+  "language_english": "English",
+  "emoji": "\ud83c\uddec\ud83c\udde7",
   "author": "UnifierHQ",
   "release": 0,
   "minimum": 61,
@@ -983,8 +985,8 @@
         "any": "Enter something...",
         "welcome_title": "Welcone to Unifier",
         "welcome_body": "Welcome to Unifier - an open source, fast, and versatile bridge bot.",
-        "welcome_continue": "To continue with setup, press \"Next\".",
-        "welcome_upgraded": "An upgraded installation was detected. If you've already setup Unifier, press \"Skip\".",
+        "welcome_continue": "First, let's choose your language, so we can get your Unifier set up and running!",
+        "welcome_upgraded": "An upgraded installation was detected. If you've used this Unifier instance before, press \"Skip\".",
         "prefix_title": "Command prefix",
         "prefix_body": "A prefix is the text that comes before the command. For example, if the prefix is `!`, users will need to run `!command`.",
         "prefix_default": "Default value: `u!`",
