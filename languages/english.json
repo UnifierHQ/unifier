@@ -15,12 +15,15 @@
         "reject": "Reject",
         "yes": "Yes",
         "no": "No",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
         "confirm": "Confirm",
         "select": "Select...",
         "enter": "Enter value",
         "restart": "Restart",
         "aborted": "Aborted.",
-        "timeout": "Timed out."
+        "timeout": "Timed out.",
+        "double_confirm": "I know what I'm doing!"
       },
       "search": {
         "search": "Search",
@@ -43,6 +46,8 @@
         "mod_unexpected": "buddy you're not a global moderator :skull:"
       },
       "moderation": {
+        "fr": "are you fr",
+        "what": "what.",
         "warning": "Warning",
         "ban": "Ban",
         "warnings": "Warnings",
@@ -62,6 +67,7 @@
         "delete": "Delete message",
         "deleted": "Original message deleted",
         "mod_immunity": "You cannot punish other moderators!",
+        "admin_immunity": "You cannot punish other admins!",
         "warn_title": "You've been __warned__ by {moderator}!",
         "ban_title": "You've been __banned__ by {moderator}!",
         "offending_message": "Offending message",
@@ -598,7 +604,7 @@
       "nickname": {
         "description": "Sets a nickname. An empty provided nickname will reset it.",
         "exceed": "Please keep your nickname within 33 characters.",
-        "success": "Nickname updated."
+        "success": "Nickname updated!"
       },
       "ping": {
         "description": "Measures bot latency.",
@@ -735,15 +741,15 @@
       }
     },
     "moderation": {
-      "restrict": {
+      "block": {
         "description": "Blocks a user or server from bridging messages to your server.",
-        "self_target_user": "You can't restrict yourself :thinking",
-        "self_target_guild": "You can't restrict your own server :thinking",
+        "self_target_user": "You can't block yourself :thinking",
+        "self_target_guild": "You can't block your own server :thinking",
         "mod_immunity": "Unifier moderators are immune to blocks!\n(Though, do feel free to report anyone who abuses this immunity.)",
         "already_blocked": "User/server already blocked!",
         "success": "User/server can no longer forward messages to this server!"
       },
-      "unrestrict": {
+      "unblock": {
         "description": "Unblocks a user or server from bridging messages through Unifier.",
         "not_blocked": "User/server not blocked!",
         "success": "User/server can now forward messages to this server!"
@@ -755,19 +761,29 @@
         "bot": "...why would you want to warn a bot?",
         "warned": "User warned",
         "success": "User has been warned and notified.",
-        "success_nodm": "User has DMs with bot disabled. Warning will be logged."
+        "success_nodm": "User has DMs with bot disabled. Warning will be logged anyways."
       },
-      "globalban": {
+      "ban": {
         "description": "Bans a user or server from the Unifier network.",
         "no_reason": "no reason given",
         "self_target": "You can't ban yourself :thinking:",
         "already_banned": "User/server already banned!",
+        "offending": "Offending message",
+        "action": "Actions taken",
+        "warning": "You have been **warned**. Further rule violations may lead to sanctions on the moderators' discretion.",
+        "restricted_perma": "Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.",
+        "restricted_temp": "Your ability to text and speak have been **restricted** until <t:{expiry}:f>. This will expire <t:{expiry}:R>.",
+        "mistake_title": "Did we make a mistake?",
+        "mistake_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`.",
+        "recently_banned": "A user was recently banned from Unifier!",
         "success": "User was global banned. They may not use Unifier for the given time period.",
-        "banned": "User banned",
+        "success_title": "User banned",
         "expiry": "Expiry",
-        "never": "never"
+        "never": "never",
+        "modlogs_title": "User modlogs info",
+        "modlogs_body": "This user has **{recent_warns}** recent warnings ({total_warns} in total) and **{recent_bans}** recent bans ({total_bans} in total) on record."
       },
-      "globalunban": {
+      "unban": {
         "description": "Unbans a user or server from the Unifier network.",
         "self_target": "You can't unban yourself :thinking:",
         "not_banned": "User/server not banned!",
@@ -788,7 +804,6 @@
       },
       "fullban": {
         "description": "Blocks a user from using Unifier.",
-        "self_target": "are you fr",
         "owner_immunity": "You cannot ban the owner :thinking:",
         "success_set": "User has been banned from the bot.",
         "success_unset": "User has been unbanned from the bot."
@@ -805,12 +820,13 @@
         "missing_ban": "You're currently banned, but we couldn't find the ban reason. Contact moderators directly to appeal.",
         "ban": "Global ban",
         "confirm": "Please confirm that this is the ban you're appealing.",
+        "title": "Appeal ban",
         "reason_title": "Appeal reason",
         "reason_prompt": "Why should we consider your appeal?",
         "sign_prompt": "Sign this only if your appeal is in good faith.",
         "appeal_title": "Ban appeal - reason is as follows",
         "appeal_ban": "Original ban reason",
-        "accept": "Accept and unban",
+        "accept": "Accept & unban",
         "discussion": "Discussion: @{username}",
         "success_title": "Your appeal was submitted!",
         "success_body": "We'll get back to you once the moderators have agreed on a decision. Please be patient and respectful towards moderators while they review your appeal.",
@@ -825,8 +841,9 @@
       },
       "delete": {
         "description": "Deletes a message.",
-        "no_message": "No message!",
+        "no_message": "You didn't reply to a message when running this command!",
         "no_ownership": "You didn't send this message!",
+        "deleting": "Deleting message...",
         "parent_delete": "Deleted message (parent deleted, copies will follow)",
         "children_delete": "Deleted message ({count} copies deleted)",
         "error": "Something went wrong."
@@ -851,11 +868,14 @@
         "bot_body": "This is a bot. Bots cannot have an account standing.",
         "recent": "Recent punishments",
         "alltime": "All-time punishments",
+        "punishments": "{warns} warnings, {bans} bans",
         "info": "Standing is calculated based on recent and all-time punishments. Recent punishments will have a heavier effect on your standing.",
         "no_warns_title": "No warnings",
         "no_warns_body": "There's no warnings on record. Amazing!",
         "no_bans_title": "No bans",
         "no_bans_body": "There's no bans on record. Amazing!",
+        "warning": "Warning #{id}",
+        "ban": "Ban #{id}",
         "success": "Your account standing has been DMed to you."
       },
       "servers": {
@@ -863,17 +883,18 @@
         "title": "Servers connected to `{room}`"
       },
       "identify": {
-        "description": "Identifies the origin of a message."
+        "description": "Identifies the origin of a message.",
+        "sent_by": "Sent by @{username} ({userid}) in {servername} ({serverid}, {source})\n\nParent ID: {messageid}"
       },
       "anick": {
         "description": "Changes a given user's nickname.",
-        "success": "Nickname updated."
+        "success": "Nickname updated!"
       },
       "bridgelock": {
         "description" : "Locks Unifier Bridge down.",
         "already_locked": "Bridge already locked down.",
         "warning_title": "Lock bridge down?",
-        "warning_body": "This will shut down external platform clients, as well as unload the entire bridge extension.\nLockdown can only be lifted by admins.",
+        "warning_body": "This will unload the entire bridge extension.\nLockdown can only be lifted by admins.",
         "lockdown": "Lockdown",
         "fwarning_title": "FINAL WARNING!!!",
         "fwarning_body": "LOCKDOWNS CANNOT BE REVERSED BY NON-ADMINS!\nDo NOT lock down the chat if you don't know what you're doing!",
@@ -883,7 +904,33 @@
       "bridgeunlock": {
         "description" : "Removes Unifier Bridge lockdown.",
         "not_locked": "Bridge not locked down.",
-        "success": "Lockdown removed"
+        "success": "Lockdown removed!"
+      },
+      "under-attack": {
+        "description": "Toggles Under Attack mode.",
+        "enable_title": "Enable Under Attack mode?",
+        "enable_body": "Users will not be able to send messages in Unifier rooms. Only enable this mode if your server is under attack or is likely to be attacked.",
+        "disable_title": "Disable Under Attack mode?",
+        "disable_body": "Users will be able to send messages in Unifier rooms again. Only disable this mode if you're absolutely sure your server is in the clear.",
+        "disclaimer": "**WARNING**: You will not be able to disable this mode without the Manage Channels permission.",
+        "notify": "Make sure you've notified this instance's moderators if you need their assistance.",
+        "enabled_title": "Under Attack mode enabled",
+        "disabled_title": "Under Attack mode disabled",
+        "enabled_body": "Under Attack mode is now enabled. Your members can no longer chat in Unifier rooms.",
+        "disabled_body": "Under Attack mode is now disabled. Your members can now chat in Unifier rooms again."
+      },
+      "alert": {
+        "description": "Sends a safety-related alert.",
+        "invalid": "This is not a valid risk type.",
+        "no_drill": "You cannot issue drill advisories",
+        "send_title": "Are you sure you want to send this alert?",
+        "send_body": "You are sending a **{level}** alert.",
+        "misuse_unifier": "Misuse will be sanctioned with a 1 month minimum global ban from Unifier. Please use this wisely.",
+        "misuse": "Misuse may be sanctioned by moderators. Please use this wisely.",
+        "willping": "Server moderators will be pinged. The main channel will also receive a notification.",
+        "send": "Send alert",
+        "success_title": "Alert issued",
+        "success_body": "Alert was issued to Unifier network."
       }
     },
     "badge": {
