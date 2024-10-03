@@ -18,7 +18,9 @@
         "confirm": "Confirm",
         "select": "Select...",
         "enter": "Enter value",
-        "restart": "Restart"
+        "restart": "Restart",
+        "aborted": "Aborted.",
+        "timeout": "Timed out."
       },
       "search": {
         "search": "Search",
@@ -364,92 +366,131 @@
       "make": {
         "description": "Creates a new room.",
         "alphanumeric": "Room names may only contain alphabets, numbers, dashes, and underscores.",
+        "private_name": "Private",
+        "private_desc": "Make a room just for me and my buddies.",
+        "public_name": "Public",
+        "public_desc": "Make a room for everyone to talk in.",
+        "select": "Please select the room type.",
+        "private_disabled": "Private Rooms are disabled.",
+        "private_limit": "You cannot create any more Private Rooms. The limit is {limit}.",
+        "unique_fail": "Could not generate a unique room name in 10 tries.",
         "exists": "This room already exists!",
-        "success": "Created room `{room}`!"
+        "success": "Created {roomtype} room `{room}`!",
+        "dryrun_warning": "This is a dry run, no actual room was made."
+      },
+      "create-invite": {
+        "description": "Creates an invite.",
+        "is_public": "This is a public room!",
+        "invites_limit": "You've reached the limit for invites. Delete some first, then try again.",
+        "permanent": "Use `inf` instead for permanent invites.",
+        "permanent_disabled": "Permanent invites are not enabled on this instance.",
+        "duration_invalid": "This is not a valid duration string. Try something like `7d` or `24h`.",
+        "duration_toolong": "Invites cannot last longer than 7 days.",
+        "code": "Invite code:",
+        "join": "Servers can use `{prefix}join {invite}` to join your room.",
+        "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `{prefix}invites` to view your invite.",
+        "success": "Invite was created, check your DMs!"
+      },
+      "delete-invite": {
+        "description": "Deletes an invite.",
+        "invalid": "Could not find invite.",
+        "success": "Invite was deleted."
+      },
+      "invites": {
+        "description": "Views your room's invites.",
+        "unlimited": "Unlimited usage",
+        "remaining": "Remaining uses:",
+        "expiry": "Expiry:",
+        "never": "never",
+        "created": "{created}/{limit} invites created",
+        "dm_fail": "Could not DM invites. Please turn your DMs on.",
+        "success": "Invites have been DMed."
       },
       "rename": {
         "description": "Renames a room.",
-        "success": "Room renamed!",
-        "invalid": "This room does not exist!"
+        "invalid": "This room does not exist!",
+        "exists": "This room already exists!",
+        "is_private": "You cannot rename Private Rooms.",
+        "success": "Room renamed!"
       },
-      "addexperiment": {
-        "description": "Creates a new experiment.",
-        "exists": "This experiment already exists!",
-        "success": "Created experiment `{experiment}`!"
-      },
-      "removeexperiment": {
-        "description": "Removes an experiment.",
-        "invalid": "This experiment does not exist!",
-        "success": "Deleted experiment `{experiment}`!"
-      },
-      "experimentdesc": {
-        "description": "Sets experiment description.",
-        "success": "Added description to experiment `{experiment}`!"
+      "display-name": {
+        "description": "Sets a room's display name.",
+        "no_name": "There is no display name to reset for this room.",
+        "removed": "Display name removed.",
+        "toolong": "Display name is too long. Please keep it within 32 characters.",
+        "success": "Display name updated!"
       },
       "roomdesc": {
-        "description": "Sets room description.",
-        "missing": "There is no description to reset for this room.",
-        "success_upd": "Updated description!",
-        "success_del": "Description removed."
+        "description": "Sets a room's description.",
+        "no_desc": "There is no description to reset for this room.",
+        "removed": "Description removed.",
+        "success": "Description updated!"
       },
       "roomemoji": {
-        "description": "Sets room emoji.",
+        "description": "Sets a room's emoji.",
         "not_emoji": "This is not a valid emoji.",
-        "missing": "There is no emoji to reset for this room.",
-        "success_upd": "Updated emoji!",
-        "success_del": "Emoji removed."
+        "no_emoji": "There is no emoji to reset for this room.",
+        "removed": "Emoji removed.",
+        "success": "Updated emoji!"
       },
-      "roomrestrict": {
-        "description": "Restricts/unrestricts room. Only admins will be able to collect to this room when restricted.",
+      "restrict": {
+        "description": "Restricts/unrestricts a room. Only admins will be able to collect to this room when restricted.",
+        "is_private": "Private rooms cannot be restricted.",
         "success_set": "Restricted `{room}`!",
         "success_unset": "Unrestricted `{room}`!"
       },
       "roomlock": {
         "description": "Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.",
+        "is_public": "You cannot manage public rooms.",
         "success_set": "Locked `{room}`!",
         "success_unset": "Unlocked `{room}`!"
       },
-      "experiments": {
-        "description": "Shows a list of Unifier experiments, and lets you join or leave them.",
-        "already_enrolled": "Your server is already a part of this experiment!",
-        "not_enrolled": "Your server is not a part of this experiment!",
-        "enrolled": "Enrolled in experiment **{experiment}**!",
-        "unenrolled": "Unenrolled from experiment **{experiment}**!",
-        "title": "Experiments",
-        "body": "Help us test Unifier's experimental features! Run `{prefix}experiment enroll <experiment>` to join one.\\n\\n**WARNING**: These features are experimental and may break things, so proceed at your own risk!",
-        "enrolled_embed": "Your server is enrolled in this experiment!",
-        "no_experiments_title": "no experiments? :face_with_raised_eyebrow:",
-        "no_experiments_body": "There's no experiments available yet!"
+      "disband": {
+        "description": "Disbands a room.",
+        "confirm_title": "Disband `{room}`?",
+        "confirm_body": "Once the room is disbanded, it's gone forever!",
+        "disband": "Disband",
+        "success_title": "Disbanded `{room}`",
+        "success_body": "The room was disbanded successfully."
       },
       "bind": {
         "description": "Connects the channel to a given room.",
-        "restricted": "Only admins can bind channels to restricted rooms.",
-        "fallback": "No room was given, defaulting to {main}",
-        "invalid": "This isn't a valid room. Run `{prefix}rooms` for a full list of rooms.",
-        "check_title": "Ensuring channel is not connected...",
-        "check_body": "This may take a while.",
-        "already_linked_title": "Channel already linked!",
-        "already_linked_body": "This channel is already linked to `{room}`!\nRun `{prefix}unbind {room}` to unbind from it.",
+        "check_title": "Checking if channel is already connected...",
+        "check_body": "We're checking if this channel is already connected. Give us a moment...",
+        "already_linked_title": "Already connected",
+        "already_linked_body": "This channel is already connected to `{room}`!\nRun `{prefix}unbind {room}` to disconnect the channel.",
         "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{prefix}unlink {room}` it then `{prefix}link {room}` it back.",
-        "no_rules": "No rules exist yet for this room! For now, follow the main room's rules.\nYou can always view rules if any get added using `{prefix}rules {room}`.",
+        "join_title": "Join {roomname}?",
+        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `{prefix}rules {room}`.",
         "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
-        "display": "Please display these rules somewhere accessible.\nThis message will be automatically pinned if you accept these rules.",
-        "agree": "Please agree to the room rules first:",
-        "accept": "Accept and bind",
-        "cancel": "No thanks",
-        "success_title": "Linked channel to Unifier network!",
-        "success_body": "You can now send messages to the Unifier network through this channel. Say hi!"
+        "display": "By joining this room, you and your members agree to these rules.\nThis message will be pinned (if possible) for better accessibility to the rules.",
+        "accept": "Accept & bind",
+        "no_agree": "Server did not agree to room rules.",
+        "failed": "Failed to connect.",
+        "invalid_invite": "Invite is invalid.",
+        "room_banned": "You are baned from this room.",
+        "success": "Connected to room!",
+        "say_hi": "You're now connected! Say hi!"
       },
       "unbind": {
         "description": "Disconnects the server from a given room.",
-        "cannot_manage": "I cannot manage webhooks.",
-        "success_title": "Unlinked channel from Unifier network!",
-        "success_body": "This channel is no longer linked, nothing from now will be bridged.",
-        "failed": "Something went wrong - check my permissions."
+        "not_connected": "This channel is not connected to a room.",
+        "success": "Channel has been unbinded.",
+        "success_semi": "Channel has been unbinded, but the webhook could not be deleted."
+      },
+      "roomkick": {
+        "description": "Kicks a server from the room.",
+        "not_connected": "This server isn't connected to this room.",
+        "success": "Server {server} was kicked from the room."
+      },
+      "roomban": {
+        "description": "Bans a server from the room.",
+        "success": "Server {server} was banned from the room."
       },
       "map": {
         "description": "Maps channels to rooms in bulk.",
-        "check_title": "Checking bindable channels...",
+        "check_title": "Scanning for bindable channels...",
+        "check_body": "We're looking for channels that can be binded. Give us a moment...",
         "map_title": "Map channels",
         "map_body": "The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.",
         "selection_ch": "Channels...",
@@ -459,12 +500,12 @@
         "bind": "Bind",
         "bind_restricted": "Bind (create as restricted)",
         "bind_locked": "Bind (create as locked)",
-        "success_title": "Linked channels to Unifier network!",
-        "success_body": "You can now send messages to the Unifier network through the channels. Say hi!"
+        "success": "Channels mapped!",
+        "say_hi": "Channels are now connected! Say hi!"
       },
       "rules": {
         "description": "Displays room rules for the specified room.",
-        "no_rules": "The admins haven't added rules yet. Though, make sure to always use common sense.",
+        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).",
         "rules_title": "Room rules"
       },
       "addrule": {
@@ -498,6 +539,7 @@
       "rooms": {
         "description": "Shows a list of rooms.",
         "title": "{botname} rooms",
+        "title_private": "{botname} private rooms",
         "body": "Choose a room to view its info!",
         "selection_room": "Room...",
         "no_desc": "This room has no description.",
@@ -507,13 +549,20 @@
         "choose_room": "Choose a room to view its info!",
         "room_name": "Room name",
         "room_desc": "Room description",
+        "show_all": "Show all rooms",
+        "hide_inaccessible": "Hide inaccessible rooms",
         "statistics": "Statistics",
         "servers": "{count} servers",
         "online": "{count} online",
         "members": "{count} members",
         "messages": "{count} messages sent today",
+        "rules_nav": "rules",
         "view_rules": "View room rules",
         "no_rules": "The room admins haven't added rules for this room yet.\nThough, do remember to use common sense and refrain from doing things that you shouldn't do."
+      },
+      "servers": {
+        "description": "Lists all servers connected to a given room.",
+        "title": "Servers connected to `{room}`"
       },
       "toggle_emoji": {
         "description": "Enables or disables usage of server emojis as Global Emojis.",
