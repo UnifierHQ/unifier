@@ -877,10 +877,6 @@
         "ban": "Ban #{id}",
         "success": "Your account standing has been DMed to you."
       },
-      "servers": {
-        "description": "Lists all servers connected to a given room.",
-        "title": "Servers connected to `{room}`"
-      },
       "identify": {
         "description": "Identifies the origin of a message.",
         "sent_by": "Sent by @{username} ({userid}) in {servername} ({serverid}, {source})\n\nParent ID: {messageid}"
