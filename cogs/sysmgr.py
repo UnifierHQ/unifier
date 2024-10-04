@@ -2734,8 +2734,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 or
                                 cmd.description or selector.get("no_desc")
                         )
-                        print(cmddesc)
-                        print(f'{cogname.replace('cogs.', '', 1)}.{cmd.qualified_name}')
                         
                         embed.add_field(
                             name=f'`{cmd.qualified_name}`',
@@ -2834,9 +2832,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==2:
                 cmd = self.bot.get_command(cmdname)
+                localized_cogname = selector.get("search_nav") if cogname == 'search' else cogname
                 embed.title = (
-                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cogname} / {cmdname}' if not cogname=='' else
-                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
+                    f'{self.bot.ui_emojis.command} {helptext} / {localized_cogname} / {cmdname}' if not cogname=='' else
+                    f'{self.bot.ui_emojis.command} {helptext} / {selector.get("all")} / {cmdname}'
                 )
 
                 cmddesc = cmd.description if cmd.description else selector.get("no_desc")
