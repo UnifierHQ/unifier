@@ -2550,7 +2550,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = f'{self.bot.ui_emojis.command} {helptext}'
                 embed.description = selector.get("choose_ext")
                 selection = nextcord.ui.StringSelect(
-                    max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
+                    max_values=1, min_values=1, custom_id='selection', placeholder=selector.get("selection_ext")
                 )
 
                 selection.add_option(
