@@ -290,7 +290,7 @@
         "error": "Could not activate emoji pack."
       },
       "help": {
-        "description": "Shows this command.",
+        "description": "Shows a list of all commands.",
         "title": "{botname} help",
         "search_nav": "search",
         "choose_ext": "Choose an extension to get started!",
