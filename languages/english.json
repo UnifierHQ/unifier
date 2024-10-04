@@ -380,7 +380,7 @@
         "private_limit": "You cannot create any more Private Rooms. The limit is {limit}.",
         "unique_fail": "Could not generate a unique room name in 10 tries.",
         "exists": "This room already exists!",
-        "success": "Created {roomtype} room `{room}`!",
+        "success": "Created **{roomtype}** room `{room}`!",
         "dryrun_warning": "This is a dry run, no actual room was made."
       },
       "create-invite": {
