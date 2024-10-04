@@ -910,7 +910,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 expiry = timetoint(expiry)
             except:
                 return await ctx.send(
-                    f'{self.bot.ui_emojis.error} {selector.get("invalid_duration","commons.moderation")}'
+                    f'{self.bot.ui_emojis.error} {selector.rawget("invalid_duration","commons.moderation")}'
                 )
             if expiry > 604800:
                 return await ctx.send(
