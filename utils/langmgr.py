@@ -98,10 +98,16 @@ class LanguageManager:
     def desc(self, parent):
         return self.get('description',parent)
 
-    def desc_from_all(self, command):
-        for key in self.__language_base.keys():
-            if command in self.__language_base[key].keys():
-                return self.get("description", f"{key}.{command}")
+    def desc_from_all(self, command, language=None):
+        try:
+            base = self.__language_custom[language]['strings']
+        except:
+            base = self.__language_base['strings']
+        for key in base.keys():
+            if key == "commons":
+                continue
+            if command in base[key].keys():
+                return self.get("description", f"{key}.{command}", language=language)
         return None
 
     def get(self, string, parent: Union[commands.Context, str], default="[unknown string]", language=None):
@@ -137,7 +143,7 @@ class LanguageManager:
     def get_formatted(self,
                       string,
                       parent: Union[commands.Context, str],
-                      default=None,
+                      default="[unknown string]",
                       values: dict = None,
                       language=None):
         if not self.__loaded:
@@ -153,7 +159,7 @@ class LanguageManager:
     def fget(self,
              string,
              parent: Union[commands.Context, str],
-             default=None,
+             default="[unknown string]",
              values: dict = None,
              language=None):
         """Alias for get_formatted"""
@@ -201,22 +207,25 @@ class Selector:
     def cmdname(self):
         return self.__cmdname
 
-    def rawget(self, string, parent: Union[commands.Context, str]):
-        return self.__parent.get(string, parent, language=self.__language_set)
+    def rawget(self, string, parent: Union[commands.Context, str], default="[unknown string]"):
+        return self.__parent.get(string, parent, language=self.__language_set, default=default)
 
-    def rawget_formatted(self, string, parent: Union[commands.Context, str], values: dict = None):
-        return self.__parent.get_formatted(string, parent, language=self.__language_set, values=values)
+    def rawget_formatted(self, string, parent: Union[commands.Context, str], values: dict = None, default="[unknown string]"):
+        return self.__parent.get_formatted(string, parent, language=self.__language_set, values=values, default=default)
 
-    def rawfget(self, string, parent: Union[commands.Context, str], values: dict = None):
-        return self.__parent.get_formatted(string, parent, language=self.__language_set, values=values)
+    def rawfget(self, string, parent: Union[commands.Context, str], values: dict = None, default="[unknown string]"):
+        return self.__parent.get_formatted(string, parent, language=self.__language_set, values=values, default=default)
 
-    def get(self, string):
-        return self.__parent.get(string, f"{self.__extname}.{self.__cmdname}", language=self.__language_set)
+    def get(self, string, default="[unknown string]"):
+        return self.__parent.get(string, f"{self.__extname}.{self.__cmdname}", language=self.__language_set, default=default)
 
-    def get_formatted(self, string, values):
+    def get_formatted(self, string, values, default="[unknown string]"):
         return self.__parent.get_formatted(
-            string, f"{self.__extname}.{self.__cmdname}", values=values, language=self.__language_set
+            string, f"{self.__extname}.{self.__cmdname}", values=values, language=self.__language_set, default=default
         )
+
+    def desc_from_all(self, string):
+        return self.__parent.desc_from_all(string, self.__language_set)
 
     def fget(self, string, values):
         """Alias for get_formatted"""
