@@ -1225,9 +1225,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 cog = self.bot.cogs[list(self.bot.cogs)[x]]
                 ext = list(self.bot.extensions)[x]
                 if text == '':
-                    text = f'- {selector.rawget('name', f'{ext.replace('cogs.','',1)}.cogmeta',default='') or cog.qualified_name} (`{ext}`)'
+                    text = f'- {selector.rawget("name", ext.replace("cogs.","",1)+".cogmeta",default="") or cog.qualified_name} (`{ext}`)'
                 else:
-                    text = f'{text}\n- {selector.rawget('name', f'{ext.replace('cogs.','',1)}.cogmeta',default='') or cog.qualified_name} (`{ext}`)'
+                    text = f'{text}\n- {selector.rawget("name", ext.replace("cogs.","",1)+".cogmeta",default="") or cog.qualified_name} (`{ext}`)'
             embed.description = text
             embed.set_footer(text=selector.fget('page',values={'page':page + 1}))
             return await ctx.send(embed=embed)
@@ -2728,7 +2728,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         cmd = cmds[index]
 
                         cmddesc = (
-                                selector.rawget('description', f'{cogname.replace('cogs.', '', 1)}.{cmd.qualified_name}', default='')
+                                selector.rawget('description', f'{cogname.replace("cogs.", "", 1)}.{cmd.qualified_name}', default='')
                                 or
                                 selector.desc_from_all(cmd.qualified_name)
                                 or

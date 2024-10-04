@@ -471,7 +471,7 @@
         "no_agree": "Server did not agree to room rules.",
         "failed": "Failed to connect.",
         "invalid_invite": "Invite is invalid.",
-        "room_banned": "You are baned from this room.",
+        "room_banned": "You are banned from this room.",
         "success": "Connected to room!",
         "say_hi": "You're now connected! Say hi!"
       },
@@ -495,7 +495,7 @@
         "check_title": "Scanning for bindable channels...",
         "check_body": "We're looking for channels that can be binded. Give us a moment...",
         "map_title": "Map channels",
-        "map_body": "The following channels will be mapped.\nIf the channel does not exist, they will be created automatically.",
+        "map_body": "The following channels will be mapped.\nIf the corresponding room does not exist, they will be created automatically.",
         "selection_ch": "Channels...",
         "selectall": "Select all",
         "selectall_over10": "Select first 10",
@@ -527,7 +527,7 @@
         "allow_title": "Allow @{username} to bridge?",
         "allow_body": "This will allow messages sent via webhooks created by this user to be bridged through Unifier.",
         "accept": "Allow bridge",
-        "success_title": "Linked bridge to Unifier network!",
+        "success_title": "Allowed Webhooks to Unifier network!",
         "success_body": "This user's webhooks can now bridge messages through Unifier!"
       },
       "delbridge": {
@@ -536,7 +536,7 @@
         "remove_title": "Remove @{username} from bridge?",
         "remove_body": "This will stop this user's webhooks from bridging messages.",
         "accept": "Revoke bridge",
-        "success_title": "Unlinked bridge from Unifier network!",
+        "success_title": "Blocked Webhooks from Unifier network!",
         "success_body": "This user's webhooks can no longer bridge messages through Unifier."
       },
       "rooms": {
