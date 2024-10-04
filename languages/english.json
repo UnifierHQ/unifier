@@ -527,7 +527,7 @@
         "allow_title": "Allow @{username} to bridge?",
         "allow_body": "This will allow messages sent via webhooks created by this user to be bridged through Unifier.",
         "accept": "Allow bridge",
-        "success_title": "Linked bridge to Unifier network!",
+        "success_title": "Allowed Webhooks to Unifier network!",
         "success_body": "This user's webhooks can now bridge messages through Unifier!"
       },
       "delbridge": {
@@ -536,7 +536,7 @@
         "remove_title": "Remove @{username} from bridge?",
         "remove_body": "This will stop this user's webhooks from bridging messages.",
         "accept": "Revoke bridge",
-        "success_title": "Unlinked bridge from Unifier network!",
+        "success_title": "Blocked Webhooks from Unifier network!",
         "success_body": "This user's webhooks can no longer bridge messages through Unifier."
       },
       "rooms": {
