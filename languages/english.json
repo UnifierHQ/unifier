@@ -56,7 +56,7 @@
         "invalid_user_or_server": "Invalid user/server!",
         "invalid_user_warn": "Invalid user! (servers can't be warned, warn their staff instead)",
         "invalid_index": "Invalid index!",
-        "invalid_duration": "Invalid duration!",
+        "invalid_duration": "Invalid duration! Try something like `7d` or `24h`.",
         "no_action": "Could not find action!",
         "reason": "Reason",
         "context": "Context",
@@ -290,7 +290,7 @@
         "error": "Could not activate emoji pack."
       },
       "help": {
-        "description": "Shows this command.",
+        "description": "Shows a list of all commands.",
         "title": "{botname} help",
         "search_nav": "search",
         "choose_ext": "Choose an extension to get started!",
@@ -380,7 +380,7 @@
         "private_limit": "You cannot create any more Private Rooms. The limit is {limit}.",
         "unique_fail": "Could not generate a unique room name in 10 tries.",
         "exists": "This room already exists!",
-        "success": "Created {roomtype} room `{room}`!",
+        "success": "Created **{roomtype}** room `{room}`!",
         "dryrun_warning": "This is a dry run, no actual room was made."
       },
       "create-invite": {
@@ -389,7 +389,6 @@
         "invites_limit": "You've reached the limit for invites. Delete some first, then try again.",
         "permanent": "Use `inf` instead for permanent invites.",
         "permanent_disabled": "Permanent invites are not enabled on this instance.",
-        "duration_invalid": "This is not a valid duration string. Try something like `7d` or `24h`.",
         "duration_toolong": "Invites cannot last longer than 7 days.",
         "code": "Invite code:",
         "join": "Servers can use `{prefix}join {invite}` to join your room.",
