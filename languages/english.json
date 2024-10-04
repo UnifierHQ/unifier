@@ -471,7 +471,7 @@
         "no_agree": "Server did not agree to room rules.",
         "failed": "Failed to connect.",
         "invalid_invite": "Invite is invalid.",
-        "room_banned": "You are baned from this room.",
+        "room_banned": "You are banned from this room.",
         "success": "Connected to room!",
         "say_hi": "You're now connected! Say hi!"
       },
