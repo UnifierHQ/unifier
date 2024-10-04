@@ -2728,7 +2728,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         cmd = cmds[index]
 
                         cmddesc = (
-                                selector.rawget('description', f'{cogname.replace('cogs.', '', 1)}.{cmd.qualified_name}', default='')
+                                selector.rawget('description', f'{cogname.replace("cogs.", "", 1)}.{cmd.qualified_name}', default='')
                                 or
                                 selector.desc_from_all(cmd.qualified_name)
                                 or
