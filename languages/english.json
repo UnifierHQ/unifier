@@ -495,7 +495,7 @@
         "check_title": "Scanning for bindable channels...",
         "check_body": "We're looking for channels that can be binded. Give us a moment...",
         "map_title": "Map channels",
-        "map_body": "The following channels will be mapped.\nIf the room does not exist, they will be created automatically.",
+        "map_body": "The following channels will be mapped.\nIf the corresponding room does not exist, they will be created automatically.",
         "selection_ch": "Channels...",
         "selectall": "Select all",
         "selectall_over10": "Select first 10",
