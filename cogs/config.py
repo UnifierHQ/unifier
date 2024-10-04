@@ -69,6 +69,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     Developed by Green and ItsAsheer"""
 
     def __init__(self,bot):
+        global language
         self.bot = bot
         if not hasattr(self.bot, 'bridged_emojis'):
             if not 'emojis' in list(self.bot.db.keys()):

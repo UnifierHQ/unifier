@@ -2758,8 +2758,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         text=f'Page {page + 1} of {maxpage + 1} | {page*limit+1}-{maxcount} of {len(cmds)} results'
                     )
                     embed.set_footer(
-                        text=f'{selector.rawfget("page","commons.search",calues={"page":page+1,"maxpage":maxpage+1})}'+
-                             '|'+
+                        text=f'{selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1})}'+
+                             ' | '+
                              f'{selector.rawfget("result_count","commons.search",values={"lower":page*limit+1,"upper":maxcount,"total":len(cmds)})}'
                     )
 
@@ -2909,7 +2909,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 elif interaction.data['custom_id'] == 'next':
                     page += 1
                 elif interaction.data['custom_id'] == 'search':
-                    modal = nextcord.ui.Modal(title=selector.get('search_title','commons.search'),auto_defer=False)
+                    modal = nextcord.ui.Modal(title=selector.rawget('search_title','commons.search'),auto_defer=False)
                     modal.add_item(
                         nextcord.ui.TextInput(
                             label=selector.rawget('query','commons.search'),
@@ -2933,7 +2933,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             elif interaction.type==nextcord.InteractionType.modal_submit:
                 panel = 1
                 page = 0
-                cogname = 'search'
+                cogname = selector.get('search_nav')
                 query = interaction.data['components'][0]['components'][0]['value']
                 namematch = True
                 descmatch = True
