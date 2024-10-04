@@ -869,12 +869,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if dry_run:
             dry_run_text = f'\n```js\n{roomdata}```\n-# {self.bot.ui_emojis.warning} {selector.get("dryrun_warning")}'
 
+        roomtype_text = selector.get(roomtype+'_name')
+
         if interaction:
             return await interaction.response.edit_message(
-                content=f'{self.bot.ui_emojis.success} {selector.fget("success",values={"roomtype":roomtype,"room":room})}{dry_run_text}',
+                content=f'{self.bot.ui_emojis.success} {selector.fget("success",values={"roomtype":roomtype_text,"room":room})}{dry_run_text}',
                 view=None
             )
-        await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"roomtype":roomtype,"room":room})}{dry_run_text}')
+        await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"roomtype":roomtype_text,"room":room})}{dry_run_text}')
 
     @commands.command(name='create-invite', hidden=True, description='Creates an invite.')
     @restrictions.not_banned()
