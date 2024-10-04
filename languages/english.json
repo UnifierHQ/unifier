@@ -412,7 +412,6 @@
       },
       "rename": {
         "description": "Renames a room.",
-        "invalid": "This room does not exist!",
         "exists": "This room already exists!",
         "is_private": "You cannot rename Private Rooms.",
         "success": "Room renamed!"
