@@ -37,7 +37,7 @@
         "match_both": "둘 다 일치"
       },
       "interaction": {
-        "invalid_message": "메시지가 유요하지 않아요!",
+        "invalid_message": "유요하지 않은 메시지에요!",
         "timeout": "타임아웃되었습니다.",
         "banned": "당신의 계정 또는 서버가 현제 **정지 상태**입니다.",
         "not_found": "캐시에서 메시지를 찾지 못 했어요!",
@@ -113,7 +113,7 @@
       "reload_services": {
         "description": "봇 서비스를 재시작합니다.",
         "in_progress": "서비스 재시작 중...",
-        "completed": "재시작 완료 (`{total}`중 `{success}` 성공)\\n\\n{text}```",
+        "completed": "재시작 완료 (`{total}`중 `{success}` 성공)\n\n{text}```",
         "fail_logs": "오류 기록",
         "extension": "모듈"
       },
@@ -143,9 +143,9 @@
         "core_desc": "모든 Modifier과 대부분 시스템 모듈이 비활성화된 코어부트로 재시작합니다.",
         "select": "재시작 모드를 선택하세요...",
         "success_title": "종료 중...",
-        "success_body": "봇이 종료 중이에요.",
+        "success_body": "봇을 종료합니다.",
         "rsuccess_title": "재시작 중...",
-        "rsuccess_body": "봇이 재시작 중이에요.",
+        "rsuccess_body": "봇을 재시작합니다.",
         "failed_title": "종료 실패",
         "failed_body": "종료가 실패했어요.",
         "rfailed_title": "재시작 실패",
@@ -284,13 +284,13 @@
         "reload_warning": "일부 모듈을 재시작 할 수 없었어요."
       },
       "uiemojis": {
-        "description": "이모지팩을 활성화 합니다.\"base\" 이모지팩을 활성화하면 이모지가 일반으로 초기화됩니다.",
+        "description": "이모지팩을 활성화 합니다. \"base\" 이모지팩을 활성화하면 이모지가 일반으로 초기화됩니다.",
         "reset": "일반 이모지팩어 적용되었어요.",
         "activated": "{emojipack} 이모지팩어 적용되었어요.",
         "error": "이모지팩 적용이 실패했어요."
       },
       "help": {
-        "description": "모든 명령어를 표시해 줍니다.",
+        "description": "모든 명령어를 표시합니다.",
         "title": "{botname} 도움말",
         "search_nav": "검색",
         "choose_ext": "시작하려면 모듈을 선택해 주세요!",
@@ -396,74 +396,73 @@
         "success": "초대 코드를 만들었습니다. 다이렉트 메시지를 확인하세요!"
       },
       "delete-invite": {
-        "description": "Deletes an invite.",
-        "invalid": "Could not find invite.",
-        "success": "Invite was deleted."
+        "description": "초대 코드를 삭제합니다.",
+        "invalid": "초대 코드를 찾을 수 없었어요.",
+        "success": "초대 코드를 삭제했어요."
       },
       "invites": {
-        "description": "Views your room's invites.",
-        "unlimited": "Unlimited usage",
-        "remaining": "Remaining uses:",
-        "expiry": "Expiry:",
-        "never": "never",
-        "created": "{created}/{limit} invites created",
-        "dm_fail": "Could not DM invites. Please turn your DMs on.",
-        "success": "Invites have been DMed."
+        "description": "채팅방의 초대 코드를 표시합니다.",
+        "unlimited": "무제한 사용 횟수",
+        "remaining": "남은 사용 횟수:",
+        "expiry": "만료일:",
+        "never": "만료 없음",
+        "created": "초대 코드 {limit}개중 {created}개 생성됨",
+        "dm_fail": "초대 코드들을 전송을 못 했어요. 다이렉트 메시지를 켜주세요.",
+        "success": "초대 코드들을 전송했어요."
       },
       "rename": {
-        "description": "Renames a room.",
-        "invalid": "This room does not exist!",
-        "exists": "This room already exists!",
-        "is_private": "You cannot rename Private Rooms.",
-        "success": "Room renamed!"
+        "description": "채팅방의 이름을 수정합니다.",
+        "exists": "이 채팅방이 이미 있어요!",
+        "is_private": "비밀방의 이름을 수정할 수 없어요.",
+        "success": "채팅방의 이름을 수정했어요!"
       },
       "display-name": {
-        "description": "Sets a room's display name.",
-        "no_name": "There is no display name to reset for this room.",
-        "removed": "Display name removed.",
-        "toolong": "Display name is too long. Please keep it within 32 characters.",
-        "success": "Display name updated!"
+        "description": "채팅방의 표시 이름을 수정합니다.",
+        "no_name": "초기화할 채팅방 표시 이름이 없어요.",
+        "removed": "채팅방의 표시 이름을 초기화했어요.",
+        "toolong": "표시 이름이 너무 길어요. 32자까지만 쓸 수 있습니다.",
+        "success": "채팅방의 표시 이름을 수정했어요!"
       },
       "roomdesc": {
-        "description": "Sets a room's description.",
-        "no_desc": "There is no description to reset for this room.",
-        "removed": "Description removed.",
-        "success": "Description updated!"
+        "description": "채팅방의 설명을 수정합니다.",
+        "no_desc": "초기화할 채팅방 설명이 없어요.",
+        "removed": "채팅방의 설명을 초기화했어요.",
+        "success": "채팅방의 설명을 수정했어요!"
       },
       "roomemoji": {
-        "description": "Sets a room's emoji.",
-        "not_emoji": "This is not a valid emoji.",
-        "no_emoji": "There is no emoji to reset for this room.",
-        "removed": "Emoji removed.",
-        "success": "Updated emoji!"
+        "description": "채팅방의 이모지를 수정합니다.",
+        "not_emoji": "유요하지 않은 이모지에요.",
+        "no_emoji": "초기화할 채팅방 이모지가 없어요.",
+        "removed": "채팅방의 이모지를 초기화했어요.",
+        "success": "채팅방의 이모지를 수정했어요!"
       },
       "restrict": {
-        "description": "Restricts/unrestricts a room. Only admins will be able to collect to this room when restricted.",
-        "is_private": "Private rooms cannot be restricted.",
-        "success_set": "Restricted `{room}`!",
-        "success_unset": "Unrestricted `{room}`!"
+        "description": "채팅방 제한을 설정하거나 해제합니다. 제한이 설정되면 운영자만 이 채팅방에 연결할 수 있지만 아무나 채팅방에서 대화할 수 있어요.",
+        "is_private": "비밀방을 제한 설정할 수 없어요.",
+        "success_set": "`{room}`채팅방 제한을 설정했어요!",
+        "success_unset": "`{room}`채팅방 제한을 해제했어요!"
       },
-      "roomlock": {
-        "description": "Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.",
-        "is_public": "You cannot manage public rooms.",
-        "success_set": "Locked `{room}`!",
-        "success_unset": "Unlocked `{room}`!"
+      "lock": {
+        "description": "채팅방 잠금을 설정하거나 해제합니다. 잠금이 설정되면 운영자와 관리자만 이 채팅방에서 대화할 수 있지만 아무나 채팅방에 연결할 수 있어요.",
+        "is_public": "공개방을 관리할 수 있는 권한이 없어요.",
+        "success_set": "`{room}`채팅방 잠금을 설정했어요!",
+        "success_unset": "`{room}`채팅방 잠금을 해제했어요!"
       },
       "disband": {
-        "description": "Disbands a room.",
-        "confirm_title": "Disband `{room}`?",
-        "confirm_body": "Once the room is disbanded, it's gone forever!",
-        "disband": "Disband",
-        "success_title": "Disbanded `{room}`",
-        "success_body": "The room was disbanded successfully."
+        "description": "채팅방을 삭제합니다.",
+        "confirm_title": "`{room}`을/를 삭제할까요?",
+        "confirm_body": "채팅방을 삭제하면 복구할 수 없어요!",
+        "disband": "삭제",
+        "success_title": "`{room}` 삭제 완료",
+        "success_body": "채팅방을 삭제했어요."
       },
       "bind": {
-        "description": "Connects the channel to a given room.",
-        "check_title": "Checking if channel is already connected...",
-        "check_body": "We're checking if this channel is already connected. Give us a moment...",
-        "already_linked_title": "Already connected",
-        "already_linked_body": "This channel is already connected to `{room}`!\nRun `{prefix}unbind {room}` to disconnect the channel.",
-        "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{prefix}unlink {room}` it then `{prefix}link {room}` it back.",
+        "description": "채널을 채팅방에 연결합니다.",
+        "check_title": "채널이 이미 연결되어 있는지 확인 중...",
+        "check_body": "채널이 이미 연결되어 있는지 확인 중이에요. 잠시만 기다려 주세요...",
+        "already_linked_title": "이미 연결됨",
+        "already_linked_body": "이 채널이 이미 `{room}`에 연결되어 있어요!\n연결을 해제 하시려면 `{prefix}unbind {room}`을 실행하세요.",
+        "already_room": "이 서버가 이미 이 채팅방에 연결되어 있어요.\n**Webhook를 실수로 삭제하셨습니까?** `{prefix}unlink {room}` 실행 후 `{prefix}link {room}`을 실행해서 다시 연결하세요.",
         "join_title": "Join {roomname}?",
         "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `{prefix}rules {room}`.",
         "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
