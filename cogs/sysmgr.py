@@ -1225,9 +1225,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 cog = self.bot.cogs[list(self.bot.cogs)[x]]
                 ext = list(self.bot.extensions)[x]
                 if text == '':
-                    text = f'- {cog.qualified_name} (`{ext}`)'
+                    text = f'- {selector.rawget('name', f'{ext.replace('cogs.','',1)}.cogmeta',default='') or cog.qualified_name} (`{ext}`)'
                 else:
-                    text = f'{text}\n- {cog.qualified_name} (`{ext}`)'
+                    text = f'{text}\n- {selector.rawget('name', f'{ext.replace('cogs.','',1)}.cogmeta',default='') or cog.qualified_name} (`{ext}`)'
             embed.description = text
             embed.set_footer(text=selector.fget('page',values={'page':page + 1}))
             return await ctx.send(embed=embed)
@@ -1243,8 +1243,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             return await ctx.send(selector.get('notfound'))
         embed = nextcord.Embed(
-            title=ext_info.qualified_name,
-            description=ext_info.description,
+            title=selector.rawget('name', f'{extension}.cogmeta',default='') or ext_info.qualified_name,
+            description=selector.rawget('description', f'{extension}.cogmeta',default='') or ext_info.description,
             color=self.bot.colors.unifier
         )
         if (extension == 'cogs.sysmgr' or extension == 'cogs.lockdown' or
@@ -2550,7 +2550,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = f'{self.bot.ui_emojis.command} {helptext}'
                 embed.description = selector.get("choose_ext")
                 selection = nextcord.ui.StringSelect(
-                    max_values=1, min_values=1, custom_id='selection', placeholder='Extension...'
+                    max_values=1, min_values=1, custom_id='selection', placeholder=selector.get("selection_ext")
                 )
 
                 selection.add_option(
@@ -2573,12 +2573,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         description = selector.get("no_desc")
                     else:
                         split = False
-                        description = cog.description
 
                         try:
-                            description = selector.rawget('description', f'{extname}.cogmeta')
+                            description = selector.rawget('description', f'{extname}.cogmeta',default='') or cog.description
                         except:
-                            pass
+                            description = cog.description
 
                         if '\n' in cog.description:
                             description = description.split('\n',1)[0]
@@ -2588,14 +2587,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         elif split:
                             description = description + '\n...'
 
-                    name = cog.qualified_name
+                    localized_name = selector.rawget('name', f'{extname}.cogmeta',default='') or cog.qualified_name
 
-                    try:
-                        name = selector.rawget('name', f'{extname}.cogmeta')
-                    except:
-                        pass
-
-                    parts = name.split(' ')
+                    parts = localized_name.split(' ')
                     offset = 0
                     for i in range(len(parts)):
                         index = i - offset
@@ -2610,7 +2604,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         name = ' '.join(parts)
 
                     embed.add_field(
-                        name=f'{cog.qualified_name} (`{ext}`)',
+                        name=f'{localized_name} (`{ext}`)',
                         value=description,
                         inline=False
                     )
@@ -2690,8 +2684,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         cmds.pop(index-offset)
                         offset += 1
 
+                localized_cogname = selector.get("search_nav") if cogname == 'search' else cogname
+
                 embed.title = (
-                    f'{self.bot.ui_emojis.command} {helptext} / {cogname}' if not cogname == '' else
+                    f'{self.bot.ui_emojis.command} {helptext} / {localized_cogname}' if not cogname == '' else
                     f'{self.bot.ui_emojis.command} {helptext} / {selector.get("all")}'
                 )
                 embed.description = selector.get("choose_cmd")
@@ -2731,12 +2727,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             break
                         cmd = cmds[index]
 
-                        cmddesc = cmd.description if cmd.description else selector.get("no_desc")
-
-                        try:
-                            cmddesc = selector.desc_from_all(cmd.qualified_name)
-                        except:
-                            pass
+                        cmddesc = (
+                                selector.rawget('description', f'{cogname.replace('cogs.', '', 1)}.{cmd.qualified_name}', default='')
+                                or
+                                selector.desc_from_all(cmd.qualified_name)
+                                or
+                                cmd.description or selector.get("no_desc")
+                        )
                         
                         embed.add_field(
                             name=f'`{cmd.qualified_name}`',
@@ -2758,8 +2755,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         text=f'Page {page + 1} of {maxpage + 1} | {page*limit+1}-{maxcount} of {len(cmds)} results'
                     )
                     embed.set_footer(
-                        text=f'{selector.rawfget("page","commons.search",calues={"page":page+1,"maxpage":maxpage+1})}'+
-                             '|'+
+                        text=f'{selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1})}'+
+                             ' | '+
                              f'{selector.rawfget("result_count","commons.search",values={"lower":page*limit+1,"upper":maxcount,"total":len(cmds)})}'
                     )
 
@@ -2835,9 +2832,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==2:
                 cmd = self.bot.get_command(cmdname)
+                localized_cogname = selector.get("search_nav") if cogname == 'search' else cogname
                 embed.title = (
-                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / {cogname} / {cmdname}' if not cogname=='' else
-                    f'{self.bot.ui_emojis.command} {self.bot.user.global_name or self.bot.user.name} help / all / {cmdname}'
+                    f'{self.bot.ui_emojis.command} {helptext} / {localized_cogname} / {cmdname}' if not cogname=='' else
+                    f'{self.bot.ui_emojis.command} {helptext} / {selector.get("all")} / {cmdname}'
                 )
 
                 cmddesc = cmd.description if cmd.description else selector.get("no_desc")
@@ -2909,7 +2907,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 elif interaction.data['custom_id'] == 'next':
                     page += 1
                 elif interaction.data['custom_id'] == 'search':
-                    modal = nextcord.ui.Modal(title=selector.get('search_title','commons.search'),auto_defer=False)
+                    modal = nextcord.ui.Modal(title=selector.rawget('search_title','commons.search'),auto_defer=False)
                     modal.add_item(
                         nextcord.ui.TextInput(
                             label=selector.rawget('query','commons.search'),
