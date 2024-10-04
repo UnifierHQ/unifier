@@ -442,7 +442,7 @@
         "success_set": "Restricted `{room}`!",
         "success_unset": "Unrestricted `{room}`!"
       },
-      "roomlock": {
+      "lock": {
         "description": "Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.",
         "is_public": "You cannot manage public rooms.",
         "success_set": "Locked `{room}`!",
