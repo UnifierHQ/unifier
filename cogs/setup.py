@@ -77,7 +77,7 @@ class SetupDialog:
         components = ui.MessageComponents()
 
         if can_skip:
-            self.use_language = self.__bot.config['language']
+            self.use_language = self.language.get_user_language(self.user.id)
             row = ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.blurple,
