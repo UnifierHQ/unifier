@@ -77,7 +77,7 @@ class LanguageManager:
         self.__loaded = True
 
     def get_user_language(self, user):
-        return self.__bot.db['languages'].get(f'{user}','english')
+        return self.__bot.db['languages'].get(f'{user}',self.__language_set)
 
     def get_language_meta(self, language):
         if language == 'english':
@@ -193,10 +193,7 @@ class Selector:
         self.__extname = extname
         self.__cmdname = cmdname
         self.__bot = bot
-        self.__language_set = (
-            self.__bot.db['languages'][f'{userid}'] if f'{userid}' in self.__bot.db['languages'].keys()
-            else parent.default_language
-        )
+        self.__language_set = self.__bot.db['languages'].get(f'{userid}', parent.default_language)
         self.userid = userid
 
     @property
@@ -206,6 +203,10 @@ class Selector:
     @property
     def cmdname(self):
         return self.__cmdname
+
+    @property
+    def language_set(self):
+        return self.__language_set
 
     def rawget(self, string, parent: Union[commands.Context, str], default="[unknown string]"):
         return self.__parent.get(string, parent, language=self.__language_set, default=default)
