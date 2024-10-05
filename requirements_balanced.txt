@@ -1,0 +1,20 @@
+nextcord
+aiofiles
+aiodns; sys_platform != 'win32'
+Brotli
+brotlicffi
+py-cpuinfo
+uvloop; sys_platform != 'win32'
+winloop; sys_platform == 'win32'
+compress_json
+python-dotenv
+requests
+ujson
+emoji
+discord-emoji
+pycryptodome
+orjson
+tomli
+tomli-w
+setuptools
+aiomultiprocess
