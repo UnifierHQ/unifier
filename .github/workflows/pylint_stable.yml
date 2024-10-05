@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-linux:
-    name: "Srable"
+    name: "Stable"
     runs-on: ubuntu-latest
     strategy:
       matrix:
