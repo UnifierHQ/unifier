@@ -3,7 +3,7 @@
   "language_english": "Gen Alpha language (we're sorry)",
   "emoji": "\ud83e\udd2a",
   "author": "Green",
-  "note": "what the hell am i doing with my life...",
+  "note": "in case someone finds this file: **this is a joke for the community, i'm not a gen alpha lol, it's just me having fun and this shouldn't be taken too seriously**",
   "strings": {
     "commons": {
       "navigation": {
@@ -19,7 +19,7 @@
       },
       "search": {
         "search": "Simp",
-        "search_results": "Simping for: {query} (**{results}** pookies)",
+        "search_results": "Simping for: {query} (**{results}** pookies in your area)",
         "page": "Mewing session {page} of {maxpage}",
         "result_count": "{lower}-{upper} of {total} pookies",
         "search_title": "Simp...",
@@ -42,14 +42,12 @@
         "invalid_user": "stop the cap, user is invalid",
         "invalid_user_or_server": "stop the cap, user/server is invalid",
         "invalid_duration": "nah we aint mewing for this duration :skull:",
-        "reason": "Reason",
-        "context": "Context",
         "sender_id": "Sigma ID",
         "room": "Tea room",
         "message_id": "Tea ID",
         "reporter_id": "Snitch ID",
-        "delete": "Delete tea",
-        "deleted": "Original tea deleted",
+        "delete": "Mods, delete the cringe",
+        "deleted": "Cringe deleted, can we get a W in the chat?",
         "mod_immunity": "cringe",
         "admin_immunity": "cringe",
         "warn_title": "you've been yapped on by {moderator}",
@@ -69,32 +67,13 @@
         "title": "{botname} brain rot",
         "search_nav": "simp",
         "no_desc": "no gyatt provided",
-        "choose_cmd": "Choose a command to view its info!",
         "noresults_title": "that's not skibidi",
-        "noresults_body_search": "There are no commands matching your search query.",
-        "noresults_body_ext": "There are no commands in this extension.",
-        "selection_cmd": "Command...",
         "cmd_name": "command rizz",
         "cmd_desc": "command gyatt",
-        "aliases": "Aliases",
-        "usage": "Usage",
-        "search_prompt": "Type a command..."
-      },
-      "uptime": {
-        "description": "Shows bot uptime.",
-        "title": "{botname} uptime",
-        "body": "The bot has been up since <t:{unix}:f>.",
-        "total_title": "Total uptime",
-        "total_body": "`{days}` days, `{hours}` hours, `{minutes}` minutes, `{seconds}` seconds",
-        "disconnects": "Disconnects/hr"
       },
       "about": {
         "developers": "true sigmas",
-        "profile_pic": "the alpha",
-        "source_code": "View source code",
-        "oss_attrib": "Open source attribution",
-        "license": "{license} license",
-        "repo_link": "Source code"
+        "profile_pic": "the alpha"
       }
     },
     "config": {
@@ -117,21 +96,9 @@
         "selection_room": "Rizzler...",
         "no_desc": "This rizzler has no gyatt, how the f-",
         "noresults_title": "that's not skibidi",
-        "noresults_body_search": "There are no rooms matching your search query.",
-        "noresults_body_room": "There's no rooms here!",
-        "choose_room": "Choose a room to view its info!",
-        "room_name": "Room name",
-        "room_desc": "Room description",
-        "show_all": "Show all rooms",
-        "hide_inaccessible": "Hide inaccessible rooms",
-        "statistics": "Statistics",
-        "servers": "{count} servers",
-        "online": "{count} online",
-        "members": "{count} members",
-        "messages": "{count} messages sent today",
-        "rules_nav": "rules",
-        "view_rules": "View room rules",
-        "no_rules": "The room admins haven't added rules for this room yet.\nThough, do remember to use common sense and refrain from doing things that you shouldn't do."
+        "room_name": "rizzler rizz",
+        "room_desc": "rizzler gyatt",
+        "no_rules": "The CEOs of Ohio haven't added rules for this room yet.\nThough, do remember to use common sense and refrain from doing things that you shouldn't do."
       },
       "servers": {
         "description": "Lists all sigmas connected to a given room.",
@@ -140,9 +107,9 @@
       "avatar": {
         "no_avatar": "bro got no drip, use `{prefix}avatar <url>` to set one",
         "custom_avatar": "nice drip, you can always use `{prefix}avatar <url>` to change it, or run `{prefix}avatar remove` to remove it",
-        "default_avatar": "ok drip, you can always use `{prefix}avatar <url>` to set a custom one",
+        "default_avatar": "ok drip, you can always use `{prefix}avatar <url>` to go looksmaxxing",
         "title": "drip scanner 69420",
-        "success_unset": "you removed your drip, that's not skibidi is it",
+        "success_unset": "you removed your drip, that's not so skibidi is it",
         "success_set": "bro got the drip"
       }
     },
@@ -192,7 +159,7 @@
     "setup": {
       "setup_menu": {
         "welcome_body": "Welcome to Unifier - a very skibidi and goated bridge bot",
-        "welcome_continue": "WARNING: DO NOT SET THIS AS YOUR SYSTEM LANGUAGE UNLESS YOU ARE INTO BRAINROT, PLEASE I'M BEGGING YOU GO BACK WHILE YOU STILL CAN"
+        "welcome_continue": "WARNING: DO NOT SET THIS AS YOUR SYSTEM LANGUAGE UNLESS YOU ARE INTO BRAINROT, PLEASE I'M BEGGING YOU GO BACK WHILE YOU STILL CAN\n\n(also just a side note: Green isn't a gen alpha, he made this language pack with very minimal knowledge on gen alpha slang that he needed a whole glossary for this)"
       }
     }
   }
