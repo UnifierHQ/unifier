@@ -68,7 +68,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
             user = ctx.author
         user_role = self.get_user_role(user.id)
         embed = nextcord.Embed(
-            description=selector.fget("easter_egg", values={
+            description=selector.fget("body", values={
                 'mention':f"<@{user.id}>",'role': user_role.value
             }),
             color=self.embed_colors[user_role]
