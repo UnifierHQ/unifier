@@ -1188,7 +1188,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await interaction.response.edit_message(view=view)
 
         self.bot.db['rooms'].pop(room)
-        embed.title = f'{self.bot.ui_emojis.success} {selector.fget("success_body",values={"room":room})}'
+        embed.title = f'{self.bot.ui_emojis.success} {selector.fget("success_title",values={"room":room})}'
         embed.description = selector.get("success_body")
         embed.colour = self.bot.colors.success
         await interaction.response.edit_message(embed=embed,view=None)
@@ -1247,7 +1247,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             embed.description = selector.fget("already_linked_body",values={"room":duplicate,"prefix":self.bot.command_prefix})
             return await msg.edit(embed=embed)
 
-        'Join {}?'
         embed = nextcord.Embed(
             title=f'{self.bot.ui_emojis.rooms} {selector.fget("join_title",values={"roomname":roominfo["meta"]["display_name"] or roomname})}',
             description=f'{text}\n\n{selector.get("display")}',
