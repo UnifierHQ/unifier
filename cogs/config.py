@@ -1212,12 +1212,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             except:
                 raise restrictions.UnknownRoom()
 
+        mod_access = ctx.author.id in self.bot.moderators and self.bot.config['private_rooms_mod_access']
+
         if not invite:
             room = room.lower()
             if not room in self.bot.bridge.rooms:
                 raise restrictions.UnknownRoom()
 
-            if not self.can_join(ctx.author, room):
+            if not self.can_join(ctx.author, room) and not mod_access:
                 raise restrictions.NoRoomJoin()
             roomname = room
         else:

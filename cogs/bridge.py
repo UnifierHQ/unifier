@@ -279,9 +279,6 @@ class UnifierBridge:
         }
         self.alert = UnifierAlert
 
-        # This is a developer-only value. Please leave this as is.
-        self.moderator_override = True
-
     @property
     def room_template(self):
         return self.__room_template
@@ -527,7 +524,7 @@ class UnifierBridge:
 
         if roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators and not self.moderator_override:
+                if user.id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']:
                     return True
             return user.guild.id == roominfo['meta']['private_meta']['server'] and manage_guild
         else:
@@ -548,7 +545,7 @@ class UnifierBridge:
 
         if roominfo['meta']['private']:
             if user:
-                if user_id in self.__bot.moderators and not self.moderator_override:
+                if user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']:
                     return True
             return (
                     guild_id == roominfo['meta']['private_meta']['server'] or
@@ -561,7 +558,7 @@ class UnifierBridge:
         roominfo = self.get_room(room)
         if roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators and not (self.moderator_override or ignore_mod):
+                if user.id in self.__bot.moderators and not (self.__bot.config['private_rooms_mod_access'] or ignore_mod):
                     return True
             return (
                     user.guild.id == roominfo['meta']['private_meta']['server'] or
@@ -689,7 +686,7 @@ class UnifierBridge:
             user_id = support.get_id(user)
         if (
                 str(server_id) in roominfo['meta']['banned']
-        ) and (not user_id in self.__bot.moderators and not self.moderator_override):
+        ) and (not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']):
             raise self.RoomBannedError('banned from room')
         if invite['remaining'] == 1:
             print(invite['remaining'])
@@ -725,14 +722,14 @@ class UnifierBridge:
 
         if (
                 str(guild_id) in roominfo['meta']['banned']
-        ) and (not user_id in self.__bot.moderators and not self.moderator_override):
+        ) and (not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']):
             raise self.RoomBannedError('banned from room')
 
         if roominfo['meta']['private']:
             if (
                     not guild_id in roominfo['meta']['private_meta']['allowed'] and
                     not guild_id == roominfo['meta']['private_meta']['server']
-            ) and (not user_id in self.__bot.moderators and not self.moderator_override):
+            ) and (not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']):
                 raise ValueError('forbidden')
 
         guild_id = str(guild_id)
