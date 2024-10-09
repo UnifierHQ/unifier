@@ -391,7 +391,7 @@
         "permanent_disabled": "Permanent invites are not enabled on this instance.",
         "duration_toolong": "Invites cannot last longer than 7 days.",
         "code": "Invite code:",
-        "join": "Servers can use `{prefix}join {invite}` to join your room.",
+        "join": "Servers can use `{prefix}bind {invite}` to join your room.",
         "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `{prefix}invites` to view your invite.",
         "success": "Invite was created, check your DMs!"
       },
