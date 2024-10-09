@@ -92,23 +92,21 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             except:
                 return False
 
-        roominfo = self.bot.bridge.get_room(room)
-        if not roominfo:
+        __roominfo = self.bot.bridge.get_room(room)
+        if not __roominfo:
             return False
 
-        if roominfo['meta']['private']:
+        is_server = str(user.guild.id) == __roominfo['meta']['private_meta']['server']
+        is_moderator = user.id in self.bot.moderators
+        is_admin = user.id in self.bot.admins
+        is_owner = user.id == self.bot.owner
+
+        if __roominfo['meta']['private']:
             return (
-                    user.guild_permissions.manage_channels and user.guild.id == roominfo['meta']['private_meta']['server']
-            ) or (
-                    user.id in self.bot.moderators or
-                    user.id in self.bot.admins or
-                    user.id == self.bot.owner
-            )
+                    user.guild_permissions.manage_channels and is_server
+            ) or ((is_moderator and self.bot.config['private_rooms_mod_access']) or is_admin or is_owner)
         else:
-            return (
-                    user.id in self.bot.admins or
-                    user.id == self.bot.owner
-            )
+            return is_admin or is_owner
 
     def can_moderate(self, user, room):
         room = room.lower()
@@ -118,23 +116,21 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             except:
                 return False
 
-        roominfo = self.bot.bridge.get_room(room)
-        if not roominfo:
+        __roominfo = self.bot.bridge.get_room(room)
+        if not __roominfo:
             return False
 
-        if roominfo['meta']['private']:
+        is_server = str(user.guild.id) == __roominfo['meta']['private_meta']['server']
+        is_moderator = user.id in self.bot.moderators
+        is_admin = user.id in self.bot.admins
+        is_owner = user.id == self.bot.owner
+
+        if __roominfo['meta']['private']:
             return (
-                    user.guild_permissions.ban_members and user.guild.id == roominfo['meta']['private_meta']['server']
-            ) or (
-                    user.id in self.bot.moderators or
-                    user.id in self.bot.admins or
-                    user.id == self.bot.owner
-            )
+                    user.guild_permissions.ban_members and is_server
+            ) or ((is_moderator and self.bot.config['private_rooms_mod_access']) or is_admin or is_owner)
         else:
-            return (
-                    user.id in self.bot.admins or
-                    user.id == self.bot.owner
-            )
+            return is_admin or is_owner
 
     def can_join(self, user, room):
         room = room.lower()
@@ -145,15 +141,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             except:
                 return False
 
-        roominfo = self.bot.bridge.get_room(room)
-        if not roominfo:
+        __roominfo = self.bot.bridge.get_room(room)
+        if not __roominfo:
             return False
 
-        if roominfo['meta']['private']:
-            return (
-                    user.guild.id in roominfo['meta']['private_meta']['allowed'] or
-                    user.guild.id == roominfo['meta']['private_meta']['server']
-            )
+        is_server = str(user.guild.id) == __roominfo['meta']['private_meta']['server']
+        is_allowed = user.guild.id in __roominfo['meta']['private_meta']['allowed']
+
+        if __roominfo['meta']['private']:
+            return is_server or is_allowed
         else:
             return True
 
@@ -1187,7 +1183,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if interaction.data['custom_id'] == 'cancel':
             return await interaction.response.edit_message(view=view)
 
-        self.bot.db['rooms'].pop(room)
+        self.bot.bridge.delete_room(room)
         embed.title = f'{self.bot.ui_emojis.success} {selector.fget("success_title",values={"room":room})}'
         embed.description = selector.get("success_body")
         embed.colour = self.bot.colors.success
