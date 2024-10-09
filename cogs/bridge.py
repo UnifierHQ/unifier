@@ -538,17 +538,21 @@ class UnifierBridge:
 
         if platform == 'discord':
             manage_channels = user.guild_permissions.manage_channels
+            user_id = user.id
+            guild_id = user.guild.id
         else:
             support = self.__bot.platforms[platform]
             manage_channels = support.permissions(user).manage_channels
+            user_id = support.get_id(user)
+            guild_id = support.get_id(support.server(user))
 
         if roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators and not self.moderator_override:
+                if user_id in self.__bot.moderators and not self.moderator_override:
                     return True
             return (
-                    user.guild.id == roominfo['meta']['private_meta']['server'] or
-                    user.guild.id in roominfo['meta']['private_meta']['allowed']
+                    guild_id == roominfo['meta']['private_meta']['server'] or
+                    guild_id in roominfo['meta']['private_meta']['allowed']
             ) and manage_channels
         else:
             return manage_channels
@@ -688,6 +692,8 @@ class UnifierBridge:
         ) and (not user_id in self.__bot.moderators and not self.moderator_override):
             raise self.RoomBannedError('banned from room')
         if invite['remaining'] == 1:
+            print(invite['remaining'])
+            print('deleting')
             self.delete_invite(invite)
         else:
             if invite['remaining'] > 0:
