@@ -319,7 +319,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label=selector.rawget("search","commons.seacrh"),
+                            label=selector.rawget("search","commons.search"),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search,
                             disabled=selection.disabled
