@@ -319,6 +319,10 @@ class DiscordBot(commands.Bot):
         return self.__config['owner'] if self.__config else None
 
     @property
+    def other_owners(self):
+        return self.__config['other_owners'] if self.__config else []
+
+    @property
     def config(self):
         return self.__config
 
@@ -557,7 +561,7 @@ async def on_message(message):
         return
 
     if message.author.id in bot.db['fullbanned']:
-        if message.author.id==bot.owner:
+        if message.author.id==bot.owner or message.author.id in bot.other_owners:
             bot.db['fullbanned'].remove(message.author.id)
             bot.db.save_data()
         else:

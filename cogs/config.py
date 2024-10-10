@@ -99,7 +99,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         is_server = str(user.guild.id) == __roominfo['meta']['private_meta']['server']
         is_moderator = user.id in self.bot.moderators
         is_admin = user.id in self.bot.admins
-        is_owner = user.id == self.bot.owner
+        is_owner = user.id == self.bot.owner or user.id in self.bot.other_owners
 
         if __roominfo['meta']['private']:
             return (
@@ -123,7 +123,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         is_server = str(user.guild.id) == __roominfo['meta']['private_meta']['server']
         is_moderator = user.id in self.bot.moderators
         is_admin = user.id in self.bot.admins
-        is_owner = user.id == self.bot.owner
+        is_owner = user.id == self.bot.owner or user.id in self.bot.other_owners
 
         if __roominfo['meta']['private']:
             return (
@@ -755,10 +755,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{username}'
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"mod":mod})}')
 
-    @commands.command(hidden=True, aliases=['newroom'],description='Creates a new room.')
+    @commands.command(name='create-room', hidden=True, aliases=['newroom'], description='Creates a new room.')
     @restrictions.can_create()
     @restrictions.not_banned()
-    async def make(self,ctx,*,room=None):
+    async def create_room(self,ctx,*,room=None):
         roomtype = 'private'
         dry_run = False
         
@@ -768,7 +768,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if room.startswith('-dry-run'):
                 if room == '-dry-run':
                     room = None
-                dry_run = ctx.author.id == self.bot.owner
+                dry_run = ctx.author.id == self.bot.owner or ctx.author.id in self.bot.other_owners
 
         if room:
             room = room.lower().replace(' ','-')

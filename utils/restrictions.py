@@ -65,7 +65,7 @@ class Restrictions:
 
     def owner(self):
         async def predicate(ctx: commands.Context):
-            return ctx.author.id == self.__bot.config['owner']
+            return ctx.author.id == self.__bot.config['owner'] or ctx.author.id in self.__bot.config['other_owners']
 
         return commands.check(predicate)
 

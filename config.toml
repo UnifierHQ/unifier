@@ -9,6 +9,7 @@ encrypted_env_salt = 10 # change this to whatever you want, as long as the bot d
 
 [roles]
 owner = -1
+other_owners = [] # NOTE: Unless you need multiple people to manage your Unifier instance, we recommend leaving this empty.
 admin_ids = []
 
 [roles.owner_external]
