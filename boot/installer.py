@@ -1,3 +1,21 @@
+"""
+Unifier - A sophisticated Discord bot uniting servers and platforms
+Copyright (C) 2024  Green, ItsAsheer
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import asyncio
 import sys
 import getpass
@@ -7,27 +25,14 @@ import tomli
 import tomli_w
 import traceback
 from nextcord.ext import commands
+from utils import secrets
 
 install_option = sys.argv[1] if len(sys.argv) > 1 else None
 
-install_options = [
-    {
-        'id': 'optimized',
-        'name': '\U000026A1 Optimized',
-        'description': 'Uses the latest Nextcord version and includes performance optimizations. Recommended for most users.',
-        'default': True,
-        'prefix': '',
-        'color': '\x1b[35'
-    },
-    {
-        'id': 'stable',
-        'name': '\U0001F48E Stable',
-        'description': 'Uses the latest stable Nextcord version without performance optimizations for best stability.',
-        'default': False,
-        'prefix': 'stable',
-        'color': '\x1b[32'
-    }
-]
+with open('boot/internal.json') as file:
+    internal = json.load(file)
+
+install_options = internal['options']
 
 if not install_option:
     for option in install_options:
@@ -42,9 +47,6 @@ bot = commands.Bot(
 
 user_id = 0
 server_id = 0
-
-with open('boot/internal.json') as file:
-    internal = json.load(file)
 
 if sys.version_info.minor < internal['required_py_version']:
     print(f'\x1b[31;49mCannot install {internal["product_name"]}. Python 3.{internal["required_py_version"]} or later is required.\x1b[0m')
@@ -132,6 +134,29 @@ print('\x1b[31;49mFor security reasons, the installer will hide the input.\x1b[0
 
 token = getpass.getpass()
 
+encryption_password = ''
+salt = ''
+
+print('\x1b[33;1mWe will now ask for the token encryption salt. This must be an integer.\x1b[0m')
+print('\x1b[33;1mAs of Unifier v3.2.0, all tokens must be stored encrypted, even if it\'s stored as an environment variable.\x1b[0m')
+
+while True:
+    try:
+        salt = int(input())
+        break
+    except KeyboardInterrupt:
+        print('\x1b[31;49mAborted.\x1b[0m')
+        sys.exit(1)
+    except:
+        print('\x1b[31;49mThis isn\'t an integer, try again.\x1b[0m')
+
+print('\x1b[33;1mWe will now ask for the token encryption password. This is NOT your bot token.\x1b[0m')
+print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS TOKEN, NOT EVEN WITH {internal["maintainer"].upper()}.\x1b[0m')
+print(f'\x1b[31;49m{internal["maintainer"]} will NEVER ask for your encryption password. Please keep this password to yourself and only share it with trusted instance maintainers.\x1b[0m')
+print('\x1b[31;49mFor security reasons, the installer will hide the input.\x1b[0m')
+
+encryption_password = getpass.getpass()
+
 print('\x1b[36;1mStarting bot...\x1b[0m')
 
 try:
@@ -142,27 +167,22 @@ except:
     print('\x1b[31;49mMake sure all privileged intents are enabled for the bot.\x1b[0m')
     sys.exit(1)
 
-file = open('.env','w+')
-file.write(f'TOKEN={token}')
-file.close()
+tokenstore = secrets.TokenStore(False, password=encryption_password, salt=salt, content_override={'TOKEN': token})
+print('\x1b[36;1mYour tokens have been stored securely.\x1b[0m')
 
 with open('config.toml', 'rb') as file:
     config = tomli.load(file)
 
 config['roles']['owner'] = user_id
-config['moderation']['home_guild'] = server_id
+
+if not internal['skip_server']:
+    config['moderation']['home_guild'] = server_id
 
 with open('config.toml', 'wb') as file:
     tomli_w.dump(config, file)
 
 with open('.install.json','w+') as file:
-    json.dump(
-        {
-            'product': internal["product"],
-            'setup': False,
-            'option': install_option
-        },
-        file
-    )
+    # noinspection PyTypeChecker
+    json.dump({'product': internal["product"],'setup': False,'option': install_option}, file)
 
 print(f'\x1b[36;1m{internal["product_name"]} installed successfully.\x1b[0m')

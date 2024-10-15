@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # can be handled gracefully by the bot.
 
 import nextcord
+from typing import Union
 
 class MissingImplementation(Exception):
     """An exception used when something isn't implemented.
@@ -41,9 +42,17 @@ class PlatformBase:
         self.uses_webhooks = False # change this to True if webhooks are needed
         self.__available = False
         self.allowed_content_types = []
+        self.reply_using_text = False # change this to True if the platform needs to show message reply using text
+        self.files_per_guild = False # change this to True if the platform library wipes file objects' data after send
+        self.uses_image_markdown = False # change this to True if the platform uses media markdown (i.e. ![](image url))
 
     def is_available(self):
         return self.__available
+
+    def error_is_unavoidable(self, error):
+        """Checks if the error was unavoidable such as 5xx, 401, 403, etc.
+        Any other 4xx errors should be considered avoidable."""
+        raise MissingImplementation()
 
     def attach_bot(self, bot):
         """In case a bot object could not be provided, it can be attached here."""
@@ -195,8 +204,8 @@ class PlatformBase:
         """Converts an attachment object to a nextcord.File object."""
         raise MissingImplementation()
 
-    async def to_platform_file(self, file: nextcord.Attachment):
-        """Converts a nextcord.Attachment object to the platform's file object."""
+    async def to_platform_file(self, file: Union[nextcord.Attachment, nextcord.File]):
+        """Converts a nextcord.Attachment or nextcord.File object to the platform's file object."""
         raise MissingImplementation()
 
     async def send(self, channel, content, special: dict = None):

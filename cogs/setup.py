@@ -34,27 +34,28 @@ except:
 
 class SetupDialog:
     def __init__(self, bot):
-        self.bot = bot
+        self.__bot = bot
         self.embed = nextcord.Embed()
-        self.language = self.bot.langmgr
+        self.language = self.__bot.langmgr
+        self.use_language = None
         self.message = None
-        self.user = self.bot.get_user(self.bot.owner)
+        self.user = self.__bot.get_user(self.__bot.owner)
 
     def check(self, interaction):
         return interaction.user.id == self.user.id and interaction.message.id == self.message.id
 
     def rawget(self, string, parent):
-        return self.language.get(string, parent)
+        return self.language.get(string, parent, language=self.use_language)
 
     def get(self, string):
-        return self.language.get(string, 'setup.setup_menu')
+        return self.language.get(string, 'setup.setup_menu', language=self.use_language)
 
     def fget(self, string, values=None):
-        return self.language.fget(string, 'setup.setup_menu', values=values)
+        return self.language.fget(string, 'setup.setup_menu', values=values, language=self.use_language)
 
     def update(self, title, description, color=None, image_url=None, fields=None):
         self.embed.clear_fields()
-        self.embed.colour = color or self.bot.colors.unifier
+        self.embed.colour = color or self.__bot.colors.unifier
         self.embed.title = title
         self.embed.description = description
         self.embed.set_image(url=image_url)
@@ -76,6 +77,7 @@ class SetupDialog:
         components = ui.MessageComponents()
 
         if can_skip:
+            self.use_language = self.language.get_user_language(self.user.id)
             row = ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.blurple,
@@ -96,15 +98,40 @@ class SetupDialog:
                     custom_id='next'
                 )
             )
-        components.add_row(row)
+
+        options = []
+        for language in self.language.languages:
+            meta = self.language.get_language_meta(language)
+            options.append(nextcord.SelectOption(
+                label=meta['language'],
+                value=language,
+                description=meta['language_english'],
+                emoji=meta['emoji'],
+                default=language == self.use_language
+            ))
+
+        selection = nextcord.ui.Select(
+            placeholder=self.get('select_language'),
+            options=options,
+            custom_id='language'
+        )
+
+        components.add_rows(
+            ui.ActionRow(selection), row
+        )
 
         self.message = await self.user.send(embed=self.embed, view=components)
-        interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
-        await interaction.response.defer(ephemeral=False, with_message=False)
 
-        if interaction.data['custom_id'] == 'skip':
-            return True
-        return False
+        while True:
+            interaction = await self.__bot.wait_for('interaction', check=self.check, timeout=300)
+            await interaction.response.defer(ephemeral=False, with_message=False)
+
+            if interaction.data['custom_id'] == 'skip':
+                return True
+            elif interaction.data['custom_id'] == 'language':
+                self.use_language = interaction.data['values'][0]
+            else:
+                return False
 
     async def finish(self, skipped=False):
         self.update(
@@ -133,15 +160,15 @@ class SetupDialog:
         if skipped:
             return
 
-        interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
+        interaction = await self.__bot.wait_for('interaction', check=self.check, timeout=300)
         await interaction.response.edit_message(view=None)
 
         x = open('.restart', 'w+')
         x.write(f'{time.time()}')
         x.close()
 
-        await self.bot.session.close()
-        await self.bot.close()
+        await self.__bot.session.close()
+        await self.__bot.close()
         sys.exit(0)
 
     async def boolean(self, title, description, image_url=None):
@@ -165,7 +192,7 @@ class SetupDialog:
 
         await self.message.edit(embed=self.embed, view=components)
 
-        interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
+        interaction = await self.__bot.wait_for('interaction', check=self.check, timeout=300)
         await interaction.response.defer(ephemeral=False,with_message=False)
         return interaction.data['custom_id'] == 'yes'
 
@@ -219,7 +246,7 @@ class SetupDialog:
             )
             await self.message.edit(embed=self.embed, view=components)
 
-            interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
+            interaction = await self.__bot.wait_for('interaction', check=self.check, timeout=300)
             await interaction.response.defer(ephemeral=False, with_message=False)
 
             if interaction.data['custom_id'] == 'confirm':
@@ -279,7 +306,7 @@ class SetupDialog:
             )
             await self.message.edit(embed=self.embed, view=components)
 
-            interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
+            interaction = await self.__bot.wait_for('interaction', check=self.check, timeout=300)
             await interaction.response.defer(ephemeral=False, with_message=False)
 
             if interaction.data['custom_id'] == 'confirm':
@@ -371,7 +398,7 @@ class SetupDialog:
             )
             await self.message.edit(embed=self.embed, view=components)
 
-            interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
+            interaction = await self.__bot.wait_for('interaction', check=self.check, timeout=300)
 
             if not interaction.data['custom_id'] == 'custom':
                 await interaction.response.defer(ephemeral=False, with_message=False)
@@ -428,7 +455,7 @@ class SetupDialog:
             )
             await self.message.edit(embed=self.embed, view=components)
 
-            interaction = await self.bot.wait_for('interaction', check=self.check, timeout=300)
+            interaction = await self.__bot.wait_for('interaction', check=self.check, timeout=300)
 
             if interaction.data['custom_id'] == 'summon_modal':
                 await interaction.response.send_modal(modal)
@@ -461,6 +488,24 @@ class Setup(commands.Cog):
         if not install_data['setup']:
             self.bot.setup_task = asyncio.create_task(self.setup())
 
+        if not hasattr(self.bot, 'tokenstore'):
+            self.bot.reminder_task = asyncio.create_task(self.encrypt_reminder())
+
+    async def encrypt_reminder(self):
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.install} Restart bootloader to complete the upgrade',
+            description=(
+                'As of v3.2.0, we\'re enforcing all stored tokens to be encrypted, even if they\'re stored as '+
+                'environment variables. Due to this, you must restart the bootloader to complete the upgrade.\n\n'+
+                'After restarting, you will be prompted to enter your encryption password. Please remember your '+
+                'password, as we will have no way of recovering it.\n\n**Note**: To restart the bootloader, you must '+
+                f'run `{self.bot.command_prefix}shutdown`, then run the run script again.'
+            ),
+            color=self.bot.colors.warning
+        )
+        owner = self.bot.get_user(self.bot.owner)
+        await owner.send(embed=embed)
+
     async def setup(self):
         self.logger.info('Running setup')
         ignore_error = False
@@ -481,6 +526,7 @@ class Setup(commands.Cog):
                 install_data['setup'] = True
 
                 with open('.install.json', 'w') as file:
+                    # noinspection PyTypeChecker
                     json.dump(install_data, file)
 
                 return await setup_dialog.finish(skipped=True)
@@ -694,12 +740,12 @@ class Setup(commands.Cog):
 
             with open('config.toml', 'rb') as file:
                 config = tomli.load(file)
-
+            
+            # Apply configs
+            config['system']['language'] = setup_dialog.use_language
             config['bot']['prefix'] = prefix
-            config['backups']['periodic_backup'] = backup_freq
             config['bot']['ping'] = periodic_freq
-            config['bridge']['main_room'] = main_room
-            config['bridge']['enable_ctx_commands'] = enable_ctx
+            config['backups']['periodic_backup'] = backup_freq
             config['moderation']['moderator_role'] = mod_role
             config['moderation']['enable_logging'] = logging
             config['moderation']['enable_reporting'] = reporting
@@ -707,6 +753,8 @@ class Setup(commands.Cog):
             config['moderation']['logging_delete'] = logging_delete
             config['moderation']['logs_channel'] = logging_channel
             config['moderation']['reports_channel'] = reports_channel
+            config['bridge']['main_room'] = main_room
+            config['bridge']['enable_ctx_commands'] = enable_ctx
             config['bridge']['safe_filetypes'] = safefile
             config['bridge']['allow_posts'] = posts
             config['bridge']['posts_room'] = proom
@@ -723,6 +771,7 @@ class Setup(commands.Cog):
             install_data['setup'] = True
 
             with open('.install.json', 'w') as file:
+                # noinspection PyTypeChecker
                 json.dump(install_data, file)
 
             ignore_error = True
@@ -731,7 +780,7 @@ class Setup(commands.Cog):
             if not ignore_error:
                 self.logger.critical('An error occured!')
                 user = self.bot.get_user(self.bot.owner)
-                await user.send('An error occured during setup. The bot will now shut down.')
+                await user.send("An error occured during setup. The bot will now shut down.")
                 sys.exit(1)
 
 def setup(bot):

@@ -1,88 +1,40 @@
 name: Pylint
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  build-linux:
+  linux-optimized:
     name: "Linux (Optimized)"
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint --enable-all-extensions --extension-pkg-allow-list=orjson,ujson --disable=R,C,W $(git ls-files '*.py')
+    uses: ./.github/workflows/pylint_optimized.yml
+    with:
+      os: ubuntu-latest
 
-  build-linux-stable:
+  linux-balanced:
+    name: "Linux (Balanced)"
+    uses: ./.github/workflows/pylint_balanced.yml
+    with:
+      os: ubuntu-latest
+
+  linux-stable:
     name: "Linux (Stable)"
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements_stable.txt
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint --enable-all-extensions --extension-pkg-allow-list=orjson,ujson --disable=R,C,W $(git ls-files '*.py')
+    uses: ./.github/workflows/pylint_stable.yml
+    with:
+      os: ubuntu-latest
 
-  build-windows:
+  windows-optimized:
     name: "Windows (Optimized)"
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint --enable-all-extensions --extension-pkg-allow-list=orjson,ujson --disable=R,C,W $(git ls-files '*.py')
+    uses: ./.github/workflows/pylint_optimized.yml
+    with:
+      os: windows-latest
 
-  build-windows-stable:
+  windows-balanced:
+    name: "Windows (Balanced)"
+    uses: ./.github/workflows/pylint_balanced.yml
+    with:
+      os: windows-latest
+
+  windows-stable:
     name: "Windows (Stable)"
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements_stable.txt
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint --enable-all-extensions --extension-pkg-allow-list=orjson,ujson --disable=R,C,W $(git ls-files '*.py')
+    uses: ./.github/workflows/pylint_stable.yml
+    with:
+      os: windows-latest

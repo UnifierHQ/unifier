@@ -31,8 +31,8 @@ import traceback
 import threading
 import shutil
 import filecmp
-from utils import log
-from dotenv import load_dotenv
+import datetime
+from utils import log, secrets
 from pathlib import Path
 
 # import ujson if installed
@@ -59,8 +59,19 @@ except:
     if not 'run.bat' in os.listdir():
         shutil.copy2('update/run.bat', 'run.bat')
 
-    # we probably need to copy this too
+    # we probably need to copy some extra files too
     shutil.copy2('update/plugins/system.json', 'plugins/system.json')
+
+    if not os.path.isdir('emojis'):
+        os.mkdir('emojis')
+
+    shutil.copy2('update/emojis/base.json', 'emojis/base.json')
+
+    if not os.path.isdir('languages'):
+        os.mkdir('languages')
+
+    for file in os.listdir('update/languages'):
+        shutil.copy2(f'update/languages/{file}', f'languages/{file}')
 
     if sys.platform == 'win32':
         print('To start the bot, please run "run.bat" instead.')
@@ -73,18 +84,21 @@ except:
 directories = ['boot', 'languages', 'emojis']
 replaced_boot = False
 for directory in directories:
+    if os.path.exists('update'):
+        # upgrader never upgraded, no need to check
+        break
+
     if os.path.exists('update/'+directory):
         # upgrader is ok, no need to upgrade
         continue
 
-    for file in os.listdir():
-        if os.path.exists(directory+'/'+file):
+    for file in os.listdir(directory):
+        if os.path.exists(directory+'/'+file) or os.path.exists('update/'+directory+'/'+file):
             continue
         if not filecmp.cmp(directory+'/'+file, 'update/'+directory+'/'+file):
             shutil.copy2('update/'+directory+'/'+file, directory+'/'+file)
             if directory == 'boot':
                 replaced_boot = True
-
 
 try:
     # as only winloop or uvloop will be installed depending on the system,
@@ -145,7 +159,10 @@ for key in data:
 
 data = newdata
 
-env_loaded = load_dotenv()
+encrypted_env = {}
+ivs = {}
+
+should_encrypt = int(os.environ['UNIFIER_ENCOPTION']) == 1
 
 level = logging.DEBUG if data['debug'] else logging.INFO
 package = data['package']
@@ -163,17 +180,6 @@ except:
 if not valid_toml:
     logger.warning('From v3.0.0, Unifier will use config.toml rather than config.json.')
     logger.warning('To change your Unifier configuration, please use the new file.')
-
-if not env_loaded or not os.path.isfile('.env'):
-    logger.critical(
-        'Could not load .env file! More info: https://wiki.unifierhq.org/setup-selfhosted/getting-started/unifier#set-bot-token'
-    )
-    if not os.path.isfile('.env'):
-        dotenv = open('.env', 'w+')
-        dotenv.write('TOKEN=token_goes_here')
-        dotenv.close()
-        logger.critical('A template .env file was created. Please add your token to that file to start Unifier.')
-    sys.exit(1)
 
 if not owner_valid:
     logger.critical('Invalid owner user ID in configuration!')
@@ -196,8 +202,12 @@ if not 'repo' in list(data.keys()):
     logger.critical('Unifier is licensed under the AGPLv3, meaning you need to make your source code available to users. Please add a repository to the config file under the repo key.')
     sys.exit(1)
 
+# Deprecation warnings
 if 'allow_prs' in list(data.keys()) and not 'allow_posts' in list(data.keys()):
     logger.warning('From v1.2.4, allow_prs is deprecated. Use allow_posts instead.')
+
+if 'external' in list(data.keys()):
+    logger.warning('From v3.3.0, external is deprecated. To disable a platform, please uninstall the support plugin.')
 
 if 'token' in list(data.keys()):
     logger.warning('From v1.1.8, Unifier uses .env (dotenv) files to store tokens. We recommend you remove the old token keys from your config.json file.')
@@ -262,6 +272,7 @@ class AutoSaveDict(dict):
         if self.__save_lock:
             return
         with open(self.file_path, 'w') as file:
+            # noinspection PyTypeChecker
             json.dump(self, file, indent=4)
         return
 
@@ -286,6 +297,7 @@ class DiscordBot(commands.Bot):
         super().__init__(*args, **kwargs)
         self.__ready = False
         self.__update = False
+        self.__b_update = False
         self.__config = None
         self.__boot_config = None
         self.__safemode = None
@@ -295,10 +307,20 @@ class DiscordBot(commands.Bot):
         self.bridge = None
         self.pyversion = sys.version_info
         self.db = AutoSaveDict({})
+        self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
+        self.__tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'], data['debug'])
+
+        if should_encrypt:
+            self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
+            os.remove('.env')
 
     @property
     def owner(self):
         return self.__config['owner'] if self.__config else None
+
+    @property
+    def other_owners(self):
+        return self.__config['other_owners'] if self.__config else []
 
     @property
     def config(self):
@@ -351,6 +373,16 @@ class DiscordBot(commands.Bot):
         self.__update = update
 
     @property
+    def b_update(self):
+        return self.__b_update
+
+    @b_update.setter
+    def b_update(self, update):
+        if self.__b_update:
+            raise RuntimeError('Update lock is set')
+        self.__b_update = update
+
+    @property
     def safemode(self):
         return self.__safemode
 
@@ -380,6 +412,14 @@ class DiscordBot(commands.Bot):
             raise RuntimeError('Coreboot is set')
         self.__devmode = status
 
+    @property
+    def uses_v3(self):
+        return self.__uses_v3
+
+    @property
+    def tokenstore(self):
+        return self.__tokenstore
+
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
 bot.config = data
@@ -388,6 +428,12 @@ bot.coreboot = 'core' in sys.argv
 bot.safemode = 'safemode' in sys.argv and not bot.coreboot
 bot.devmode = 'devmode' in sys.argv
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
+
+if not bot.tokenstore.test_decrypt():
+    del os.environ['UNIFIER_ENCPASS']
+    print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
+    print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
+    sys.exit(1)
 
 if bot.coreboot:
     logger.warning('Core-only boot is enabled. Only core and System Manager will be loaded.')
@@ -406,6 +452,49 @@ print(asciiart)
 print('Version: '+vinfo['version'])
 print('Release '+str(vinfo['release']))
 print()
+dt = datetime.datetime.now()
+
+seasonal_strings = {
+    1: {
+        1: f'\U0001F973 {dt.year} is here! Happy new year!'
+    },
+    2: {
+        14: f'\U0001F49D Happy Valentine\'s Day!',
+        15: None
+    },
+    4: {
+        1: f'\U0001F608 time to get a lil mischievous hehe',
+        2: None
+    },
+    5: {
+        13: f'\U0001F914 Apparently it\'s Discord\'s birthday today.',
+        14: None
+    },
+    10: {
+        1: f'\U0001F383 ooooOOOOOooooo (ghost says: happy spooktober)'
+    },
+    11: {
+        1: f'\U0001F9CA the defrosting has begun. \x1b[1mstart running.\x1b[0m'
+    },
+    12: {
+        1: f'\U0001F384 Merry Christmas and a happy new year!',
+        20: f'\U0001F382 Happy birthday to the Unifier project!',
+        21: f'\U0001F384 Merry Christmas and a happy new year!'
+    }
+}
+
+seasonal_string = seasonal_strings.get(dt.month, None)
+if seasonal_string:
+    string_key = 1
+    for key in seasonal_string.keys():
+        if key > dt.day:
+            break
+        string_key = key
+
+    to_print = seasonal_string.get(string_key, None)
+    if to_print:
+        print(to_print)
+        print()
 
 @bot.event
 async def on_ready():
@@ -472,7 +561,7 @@ async def on_message(message):
         return
 
     if message.author.id in bot.db['fullbanned']:
-        if message.author.id==bot.owner:
+        if message.author.id==bot.owner or message.author.id in bot.other_owners:
             bot.db['fullbanned'].remove(message.author.id)
             bot.db.save_data()
         else:
@@ -483,7 +572,7 @@ async def on_message(message):
         return await bot.process_commands(message)
 
 try:
-    bot.run(os.environ.get('TOKEN'))
+    bot.run(bot.tokenstore.retrieve('TOKEN'))
 except SystemExit as e:
     try:
         code = int(f'{e}')

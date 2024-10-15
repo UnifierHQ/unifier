@@ -30,61 +30,103 @@ except:
 
 class LanguageManager:
     def __init__(self, bot):
-        self.bot = bot
-        self.language_base = {}
-        self.language_custom = {}
-        self.language_set = 'english'
+        self.__bot = bot
+        self.__language_base = {}
+        self.__language_custom = {}
+        self.__language_set = 'english'
         if bot:
-            self.logger = log.buildlogger(self.bot.package, 'langmgr', self.bot.loglevel)
+            self.logger = log.buildlogger(self.__bot.package, 'langmgr', self.__bot.loglevel)
         self.__loaded = True
+
+    @property
+    def default_language(self):
+        return self.__language_set
+
+    @property
+    def languages(self):
+        if not self.__loaded:
+            raise RuntimeError('language not loaded, run LanguageManager.load()')
+        return ['english']+list(self.__language_custom.keys())
 
     def load(self):
         try:
             with open('languages/english.json', 'r') as file:
-                self.language_base = json.load(file)
+                self.__language_base = json.load(file)
         except:
             # probably didn't carry over from v2 => v3 upgrade
             with open('update/languages/english.json', 'r') as file:
-                self.language_base = json.load(file)
+                self.__language_base = json.load(file)
 
             if not os.path.isdir('languages'):
                 # create languages folder
                 os.mkdir('languages')
 
             with open('languages/english.json', 'w+') as file:
-                json.dump(self.language_base, file, indent=4)
-        if self.bot:
+                # noinspection PyTypeChecker
+                json.dump(self.__language_base, file, indent=4)
+        if self.__bot:
             for language in os.listdir('languages'):
                 if language=='english.json':
                     continue
                 if not language.endswith('.json'):
                     continue
-                with open(f'languages/{language}.json', 'r') as file:
+                with open(f'languages/{language}', 'r') as file:
                     new_lang = json.load(file)
-                self.language_custom.update({language[:-5]: new_lang})
-            self.language_set = self.bot.config['language']
+                self.__language_custom.update({language[:-5]: new_lang})
+            self.__language_set = self.__bot.config['language']
         self.__loaded = True
+
+    def get_user_language(self, user):
+        return self.__bot.db['languages'].get(f'{user}',self.__language_set)
+
+    def get_language_meta(self, language):
+        if language == 'english':
+            return {
+                'language': self.__language_base['language'],
+                'language_english': self.__language_base['language_english'],
+                'emoji': self.__language_base['emoji'],
+                'author': self.__language_base['author']
+            }
+        else:
+            return {
+                'language': self.__language_custom[language]['language'],
+                'language_english': self.__language_custom[language]['language_english'],
+                'emoji': self.__language_custom[language]['emoji'],
+                'author': self.__language_custom[language]['author']
+            }
 
     def desc(self, parent):
         return self.get('description',parent)
+
+    def desc_from_all(self, command, language=None):
+        try:
+            base = self.__language_custom[language]['strings']
+        except:
+            base = self.__language_base['strings']
+        for key in base.keys():
+            if key == "commons":
+                continue
+            if command in base[key].keys():
+                return self.get("description", f"{key}.{command}", language=language)
+        return None
 
     def get(self, string, parent: Union[commands.Context, str], default="[unknown string]", language=None):
         if not self.__loaded:
             raise RuntimeError('language not loaded, run LanguageManager.load()')
         if not language:
-            language = self.language_set
+            language = self.__language_set
         if isinstance(parent, commands.Context):
-            extlist = list(self.bot.extensions)
+            extlist = list(self.__bot.extensions)
             extname = None
             cmdname = parent.command.qualified_name
-            for x in range(len(self.bot.cogs)):
-                if self.bot.cogs[x]==parent.cog:
+            for x in range(len(self.__bot.cogs)):
+                if self.__bot.cogs[x]==parent.cog:
                     extname = extlist[x]
                     break
         else:
             extname, cmdname = parent.split('.')
         if not extname:
-            if self.bot:
+            if self.__bot:
                 self.logger.error('Invalid extension in context, something is very wrong here')
             return default
         try:
@@ -92,18 +134,16 @@ class LanguageManager:
                 if language=='english':
                     # throw error so it uses english
                     raise Exception()
-                return self.language_custom[language]['strings'][extname][cmdname][string]
+                return self.__language_custom[language]['strings'][extname][cmdname][string]
             except:
-                return self.language_base['strings'][extname][cmdname][string]
+                return self.__language_base['strings'][extname][cmdname][string]
         except:
-            if self.bot:
-                self.logger.exception('An error occurred!')
             return default
 
     def get_formatted(self,
                       string,
                       parent: Union[commands.Context, str],
-                      default=None,
+                      default="[unknown string]",
                       values: dict = None,
                       language=None):
         if not self.__loaded:
@@ -119,7 +159,7 @@ class LanguageManager:
     def fget(self,
              string,
              parent: Union[commands.Context, str],
-             default=None,
+             default="[unknown string]",
              values: dict = None,
              language=None):
         """Alias for get_formatted"""
@@ -132,11 +172,11 @@ class LanguageManager:
         if not self.__loaded:
             raise RuntimeError('language not loaded, run LanguageManager.load()')
         if isinstance(parent, commands.Context):
-            extlist = list(self.bot.extensions)
+            extlist = list(self.__bot.extensions)
             extname = None
             cmdname = parent.command.qualified_name
-            for x in range(len(self.bot.cogs)):
-                if list(self.bot.cogs)[x]==parent.cog.qualified_name:
+            for x in range(len(self.__bot.cogs)):
+                if list(self.__bot.cogs)[x]==parent.cog.qualified_name:
                     extname = extlist[x].replace('cogs.','',1)
                     break
             if not userid:
@@ -145,40 +185,53 @@ class LanguageManager:
             if not userid:
                 raise ValueError('userid must be provided if parent is string')
             extname, cmdname = parent.split('.')
-        return Selector(self, extname, cmdname, userid)
+        return Selector(self, self.__bot, extname, cmdname, userid)
 
 class Selector:
-    def __init__(self, parent: LanguageManager, extname, cmdname, userid=None):
-        self.parent = parent
-        self.extname = extname
-        self.cmdname = cmdname
-        self.language_set = (
-            self.parent.bot.db['languages'][f'{userid}'] if f'{userid}' in self.parent.bot.db['languages'].keys()
-            else parent.language_set
-        )
+    def __init__(self, parent: LanguageManager, bot, extname, cmdname, userid=None):
+        self.__parent = parent
+        self.__extname = extname
+        self.__cmdname = cmdname
+        self.__bot = bot
+        self.__language_set = self.__bot.db['languages'].get(f'{userid}', parent.default_language)
         self.userid = userid
 
-    def rawget(self, string, parent: Union[commands.Context, str]):
-        return self.parent.get(string, parent, language=self.language_set)
+    @property
+    def extname(self):
+        return self.__extname
+    
+    @property
+    def cmdname(self):
+        return self.__cmdname
 
-    def rawget_formatted(self, string, parent: Union[commands.Context, str], values: dict = None):
-        return self.parent.get_formatted(string, parent, language=self.language_set, values=values)
+    @property
+    def language_set(self):
+        return self.__language_set
 
-    def rawfget(self, string, parent: Union[commands.Context, str], values: dict = None):
-        return self.parent.get_formatted(string, parent, language=self.language_set, values=values)
+    def rawget(self, string, parent: Union[commands.Context, str], default="[unknown string]"):
+        return self.__parent.get(string, parent, language=self.__language_set, default=default)
 
-    def get(self, string):
-        return self.parent.get(string, f"{self.extname}.{self.cmdname}", language=self.language_set)
+    def rawget_formatted(self, string, parent: Union[commands.Context, str], values: dict = None, default="[unknown string]"):
+        return self.__parent.get_formatted(string, parent, language=self.__language_set, values=values, default=default)
 
-    def get_formatted(self, string, values):
-        return self.parent.get_formatted(
-            string, f"{self.extname}.{self.cmdname}", values=values, language=self.language_set
+    def rawfget(self, string, parent: Union[commands.Context, str], values: dict = None, default="[unknown string]"):
+        return self.__parent.get_formatted(string, parent, language=self.__language_set, values=values, default=default)
+
+    def get(self, string, default="[unknown string]"):
+        return self.__parent.get(string, f"{self.__extname}.{self.__cmdname}", language=self.__language_set, default=default)
+
+    def get_formatted(self, string, values, default="[unknown string]"):
+        return self.__parent.get_formatted(
+            string, f"{self.__extname}.{self.__cmdname}", values=values, language=self.__language_set, default=default
         )
+
+    def desc_from_all(self, string):
+        return self.__parent.desc_from_all(string, self.__language_set)
 
     def fget(self, string, values):
         """Alias for get_formatted"""
-        return self.parent.get_formatted(
-            string, f"{self.extname}.{self.cmdname}", values=values, language=self.language_set
+        return self.__parent.get_formatted(
+            string, f"{self.__extname}.{self.__cmdname}", values=values, language=self.__language_set
         )
 
 def partial():

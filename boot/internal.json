@@ -4,5 +4,35 @@
   "product_name": "Unifier",
   "base_bootfile": "unifier.py",
   "repo": "https://github.com/UnifierHQ/unifier",
-  "required_py_version": 9
+  "required_py_version": 9,
+  "skip_server": false,
+  "options": [
+    {
+        "id": "optimized",
+        "name": "\u26a1 Optimized",
+        "description": "Uses the latest Nextcord and performance optimizations for blazing fast bridging.",
+        "default": true,
+        "prefix": "",
+        "required_py_version": 12,
+        "color": "\\x1b[35"
+    },
+    {
+        "id": "balanced",
+        "name": "\u26a1 Balanced",
+        "description": "Uses the latest stable Nextcord and performance optimizations for balanced performance and stability. Recommended for most users.",
+        "default": false,
+        "prefix": "balanced",
+        "required_py_version": 12,
+        "color": "\\x1b[34"
+    },
+    {
+        "id": "stable",
+        "name": "\ud83d\udc8e Stable",
+        "description": "Uses the latest stable Nextcord for best stability.",
+        "default": false,
+        "prefix": "stable",
+        "required_py_version": 9,
+        "color": "\\x1b[32"
+    }
+  ]
 }
