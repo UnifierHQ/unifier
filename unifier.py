@@ -438,8 +438,10 @@ class DiscordBot(commands.Bot):
     def tokenstore(self):
         return self.__tokenstore
 
-    async def on_application_command_error(self, interaction, exception):
-        await self.exhandler.handle(interaction, exception)
+    async def on_application_command_error(
+            self, interaction: nextcord.Interaction, error: Exception
+    ) -> None:
+        await self.exhandler.handle(interaction, error)
 
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
