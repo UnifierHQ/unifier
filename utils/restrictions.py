@@ -16,41 +16,42 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from nextcord.ext import commands
+import nextcord
+from nextcord.ext import application_checks
 
 class Restrictions:
     def __init__(self, bot=None):
         self.__bot = bot
         self.__attached = (not bot is None)
 
-    class NoRoomManagement(commands.CheckFailure):
+    class NoRoomManagement(nextcord.ApplicationCheckFailure):
         pass
 
-    class NoRoomModeration(commands.CheckFailure):
+    class NoRoomModeration(nextcord.ApplicationCheckFailure):
         pass
 
-    class NoRoomJoin(commands.CheckFailure):
+    class NoRoomJoin(nextcord.ApplicationCheckFailure):
         pass
 
-    class UnknownRoom(commands.CheckFailure):
+    class UnknownRoom(nextcord.ApplicationCheckFailure):
         pass
 
-    class AlreadyConnected(commands.CheckFailure):
+    class AlreadyConnected(nextcord.ApplicationCheckFailure):
         pass
 
-    class NotConnected(commands.CheckFailure):
+    class NotConnected(nextcord.ApplicationCheckFailure):
         pass
 
-    class GlobalBanned(commands.CheckFailure):
+    class GlobalBanned(nextcord.ApplicationCheckFailure):
         pass
 
-    class UnderAttack(commands.CheckFailure):
+    class UnderAttack(nextcord.ApplicationCheckFailure):
         pass
 
-    class CustomMissingArgument(commands.CheckFailure):
+    class CustomMissingArgument(nextcord.ApplicationCheckFailure):
         pass
 
-    class TooManyPermissions(commands.CheckFailure):
+    class TooManyPermissions(nextcord.ApplicationCheckFailure):
         pass
 
     @property
@@ -64,83 +65,83 @@ class Restrictions:
         self.__attached = True
 
     def owner(self):
-        async def predicate(ctx: commands.Context):
-            return ctx.author.id == self.__bot.config['owner'] or ctx.author.id in self.__bot.config['other_owners']
+        async def predicate(interaction: nextcord.Interaction):
+            return interaction.user.id == self.__bot.config['owner'] or interaction.user.id in self.__bot.config['other_owners']
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def admin(self):
-        async def predicate(ctx: commands.Context):
-            return ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
+        async def predicate(interaction: nextcord.Interaction):
+            return interaction.user.id in self.__bot.admins or interaction.user.id == self.__bot.config['owner']
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def moderator(self):
-        async def predicate(ctx: commands.Context):
-            return ctx.author.id in self.__bot.moderators or ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
+        async def predicate(interaction: nextcord.Interaction):
+            return interaction.user.id in self.__bot.moderators or interaction.user.id in self.__bot.admins or interaction.user.id == self.__bot.config['owner']
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def can_create(self):
-        async def predicate(ctx: commands.Context):
+        async def predicate(interaction: nextcord.Interaction):
             return (
-                ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
-            ) or ctx.author.guild_permissions.manage_channels
+                interaction.user.id in self.__bot.admins or interaction.user.id == self.__bot.config['owner']
+            ) or interaction.user.guild_permissions.manage_channels
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def not_banned(self):
-        async def predicate(ctx: commands.Context):
+        async def predicate(interaction: nextcord.Interaction):
             if (
-                    f'{ctx.author.id}' in self.__bot.db['banned'].keys() or
-                    f'{ctx.guild.id}' in self.__bot.db['banned'].keys()
+                    f'{interaction.user.id}' in self.__bot.db['banned'].keys() or
+                    f'{interaction.guild.id}' in self.__bot.db['banned'].keys()
             ):
                 raise self.GlobalBanned('You are global banned.')
-            elif f'{ctx.guild.id}' in self.__bot.db['underattack']:
+            elif f'{interaction.guild.id}' in self.__bot.db['underattack']:
                 raise self.UnderAttack('The server is under attack.')
             return True
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def not_banned_user(self):
-        async def predicate(ctx: commands.Context):
-            if f'{ctx.author.id}' in self.__bot.db['banned'].keys():
+        async def predicate(interaction: nextcord.Interaction):
+            if f'{interaction.user.id}' in self.__bot.db['banned'].keys():
                 raise self.GlobalBanned('You are global banned.')
             return True
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def not_banned_guild(self):
-        async def predicate(ctx: commands.Context):
-            if f'{ctx.guild.id}' in self.__bot.db['banned'].keys():
+        async def predicate(interaction: nextcord.Interaction):
+            if f'{interaction.guild.id}' in self.__bot.db['banned'].keys():
                 raise self.GlobalBanned('You are global banned.')
-            elif f'{ctx.guild.id}' in self.__bot.db['underattack']:
+            elif f'{interaction.guild.id}' in self.__bot.db['underattack']:
                 raise self.UnderAttack('This server is under attack.')
             return True
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def under_attack(self):
-        async def predicate(ctx: commands.Context):
-            if f'{ctx.guild.id}' in self.__bot.db['underattack']:
-                return ctx.author.guild_permissions.manage_channels
+        async def predicate(interaction: nextcord.Interaction):
+            if f'{interaction.guild.id}' in self.__bot.db['underattack']:
+                return interaction.user.guild_permissions.manage_channels
             else:
-                return ctx.author.guild_permissions.ban_members or ctx.author.guild_permissions.manage_channels
+                return interaction.user.guild_permissions.ban_members or interaction.user.guild_permissions.manage_channels
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def no_admin_perms(self):
-        async def predicate(ctx: commands.Context):
-            if ctx.guild.me.guild_permissions.administrator:
+        async def predicate(interaction: nextcord.Interaction):
+            if interaction.guild.me.guild_permissions.administrator:
                 raise self.TooManyPermissions('Administrator')
             return True
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)
 
     def demo_error(self):
         """A demo check which will always fail, intended for development use only."""
 
-        async def predicate(_ctx: commands.Context):
+        async def predicate(_interaction: nextcord.Interaction):
             return False
 
-        return commands.check(predicate)
+        return application_checks.check(predicate)

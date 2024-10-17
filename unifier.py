@@ -32,7 +32,7 @@ import threading
 import shutil
 import filecmp
 import datetime
-from utils import log, secrets
+from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr
 from pathlib import Path
 
 # import ujson if installed
@@ -79,6 +79,11 @@ except:
         print('To start the bot, please run "./run.sh" instead.')
         print('If you get a "Permission denied" error, run "chmod +x run.sh" and try again.')
     sys.exit(1)
+
+restrictions = r.Restrictions()
+restrictions_legacy = r_legacy.Restrictions()
+language = langmgr.partial()
+language.load()
 
 # upgrade files in directories not targeted by upgrader in previous versions
 directories = ['boot', 'languages', 'emojis']
@@ -232,7 +237,6 @@ if not data['skip_status_check']:
     except:
         logger.debug('Failed to get Discord status')
 
-
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -309,10 +313,23 @@ class DiscordBot(commands.Bot):
         self.db = AutoSaveDict({})
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
         self.__tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'], data['debug'])
+        self.__langmgr = langmgr.LanguageManager(self)
 
         if should_encrypt:
             self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
             os.remove('.env')
+
+    @property
+    def package(self):
+        return self.__config['package'] if self.__config else 'unifier'
+
+    @property
+    def loglevel(self):
+        return (logging.DEBUG if self.__config['debug'] else logging.INFO) if self.__config else logging.INFO
+
+    @property
+    def langmgr(self):
+        return self.__langmgr
 
     @property
     def owner(self):
@@ -335,6 +352,7 @@ class DiscordBot(commands.Bot):
         if self.__config:
             raise RuntimeError('Config already set')
         self.__config = config
+        self.__langmgr.load()
 
     @boot_config.setter
     def boot_config(self, config):
@@ -419,6 +437,9 @@ class DiscordBot(commands.Bot):
     @property
     def tokenstore(self):
         return self.__tokenstore
+
+    async def on_application_command_error(self, interaction, exception):
+        await self.exhandler.handle(interaction, exception)
 
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
@@ -538,9 +559,9 @@ async def on_ready():
                 logger.warning('Message restore failed')
         elif data['periodic_backup'] <= 0:
             logger.debug(f'Periodic backups disabled')
-        if data['enable_ctx_commands'] and not bot.coreboot:
-            logger.debug("Registering context commands...")
-            await bot.sync_application_commands()
+    logger.info("Registering application commands...")
+    await bot.sync_application_commands(update_known=False, register_new=False)
+    await bot.sync_application_commands(update_known=True, register_new=True)
     logger.info('Unifier is ready!')
     if not bot.ready:
         bot.ready = True
@@ -550,6 +571,7 @@ async def on_command_error(_ctx, _command):
     # ignore all errors raised outside cog
     # as core has no commands, all command errors from core can be ignored
     pass
+
 
 @bot.event
 async def on_message(message):

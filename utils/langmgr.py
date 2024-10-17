@@ -21,6 +21,7 @@ import json
 from typing import Union
 from utils import log
 import os
+import nextcord
 
 # import ujson if installed
 try:
@@ -64,17 +65,22 @@ class LanguageManager:
             with open('languages/english.json', 'w+') as file:
                 # noinspection PyTypeChecker
                 json.dump(self.__language_base, file, indent=4)
+        for language in os.listdir('languages'):
+            if language == 'english.json':
+                continue
+            if not language.endswith('.json'):
+                continue
+            with open(f'languages/{language}', 'r') as file:
+                new_lang = json.load(file)
+            self.__language_custom.update({language[:-5]: new_lang})
         if self.__bot:
-            for language in os.listdir('languages'):
-                if language=='english.json':
-                    continue
-                if not language.endswith('.json'):
-                    continue
-                with open(f'languages/{language}', 'r') as file:
-                    new_lang = json.load(file)
-                self.__language_custom.update({language[:-5]: new_lang})
             self.__language_set = self.__bot.config['language']
         self.__loaded = True
+
+    def get_locale(self, language=None):
+        if not language:
+            return self.__language_base['locale']
+        return self.__language_custom[language]['locale']
 
     def get_user_language(self, user):
         return self.__bot.db['languages'].get(f'{user}',self.__language_set)
@@ -109,6 +115,39 @@ class LanguageManager:
             if command in base[key].keys():
                 return self.get("description", f"{key}.{command}", language=language)
         return None
+
+    def slash_desc(self, command, ignore_base=True):
+        options = {}
+
+        cogname, cmdname = command.split('.')
+
+        for language in self.__language_custom.keys():
+            options.update({
+                self.__language_custom[language]['locale']: self.get(
+                    "description", f"{cogname}.{cmdname}", language=language
+                )
+            })
+
+        if not ignore_base:
+            options.update({self.__language_base['locale']: self.get("description", f"{cogname}.{cmdname}")})
+
+        return options
+
+    def slash_options(self, command):
+        options = {}
+
+        cogname, cmdname = command.split('.')
+
+        for language in self.__language_custom.keys():
+            options.update({
+                self.__language_custom[language]['locale']: self.get(
+                    "options", f"{cogname}.{cmdname}", language=language
+                )
+            })
+
+        options.update({self.__language_base['locale']: self.get("options", f"{cogname}.{cmdname}")})
+
+        return options
 
     def get(self, string, parent: Union[commands.Context, str], default="[unknown string]", language=None):
         if not self.__loaded:
@@ -171,16 +210,28 @@ class LanguageManager:
     def get_selector(self, parent: Union[commands.Context, str], userid: int = None):
         if not self.__loaded:
             raise RuntimeError('language not loaded, run LanguageManager.load()')
-        if isinstance(parent, commands.Context):
+        if isinstance(parent, commands.Context) or isinstance(parent, nextcord.Interaction):
             extlist = list(self.__bot.extensions)
             extname = None
-            cmdname = parent.command.qualified_name
+            if isinstance(parent, nextcord.Interaction):
+                cmd = parent.application_command
+                parent_cog = cmd.parent_cog
+            else:
+                cmd = parent.command
+                parent_cog = parent.cog
+            cmdname = cmd.qualified_name
+            if ' ' in cmdname:
+                # handle subcommands
+                cmdname = cmdname.split(' ')[len(cmdname.split(' '))-1]
             for x in range(len(self.__bot.cogs)):
-                if list(self.__bot.cogs)[x]==parent.cog.qualified_name:
+                if list(self.__bot.cogs)[x]==parent_cog.qualified_name:
                     extname = extlist[x].replace('cogs.','',1)
                     break
             if not userid:
-                userid = parent.author.id
+                if isinstance(parent, nextcord.Interaction):
+                    userid = parent.user.id
+                else:
+                    userid = parent.author.id
         else:
             if not userid:
                 raise ValueError('userid must be provided if parent is string')
