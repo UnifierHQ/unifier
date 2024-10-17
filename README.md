@@ -1,7 +1,7 @@
 <h1 align=center>
   <img width=64 src=https://github.com/UnifierHQ/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae><br>
 Unifier</h1>
-<p align=center>A fast and versatile Discord bot uniting servers and platforms, brought to you by Green and ItsAsheer<br>
+<p align=center>A cross-server and cross-platform bridge bot that works just as fast as you can type 🚀<br>
 Inspired by matrix-t2bot</p>
 <p align=center><a href='#-setup'>🔧 Setup</a> •
   <a href='https://wiki.unifierhq.org'>📘 Wiki</a> • <a href='#%EF%B8%8F-support'>⛑️ Support</a></sub>
