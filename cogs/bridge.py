@@ -19,7 +19,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import nextcord
 import hashlib
 import asyncio
-from nextcord.ext import commands
+from typing import Optional
+from nextcord.ext import commands, application_checks
 import traceback
 import time
 import datetime
@@ -32,7 +33,7 @@ import ast
 import math
 import os
 import copy
-from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r
+from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, slash as slash_helper
 import importlib
 import emoji as pymoji
 import aiomultiprocess
@@ -52,6 +53,7 @@ emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=
 restrictions = r.Restrictions()
 language = langmgr.partial()
 language.load()
+slash = slash_helper.SlashHelper(language)
 
 multisend_logs = []
 plugin_data = {}
@@ -2668,6 +2670,222 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if webhook_cache:
             self.bot.bridge.webhook_cache = webhook_cache
 
+    @nextcord.slash_command()
+    async def bridge(self, ctx):
+        pass
+
+    @bridge.subcommand(description='Connects the channel to a given room.')
+    @application_checks.has_permissions(manage_channels=True)
+    @application_checks.bot_has_permissions(manage_webhooks=True)
+    @restrictions.not_banned()
+    @restrictions.no_admin_perms()
+    async def bind(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('bridge.bind.room')
+    ):
+        invite = False
+        roominfo = self.bot.bridge.get_room(room.lower())
+
+        if not roominfo:
+            invite = True
+            try:
+                roominfo = self.bot.bridge.get_room(
+                    self.bot.bridge.get_invite(room.lower())['room']
+                )
+            except:
+                raise restrictions.UnknownRoom()
+
+        mod_access = ctx.user.id in self.bot.moderators and self.bot.config['private_rooms_mod_access']
+
+        if not invite:
+            room = room.lower()
+            if not room in self.bot.bridge.rooms:
+                raise restrictions.UnknownRoom()
+
+            if not self.bot.bridge.can_join_room(room, ctx.user) and not mod_access:
+                raise restrictions.NoRoomJoin()
+            roomname = room
+        else:
+            roomname = self.bot.bridge.get_invite(room.lower())['room']
+
+        selector = language.get_selector(ctx)
+
+        text = []
+        if len(roominfo['meta']['rules']) > 0:
+            for i in range(len(roominfo['meta']['rules'])):
+                text.append(f'{i + 1}. ' + roominfo['meta']['rules'][i])
+            text = '\n'.join(text)
+        else:
+            text = selector.fget("no_rules", values={"prefix": self.bot.command_prefix,
+                                                     "room": roominfo['meta']['display_name'] or roomname})
+
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.loading} {selector.get("check_title")}',
+            description=selector.get("check_body"),
+            color=self.bot.colors.warning
+        )
+        await ctx.send(embed=embed)
+        msg = await ctx.original_message()
+
+        duplicate = self.bot.bridge.check_duplicate(ctx.channel)
+        if duplicate:
+            embed.colour = self.bot.colors.error
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("already_linked_title")}'
+            embed.description = selector.fget("already_linked_body",
+                                              values={"room": duplicate, "prefix": self.bot.command_prefix})
+            return await msg.edit(embed=embed)
+
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.rooms} {selector.fget("join_title", values={"roomname": roominfo["meta"]["display_name"] or roomname})}',
+            description=f'{text}\n\n{selector.get("display")}',
+            color=self.bot.colors.warning
+        )
+        embed.set_footer(text=selector.get("disclaimer"))
+
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green,
+                    label=selector.get("accept"),
+                    custom_id='accept',
+                    emoji=f'{self.bot.ui_emojis.success}'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label=selector.rawget("cancel", "commons.navigation"),
+                    custom_id='cancel',
+                    emoji=f'{self.bot.ui_emojis.error}'
+                )
+            )
+        )
+
+        await msg.edit(embed=embed, view=components)
+
+        def check(interaction):
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+
+            if interaction.data['custom_id'] == 'cancel':
+                await interaction.response.edit_message(view=None)
+                raise Exception()
+        except:
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("no_agree")}'
+            embed.colour = self.bot.colors.error
+            return await msg.edit(embed=embed, view=None)
+
+        embed.title = embed.title.replace(self.bot.ui_emojis.rooms, self.bot.ui_emojis.loading, 1)
+        await msg.edit(embed=embed, view=None)
+        await interaction.response.defer(ephemeral=False, with_message=True)
+
+        webhook = None
+
+        try:
+            roomname = room
+            if invite:
+                roomname = self.bot.bridge.get_invite(room.lower())['room']
+                await self.bot.bridge.accept_invite(ctx.user, room.lower())
+
+            webhook = await ctx.channel.create_webhook(name='Unifier Bridge')
+            await self.bot.bridge.join_room(ctx.user, roomname, ctx.channel, webhook_id=webhook.id)
+        except Exception as e:
+            if webhook:
+                try:
+                    await webhook.delete()
+                except:
+                    pass
+
+            embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
+
+            if type(e) is self.bot.bridge.InviteNotFoundError:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("invalid_invite")}'
+            elif type(e) is self.bot.bridge.RoomBannedError:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("room_banned")}'
+
+            embed.colour = self.bot.colors.error
+            await msg.edit(embed=embed)
+            await interaction.delete_original_message()
+
+            if not type(e) is self.bot.bridge.InviteNotFoundError:
+                raise
+        else:
+            embed.title = f'{self.bot.ui_emojis.success} {selector.get("success")}'
+            embed.colour = self.bot.colors.success
+            await msg.edit(embed=embed)
+            try:
+                await msg.pin()
+            except:
+                pass
+            await interaction.edit_original_message(content=f'{self.bot.ui_emojis.success} {selector.get("say_hi")}')
+
+    @bridge.subcommand(description='Disconnects the server from a given room.')
+    @application_checks.has_permissions(manage_channels=True)
+    @application_checks.bot_has_permissions(manage_webhooks=True)
+    @restrictions.no_admin_perms()
+    async def unbind(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('bridge.unbind.room', required=False)
+    ):
+        selector = language.get_selector(ctx)
+        if not room:
+            room = self.bot.bridge.check_duplicate(ctx.channel)
+            if not room:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("not_connected")}')
+        data = self.bot.bridge.get_room(room.lower())
+        if not data:
+            raise restrictions.UnknownRoom()
+
+        hook_deleted = True
+        try:
+            hooks = await ctx.guild.webhooks()
+            if f'{ctx.guild.id}' in list(data.keys()):
+                hook_ids = data[f'{ctx.guild.id}']
+            else:
+                hook_ids = []
+            for webhook in hooks:
+                if webhook.id in hook_ids:
+                    await webhook.delete()
+                    break
+        except:
+            hook_deleted = False
+
+        await self.bot.bridge.leave_room(ctx.guild, room)
+
+        if hook_deleted:
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
+        else:
+            await ctx.send(f'{self.bot.ui_emojis.warning} {selector.get("success_semi")}')
+
+    async def room_autocomplete(self, room, server, connected=False):
+        possible = []
+        for roomname in self.bot.bridge.rooms:
+            if not roomname.startswith(room):
+                continue
+            roominfo = self.bot.bridge.get_room(roomname)
+            if roominfo['meta']['private'] and not (
+                    server in roominfo['meta']['private_meta']['allowed'] or
+                    str(server) == roominfo['meta']['private_meta']['server']
+            ):
+                continue
+
+            platforms = ['discord'] + list(self.bot.platforms.keys())
+            for platform in platforms:
+                if str(server) in roominfo[platform].keys() or not connected:
+                    possible.append(roomname)
+                    break
+
+        return possible
+
+    @bind.on_autocomplete("room")
+    async def bind_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild))
+
+    @unbind.on_autocomplete("room")
+    async def unbind_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild, connected=True))
+
     @commands.command(aliases=['colour'],description=language.desc('bridge.color'))
     @restrictions.not_banned_guild()
     async def color(self,ctx,*,color=''):
@@ -2675,13 +2893,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         if color=='':
             try:
-                current_color = self.bot.db['colors'][f'{ctx.author.id}']
+                current_color = self.bot.db['colors'][f'{ctx.user.id}']
                 if current_color=='':
                     current_color = selector.get('default')
                     embed_color = self.bot.colors.unifier
                 elif current_color=='inherit':
                     current_color = selector.get('inherit')
-                    embed_color = ctx.author.color.value
+                    embed_color = ctx.user.color.value
                 else:
                     embed_color = ast.literal_eval('0x'+current_color)
             except:
@@ -2690,7 +2908,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed = nextcord.Embed(title=selector.get('title'),description=current_color,color=embed_color)
             await ctx.send(embed=embed)
         elif color=='inherit':
-            self.bot.db['colors'].update({f'{ctx.author.id}':'inherit'})
+            self.bot.db['colors'].update({f'{ctx.user.id}':'inherit'})
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_inherit'))
         else:
@@ -2698,29 +2916,32 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 tuple(int(color.replace('#','',1)[i:i + 2], 16) for i in (0, 2, 4))
             except:
                 return await ctx.send(selector.get('invalid'))
-            self.bot.db['colors'].update({f'{ctx.author.id}':color})
+            self.bot.db['colors'].update({f'{ctx.user.id}':color})
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_custom'))
 
     @commands.command(description=language.desc('bridge.nickname'))
     @restrictions.not_banned_guild()
-    async def nickname(self, ctx, *, nickname=''):
+    async def nickname(self, ctx: nextcord.Interaction, *, nickname=''):
         selector = language.get_selector(ctx)
         if len(nickname) > 33:
             return await ctx.send(selector.get('exceed'))
         if len(nickname) == 0:
-            self.bot.db['nicknames'].pop(f'{ctx.author.id}', None)
+            self.bot.db['nicknames'].pop(f'{ctx.user.id}', None)
         else:
-            self.bot.db['nicknames'].update({f'{ctx.author.id}': nickname})
+            self.bot.db['nicknames'].update({f'{ctx.user.id}': nickname})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(selector.get('success'))
 
     @commands.command(description=language.desc('bridge.ping'))
-    async def ping(self, ctx):
+    async def ping(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
+        await ctx.send(selector.get('ping'))
+        msg = await ctx.original_message()
         t = time.time()
-        msg = await ctx.send(selector.get('ping'))
+        pingmsg = await ctx.send(selector.get('ping'))
         diff = round((time.time() - t) * 1000, 1)
+        await pingmsg.delete()
         text = selector.get('pong')+' :ping_pong:'
         if diff <= 300 and self.bot.latency <= 0.2:
             embed = nextcord.Embed(title=selector.get('normal_title'),
@@ -2996,14 +3217,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     language=selector.language_set
                 ))
             if not msg:
-                msg = await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
+                await ctx.send(embed=embed, view=components, reference=ctx.message, mention_author=False)
+                msg = await ctx.original_message()
             else:
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed, view=components)
             embed.clear_fields()
 
             def check(interaction):
-                return interaction.user.id == ctx.author.id and interaction.message.id == msg.id
+                return interaction.user.id == ctx.user.id and interaction.message.id == msg.id
 
             try:
                 interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
@@ -3112,9 +3334,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         guild = self.bot.get_guild(self.bot.config['home_guild'])
         hooks = await guild.webhooks()
 
-        author = f'{ctx.author.name}#{ctx.author.discriminator}'
-        if ctx.author.discriminator=='0':
-            author = f'@{ctx.author.name}'
+        author = f'{ctx.user.name}#{ctx.user.discriminator}'
+        if ctx.user.discriminator=='0':
+            author = f'@{ctx.user.name}'
 
         for hook in hooks:
             if hook_id==hook.id:
@@ -3124,7 +3346,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 except:
                     return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_moderator")}')
                 await ch.send(
-                    f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.author.id,"guildname":ctx.guild.name,"guildid":ctx.guild.id})}',
+                    f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.user.id,"guildname":ctx.guild.name,"guildid":ctx.guild.id})}',
                     allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False)
                 )
                 return await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
@@ -3481,12 +3703,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not self.bot.config['enable_exp']:
             return await ctx.send(selector.get('disabled'))
         if not user:
-            user = ctx.author
+            user = ctx.user
         else:
             try:
                 user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
             except:
-                user = ctx.author
+                user = ctx.user
         try:
             data = self.bot.db['exp'][f'{user.id}']
         except:
@@ -3496,7 +3718,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         progressbar = '['+(bars*'|')+(empty*' ')+']'
         embed = nextcord.Embed(
             title=(
-                selector.get("title_self") if user.id==ctx.author.id else
+                selector.get("title_self") if user.id==ctx.user.id else
                 selector.fget("title_other", values={"username": user.global_name if user.global_name else user.name})
              ),
             description=(
@@ -3592,12 +3814,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             components.add_row(btns)
 
             if not msg:
-                msg = await ctx.send(embed=embed,view=components)
+                await ctx.send(embed=embed,view=components)
+                msg = await ctx.original_message()
             else:
                 await interaction.response.edit_message(embed=embed,view=components)
 
             def check(interaction):
-                return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
+                return interaction.user.id==ctx.user.id and interaction.message.id==msg.id
 
             try:
                 interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
@@ -3882,7 +4105,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @commands.command(hidden=True,description=language.desc("bridge.initbridge"))
     @restrictions.owner()
-    async def initbridge(self, ctx, *, args=''):
+    async def initbridge(self, ctx: nextcord.Interaction, *, args=''):
         selector = language.get_selector(ctx)
         msgs = []
         prs = {}
@@ -3899,7 +4122,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.command(hidden=True,description=language.desc("bridge.system"))
     @restrictions.owner()
     @restrictions.no_admin_perms()
-    async def system(self, ctx, room, *, content):
+    async def system(self, ctx: nextcord.Interaction, room, *, content):
         selector = language.get_selector(ctx)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True,content_override=content)
         for platform in self.bot.platforms.keys():
@@ -4715,7 +4938,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await msg.remove_reaction(emoji, event.user_id)
 
-    async def cog_command_error(self, ctx, error):
+    async def cog_command_error(self, ctx: nextcord.Interaction, error):
         await self.bot.exhandler.handle(ctx, error)
 
 def setup(bot):

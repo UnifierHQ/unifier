@@ -21,7 +21,7 @@ from nextcord.ext import commands
 import json
 import os
 import importlib
-from utils import log, ui, langmgr, restrictions as r
+from utils import log, ui, langmgr, restrictions_legacy as r
 
 try:
     import ujson as json  # pylint: disable=import-error
