@@ -551,13 +551,13 @@ class UnifierBridge:
             guild_id = support.get_id(support.server(user))
 
         is_server = guild_id == roominfo['meta']['private_meta']['server']
-        can_manage = guild_id in roominfo['meta']['private_meta']['server']
+        can_join = guild_id in roominfo['meta']['private_meta']['allowed']
 
         if roominfo['meta']['private']:
             if user:
                 if user_id in self.__bot.moderators and self.__bot.config['private_rooms_mod_access']:
                     return True
-            return (is_server or can_manage) and manage_channels
+            return (is_server or can_join) and manage_channels
         else:
             return manage_channels
 
