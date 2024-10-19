@@ -1122,7 +1122,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot_shutdown(ctx, restart=True)
 
     @commands.command(aliases=['plugins'],hidden=True,description=language.desc('sysmgr.modifiers'))
-    @restrictions_legacy.owner()
     async def modifiers(self, ctx, *, plugin=None):
         selector = language.get_selector(ctx)
         if plugin:
@@ -1139,7 +1138,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not plugin:
             offset = page * 20
             embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
-            text = ''
             if offset > len(pluglist):
                 page = len(pluglist) // 20 - 1
                 offset = page * 20
@@ -1148,11 +1146,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     break
                 with open('plugins/'+pluglist[x]) as file:
                     pluginfo = json.load(file)
-                if text == '':
-                    text = f'- {pluginfo["name"]} (`{pluginfo["id"]}`)'
-                else:
-                    text = f'{text}\n- {pluginfo["name"]} (`{pluginfo["id"]}`)'
-            embed.description = text
+                embed.add_field(
+                    name=f'{pluginfo["name"]} (`{pluginfo["id"]}`, {pluginfo["version"]})',
+                    value=pluginfo["description"],
+                    inline=False
+                )
             embed.set_footer(text=selector.rawfget(
                 'page', 'sysmgr.extensions', values={'page': page + 1}
             ))
@@ -1864,7 +1862,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         disabled=False
                     ),
                     nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.gray, label=selector.rawget('nevermind','sysmgr.install'), custom_id=f'reject',
+                        style=nextcord.ButtonStyle.gray, label=selector.rawget('nevermind','commons.navigation'), custom_id=f'reject',
                         disabled=False
                     ),
                     nextcord.ui.Button(
