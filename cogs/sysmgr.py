@@ -455,9 +455,9 @@ class CommandExceptionHandler:
                 await msg.edit(view=view)
 
                 try:
-                    await interaction.response.send_message(f'```\n{error_tb}```',ephemeral=True)
+                    await interaction.response.send_message(f'```\n{error_tb}```')
                 except:
-                    await interaction.response.send_message(selector.get("tb_sendfail"), ephemeral=True)
+                    await interaction.response.send_message(selector.get("tb_sendfail"))
         except:
             self.logger.exception('An error occurred!')
             await respond(f'{self.bot.ui_emojis.error} {selector.get("handler_error")}')
