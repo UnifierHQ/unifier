@@ -225,7 +225,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.add_field(name='Actions taken',value=f'- :zipper_mouth:{user_selector.get("restricted_perma")}\n- :white_check_mark: {user_selector.get("appeal")}',inline=False)
         else:
             embed.add_field(name='Actions taken',value=f'- :warning: {user_selector.get("warning")}\n- :zipper_mouth: {user_selector.fget("restricted_temp",values={"expiry":nt})}',inline=False)
-        embed.add_field(name=user_selector.get("mistake_title"),value=user_selector.fget("mistake_body",values={"prefix":self.bot.commands_prefix}),inline=False)
+        embed.add_field(name=user_selector.get("mistake_title"),value=user_selector.fget("mistake_body",values={"prefix":self.bot.command_prefix}),inline=False)
         user = self.bot.get_user(userid)
         if not user:
             # add NUPS support for this later
@@ -256,9 +256,17 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         ctx.message.embeds = [embed]
 
         if not discreet:
-            await self.bot.bridge.send("main", ctx.message, 'discord', system=True, content_override='')
-        for platform in self.bot.config["external"]:
-            await self.bot.bridge.send("main", ctx.message, platform, system=True, content_override='')
+            try:
+                await self.bot.bridge.send("main", ctx.message, 'discord', system=True, content_override='')
+            except:
+                # ignore fail so ban can be processed anyways
+                pass
+        for platform in self.bot.platforms.keys():
+            try:
+                await self.bot.bridge.send("main", ctx.message, platform, system=True, content_override='')
+            except:
+                # ignore send fails so ban can be processed anyways
+                pass
 
         ctx.message.embeds = []
         ctx.message.content = content
