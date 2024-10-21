@@ -333,6 +333,17 @@ class CommandExceptionHandler:
 
     async def handle(self, ctx, error):
         selector = language.get_selector('sysmgr.error_handler', userid=ctx.user.id)
+        if isinstance(ctx, commands.Context):
+            author = ctx.author
+        else:
+            author = ctx.user
+
+        async def respond(*args, **kwargs):
+            if isinstance(ctx, commands.Context):
+                return await ctx.send(*args, **kwargs)
+            else:
+                await ctx.send(*args, **kwargs, ephemeral=True)
+                return await ctx.original_message()
         try:
             if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, restrictions.CustomMissingArgument):
                 cmdname = ctx.command.name
@@ -361,33 +372,39 @@ class CommandExceptionHandler:
                 else:
                     await ctx.send(f'{self.bot.ui_emojis.error} {error}', embed=embed)
             elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.BotMissingPermissions):
-                await ctx.send(f'{self.bot.ui_emojis.error} {error}')
+                await respond(f'{self.bot.ui_emojis.error} {error}')
             elif isinstance(error, commands.NoPrivateMessage):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("servers_only")}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.get("servers_only")}')
             elif isinstance(error, commands.PrivateMessageOnly):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dms_only")}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.get("dms_only")}')
             elif isinstance(error, restrictions.NoRoomManagement):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_room_management")}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.get("no_room_management")}')
             elif isinstance(error, restrictions.NoRoomJoin):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_room_join")}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.get("no_room_join")}')
             elif isinstance(error, restrictions.UnknownRoom):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawfget("invalid","commons.rooms",values={"prefix": self.bot.command_prefix})}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.rawfget("invalid","commons.rooms",values={"prefix": self.bot.command_prefix})}')
             elif isinstance(error, restrictions.GlobalBanned):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("banned",values={"prefix": self.bot.command_prefix})}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.fget("banned",values={"prefix": self.bot.command_prefix})}')
             elif isinstance(error, restrictions.UnderAttack):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("under_attack")}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.get("under_attack")}')
             elif isinstance(error, restrictions.TooManyPermissions):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("too_many_perms",values={"permission": error})}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.fget("too_many_perms",values={"permission": error})}')
             elif isinstance(error, commands.CheckFailure):
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("permissions")}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.get("permissions")}')
             elif isinstance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
-                await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("cooldown",values={"min":t//60,"sec":t%60})}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.fget("cooldown",values={"min":t//60,"sec":t%60})}')
             else:
-                error_tb = traceback.format_exc()
-                self.logger.exception('An error occurred!')
+                if isinstance(ctx, commands.Context):
+                    error_tb = traceback.format_exc()
+                    self.logger.exception('An error occurred!')
+                else:
+                    error_tb = ''.join(traceback.format_exception(
+                        type(error), error, error.__traceback__
+                    ))
+                    self.logger.exception('An error occurred!', exc_info=error)
                 view = ui.MessageComponents()
-                if ctx.user.id==self.bot.config['owner']:
+                if author.id==self.bot.config['owner']:
                     view.add_row(
                         ui.ActionRow(
                             nextcord.ui.Button(
@@ -396,13 +413,15 @@ class CommandExceptionHandler:
                             )
                         )
                     )
-                msg = await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("unexpected")}',
-                                     view=view)
+                msg = await respond(f'{self.bot.ui_emojis.error} {selector.get("unexpected")}',
+                                    view=view)
 
                 def check(interaction):
-                    return interaction.message.id==msg.id and interaction.user.id==ctx.author.id
+                    if not interaction.message:
+                        return False
+                    return interaction.message.id==msg.id and interaction.user.id==author.id
 
-                if not ctx.user.id == self.bot.config['owner']:
+                if not author.id == self.bot.config['owner']:
                     return
 
                 try:
@@ -438,7 +457,7 @@ class CommandExceptionHandler:
                     await interaction.response.send_message(selector.get("tb_sendfail"), ephemeral=True)
         except:
             self.logger.exception('An error occurred!')
-            await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("handler_error")}')
+            await respond(f'{self.bot.ui_emojis.error} {selector.get("handler_error")}')
 
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
@@ -3272,6 +3291,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
+
+    @commands.Cog.listener()
+    async def on_application_command_error(
+            self, interaction: nextcord.Interaction, exception: nextcord.ApplicationError
+    ) -> None:
+        await self.bot.exhandler.handle(interaction, exception)
 
 def setup(bot):
     bot.add_cog(SysManager(bot))

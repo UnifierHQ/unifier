@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
+from nextcord import Interaction, ApplicationError
 from nextcord.ext import commands
 import aiohttp
 import asyncio
@@ -438,10 +439,9 @@ class DiscordBot(commands.Bot):
     def tokenstore(self):
         return self.__tokenstore
 
-    async def on_application_command_error(
-            self, interaction: nextcord.Interaction, error: Exception
-    ) -> None:
-        await self.exhandler.handle(interaction, error)
+    async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
+        # suppress exception traceback as they're already logged
+        pass
 
 
 bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
@@ -567,13 +567,6 @@ async def on_ready():
     logger.info('Unifier is ready!')
     if not bot.ready:
         bot.ready = True
-
-@bot.event
-async def on_command_error(_ctx, _command):
-    # ignore all errors raised outside cog
-    # as core has no commands, all command errors from core can be ignored
-    pass
-
 
 @bot.event
 async def on_message(message):
