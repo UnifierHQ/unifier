@@ -332,17 +332,20 @@ class CommandExceptionHandler:
         self.logger = log.buildlogger(self.bot.package, 'exc_handler', self.bot.loglevel)
 
     async def handle(self, ctx, error):
-        selector = language.get_selector('sysmgr.error_handler', userid=ctx.user.id)
         if isinstance(ctx, commands.Context):
             author = ctx.author
         else:
             author = ctx.user
 
+        selector = language.get_selector('sysmgr.error_handler', userid=author.id)
+
         async def respond(*args, **kwargs):
             if isinstance(ctx, commands.Context):
                 return await ctx.send(*args, **kwargs)
             else:
-                await ctx.send(*args, **kwargs, ephemeral=True)
+                returned = await ctx.send(*args, **kwargs, ephemeral=True)
+                if isinstance(returned, nextcord.WebhookMessage):
+                    return returned
                 return await ctx.original_message()
         try:
             if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, restrictions.CustomMissingArgument):
@@ -609,6 +612,32 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if not self.bot.backup_cloud_task.is_running() and round(self.bot.config['periodic_backup_cloud']) > 0:
                 self.bot.backup_cloud_task.start()
                 self.logger.debug(f'Backing up data to cloud every {round(self.bot.config["ping"])} seconds')
+
+    def get_commands(self, cog=None):
+        def extract_subcommands(__command):
+            subcommands = []
+            if __command.children:
+                for child in __command.children.keys():
+                    subcommands += extract_subcommands(__command.children[child])
+                return subcommands
+            else:
+                return [__command]
+
+        if cog:
+            legacy_commands = list(cog.get_commands())
+            new_commands = [
+                cmd for cmd in self.bot.get_application_commands()
+                if cmd.parent_cog.qualified_name == cog.qualified_name
+            ]
+        else:
+            legacy_commands = list(self.bot.commands)
+            new_commands = list(self.bot.get_application_commands())
+
+        application_commands = []
+        for command in new_commands:
+            application_commands += extract_subcommands(command)
+
+        return legacy_commands + application_commands
 
     def encrypt_string(self, hash_string):
         sha_signature = \
@@ -1128,7 +1157,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if value == '':
                 await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"exec_time": exec_time})}')
             else:
-                await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"exec_time": exec_time})}\n```\n{value}```')
+                await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"exec_time": exec_time})}\n```\n{value}\n```')
 
     @commands.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions_legacy.owner()
@@ -2673,7 +2702,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==1:
                 if cogname=='' or cogname=='search':
-                    cmds = list(self.bot.commands) + list(self.bot.get_application_commands())
+                    cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
                 else:
                     query_cog = None
                     cmds = []
@@ -2683,13 +2712,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             break
 
                     if not query_cog is None:
-                        cmds = (
-                            list(query_cog.get_commands()) +
-                            [
-                                cmd for cmd in self.bot.get_application_commands()
-                                if cmd.parent_cog.qualified_name == query_cog.qualified_name
-                            ]
-                        )
+                        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands(cog=query_cog))
 
                 offset = 0
 
@@ -2879,7 +2902,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
                 )
             elif panel==2:
-                cmds = list(self.bot.commands) + list(self.bot.get_application_commands())
+                cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
                 cmd = [cmd for cmd in cmds if cmd.qualified_name==cmdname][0]
                 localized_cogname = selector.get("search_nav") if cogname == 'search' else cogname
                 embed.title = (
@@ -2894,7 +2917,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 except:
                     pass
 
-                if isinstance(cmd, nextcord.BaseApplicationCommand):
+                if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                     prefix = '/'
                     embed.add_field(name=selector.get("usage"),
                                     value=selector.fget("usage_slash", values={"command": cmdname}), inline=False)
@@ -2998,7 +3021,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @help.on_autocomplete("query")
     async def bind_autocomplete(self, ctx: nextcord.Interaction, query: str):
-        cmds = list(self.bot.commands) + list(self.bot.get_application_commands())
+        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
         overrides = {
             'admin': [],
             'mod': [],
@@ -3287,6 +3310,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @system.subcommand(description='A command that intentionally fails.')
     @restrictions.owner()
     async def raiseerror(self, ctx):
+        raise RuntimeError('here\'s your error, anything else?')
+
+    @commands.command(name='raiseerror', description='A command that intentionally fails.')
+    @restrictions_legacy.owner()
+    async def raiseerror_legacy(self, ctx):
         raise RuntimeError('here\'s your error, anything else?')
 
     async def cog_command_error(self, ctx, error):
