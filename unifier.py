@@ -569,6 +569,12 @@ async def on_ready():
         bot.ready = True
 
 @bot.event
+async def on_command_error(_ctx, _command):
+    # ignore all errors raised outside cog
+    # as core has no commands, all command errors from core can be ignored
+    pass
+
+@bot.event
 async def on_message(message):
     if not bot.ready or bot.setup_lock:
         return
