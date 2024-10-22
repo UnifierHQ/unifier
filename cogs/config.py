@@ -20,12 +20,13 @@ import nextcord
 from nextcord.ext import commands, application_checks
 import traceback
 import re
-from utils import log, ui, langmgr, restrictions as r, slash as slash_helper
+from utils import log, ui, langmgr, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
 from typing import Optional
 import emoji as pymoji
 import time
 
 restrictions = r.Restrictions()
+restrictions_legacy = r_legacy.Restrictions()
 language = langmgr.partial()
 language.load()
 slash = slash_helper.SlashHelper(language)
@@ -80,6 +81,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not hasattr(self.bot, 'trusted_group'):
             self.bot.trusted_group = self.bot.db['trusted']
         restrictions.attach_bot(self.bot)
+        restrictions_legacy.attach_bot(self.bot)
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
         language = self.bot.langmgr
 
@@ -158,12 +160,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             traceback.print_exc()
             return False
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(contexts=[nextcord.InteractionContextType.guild])
     async def config(self, ctx):
         pass
 
     @commands.command(hidden=True,description='Adds a moderator to the instance.')
-    @restrictions.admin()
+    @restrictions_legacy.admin()
     async def addmod(self,ctx,*,userid):
         selector = language.get_selector(ctx)
         discord_hint = True
@@ -207,7 +209,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"mod":mod})}')
 
     @commands.command(hidden=True,aliases=['remmod','delmod'],description='Removes a moderator from the instance.')
-    @restrictions.admin()
+    @restrictions_legacy.admin()
     async def removemod(self,ctx,*,userid):
         selector = language.get_selector(ctx)
         discord_hint = True
@@ -257,7 +259,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self, ctx: nextcord.Interaction,
             room: str = slash.option('config.create-invite.room'),
             expiry: Optional[str] = slash.option('config.create-invite.expiry',required=False),
-            max_usage: Optional[str] = slash.option('config.create-invite.max-usage', required=False)
+            max_usage: Optional[int] = slash.option('config.create-invite.max-usage', required=False)
     ):
         if not expiry:
             expiry = '7d'
@@ -381,21 +383,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dm_fail")}',ephemeral=True)
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
 
-    @config.subcommand(
-        description=language.desc('config.rename'),
-        description_localizations=language.slash_desc('config.rename')
-    )
-    @restrictions.not_banned()
-    async def rename(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.rename.room'),
-            newroom: str = slash.option('config.rename.new-room')
-    ):
+    @commands.command(description=language.desc('config.rename'))
+    @restrictions_legacy.admin()
+    @restrictions_legacy.not_banned()
+    async def rename(self, ctx, room, newroom):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.can_manage(ctx.author, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -421,7 +417,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def display_name(
             self, ctx: nextcord.Interaction,
             room: str = slash.option('config.display-name.room'),
-            name: Optional[str] = slash.option('config.display-name.name',required=False)
+            name: Optional[str] = slash.option('config.display-name.display-name',required=False)
     ):
         if not name:
             name = ''
@@ -456,7 +452,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def roomdesc(
             self, ctx: nextcord.Interaction,
             room: str = slash.option('config.roomdesc.room'),
-            desc: Optional[str] = slash.option('config.roomdesc.desc', required=False)
+            desc: Optional[str] = slash.option('config.roomdesc.description', required=False)
     ):
         if not desc:
             desc = ''
@@ -514,8 +510,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         hidden=True,
         description='Restricts/unrestricts a room. Only admins will be able to collect to this room when restricted.'
     )
-    @restrictions.admin()
-    async def restrict(self,ctx,room):
+    @restrictions_legacy.admin()
+    async def restrict(self,ctx,room=None):
+        if not room:
+            room = self.bot.bridge.check_duplicate(ctx.channel)
+            if not room:
+                raise restrictions.UnknownRoom()
+
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -540,8 +541,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     @restrictions.moderator()
     async def lock(
             self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.lock.room')
+            room: Optional[str] = slash.option('config.lock.room', required=False)
     ):
+        if not room:
+            room = self.bot.bridge.check_duplicate(ctx.channel)
+            if not room:
+                raise restrictions.UnknownRoom()
+
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -559,8 +565,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
-    @restrictions.admin()
-    @restrictions.no_admin_perms()
+    @restrictions_legacy.admin()
+    @restrictions_legacy.no_admin_perms()
     async def map(self, ctx):
         channels = []
         channels_enabled = []
@@ -755,14 +761,22 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await interaction.edit_original_message(
             content=f'{self.bot.ui_emojis.success} {selector.get("say_hi")}')
 
-    @commands.command(hidden=True,description="Adds a rule to a given room.")
+    @config.subcommand(
+        name='add-rule',
+        description=language.desc('config.add-rule'),
+        description_localizations=language.slash_desc('config.add-rule')
+    )
     @restrictions.not_banned()
-    async def addrule(self,ctx,room,*,rule):
+    async def addrule(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.add-rule.room'),
+            rule: str = slash.option('config.add-rule.rule')
+    ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -773,14 +787,22 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @commands.command(hidden=True,description="Removes a given rule from a given room.")
+    @config.subcommand(
+        name='delete-rule',
+        description=language.desc('config.delete-rule'),
+        description_localizations=language.slash_desc('config.delete-rule')
+    )
     @restrictions.not_banned()
-    async def delrule(self,ctx,room,*,rule):
+    async def delrule(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.delete-rule.room'),
+            rule: int = slash.option('config.delete-rule.rule')
+    ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -796,7 +818,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
     @commands.command(hidden=True,description="Allows given user's webhooks to be bridged.")
-    @restrictions.admin()
+    @restrictions_legacy.admin()
     async def addbridge(self,ctx,*,userid):
         selector = language.get_selector(ctx)
 
@@ -838,7 +860,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         return await ctx.send(f'# {self.bot.ui_emojis.success} {selector.get("success_title")}\n{selector.get("success_body")}')
 
     @commands.command(hidden=True,description='Prevents given user\'s webhooks from being bridged.')
-    @restrictions.admin()
+    @restrictions_legacy.admin()
     async def delbridge(self, ctx, *, userid):
         selector = language.get_selector(ctx)
         try:
