@@ -102,6 +102,8 @@ class LanguageManager:
             }
 
     def desc(self, parent):
+        if ' ' in parent:
+            parent = parent.split(' ')[len(parent.split(' '))-1]
         return self.get('description',parent)
 
     def desc_from_all(self, command, language=None):
