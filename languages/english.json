@@ -361,6 +361,9 @@
         "oss_attrib": "Open source attribution",
         "license": "{license} license",
         "repo_link": "Source code"
+      },
+      "system raiseerror": {
+        "description": "A command that intentionally raises an error."
       }
     },
     "config": {
