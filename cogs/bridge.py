@@ -3714,7 +3714,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             index += 1
         embed = nextcord.Embed(title=f'{self.bot.ui_emojis.rooms} {selector.get("rules_title")}', description=text,
                                color=self.bot.colors.unifier)
-        embed.set_footer(text=selector.rawget("disclaimer", "config.bind"))
+        embed.set_footer(text=selector.rawget("disclaimer", "bridge.bind"))
         await ctx.send(embed=embed)
 
     @rules.on_autocomplete("room")
