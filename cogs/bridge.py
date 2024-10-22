@@ -3228,8 +3228,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await interaction.response.send_message(selector.get('disabled'), ephemeral=True)
 
         try:
-            if isinstance(msg, int):
-                msgdata = await self.bot.bridge.fetch_message(msg)
+            if isinstance(msg, str):
+                msgdata = await self.bot.bridge.fetch_message(int(msg))
             else:
                 msgdata = await self.bot.bridge.fetch_message(msg.id)
         except:
@@ -4035,7 +4035,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def roomkick(
             self, ctx: nextcord.Interaction,
             room: Optional[str] = slash.option('bridge.roomkick.room'),
-            server: Optional[int] = slash.option('bridge.roomkick.server')
+            server: Optional[str] = slash.option('bridge.roomkick.server')
     ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
@@ -4277,13 +4277,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     ):
         selector = language.get_selector(ctx)
         if len(nickname) > 33:
-            return await ctx.send(selector.get('exceed'))
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("exceed")}')
         if len(nickname) == 0:
             self.bot.db['nicknames'].pop(f'{ctx.user.id}', None)
         else:
             self.bot.db['nicknames'].update({f'{ctx.user.id}': nickname})
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(selector.get('success'))
+        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
     @nextcord.slash_command(
         description=language.desc('bridge.ping'),
@@ -4413,7 +4413,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label=language.get('search','commons.navigation',language=selector.language_set),
+                            label=language.get('search','commons.search',language=selector.language_set),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search,
                             disabled=selection.disabled
@@ -4526,7 +4526,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         ),
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.green,
-                            label=language.get('search','commons.navigation',language=selector.language_set),
+                            label=language.get('search','commons.search',language=selector.language_set),
                             custom_id='search',
                             emoji=self.bot.ui_emojis.search
                         )
@@ -4570,7 +4570,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 )
 
             if panel == 0:
-                embed.set_footer(text=language.get(
+                embed.set_footer(text=language.fget(
                     'page','commons.search',values={'page':page+1,'maxpage':maxpage+1 if maxpage >= 0 else 1},
                     language=selector.language_set
                 ))
@@ -4877,7 +4877,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @bridge.subcommand(name='report', description=language.desc('bridge.report'))
     async def report_slash(
             self, ctx,
-            message: int = slash.option('bridge.report.message')
+            message: str = slash.option('bridge.report.message')
     ):
         await self.report(ctx, message)
 
@@ -4906,7 +4906,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     ):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
-            return await ctx.send(selector.get('disabled'))
+            return await ctx.send(selector.get('disabled'), ephemeral=True)
         if not user:
             user = ctx.user
         try:
@@ -4937,7 +4937,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def leaderboard(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
-            return await ctx.send(language.get('disabled','bridge.level',language=selector.language_set))
+            return await ctx.send(language.get('disabled','bridge.level',language=selector.language_set), ephemeral=True)
         expdata = dict(self.bot.db['exp'])
         lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
                 expdata.items(),
