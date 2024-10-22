@@ -9,11 +9,9 @@ winloop; sys_platform == 'win32'
 compress_json
 python-dotenv
 requests
-ujson
 emoji
 discord-emoji
 pycryptodome
-orjson
 tomli
 tomli-w
 setuptools
