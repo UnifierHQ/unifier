@@ -346,9 +346,16 @@ class CommandExceptionHandler:
                 returned = await ctx.send(*args, **kwargs, ephemeral=True)
                 if isinstance(returned, nextcord.WebhookMessage):
                     return returned
-                return await ctx.original_message()
+                return await returned.fetch()
+
+        def check_instance(error, error_type):
+            if error.__cause__:
+                return check_instance(error.__cause__, error_type) or isinstance(error, error_type)
+            else:
+                return isinstance(error, error_type)
+
         try:
-            if isinstance(error, commands.MissingRequiredArgument) or isinstance(error, restrictions.CustomMissingArgument):
+            if check_instance(error, commands.MissingRequiredArgument) or check_instance(error, restrictions.CustomMissingArgument):
                 cmdname = ctx.command.name
                 cmd = self.bot.get_command(cmdname)
                 embed = nextcord.Embed(color=self.bot.colors.unifier)
@@ -370,33 +377,33 @@ class CommandExceptionHandler:
                     f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(
                         cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
                                 )
-                if isinstance(error, commands.MissingRequiredArgument):
+                if check_instance(error, commands.MissingRequiredArgument):
                     await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("argument",values={"arg": error.param})}',embed=embed)
                 else:
                     await ctx.send(f'{self.bot.ui_emojis.error} {error}', embed=embed)
-            elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.BotMissingPermissions):
+            elif check_instance(error, commands.MissingPermissions) or check_instance(error, commands.BotMissingPermissions):
                 await respond(f'{self.bot.ui_emojis.error} {error}')
-            elif isinstance(error, commands.NoPrivateMessage):
+            elif check_instance(error, commands.NoPrivateMessage):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("servers_only")}')
-            elif isinstance(error, commands.PrivateMessageOnly):
+            elif check_instance(error, commands.PrivateMessageOnly):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("dms_only")}')
-            elif isinstance(error, restrictions.NoRoomManagement):
+            elif check_instance(error, restrictions.NoRoomManagement):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("no_room_management")}')
-            elif isinstance(error, restrictions.NoRoomJoin):
+            elif check_instance(error, restrictions.NoRoomJoin):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("no_room_join")}')
-            elif isinstance(error, restrictions.UnknownRoom):
+            elif check_instance(error, restrictions.UnknownRoom):
                 await respond(f'{self.bot.ui_emojis.error} {selector.rawfget("invalid","commons.rooms",values={"prefix": self.bot.command_prefix})}')
-            elif isinstance(error, restrictions.GlobalBanned):
+            elif check_instance(error, restrictions.GlobalBanned):
                 await respond(f'{self.bot.ui_emojis.error} {selector.fget("banned",values={"prefix": self.bot.command_prefix})}')
-            elif isinstance(error, restrictions.UnderAttack):
+            elif check_instance(error, restrictions.UnderAttack):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("under_attack")}')
-            elif isinstance(error, restrictions.TooManyPermissions):
+            elif check_instance(error, restrictions.TooManyPermissions):
                 await respond(f'{self.bot.ui_emojis.error} {selector.fget("too_many_perms",values={"permission": error})}')
-            elif isinstance(error, commands.CheckFailure):
+            elif check_instance(error, commands.CheckFailure) or check_instance(error, nextcord.errors.ApplicationCheckFailure):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("permissions")}')
-            elif isinstance(error, commands.CommandOnCooldown):
+            elif check_instance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
-                await respond(f'{self.bot.ui_emojis.error} {selector.fget("cooldown",values={"min":t//60,"sec":t%60})}')
+                await respond(f'{self.bot.ui_emojis.error} {selector.fget("cooldown",values={"min":t//60,"sec":t % 60})}')
             else:
                 if isinstance(ctx, commands.Context):
                     error_tb = traceback.format_exc()
@@ -455,9 +462,9 @@ class CommandExceptionHandler:
                 await msg.edit(view=view)
 
                 try:
-                    await interaction.response.send_message(f'```\n{error_tb}```')
+                    await interaction.response.send_message(f'```\n{error_tb}```', ephemeral=True)
                 except:
-                    await interaction.response.send_message(selector.get("tb_sendfail"))
+                    await interaction.response.send_message(selector.get("tb_sendfail"), ephemeral=True)
         except:
             self.logger.exception('An error occurred!')
             await respond(f'{self.bot.ui_emojis.error} {selector.get("handler_error")}')
@@ -616,6 +623,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     def get_commands(self, cog=None):
         def extract_subcommands(__command):
             subcommands = []
+            if type(__command) is nextcord.MessageApplicationCommand or type(__command) is nextcord.UserApplicationCommand:
+                return []
             if __command.children:
                 for child in __command.children.keys():
                     subcommands += extract_subcommands(__command.children[child])
@@ -1075,6 +1084,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         success = []
         failed = []
         errors = []
+        error_objs = []
         text = '```diff'
         msg = await ctx.send(selector.get('in_progress'))
         for plugin in plugins:
@@ -1082,10 +1092,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 importlib.reload(self.bot.loaded_plugins[plugin])
                 success.append(plugin)
                 text = text + f'\n+ [DONE] {plugin}'
-            except:
+            except Exception as error:
                 e = traceback.format_exc()
                 failed.append(plugin)
                 errors.append(e)
+                error_objs.append(error)
                 text = text + f'\n- [FAIL] {plugin}'
         await msg.edit(selector.fget(
             'completed', values={'success': len(plugins)-len(failed), 'total': len(plugins())}
@@ -1099,6 +1110,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\n{selector.get("extension")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
+            if len(text) > 2000:
+                for error in error_objs:
+                    self.logger.exception('An error occurred!', exc_info=error)
+                    return await ctx.author.send(selector.get("too_long"))
             await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
 
     @commands.command(hidden=True, description=language.desc('sysmgr.eval'))
@@ -1309,8 +1324,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         msg = await ctx.send(selector.get('in_progress'))
         failed = []
         errors = []
+        error_objs = []
         text = ''
-        cmds = len(self.bot.get_application_commands())
         for extension in extensions:
             try:
                 if extension == 'lockdown':
@@ -1321,15 +1336,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n+ [DONE] {extension}'
                 else:
                     text += f'\n+ [DONE] {extension}'
-            except:
+            except Exception as error:
                 e = traceback.format_exc()
                 failed.append(extension)
                 errors.append(e)
+                error_objs.append(error)
                 if len(text) == 0:
                     text = f'```diff\n- [FAIL] {extension}'
                 else:
                     text += f'\n- [FAIL] {extension}'
-        await self.bot.sync_application_commands(delete_unknown=False, update_known=False, register_new=False)
+        if len(extensions) - len(failed) > 0:
+            await self.bot.discover_application_commands()
+            await self.bot.register_new_application_commands()
         await msg.edit(content=selector.rawfget(
             'completed', 'sysmgr.reload_services', values={
                 'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text
@@ -1344,6 +1362,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\n{selector.rawget("extension","sysmgr.reload_services")} `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
+            if len(text) > 2000:
+                for error in error_objs:
+                    self.logger.exception('An error occurred!', exc_info=error)
+                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
             await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
 
     @commands.command(hidden=True,description=language.desc('sysmgr.load'))
@@ -1357,6 +1379,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         msg = await ctx.send(selector.get('in_progress'))
         failed = []
         errors = []
+        error_objs = []
         text = ''
         for extension in extensions:
             try:
@@ -1365,15 +1388,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n+ [DONE] {extension}'
                 else:
                     text += f'\n+ [DONE] {extension}'
-            except:
+            except Exception as error:
                 e = traceback.format_exc()
                 failed.append(extension)
                 errors.append(e)
+                error_objs.append(error)
                 if len(text) == 0:
                     text = f'```diff\n- [FAIL] {extension}'
                 else:
                     text += f'\n- [FAIL] {extension}'
-        await self.bot.sync_application_commands(delete_unknown=False, update_known=False, register_new=False)
+        if len(extensions) - len(failed) > 0:
+            await self.bot.discover_application_commands()
+            await self.bot.register_new_application_commands()
         await msg.edit(content=selector.fget(
             'completed',
             values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
@@ -1387,6 +1413,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
+            if len(text) > 2000:
+                for error in error_objs:
+                    self.logger.exception('An error occurred!', exc_info=error)
+                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
             await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
 
     @commands.command(hidden=True,description='Unloads an extension.')
@@ -1400,6 +1430,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         msg = await ctx.send('Unloading extensions...')
         failed = []
         errors = []
+        error_objs = []
         text = ''
         for extension in extensions:
             try:
@@ -1413,10 +1444,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     text = f'```diff\n+ [DONE] {extension}'
                 else:
                     text += f'\n+ [DONE] {extension}'
-            except:
+            except Exception as error:
                 e = traceback.format_exc()
                 failed.append(extension)
                 errors.append(e)
+                error_objs.append(error)
                 if len(text) == 0:
                     text = f'```diff\n- [FAIL] {extension}'
                 else:
@@ -1434,6 +1466,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
             index += 1
         if not len(failed) == 0:
+            if len(text) > 2000:
+                for error in error_objs:
+                    self.logger.exception('An error occurred!', exc_info=error)
+                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
             await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
 
     @commands.command(hidden=True,description='Installs a plugin.')
@@ -2228,8 +2264,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         except:
                             self.logger.warning(cog+' could not be reloaded.')
                             embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
-                    if self.bot.uses_v3:
-                        await self.bot.sync_application_commands(update_known=False, delete_unknown=False)
+                    await self.bot.discover_application_commands()
+                    await self.bot.register_new_application_commands()
                     self.logger.info('Updating localization')
                     self.bot.langmgr = langmgr.LanguageManager(self.bot)
                     self.bot.langmgr.load()
@@ -2548,7 +2584,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @nextcord.slash_command(
         description=language.desc('sysmgr.help'),
-        description_localizations=language.slash_desc('sysmgr.help'),
+        description_localizations=language.slash_desc('sysmgr.help')
     )
     async def help(
             self,ctx: nextcord.Interaction,
@@ -2717,7 +2753,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 offset = 0
 
                 def in_aliases(query, query_cmd):
-                    if isinstance(query_cmd, nextcord.BaseApplicationCommand):
+                    if (
+                            isinstance(query_cmd, nextcord.BaseApplicationCommand) or
+                            isinstance(query_cmd, nextcord.SlashApplicationSubcommand)
+                    ):
                         # slash commands cannot have aliases
                         return False
 
@@ -2949,8 +2988,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if not cogname=='search' and panel==1:
                 embed.set_footer(text=selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1}))
             if not msg:
-                await ctx.send(embed=embed,view=components)
-                msg = await ctx.original_message()
+                msg = await ctx.send(embed=embed,view=components)
+                msg = await msg.fetch()
             else:
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed,view=components)
@@ -3051,7 +3090,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     canrun = False or cmd.qualified_name in overrides[permissions]
                 if canrun:
                     possible.append(cmd.qualified_name)
-        return await ctx.response.send_autocomplete(possible)
+
+        return await ctx.response.send_autocomplete(possible[:25])
 
     @commands.command(name='register-commands', hidden=True, description='Registers commands.')
     @restrictions_legacy.owner()
