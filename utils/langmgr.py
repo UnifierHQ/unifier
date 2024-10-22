@@ -209,7 +209,7 @@ class LanguageManager:
         else:
             return self.get_formatted(string, parent, default, values=values, language=language)
 
-    def get_selector(self, parent: Union[commands.Context, str], userid: int = None):
+    def get_selector(self, parent: Union[commands.Context, nextcord.Interaction, str], userid: int = None):
         if not self.__loaded:
             raise RuntimeError('language not loaded, run LanguageManager.load()')
         if isinstance(parent, commands.Context) or isinstance(parent, nextcord.Interaction):
