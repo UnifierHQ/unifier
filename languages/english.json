@@ -987,7 +987,7 @@
         "not_banned": "User/server not banned!",
         "success": "User has been unbanned."
       },
-      "delwarn": {
+      "delete-warning": {
         "description": "Deletes a logged warning.",
         "title": "Warning deleted",
         "success": "Warning was deleted!",
@@ -1006,7 +1006,7 @@
         "success_set": "User has been banned from the bot.",
         "success_unset": "User has been unbanned from the bot."
       },
-      "appealban": {
+      "deny-appeals": {
         "description": "Bans a user from appealing their ban.",
         "success_set": "User can no longer appeal bans.",
         "success_unset": "User can now appeal bans."
@@ -1084,7 +1084,7 @@
         "description": "Changes a given user's nickname.",
         "success": "Nickname updated!"
       },
-      "bridgelock": {
+      "bridge-lock": {
         "description" : "Locks Unifier Bridge down.",
         "already_locked": "Bridge already locked down.",
         "warning_title": "Lock bridge down?",
@@ -1095,7 +1095,7 @@
         "success_title": "LOCKDOWN COMPLETED",
         "success_body": "Bridge has been locked down."
       },
-      "bridgeunlock": {
+      "bridge-unlock": {
         "description" : "Removes Unifier Bridge lockdown.",
         "not_locked": "Bridge not locked down.",
         "success": "Lockdown removed!"
