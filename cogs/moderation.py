@@ -226,10 +226,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.add_field(name='Offending message',value=rtt_msg_content,inline=False)
         if forever:
             embed.colour = self.bot.colors.critical
-            embed.add_field(name='Actions taken',value=f'- :zipper_mouth:{user_selector.get("restricted_perma")}\n- :white_check_mark: {user_selector.rawget("appeal","moderation.ban")}',inline=False)
+            embed.add_field(name='Actions taken',value=f'- :zipper_mouth:{user_selector.get("perm_ban","commons.moderation")}\n- :white_check_mark: {user_selector.rawget("perm_ban_appeal","commons.moderation")}',inline=False)
         else:
-            embed.add_field(name='Actions taken',value=f'- :warning: {user_selector.rawget("warning","moderation.ban")}\n- :zipper_mouth: {user_selector.rawfget("restricted_temp","moderation.ban",values={"expiry":nt})}',inline=False)
-        embed.add_field(name=user_selector.rawget("mistake_title","moderation.ban"),value=user_selector.rawfget("mistake_body","moderation.ban",values={"prefix":self.bot.command_prefix}),inline=False)
+            embed.add_field(name='Actions taken',value=f'- :warning: {user_selector.rawget("warned","commons.moderation")}\n- :zipper_mouth: {user_selector.rawfget("temp_ban","commons.moderation",values={"expiry":nt})}',inline=False)
+        embed.add_field(name=user_selector.rawget("appeal_title","commons.moderation"),value=user_selector.rawfget("appeal_body","commons.moderation",values={"prefix":self.bot.command_prefix}),inline=False)
         user = self.bot.get_user(userid)
         if not user:
             # add NUPS support for this later
