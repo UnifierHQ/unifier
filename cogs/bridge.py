@@ -2861,9 +2861,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if match == 0:
                         return (
                                 (
-                                        query.lower() in (
+                                    query.lower() in (
                                         self.bot.db['rooms'][query_cmd]['meta']['display_name'] or query_cmd
-                                )
+                                    )
                                 ) and namematch or
                                 (
                                     query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
@@ -2873,9 +2873,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     elif match == 1:
                         return (
                                 (((
-                                          query.lower() in (
+                                      query.lower() in (
                                           self.bot.db['rooms'][query_cmd]['meta']['display_name'] or query_cmd
-                                  )
+                                      )
                                   ) and namematch) or not namematch) and
                                 ((
                                      query.lower() in self.bot.db['rooms'][query_cmd]['meta']['description'].lower()
@@ -3951,7 +3951,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     )
     async def disband(
             self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.disband.room')
+            room: str = slash.option('bridge.disband.room')
     ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
