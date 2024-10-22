@@ -12,6 +12,7 @@ requests
 emoji
 discord-emoji
 pycryptodome
+orjson
 tomli
 tomli-w
 setuptools
