@@ -87,7 +87,7 @@
         "git": "Git is not installed."
       },
       "rooms": {
-        "invalid": "This room does not exist. Run `{prefix}rooms` for a full list of rooms."
+        "invalid": "This room does not exist. Run `/bridge rooms` for a full list of rooms."
       }
     },
     "sysmgr": {
@@ -115,6 +115,7 @@
         "description": "Reloads bot services.",
         "in_progress": "Reloading services...",
         "completed": "Reload completed (`{success}`/`{total}` successful)\n\n{text}```",
+        "too_long": "The errors were too long to send, so they have been logged in the console instead.",
         "fail_logs": "Fail logs",
         "extension": "Extension"
       },
@@ -361,9 +362,6 @@
         "oss_attrib": "Open source attribution",
         "license": "{license} license",
         "repo_link": "Source code"
-      },
-      "system raiseerror": {
-        "description": "A command that intentionally raises an error."
       }
     },
     "config": {
@@ -449,25 +447,16 @@
         "description": "Enables or disables usage of server emojis as Global Emojis.",
         "success_set": "All members can now use your emojis!",
         "success_unset": "All members can now no longer use your emojis!"
-      },
-      "avatar": {
-        "description": "Displays or sets custom avatar.",
-        "no_avatar": "You have no avatar! Run `{prefix}avatar <url>` or set an avatar in your profile settings.",
-        "custom_avatar": "You have a custom avatar! Run `{prefix}avatar <url>` to change it, or run `{prefix}avatar remove` to remove it.",
-        "default_avatar": "You have a default avatar! Run `{prefix}avatar <url>` to set a custom one.",
-        "title": "This is your Unifier avatar!",
-        "invalid": "Invalid URL!",
-        "error_missing": "You don't have a custom avatar!",
-        "confirmation_title": "This is how you'll look!",
-        "confirmation_body": "If you're satisfied, hit that green Apply button!",
-        "apply": "Apply",
-        "change": "To change your avatar, run {prefix}avatar <url>.",
-        "success_unset": "Custom avatar removed!",
-        "success_set": "Avatar successfully added!"
       }
     },
     "bridge": {
       "disband": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to disband."
+          }
+        },
         "description": "Disbands a room.",
         "confirm_title": "Disband `{room}`?",
         "confirm_body": "Once the room is disbanded, it's gone forever!",
@@ -476,6 +465,12 @@
         "success_body": "The room was disbanded successfully."
       },
       "bind": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to bind to."
+          }
+        },
         "description": "Connects the channel to a given room.",
         "check_title": "Checking if channel is already connected...",
         "check_body": "We're checking if this channel is already connected. Give us a moment...",
@@ -483,7 +478,7 @@
         "already_linked_body": "This channel is already connected to `{room}`!\nRun `{prefix}unbind {room}` to disconnect the channel.",
         "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{prefix}unlink {room}` it then `{prefix}link {room}` it back.",
         "join_title": "Join {roomname}?",
-        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `{prefix}rules {room}`.",
+        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `/bridge rules {room}`.",
         "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
         "display": "By joining this room, you and your members agree to these rules.\nThis message will be pinned (if possible) for better accessibility to the rules.",
         "accept": "Accept & bind",
@@ -495,22 +490,70 @@
         "say_hi": "You're now connected! Say hi!"
       },
       "unbind": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to unbind from. Leave empty to autodetect."
+          }
+        },
         "description": "Disconnects the server from a given room.",
         "not_connected": "This channel is not connected to a room.",
         "success": "Channel has been unbinded.",
         "success_semi": "Channel has been unbinded, but the webhook could not be deleted."
       },
       "roomkick": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to kick a server from."
+          },
+          "server": {
+            "name": "server",
+            "description": "The server you want to kick from the room."
+          }
+        },
         "description": "Kicks a server from the room.",
         "not_connected": "This server isn't connected to this room.",
         "success": "Server {server} was kicked from the room."
       },
       "roomban": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to ban a server from."
+          },
+          "server": {
+            "name": "server",
+            "description": "The server you want to ban from the room."
+          }
+        },
         "description": "Bans a server from the room.",
+        "duplicate": "This server is already banned from your room!",
         "success": "Server {server} was banned from the room."
+      },
+      "roomunban": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to unban a server from."
+          },
+          "server": {
+            "name": "server",
+            "description": "The server you want to unban from the room."
+          }
+        },
+        "description": "Unbans a server from the room.",
+        "missing": "This server is not banned from your room!",
+        "success": "Server {server} was unbanned from the room."
       },
       "rules": {
         "description": "Displays room rules for the specified room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to view rules for. Leave empty to autodetect."
+          }
+        },
         "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).",
         "rules_title": "Room rules"
       },
@@ -548,11 +591,26 @@
         "view_rules": "View room rules",
         "no_rules": "The room admins haven't added rules for this room yet.\nThough, do remember to use common sense and refrain from doing things that you shouldn't do."
       },
+      "private-rooms": {
+        "description": "Shows a list of Private Rooms your server can access."
+      },
       "servers": {
         "description": "Lists all servers connected to a given room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to check. Leave empty to autodetect."
+          }
+        },
         "title": "Servers connected to `{room}`"
       },
       "create-room": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The name of the room you want to make. Only bot admins may fill out this field."
+          }
+        },
         "description": "Creates a new room.",
         "alphanumeric": "Room names may only contain alphabets, numbers, dashes, and underscores.",
         "private_name": "Private",
@@ -601,7 +659,13 @@
         "success": "Room renamed!"
       },
       "color": {
-        "description": "Sets user color.",
+        "options": {
+          "color": {
+            "name": "color",
+            "description": "The user color you want to set. Leave this empty to view your current user color."
+          }
+        },
+        "description": "Sets or shows your user color.",
         "title": "Your user color",
         "default": "Default",
         "inherit": "Inherit from role",
@@ -610,6 +674,12 @@
         "success_custom": "Messages on supported platforms will now inherit the custom color."
       },
       "nickname": {
+        "options": {
+          "nickname": {
+            "name": "nickname",
+            "description": "The nickname you want to set. Leave this empty to reset your nickname."
+          }
+        },
         "description": "Sets a nickname. An empty provided nickname will reset it.",
         "exceed": "Please keep your nickname within 33 characters.",
         "success": "Nickname updated!"
@@ -654,6 +724,13 @@
         "no_reactions": "No reactions yet!"
       },
       "report": {
+        "description": "Reports a message to Unifier moderators.",
+        "options": {
+          "message": {
+            "name": "message",
+            "description": "The ID of the message you want to report."
+          }
+        },
         "disabled": "Reporting and logging are disabled, contact your instance's owner.",
         "spam": "Spam",
         "abuse": "Abuse or harassment",
@@ -696,6 +773,12 @@
       },
       "level": {
         "description": "Shows you or someone else's level and EXP.",
+        "options": {
+          "user": {
+            "name": "user",
+            "description": "The user whose level you want to check. Leave this empty to check your own level."
+          }
+        },
         "disabled": "Leveling system is disabled on this instance.",
         "title_self": "Your level",
         "title_other": "{username}'s level",
@@ -746,6 +829,27 @@
         "new": "New",
         "embeds": "{count} embeds",
         "files": "{count} files"
+      },
+      "avatar": {
+        "description": "Displays or sets custom avatar.",
+        "options": {
+          "url": {
+            "name": "url",
+            "description": "The URL of the avatar you want to set. Leave this empty to view your current avatar."
+          }
+        },
+        "no_avatar": "You have no avatar! Run `{prefix}avatar <url>` or set an avatar in your profile settings.",
+        "custom_avatar": "You have a custom avatar! Run `{prefix}avatar <url>` to change it, or run `{prefix}avatar remove` to remove it.",
+        "default_avatar": "You have a default avatar! Run `{prefix}avatar <url>` to set a custom one.",
+        "title": "This is your Unifier avatar!",
+        "invalid": "Invalid URL!",
+        "error_missing": "You don't have a custom avatar!",
+        "confirmation_title": "This is how you'll look!",
+        "confirmation_body": "If you're satisfied, hit that green Apply button!",
+        "apply": "Apply",
+        "change": "To change your avatar, run {prefix}avatar <url>.",
+        "success_unset": "Custom avatar removed!",
+        "success_set": "Avatar successfully added!"
       }
     },
     "moderation": {
