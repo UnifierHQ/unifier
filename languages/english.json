@@ -1138,6 +1138,12 @@
       },
       "badge": {
         "description": "Shows your Unifier user badge.",
+        "options": {
+          "user": {
+            "name": "user",
+            "description": "The user to check. Leave this empty to check your own badge."
+          }
+        },
         "body": "{mention} is {role}.",
         "easter_egg": "L bozo"
       },
