@@ -17,17 +17,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
-from nextcord.ext import commands
+from nextcord.ext import commands, application_checks
 import traceback
 import re
-from utils import log, ui, langmgr, restrictions as r
-import math
+from utils import log, ui, langmgr, restrictions as r, slash as slash_helper
+from typing import Optional
 import emoji as pymoji
 import time
 
 restrictions = r.Restrictions()
 language = langmgr.partial()
 language.load()
+slash = slash_helper.SlashHelper(language)
 
 def timetoint(t):
     try:
@@ -246,14 +247,27 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{username}'
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"mod":mod})}')
 
-    @commands.command(name='create-invite', hidden=True, description='Creates an invite.')
+    @config.subcommand(
+        name='create-invite',
+        description=language.desc('config.create-invite'),
+        description_localizations=language.slash_desc('config.create-invite')
+    )
     @restrictions.not_banned()
-    async def create_invite(self, ctx, room, expiry='7d', max_usage=0):
+    async def create_invite(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.create-invite.room'),
+            expiry: Optional[str] = slash.option('config.create-invite.expiry',required=False),
+            max_usage: Optional[str] = slash.option('config.create-invite.max-usage', required=False)
+    ):
+        if not expiry:
+            expiry = '7d'
+        if not max_usage:
+            max_usage = 0
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -262,7 +276,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("is_public")}')
         if len(self.bot.db['rooms'][room]['meta']['private_meta']['invites']) >= 20:
             return await ctx.send(
-                f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}'
+                f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}',
+                ephemeral=True
             )
 
         infinite_enabled = ''
@@ -271,56 +286,71 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         if expiry == 'inf':
             if not self.bot.config['permanent_invites']:
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("permanent_disabled")}')
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("permanent_disabled")}',ephemeral=True)
             expiry = 0
         else:
             try:
                 expiry = timetoint(expiry)
             except:
                 return await ctx.send(
-                    f'{self.bot.ui_emojis.error} {selector.rawget("invalid_duration","commons.moderation")}'
+                    f'{self.bot.ui_emojis.error} {selector.rawget("invalid_duration","commons.moderation")}',
+                    ephemeral=True
                 )
             if expiry > 604800:
                 return await ctx.send(
-                    f'{self.bot.ui_emojis.error} {selector.get("duration_toolong")}{infinite_enabled}'
+                    f'{self.bot.ui_emojis.error} {selector.get("duration_toolong")}{infinite_enabled}',
+                    ephemeral=True
                 )
             expiry += time.time()
         invite = self.bot.bridge.create_invite(room, max_usage, expiry)
         try:
-            await ctx.author.send(
+            await ctx.user.send(
                 f'{selector.get("code")} `{invite}`\n{selector.fget("join",values={"prefix":self.bot.command_prefix,"invite":invite})}'
             )
         except:
-            return await ctx.send(f'{self.bot.ui_emojis.warning} {selector.fget("dm_fail",values={"prefix":self.bot.command_prefix})}')
-        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
+            return await ctx.send(f'{self.bot.ui_emojis.warning} {selector.fget("dm_fail",values={"prefix":self.bot.command_prefix})}',ephemeral=True)
+        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
 
-    @commands.command(name='delete-invite', hidden=True, description='Deletes an invite.')
+    @config.subcommand(
+        name='delete-invite',
+        description=language.desc('config.delete-invite'),
+        description_localizations=language.slash_desc('config.delete-invite')
+    )
     @restrictions.not_banned()
-    async def delete_invite(self, ctx, invite):
+    async def delete_invite(
+            self, ctx: nextcord.Interaction,
+            invite: str = slash.option('config.delete-invite.invite')
+    ):
         invite = invite.lower()
-        if not self.can_manage(ctx.author, invite):
+        if not self.can_manage(ctx.user, invite):
             raise restrictions.NoRoomManagement()
         selector = language.get_selector(ctx)
         try:
             self.bot.bridge.delete_invite(invite)
         except self.bot.bridge.InviteNotFoundError:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}')
-        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}',ephemeral=True)
+        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
 
-    @commands.command(hidden=True, description='Views your room\'s invites.')
+    @config.subcommand(
+        description=language.desc('config.invites'),
+        description_localizations=language.slash_desc('config.invites')
+    )
     @restrictions.not_banned()
-    async def invites(self, ctx, room):
+    async def invites(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.invites.room')
+    ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
 
         if not self.bot.db['rooms'][room]['meta']['private']:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("is_public","config.create-invite")}')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("is_public","config.create-invite")}',ephemeral=True)
 
         invites = self.bot.db['rooms'][room]['meta']['private_meta']['invites']
 
@@ -346,19 +376,26 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         embed.description = selector.fget("created",values={"created":success,"limit":20})
         try:
-            await ctx.author.send(embed=embed)
+            await ctx.user.send(embed=embed)
         except:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dm_fail")}')
-        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dm_fail")}',ephemeral=True)
+        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
 
-    @commands.command(hidden=True, description='Renames a room.')
+    @config.subcommand(
+        description=language.desc('config.rename'),
+        description_localizations=language.slash_desc('config.rename')
+    )
     @restrictions.not_banned()
-    async def rename(self, ctx, room, newroom):
+    async def rename(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.rename.room'),
+            newroom: str = slash.option('config.rename.new-room')
+    ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -375,14 +412,24 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}\n`{room}` => `{newroom}`')
 
-    @commands.command(name='display-name', hidden=True, description='Sets a room\'s display name.')
+    @config.subcommand(
+        name='display-name',
+        description=language.desc('config.display-name'),
+        description_localizations=language.slash_desc('config.display-name')
+    )
     @restrictions.not_banned()
-    async def display_name(self, ctx, room, *, name=''):
+    async def display_name(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.display-name.room'),
+            name: Optional[str] = slash.option('config.display-name.name',required=False)
+    ):
+        if not name:
+            name = ''
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -401,14 +448,23 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}\n`{current_name}` => `{name}`')
 
-    @commands.command(hidden=True,description='Sets a room\'s description.')
+    @config.subcommand(
+        description=language.desc('config.roomdesc'),
+        description_localizations=language.slash_desc('config.roomdesc')
+    )
     @restrictions.not_banned()
-    async def roomdesc(self,ctx,room,*,desc=''):
+    async def roomdesc(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.roomdesc.room'),
+            desc: Optional[str] = slash.option('config.roomdesc.desc', required=False)
+    ):
+        if not desc:
+            desc = ''
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -423,14 +479,21 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @commands.command(hidden=True, description='Sets a room\'s emoji.')
+    @config.subcommand(
+        description=language.desc('config.roomemoji'),
+        description_localizations=language.slash_desc('config.roomemoji')
+    )
     @restrictions.not_banned()
-    async def roomemoji(self, ctx, room, *, emoji=''):
+    async def roomemoji(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.roomemoji.room'),
+            emoji: Optional[str] = slash.option('config.roomemoji.emoji', required=False)
+    ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.can_manage(ctx.user, room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -470,19 +533,22 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_unset",values={"room":room})}')
 
-    @commands.command(
-        hidden=True,
-        description='Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.'
+    @config.subcommand(
+        description=language.desc('config.lock'),
+        description_localizations=language.slash_desc('config.lock')
     )
     @restrictions.moderator()
-    async def lock(self,ctx,room):
+    async def lock(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.lock.room')
+    ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
         selector = language.get_selector(ctx)
 
-        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.author.id in self.bot.admins:
+        if not self.bot.db['rooms'][room]['meta']['private'] and not ctx.user.id in self.bot.admins:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("is_public")}')
         if self.bot.db['rooms'][room]['meta']['locked']:
             self.bot.db['rooms'][room]['meta']['locked'] = False
@@ -812,9 +878,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         return await ctx.send(f'# {self.bot.ui_emojis.success} {selector.get("success_title")}\n{selector.get("success_body")}')
 
-    @commands.command(description='Enables or disables usage of server emojis as Global Emojis.')
-    @commands.has_permissions(manage_guild=True)
-    async def toggle_emoji(self,ctx):
+    @config.subcommand(
+        name='toggle-emoji',
+        description=language.desc('config.toggle-emoji'),
+        description_localizations=language.slash_desc('config.toggle-emoji')
+    )
+    @application_checks.has_permissions(manage_guild=True)
+    async def toggle_emoji(self,ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
         if ctx.guild.id in self.bot.bridged_emojis:
             self.bot.bridged_emojis.remove(ctx.guild.id)
