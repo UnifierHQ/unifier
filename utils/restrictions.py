@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
+import time
 from nextcord.ext import application_checks, commands
 
 class Restrictions:
@@ -152,23 +153,23 @@ class Restrictions:
 
             if not interaction.application_command.qualified_name in self.__bot.cooldowns.keys():
                 self.__bot.cooldowns.update({
-                    interaction.command.qualified_name: {}
+                    interaction.application_command.qualified_name: {}
                 })
 
-            cooldowns = self.__bot.cooldowns[interaction.command.qualified_name]
+            cooldowns = self.__bot.cooldowns[interaction.application_command.qualified_name]
             if target in cooldowns.keys():
-                if cooldowns[target]['usage'] >= per and cooldowns[target]['expiry'] > time.time():
-                    raise commands.CommandOnCooldown(bucket, round(cooldowns[target]['expiry'] - time.time()), commands.CoolDownMapping)
+                if cooldowns[target]['usage'] >= rate and cooldowns[target]['expiry'] > time.time():
+                    raise commands.CommandOnCooldown(bucket, round(cooldowns[target]['expiry'] - time.time()), commands.CooldownMapping)
                 elif cooldowns[target]['expiry'] > time.time():
-                    self.__bot.cooldowns[interaction.command.qualified_name][target]['usage'] += 1
+                    self.__bot.cooldowns[interaction.application_command.qualified_name][target]['usage'] += 1
                 else:
-                    self.__bot.cooldowns[interaction.command.qualified_name].pop(target)
+                    self.__bot.cooldowns[interaction.application_command.qualified_name].pop(target)
 
             if not target in cooldowns.keys():
-                self.__bot.cooldowns[interaction.command.qualified_name].update({
+                self.__bot.cooldowns[interaction.application_command.qualified_name].update({
                     target: {
                         'usage': 1,
-                        'expiry': time.time() + rate
+                        'expiry': time.time() + per
                     }
                 })
 
