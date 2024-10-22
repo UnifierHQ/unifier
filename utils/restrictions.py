@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
-from nextcord.ext import application_checks
+from nextcord.ext import application_checks, commands
 
 class Restrictions:
     def __init__(self, bot=None):
@@ -134,6 +134,44 @@ class Restrictions:
         async def predicate(interaction: nextcord.Interaction):
             if interaction.guild.me.guild_permissions.administrator:
                 raise self.TooManyPermissions('Administrator')
+            return True
+
+        return application_checks.check(predicate)
+
+    def cooldown(self, rate: int, per: int, type: str = 'user'):
+        async def predicate(interaction: nextcord.Interaction):
+            if type == 'guild':
+                target = interaction.guild.id
+                bucket = commands.BucketType.guild
+            elif type == 'channel':
+                target = interaction.channel.id
+                bucket = commands.BucketType.channel
+            else:
+                target = interaction.user.id
+                bucket = commands.BucketType.user
+
+            if not interaction.application_command.qualified_name in self.__bot.cooldowns.keys():
+                self.__bot.cooldowns.update({
+                    interaction.command.qualified_name: {}
+                })
+
+            cooldowns = self.__bot.cooldowns[interaction.command.qualified_name]
+            if target in cooldowns.keys():
+                if cooldowns[target]['usage'] >= per and cooldowns[target]['expiry'] > time.time():
+                    raise commands.CommandOnCooldown(bucket, round(cooldowns[target]['expiry'] - time.time()), commands.CoolDownMapping)
+                elif cooldowns[target]['expiry'] > time.time():
+                    self.__bot.cooldowns[interaction.command.qualified_name][target]['usage'] += 1
+                else:
+                    self.__bot.cooldowns[interaction.command.qualified_name].pop(target)
+
+            if not target in cooldowns.keys():
+                self.__bot.cooldowns[interaction.command.qualified_name].update({
+                    target: {
+                        'usage': 1,
+                        'expiry': time.time() + rate
+                    }
+                })
+
             return True
 
         return application_checks.check(predicate)
