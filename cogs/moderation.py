@@ -20,14 +20,17 @@ import nextcord
 import time
 import hashlib
 import datetime
-from nextcord.ext import commands
+from nextcord.ext import commands, application_checks
 import traceback
-from utils import log, ui, langmgr, restrictions as r
+from typing import Optional, Literal
+from utils import log, ui, langmgr, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
 
 override_st = False
 restrictions = r.Restrictions()
+restrictions_legacy = r_legacy.Restrictions()
 language = langmgr.partial()
 language.load()
+slash = slash_helper.SlashHelper(language)
 
 def encrypt_string(hash_string):
     sha_signature = \
@@ -90,14 +93,21 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         language = self.bot.langmgr
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
         restrictions.attach_bot(self.bot)
+        restrictions_legacy.attach_bot(self.bot)
 
     @nextcord.slash_command()
     async def moderation(self, ctx):
         pass
 
-    @moderation.subcommand(description='Blocks a user or server from bridging messages to your server.')
-    @commands.has_permissions(ban_members=True)
-    async def block(self, ctx: nextcord.Interaction,*,target):
+    @moderation.subcommand(
+        description=language.desc('moderation.block'),
+        description_localizations=language.slash_desc('moderation.block')
+    )
+    @application_checks.has_permissions(ban_members=True)
+    async def block(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.block.target')
+    ):
         selector = language.get_selector(ctx)
 
         try:
@@ -108,7 +118,16 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send(selector.get("self_target_guild"))
         except:
             userid = target
-            if not len(userid) == 26:
+            found = False
+            for platform in self.bot.platforms.keys():
+                try:
+                    self.bot.platforms[platform].get_user(userid)
+                    found = True
+                    break
+                except:
+                    continue
+
+            if not found:
                 return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_user_or_server","commons.moderation")}')
         if userid in self.bot.moderators:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("mod_immunity")}')
@@ -123,43 +142,24 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @moderation.subcommand(description='Blocks a user or server from bridging messages through Unifier.')
+    @moderation.subcommand(
+        description=language.desc('moderation.ban'),
+        description_localizations=language.slash_desc('moderation.ban')
+    )
     @restrictions.moderator()
-    async def ban(self, ctx: nextcord.Interaction, target, duration=None, *, reason=None):
+    async def ban(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.ban.target'),
+            duration: str = slash.option('moderation.ban.duration'),
+            reason: Optional[str] = slash.option('moderation.ban.reason', required=False),
+            discreet: Optional[bool] = slash.option('moderation.ban.discreet', required=False),
+            disclose: Optional[bool] = slash.option('moderation.ban.reveal-user', required=False),
+    ):
         selector = language.get_selector(ctx)
         if not ctx.user.id in self.bot.moderators:
             return
-        rtt_msg = None
-        rtt_msg_content = ''
-        if ctx.message.reference:
-            msg = ctx.message.reference.cached_message
-            if not msg:
-                try:
-                    msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-                except:
-                    pass
-            if msg:
-                try:
-                    rtt_msg = await self.bot.bridge.fetch_message(msg.id)
-                except:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("not_found","commons.interaction")}')
-                rtt_msg_content = msg.content
-            else:
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("not_found","commons.interaction")}')
-        if rtt_msg:
-            if not duration and not reason:
-                reason = 'no reason given'
-            elif duration and not reason:
-                reason = duration
-            else:
-                reason = duration + ' ' + reason
-            duration = target
-            target = str(rtt_msg.author_id)
-        else:
-            if not duration:
-                return
-            if not reason:
-                reason = 'no reason given'
+        if not reason:
+            reason = 'no reason given'
 
         forever = (duration.lower() == 'inf' or duration.lower() == 'infinite' or
                    duration.lower() == 'forever' or duration.lower() == 'indefinite')
@@ -177,18 +177,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return await ctx.send(selector.get("self_target"))
         except:
             userid = target
-        disclose = False
-        if reason.startswith('-disclose'):
-            reason = reason.replace('-disclose','',1)
-            disclose = True
-            while reason.startswith(' '):
-                reason = reason.replace(' ','',1)
-        discreet = False
-        if reason.startswith('-discreet'):
-            reason = reason.replace("-discreet", "", 1)
-            discreet = True
-            while reason.startswith(' '):
-                reason = reason.replace(' ','',1)
         if userid in self.bot.moderators and not ctx.user.id == self.bot.config['owner'] and not override_st:
             if not userid == ctx.user.id or not override_st:
                 return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("mod_immunity","commons.moderation")}')
@@ -197,6 +185,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         banlist = self.bot.db['banned']
         if userid in banlist:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("already_banned")}')
+
+        await ctx.response.defer(ephemeral=False, with_message=True)
         ct = round(time.time())
         nt = ct + duration
         if forever:
@@ -218,12 +208,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         set_author(embed,name=mod,icon_url=ctx.user.avatar)
-        if rtt_msg:
-            if len(rtt_msg_content)==0:
-                rtt_msg_content = '[no content]'
-            if len(rtt_msg_content) > 1024:
-                rtt_msg_content = rtt_msg_content[:-(len(rtt_msg_content)-1024)]
-            embed.add_field(name='Offending message',value=rtt_msg_content,inline=False)
         if forever:
             embed.colour = self.bot.colors.critical
             embed.add_field(name='Actions taken',value=f'- :zipper_mouth:{user_selector.get("perm_ban","commons.moderation")}\n- :white_check_mark: {user_selector.rawget("perm_ban_appeal","commons.moderation")}',inline=False)
@@ -299,11 +283,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 )
             )
         )
-        resp_msg = await ctx.send(
-            selector.get("success"),
-            embed=log_embed,
-            view=components if rtt_msg else None
-        )
+        await ctx.edit_original_message(content=selector.get("success"),embed=log_embed)
 
         try:
             if not self.bot.config['enable_logging']:
@@ -314,80 +294,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             pass
 
-        if not rtt_msg:
-            return
-
-        def check(interaction):
-            return interaction.user.id==ctx.user.id and interaction.message.id==resp_msg.id
-
-        try:
-            interaction = await self.bot.wait_for('interaction', check=check, timeout=30.0)
-        except:
-            components = ui.MessageComponents()
-            components.add_row(
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.red,
-                        custom_id='delete',
-                        label=selector.rawget("delete","commons.moderation"),
-                        emoji='\U0001F5D1',
-                        disabled=True
-                    )
-                )
-            )
-            return await resp_msg.edit(view=components)
-        else:
-            components = ui.MessageComponents()
-            components.add_row(
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.red,
-                        custom_id='delete',
-                        label=selector.rawget("delete","commons.moderation"),
-                        emoji='\U0001F5D1',
-                        disabled=True
-                    )
-                )
-            )
-            await resp_msg.edit(view=components)
-
-            await interaction.response.send_message(f'{self.bot.ui_emojis.loading} Deleting message...',ephemeral=True)
-
-            components = ui.MessageComponents()
-            components.add_row(
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.gray,
-                        custom_id='delete',
-                        label=selector.rawget("deleted","commons.moderation"),
-                        emoji='\U0001F5D1',
-                        disabled=True
-                    )
-                )
-            )
-            try:
-                await self.bot.bridge.delete_parent(rtt_msg.id)
-                if rtt_msg.webhook:
-                    raise ValueError()
-                await resp_msg.edit(view=components)
-                return await interaction.edit_original_message(
-                    content=f'{self.bot.ui_emojis.success} {selector.rawget("parent_delete","moderation.delete")}'
-                )
-            except:
-                try:
-                    deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
-                    await resp_msg.edit(view=components)
-                    return await interaction.edit_original_message(
-                        content=f'{self.bot.ui_emojis.success} {selector.rawfget("parent_delete","moderation.delete",values={"count":deleted})}'
-                    )
-                except:
-                    self.logger.exception("An error occurred!")
-                    return await interaction.edit_original_message(
-                        content=f'{self.bot.ui_emojis.error} {selector.rawget("error","moderation.delete")}'
-                    )
-
-    @moderation.subcommand(description='Bans or unbans a user from using Unifier.')
-    @restrictions.admin()
+    @commands.command(description=language.desc('moderation.fullban'))
+    @restrictions_legacy.admin()
     async def fullban(self, ctx: nextcord.Interaction,target):
         selector = language.get_selector(ctx)
 
@@ -417,27 +325,49 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-    @moderation.subcommand(description='Unblocks a user or server from bridging messages to your server.')
-    @commands.has_permissions(ban_members=True)
-    async def unblock(self, ctx: nextcord.Interaction,target):
+    @moderation.subcommand(
+        description=language.desc('moderation.unblock'),
+        description_localizations=language.slash_desc('moderation.unblock')
+    )
+    @application_checks.has_permissions(ban_members=True)
+    async def unblock(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.unblock.target')
+    ):
+        selector = language.get_selector(ctx)
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
         except:
             userid = target
-            if not len(target) == 26:
-                return await ctx.send(f'{self.bot.ui_emojis.error} Invalid user/server!')
+            found = False
+            for platform in self.bot.platforms.keys():
+                try:
+                    self.bot.platforms[platform].get_user(userid)
+                    found = True
+                    break
+                except:
+                    continue
+
+            if not found:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_user_or_server","commons.moderation")}')
         banlist = []
         if f'{ctx.guild.id}' in list(self.bot.db['blocked'].keys()):
             banlist = self.bot.db['blocked'][f'{ctx.guild.id}']
         if not userid in banlist:
-            return await ctx.send(f'{self.bot.ui_emojis.error} User/server not banned!')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("not_blocked")}')
         self.bot.db['blocked'][f'{ctx.guild.id}'].remove(userid)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-        await ctx.send(f'{self.bot.ui_emojis.success} User/server can now forward messages to this channel!')
+        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @moderation.subcommand(description='Unblocks a user or server from bridging messages through Unifier.')
+    @moderation.subcommand(
+        description=language.desc('moderation.unban'),
+        description_localizations=language.slash_desc('moderation.unban')
+    )
     @restrictions.moderator()
-    async def unban(self, ctx: nextcord.Interaction,*,target):
+    async def unban(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.ban.target')
+    ):
         selector = language.get_selector(ctx)
 
         userid = target.replace('<@','',1).replace('!','',1).replace('>','',1)
@@ -452,9 +382,15 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @moderation.subcommand(description='Bans a user from appealing their ban.')
+    @moderation.subcommand(
+        description=language.desc('moderation.deny-appeals'),
+        description_localizations=language.slash_desc('moderation.deny-appeals')
+    )
     @restrictions.admin()
-    async def appealban(self, ctx: nextcord.Interaction,*,target):
+    async def deny_appeals(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.deny-appeals.target')
+    ):
         selector = language.get_selector(ctx)
 
         try:
@@ -599,8 +535,14 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             ephemeral=True
         )
 
-    @moderation.subcommand(description='Shows your instance account standing.')
-    async def standing(self, ctx: nextcord.Interaction,*,target=None):
+    @moderation.subcommand(
+        description=language.desc('moderation.standing'),
+        description_localizations=language.slash_desc('moderation.standing')
+    )
+    async def standing(
+            self, ctx: nextcord.Interaction,
+            target: Optional[str] = slash.option('moderation.standing.target',required=False)
+    ):
         if target and not ctx.user.id in self.bot.moderators:
             target = None
 
@@ -857,13 +799,17 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             elif interaction.data['custom_id'] == 'next':
                 page += 1
 
-    @moderation.subcommand(description='Identifies the origin of a message.')
-    async def identify(self, ctx: nextcord.Interaction):
+    @moderation.subcommand(
+        description=language.desc('moderation.identify'),
+        description_localizations=language.slash_desc('moderation.identify')
+    )
+    async def identify(
+            self, ctx: nextcord.Interaction,
+            message: str = slash.option('moderation.identify.message')
+    ):
         selector = language.get_selector(ctx)
         try:
-            msg = ctx.message.reference.cached_message
-            if msg == None:
-                msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+            msg = await ctx.channel.fetch_message(int(message))
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_message","commons.interaction")}')
         try:
@@ -942,10 +888,16 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             selector.fget("identify",values={"username":username,"userid":msg_obj.author_id,"servername":guildname,"serverid":msg_obj.guild_id,"source":msg_obj.source,"messageid":msg_obj.id})
         )
 
-    @moderation.subcommand(description='Deletes a message.')
+    @moderation.subcommand(
+        description=language.desc('moderation.delete'),
+        description_localizations=language.slash_desc('moderation.delete')
+    )
     @restrictions.no_admin_perms()
     @restrictions.not_banned()
-    async def delete(self, ctx: nextcord.Interaction, *, msg_id=None):
+    async def delete(
+            self, ctx: nextcord.Interaction,
+            message: str = slash.option('moderation.delete.message')
+    ):
         """Deletes all bridged messages. Does not delete the original."""
 
         selector = language.get_selector(ctx)
@@ -968,13 +920,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 return
 
         try:
-            msg_id = ctx.message.reference.message_id
-        except:
-            if not msg_id:
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_message")}')
-
-        try:
-            msg = await self.bot.bridge.fetch_message(msg_id)
+            msg = await self.bot.bridge.fetch_message(message)
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_message","commons.interaction")}')
 
@@ -984,13 +930,13 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         status_msg = await ctx.send(f'{self.bot.ui_emojis.loading} {selector.get("deleting")}')
 
         try:
-            await self.bot.bridge.delete_parent(msg_id)
+            await self.bot.bridge.delete_parent(message)
             if msg.webhook:
                 raise ValueError()
             return await status_msg.edit(content=f'{self.bot.ui_emojis.success} ' + selector.get("parent_delete"))
         except:
             try:
-                deleted = await self.bot.bridge.delete_copies(msg_id)
+                deleted = await self.bot.bridge.delete_copies(message)
                 await self.bot.bridge.delete_message(msg)
                 return await status_msg.edit(content=f'{self.bot.ui_emojis.success} ' + selector.fget("children_delete",values={"count": deleted}))
             except:
@@ -1054,45 +1000,33 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     content=f'{self.bot.ui_emojis.error} ' + selector.get("error")
                 )
 
-    @moderation.subcommand(description='Warns a user.')
+    @moderation.subcommand(
+        description=language.desc('moderation.warn'),
+        description_localizations=language.slash_desc('moderation.warn')
+    )
     @restrictions.moderator()
-    async def warn(self, ctx: nextcord.Interaction,*,target):
+    async def warn(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.warn.target'),
+            reason: str = slash.option('moderation.warn.reason')
+    ):
         selector = language.get_selector(ctx)
-
-        rtt_msg = None
-        rtt_msg_content = ''
-        if ctx.message.reference:
-            msg = ctx.message.reference.cached_message
-            if not msg:
-                try:
-                    msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-                except:
-                    pass
-            if msg:
-                try:
-                    rtt_msg = await self.bot.bridge.fetch_message(msg.id)
-                except:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_message","commons.interaction")}')
-                rtt_msg_content = msg.content
-            else:
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_message","commons.interaction")}')
-        if rtt_msg:
-            reason = target
-            target = str(rtt_msg.author_id)
-        else:
-            parts = target.split(' ',1)
-            if len(parts)==2:
-                reason = parts[1]
-                target = parts[0]
-            else:
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_reason")}')
         try:
             userid = int(target.replace('<@','',1).replace('!','',1).replace('>','',1))
             if userid==ctx.user.id and not override_st:
                 return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("self_target")}')
         except:
             userid = target
-            if not len(userid)==26:
+            found = False
+            for platform in self.bot.platforms.keys():
+                try:
+                    self.bot.platforms[platform].get_user(userid)
+                    found = True
+                    break
+                except:
+                    continue
+
+            if not found:
                 return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_user_or_server","commons.moderation")}')
         if userid in self.bot.moderators and not ctx.user.id==self.bot.config['owner']:
             if not userid == ctx.user.id or not override_st:
@@ -1114,12 +1048,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         set_author(embed,name=mod,icon_url=ctx.user.avatar)
-        if rtt_msg:
-            if len(rtt_msg_content)==0:
-                rtt_msg_content = '[no content]'
-            if len(rtt_msg_content) > 1024:
-                rtt_msg_content = rtt_msg_content[:-(len(rtt_msg_content)-1024)]
-            embed.add_field(name=user_selector.rawget("offending_message","commons.moderation"),value=rtt_msg_content,inline=False)
         embed.add_field(
             name=user_selector.rawget("actions_taken","commons.moderation"),
             value=f'- :warning: {user_selector.rawget("warned","commons.moderation")}',
@@ -1148,101 +1076,29 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         log_embed.add_field(
             name=language.get("modlogs_title", "moderation.ban"),
             value=language.fget("modlogs_body", "moderation.ban", values={"recent_warns": actions_count_recent["warns"],"total_bans": actions_count["bans"]}),
-            inline=False)
-        components = ui.MessageComponents()
-        components.add_row(
-            ui.ActionRow(
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.red,
-                    custom_id='delete',
-                    label=selector.rawget("delete","commons.moderation"),
-                    emoji='\U0001F5D1'
-                )
-            )
+            inline=False
         )
         try:
             await user.send(embed=embed)
-            resp_msg = await ctx.send(
-                f'{self.bot.ui_emojis.success} {selector.get("success")}',
-                embed=log_embed,
-                view=components if rtt_msg else None
+            await ctx.edit_original_message(
+                content=f'{self.bot.ui_emojis.success} {selector.get("success")}',embed=log_embed
             )
         except:
-            resp_msg = await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success_nodm")}',embed=log_embed,view=components)
-
-        if not rtt_msg:
-            return
-
-        def check(interaction):
-            return interaction.user.id==ctx.user.id and interaction.message.id==resp_msg.id
-
-        try:
-            interaction = await self.bot.wait_for('interaction', check=check, timeout=30.0)
-        except:
-            components = ui.MessageComponents()
-            components.add_row(
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.red,
-                        custom_id='delete',
-                        label=selector.rawget("delete","commons.moderation"),
-                        emoji='\U0001F5D1',
-                        disabled=True
-                    )
-                )
+            await ctx.edit_original_message(
+                content=f'{self.bot.ui_emojis.success} {selector.get("success_nodm")}',embed=log_embed
             )
-            return await resp_msg.edit(view=components)
-        else:
-            components = ui.MessageComponents()
-            components.add_row(
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.red,
-                        custom_id='delete',
-                        label=selector.rawget("delete","commons.moderation"),
-                        emoji='\U0001F5D1',
-                        disabled=True
-                    )
-                )
-            )
-            await resp_msg.edit(view=components)
-            await interaction.response.send_message(f'{self.bot.ui_emojis.loading} {selector.rawget("deleting","moderation.delete")}',ephemeral=True)
-            components = ui.MessageComponents()
-            components.add_row(
-                ui.ActionRow(
-                    nextcord.ui.Button(
-                        style=nextcord.ButtonStyle.gray,
-                        custom_id='delete',
-                        label=selector.rawget("deleted","commons.moderation"),
-                        emoji='\U0001F5D1',
-                        disabled=True
-                    )
-                )
-            )
-            try:
-                await self.bot.bridge.delete_parent(rtt_msg.id)
-                if rtt_msg.webhook:
-                    raise ValueError()
-                await resp_msg.edit(view=components)
-                return await interaction.edit_original_message(
-                    content=f'{self.bot.ui_emojis.success} {selector.rawget("parent_delete","moderation.delete")}'
-                )
-            except:
-                try:
-                    deleted = await self.bot.bridge.delete_copies(rtt_msg.id)
-                    await resp_msg.edit(view=components)
-                    return await interaction.edit_original_message(
-                        content=f'{self.bot.ui_emojis.success} {selector.rawfget("deleting","moderation.delete",values={"count":deleted})}'
-                    )
-                except:
-                    traceback.print_exc()
-                    return await interaction.edit_original_message(
-                        content=f'{self.bot.ui_emojis.error} {selector.rawget("error","moderation.delete")}'
-                    )
 
-    @moderation.subcommand(description='Deletes a logged warning.')
+    @moderation.subcommand(
+        name='delete-warning',
+        description=language.desc('moderation.delete-warning'),
+        description_localizations=language.slash_desc('moderation.delete-warning')
+    )
     @restrictions.moderator()
-    async def delwarn(self, ctx: nextcord.Interaction,target,index):
+    async def delete_warning(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.delete-warning.target'),
+            index: int = slash.option('moderation.delete-warning.index')
+    ):
         selector = language.get_selector(ctx)
 
         try:
@@ -1280,9 +1136,17 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("failed")}')
 
-    @moderation.subcommand(description='Deletes a logged ban. Does not unban the user.')
+    @moderation.subcommand(
+        name='delete-ban',
+        description=language.desc('moderation.delete-ban'),
+        description_localizations=language.slash_desc('moderation.delete-ban')
+    )
     @restrictions.moderator()
-    async def delban(self, ctx: nextcord.Interaction, target, index):
+    async def delete_ban(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.delete-ban.target'),
+            index: int = slash.option('moderation.delete-ban.index')
+    ):
         selector = language.get_selector(ctx)
 
         try:
@@ -1321,9 +1185,16 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("failed")}')
 
-    @moderation.subcommand(description="Changes a given user's nickname.")
+    @moderation.subcommand(
+        description=language.desc('moderation.anick'),
+        description_localizations=language.slash_desc('moderation.anick')
+    )
     @restrictions.moderator()
-    async def anick(self, ctx: nextcord.Interaction, target, *, nickname=''):
+    async def anick(
+            self, ctx: nextcord.Interaction,
+            target: str = slash.option('moderation.delete-ban.target'),
+            nickname: Optional[str] = slash.option('moderation.delete-ban.nickname')
+    ):
         selector = language.get_selector(ctx)
         userid = target.replace('<@', '').replace('!', '').replace('>', '')
 
@@ -1338,7 +1209,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @moderation.subcommand(description='Locks Unifier Bridge down.')
+    @moderation.subcommand(
+        description=language.desc('moderation.bridge-lock'),
+        description_localizations=language.slash_desc('moderation.bridge-lock')
+    )
     @restrictions.moderator()
     async def bridgelock(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
@@ -1436,9 +1310,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         embed.description = selector.get("success_body")
         await msg.edit(embed=embed)
 
-    @moderation.subcommand(description='Removes Unifier Bridge lockdown.')
-    @restrictions.admin()
-    async def bridgeunlock(self, ctx: nextcord.Interaction):
+    @commands.command(name='bridge-unlock',description=language.desc('moderation.bridge-unlock'))
+    @restrictions_legacy.admin()
+    async def bridgeunlock(self, ctx):
         selector = language.get_selector(ctx)
         try:
             self.bot.load_extension('cogs.bridge')
@@ -1451,7 +1325,11 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             traceback.print_exc()
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @moderation.subcommand(name='under-attack', description='Toggles Under Attack mode.')
+    @moderation.subcommand(
+        name='under-attack',
+        description=language.desc('moderation.under-attack'),
+        description_localizations=language.slash_desc('moderation.under-attack')
+    )
     @restrictions.under_attack()
     async def under_attack(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
@@ -1519,10 +1397,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await msg.edit(embed=embed)
 
-    @moderation.subcommand( description='Sends a safety-related alert.')
+    @moderation.subcommand(
+        description=language.desc('moderation.alert'),
+        description_localizations=language.slash_desc('moderation.alert')
+    )
     @restrictions.moderator()
     @restrictions.no_admin_perms()
-    async def alert(self, ctx: nextcord.Interaction, risk_type, level, *, message):
+    async def alert(
+            self, ctx: nextcord.Interaction,
+            risk_type: str = slash.option('moderation.alert.risk_type'),
+            level: Literal['emergency','warning','advisory','clear'] = slash.option('moderation.alert.level'),
+            message: str = slash.option('moderation.alert.message')
+    ):
         selector = language.get_selector(ctx)
 
         risk_type = risk_type.lower()
@@ -1598,11 +1484,18 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await msg.edit(embed=embed)
 
-    @moderation.subcommand( description='Sends a safety-related alert.')
+    @moderation.subcommand(
+        description=language.desc('moderation.advisory'),
+        description_localizations=language.slash_desc('moderation.advisory')
+    )
     @restrictions.moderator()
     @restrictions.not_banned()
     @restrictions.no_admin_perms()
-    async def advisory(self, ctx: nextcord.Interaction, risk_type, *, message):
+    async def advisory(
+            self, ctx: nextcord.Interaction,
+            risk_type: str = slash.option('moderation.alert.risk_type'),
+            message: str = slash.option('moderation.alert.message')
+    ):
         selector = language.get_selector('moderation.alert', userid=ctx.user.id)
 
         risk_type = risk_type.lower()
