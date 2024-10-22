@@ -3198,7 +3198,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 match = 0
                 page = 0
 
-    async def report(self, interaction, msg: Union[nextcord.Message, int]):
+    async def report(self, interaction, msg: Union[nextcord.Message, str]):
         selector = language.get_selector('bridge.report',userid=interaction.user.id)
         if interaction.user.id in self.bot.db['fullbanned']:
             return
