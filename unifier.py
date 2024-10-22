@@ -110,6 +110,7 @@ try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
     if os.name == "win32":
+        # noinspection PyUnresolvedReferences
         import winloop as uvloop  # pylint: disable=import-error
     else:
         import uvloop  # pylint: disable=import-error
@@ -315,6 +316,7 @@ class DiscordBot(commands.Bot):
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
         self.__tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'], data['debug'])
         self.__langmgr = langmgr.LanguageManager(self)
+        self.cooldowns = {}
 
         if should_encrypt:
             self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
@@ -562,8 +564,13 @@ async def on_ready():
         elif data['periodic_backup'] <= 0:
             logger.debug(f'Periodic backups disabled')
     logger.info("Registering application commands...")
-    await bot.sync_application_commands(update_known=False, register_new=False)
-    await bot.sync_application_commands(update_known=True, register_new=True)
+    try:
+        await bot.discover_application_commands()
+        await bot.register_new_application_commands()
+    except:
+        logger.warning('Register failed, trying alternate method...')
+        await bot.delete_application_commands()
+        await bot.register_new_application_commands()
     logger.info('Unifier is ready!')
     if not bot.ready:
         bot.ready = True
@@ -573,6 +580,10 @@ async def on_command_error(_ctx, _command):
     # ignore all errors raised outside cog
     # as core has no commands, all command errors from core can be ignored
     pass
+
+@bot.event
+async def on_error(_event_name, *_args, **_kwargs):
+    logger.exception('An error occurred!')
 
 @bot.event
 async def on_message(message):
