@@ -4034,8 +4034,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @restrictions.not_banned()
     async def roomkick(
             self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.roomkick.room'),
-            server: Optional[str] = slash.option('bridge.roomkick.server')
+            room: str = slash.option('bridge.roomkick.room'),
+            server: str = slash.option('bridge.roomkick.server')
     ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
@@ -4095,8 +4095,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @restrictions.not_banned()
     async def roomban(
             self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.roomban.room'),
-            server: Optional[str] = slash.option('bridge.roomban.server')
+            room: str = slash.option('bridge.roomban.room'),
+            server: str = slash.option('bridge.roomban.server')
     ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
@@ -4164,8 +4164,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @restrictions.not_banned()
     async def roomunban(
             self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.roomunban.room'),
-            server: Optional[str] = slash.option('bridge.roomunban.server')
+            room: str = slash.option('bridge.roomunban.room'),
+            server: str = slash.option('bridge.roomunban.server')
     ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
