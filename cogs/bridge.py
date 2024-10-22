@@ -4817,8 +4817,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     else:
                         users.append('@[unknown]')
                 embed.description = (
-                    f'# {list(msg.reactions.keys())[index]}\n' if platform=='discord' else
-                    f'# :{list(msg.reactions.keys())[index].split(":")[1]}:\n'
+                    (
+                        f'# {list(msg.reactions.keys())[index]}\n' if platform=='discord' else
+                        f'# :{list(msg.reactions.keys())[index].split(":")[1]}:\n'
+                    ) if ':' in list(msg.reactions.keys())[index] else (
+                        f'# {list(msg.reactions.keys())[index]}\n'
+                    )
                 ) + '\n'.join(users)
 
             components = ui.MessageComponents()
