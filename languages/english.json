@@ -365,6 +365,95 @@
       }
     },
     "config": {
+      "add-rule": {
+        "description": "Adds a rule to a given room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to add a rule to."
+          },
+          "rule": {
+            "name": "rule",
+            "description": "The rule you want to add."
+          }
+        },
+        "exceed": "You can only have up to 25 rules in a room!",
+        "success": "Added rule!"
+      },
+      "delete-rule": {
+        "description": "Removes a given rule from a given room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to delete a rule from."
+          },
+          "rule": {
+            "name": "rule",
+            "description": "The number of the rule you want to delete."
+          }
+        },
+        "invalid": "Rule must be a number higher than 0.",
+        "success": "Removed rule!"
+      },
+      "create-invite": {
+        "description": "Creates an invite.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to create an invite for."
+          },
+          "expiry": {
+            "name": "expiry",
+            "description": "How long the invite will be valid for. Defaults to 7 days."
+          },
+          "max-usage": {
+            "name": "max-usage",
+            "description": "The maximum uses possible for the invite. Defaults to unlimited."
+          }
+        },
+        "is_public": "This is a public room!",
+        "invites_limit": "You've reached the limit for invites. Delete some first, then try again.",
+        "permanent": "Use `inf` instead for permanent invites.",
+        "permanent_disabled": "Permanent invites are not enabled on this instance.",
+        "duration_toolong": "Invites cannot last longer than 7 days.",
+        "code": "Invite code:",
+        "join": "Servers can use `{prefix}bind {invite}` to join your room.",
+        "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `{prefix}invites` to view your invite.",
+        "success": "Invite was created, check your DMs!"
+      },
+      "delete-invite": {
+        "options": {
+          "invite": {
+            "name": "invite",
+            "description": "The invite to delete."
+          }
+        },
+        "description": "Deletes an invite.",
+        "invalid": "Could not find invite.",
+        "success": "Invite was deleted."
+      },
+      "invites": {
+        "description": "Views your room's invites.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to check the invites of."
+          }
+        },
+        "unlimited": "Unlimited usage",
+        "remaining": "Remaining uses:",
+        "expiry": "Expiry:",
+        "never": "never",
+        "created": "{created}/{limit} invites created",
+        "dm_fail": "Could not DM invites. Please turn your DMs on.",
+        "success": "Invites have been DMed."
+      },
+      "rename": {
+        "description": "Renames a room.",
+        "exists": "This room already exists!",
+        "is_private": "You cannot rename Private Rooms.",
+        "success": "Room renamed!"
+      },
       "addmod": {
         "description": "Adds a moderator to the instance.",
         "invalid": "Not a valid user!",
@@ -379,6 +468,16 @@
       },
       "display-name": {
         "description": "Sets a room's display name.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to set a display name for."
+          },
+          "display-name": {
+            "name": "display-name",
+            "description": "The new display name. Leave empty to reset."
+          }
+        },
         "no_name": "There is no display name to reset for this room.",
         "removed": "Display name removed.",
         "toolong": "Display name is too long. Please keep it within 32 characters.",
@@ -386,12 +485,32 @@
       },
       "roomdesc": {
         "description": "Sets a room's description.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to set a description for."
+          },
+          "description": {
+            "name": "description",
+            "description": "The new description. Leave empty to reset."
+          }
+        },
         "no_desc": "There is no description to reset for this room.",
         "removed": "Description removed.",
         "success": "Description updated!"
       },
       "roomemoji": {
         "description": "Sets a room's emoji.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to set a room emoji for."
+          },
+          "emoji": {
+            "name": "emoji",
+            "description": "The new room emoji. Leave empty to reset."
+          }
+        },
         "not_emoji": "This is not a valid emoji.",
         "no_emoji": "There is no emoji to reset for this room.",
         "removed": "Emoji removed.",
@@ -405,6 +524,16 @@
       },
       "lock": {
         "description": "Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to lock. Leave empty to autodetect."
+          },
+          "display-name": {
+            "name": "display-name",
+            "description": "The new display name. Leave empty to reset."
+          }
+        },
         "is_public": "You cannot manage public rooms.",
         "success_set": "Locked `{room}`!",
         "success_unset": "Unlocked `{room}`!"
@@ -443,7 +572,7 @@
         "success_title": "Blocked Webhooks from Unifier network!",
         "success_body": "This user's webhooks can no longer bridge messages through Unifier."
       },
-      "toggle_emoji": {
+      "toggle-emoji": {
         "description": "Enables or disables usage of server emojis as Global Emojis.",
         "success_set": "All members can now use your emojis!",
         "success_unset": "All members can now no longer use your emojis!"
@@ -557,16 +686,6 @@
         "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).",
         "rules_title": "Room rules"
       },
-      "addrule": {
-        "description": "Adds a rule to a given room.",
-        "exceed": "You can only have up to 25 rules in a room!",
-        "success": "Added rule!"
-      },
-      "delrule": {
-        "description": "Removes a given rule from a given room.",
-        "invalid": "Rule must be a number higher than 0.",
-        "success": "Removed rule!"
-      },
       "rooms": {
         "description": "Shows a list of rooms.",
         "title": "{botname} rooms",
@@ -624,39 +743,6 @@
         "exists": "This room already exists!",
         "success": "Created **{roomtype}** room `{room}`!",
         "dryrun_warning": "This is a dry run, no actual room was made."
-      },
-      "create-invite": {
-        "description": "Creates an invite.",
-        "is_public": "This is a public room!",
-        "invites_limit": "You've reached the limit for invites. Delete some first, then try again.",
-        "permanent": "Use `inf` instead for permanent invites.",
-        "permanent_disabled": "Permanent invites are not enabled on this instance.",
-        "duration_toolong": "Invites cannot last longer than 7 days.",
-        "code": "Invite code:",
-        "join": "Servers can use `{prefix}bind {invite}` to join your room.",
-        "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `{prefix}invites` to view your invite.",
-        "success": "Invite was created, check your DMs!"
-      },
-      "delete-invite": {
-        "description": "Deletes an invite.",
-        "invalid": "Could not find invite.",
-        "success": "Invite was deleted."
-      },
-      "invites": {
-        "description": "Views your room's invites.",
-        "unlimited": "Unlimited usage",
-        "remaining": "Remaining uses:",
-        "expiry": "Expiry:",
-        "never": "never",
-        "created": "{created}/{limit} invites created",
-        "dm_fail": "Could not DM invites. Please turn your DMs on.",
-        "success": "Invites have been DMed."
-      },
-      "rename": {
-        "description": "Renames a room.",
-        "exists": "This room already exists!",
-        "is_private": "You cannot rename Private Rooms.",
-        "success": "Room renamed!"
       },
       "color": {
         "options": {
