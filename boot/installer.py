@@ -173,6 +173,7 @@ except:
     sys.exit(1)
 
 tokenstore = secrets.TokenStore(False, password=encryption_password, salt=salt, content_override={'TOKEN': token})
+tokenstore.save('.encryptedenv', '.ivs')
 print('\x1b[36;1mYour tokens have been stored securely.\x1b[0m')
 
 with open('config.toml', 'rb') as file:
