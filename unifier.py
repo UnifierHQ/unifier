@@ -565,8 +565,7 @@ async def on_ready():
             logger.debug(f'Periodic backups disabled')
     logger.info("Registering application commands...")
     try:
-        await bot.discover_application_commands()
-        await bot.register_new_application_commands()
+        await bot.sync_all_application_commands()
     except:
         logger.warning('Register failed, trying alternate method...')
         await bot.delete_application_commands()
