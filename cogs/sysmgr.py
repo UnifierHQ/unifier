@@ -3281,6 +3281,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 if not msg:
                     msg = await ctx.send(embed=embed,view=view)
+                    msg = await msg.fetch()
                 else:
                     await interaction.response.edit_message(embed=embed, view=view)
             else:
