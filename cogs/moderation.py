@@ -1435,7 +1435,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             ui.ActionRow(
                 nextcord.ui.Button(
                     style=nextcord.ButtonStyle.red,
-                    label=selector.get("send_title"),
+                    label=selector.get("send"),
                     custom_id='accept'
                 ),
                 nextcord.ui.Button(
@@ -1447,6 +1447,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         )
 
         msg = await ctx.send(embed=embed, view=components)
+        msg = await msg.fetch()
 
         def check(interaction):
             return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
@@ -1538,6 +1539,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         )
 
         msg = await ctx.send(embed=embed, view=components)
+        msg = await msg.fetch()
 
         def check(interaction):
             return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
