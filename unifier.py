@@ -567,6 +567,7 @@ async def on_ready():
     try:
         await bot.sync_all_application_commands()
     except:
+        # If sync fails, all commands are removed from Discord then re-registered.
         logger.warning('Register failed, trying alternate method...')
         await bot.delete_application_commands()
         await bot.register_new_application_commands()
