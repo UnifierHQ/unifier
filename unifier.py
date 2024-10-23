@@ -231,15 +231,6 @@ except:
     with open('update.json', 'r') as file:
         vinfo = json.load(file)
 
-if not data['skip_status_check']:
-    try:
-        incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
-        for incident in incidents:
-            logger.warning('Discord incident: ' + incident['name'])
-            logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
-    except:
-        logger.debug('Failed to get Discord status')
-
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -473,6 +464,15 @@ if not bot.tokenstore.test_decrypt():
     print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
     print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
     sys.exit(1)
+
+if not data['skip_status_check']:
+    try:
+        incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
+        for incident in incidents:
+            logger.warning('Discord incident: ' + incident['name'])
+            logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
+    except:
+        logger.debug('Failed to get Discord status')
 
 if bot.coreboot:
     logger.warning('Core-only boot is enabled. Only core and System Manager will be loaded.')
