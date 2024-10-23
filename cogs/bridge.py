@@ -1762,14 +1762,16 @@ class UnifierBridge:
                 size_limit = dest_support.attachment_size_limit
 
             if size_total > size_limit:
-                if not self.__bot.config['suppress_filesize_warning'] and source == platform:
+                if not self.__bot.config['suppress_filesize_warning']:
                     if source=='discord':
-                        await message.channel.send(selector.get('filesize_limit'),
-                                                   reference=message)
+                        await message.channel.send(
+                            '`' + platform + '`: ' + selector.fget('filesize_limit',values={'limit':size_limit // 1000000}),
+                            reference=message
+                        )
                     else:
                         await source_support.send(
                             source_support.channel(message),
-                            selector.fget('filesize_limit',values={'limit':size_limit // 1000000}),
+                            '`' + platform + '`: ' + selector.fget('filesize_limit',values={'limit':size_limit // 1000000}),
                             special={'reply':message}
                         )
                 break
