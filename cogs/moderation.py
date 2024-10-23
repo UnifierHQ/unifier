@@ -1574,7 +1574,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
         await msg.edit(embed=embed)
 
-    async def alert_autocomplete(self, query: str):
+    async def alert_search(self, query: str):
         possible = []
         for risk in self.bot.bridge.alert.titles.keys():
             if query in risk:
@@ -1583,12 +1583,12 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         return possible
 
     @alert.on_autocomplete("risk_type")
-    async def alert_autocomplete(self, ctx: nextcord.Interaction, query: str):
-        return await ctx.response.send_autocomplete(await self.alert_autocomplete(query))
+    async def alert_autocomplete(self, ctx: nextcord.Interaction, risk_type: str):
+        return await ctx.response.send_autocomplete(await self.alert_search(risk_type))
 
     @advisory.on_autocomplete("risk_type")
-    async def advisory_autocomplete(self, ctx: nextcord.Interaction, query: str):
-        return await ctx.response.send_autocomplete(await self.alert_autocomplete(query))
+    async def advisory_autocomplete(self, ctx: nextcord.Interaction, risk_type: str):
+        return await ctx.response.send_autocomplete(await self.alert_search(risk_type))
 
     async def cog_command_error(self, ctx: nextcord.Interaction, error):
         await self.bot.exhandler.handle(ctx, error)
