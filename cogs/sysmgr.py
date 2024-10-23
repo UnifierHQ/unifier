@@ -2792,7 +2792,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             if isinstance(cmd, nextcord.BaseApplicationCommand):
                                 canrun = await cmd.can_run(ctx)
                             else:
-                                canrun = ctx.user.id == self.bot.owner # legacy commands can only be used by the owner
+                                canrun = (
+                                        ctx.user.id == self.bot.owner or
+                                        ctx.user.id in self.bot.other_owners or
+                                        ctx.user.id in self.bot.admins
+                                ) # legacy commands can only be used by owners and admins
                         except:
                             canrun = False or cmd.qualified_name in overrides[permissions]
                     if not canrun or (cogname=='search' and not search_filter(query,cmd)):
@@ -3090,7 +3094,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if isinstance(cmd, nextcord.BaseApplicationCommand):
                         canrun = await cmd.can_run(ctx)
                     else:
-                        canrun = ctx.user.id == self.bot.owner  # legacy commands can only be used by the owner
+                        canrun = (
+                                ctx.user.id == self.bot.owner or
+                                ctx.user.id in self.bot.other_owners or
+                                ctx.user.id in self.bot.admins
+                        )  # legacy commands can only be used by owners and admins
                 except:
                     canrun = False or cmd.qualified_name in overrides[permissions]
                 if canrun:
