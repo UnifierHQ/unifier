@@ -33,6 +33,7 @@ import threading
 import shutil
 import filecmp
 import datetime
+from typing_extensions import Self
 from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr
 from pathlib import Path
 
@@ -445,8 +446,21 @@ class DiscordBot(commands.Bot):
         # suppress exception traceback as they're already logged
         pass
 
+class Intents(nextcord.Intents):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
+    @classmethod
+    def no_presence(cls) -> Self:
+        """A factory method that creates a :class:`Intents` with everything enabled
+        except :attr:`presences`, :attr:`members`, and :attr:`message_content`.
+        """
+        self = cls.all()
+        self.presences = False
+        return self
+
+
+bot = DiscordBot(command_prefix=data['prefix'],intents=Intents.no_presence())
 bot.config = data
 bot.boot_config = boot_data
 bot.coreboot = 'core' in sys.argv
