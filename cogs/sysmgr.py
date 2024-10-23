@@ -3206,7 +3206,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.colour = self.bot.colors.error
             await rootmsg.edit(embed=embed)
 
-    @nextcord.slash_command(description='Shows bot uptime.')
+    @system.subcommand(
+        description=language.desc('sysmgr.uptime'),
+        description_localizations=language.slash_desc('sysmgr.uptime')
+    )
     async def uptime(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
         embed = nextcord.Embed(
@@ -3356,11 +3359,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 page += 1
                 if page > maxpage:
                     page = maxpage
-
-    @system.subcommand(description='A command that intentionally fails.')
-    @restrictions.owner()
-    async def raiseerror(self, ctx):
-        raise RuntimeError('here\'s your error, anything else?')
 
     @commands.command(name='raiseerror', description='A command that intentionally fails.')
     @restrictions_legacy.owner()

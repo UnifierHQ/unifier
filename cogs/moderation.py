@@ -385,6 +385,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
     @moderation.subcommand(
+        name='deny-appeals',
         description=language.desc('moderation.deny-appeals'),
         description_localizations=language.slash_desc('moderation.deny-appeals')
     )
