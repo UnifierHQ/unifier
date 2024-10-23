@@ -151,17 +151,6 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
         # sleep to prevent 429s
         time.sleep(5)
 
-# tomli should be installed by now
-try:
-    import tomli  # pylint: disable=import-error
-except:
-    print('\x1b[31;1mCould not import tomli. It should have been installed, please restart the bootloader.\x1b[0m')
-    sys.exit(1)
-
-with open('config.toml', 'rb') as file:
-    # noinspection PyTypeChecker
-    bot_config = tomli.load(file)
-
 if clear_tokens:
     print('\x1b[37;41;1mWARNING: ALL TOKENS WILL BE CLEARED!\x1b[0m')
     print('\x1b[33;1mYou should only clear your tokens if you forgot your password.\x1b[0m')
