@@ -896,7 +896,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.title = f'{self.bot.ui_emojis.success} {selector.get("rsuccess_title")}'
                 embed.description = selector.get('rsuccess_body')
             else:
-                embed.title = f'{self.bot.ui_emojis.success} {selector.get("shutdown_title")}'
+                embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                 embed.description = selector.get('success_body')
             embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
