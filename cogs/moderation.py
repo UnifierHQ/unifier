@@ -770,7 +770,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     embed.add_field(name=selector.get("no_bans_title"),value=selector.get("no_bans_body"))
                 embed.set_footer(text=f'Page {page + 1}')
             if not msg:
-                if ctx.message.guild and is_self:
+                if ctx.guild and is_self:
                     msg = await ctx.user.send(embed=embed, view=components)
                     await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
                 else:

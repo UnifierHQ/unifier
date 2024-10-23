@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # modify this, unless you're ABSOLUTELY SURE of what you're doing.
 
 import nextcord
-from nextcord.ext import commands, tasks
+from nextcord.ext import commands, tasks, application_checks
 import inspect
 import textwrap
 from contextlib import redirect_stdout
@@ -381,11 +381,16 @@ class CommandExceptionHandler:
                     await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("argument",values={"arg": error.param})}',embed=embed)
                 else:
                     await ctx.send(f'{self.bot.ui_emojis.error} {error}', embed=embed)
-            elif check_instance(error, commands.MissingPermissions) or check_instance(error, commands.BotMissingPermissions):
+            elif (
+                    check_instance(error, commands.MissingPermissions)
+                    or check_instance(error, commands.BotMissingPermissions)
+                    or check_instance(error, application_checks.ApplicationMissingPermissions)
+                    or check_instance(error, application_checks.ApplicationBotMissingPermissions)
+            ):
                 await respond(f'{self.bot.ui_emojis.error} {error}')
-            elif check_instance(error, commands.NoPrivateMessage):
+            elif check_instance(error, commands.NoPrivateMessage) or check_instance(error, application_checks.ApplicationNoPrivateMessage):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("servers_only")}')
-            elif check_instance(error, commands.PrivateMessageOnly):
+            elif check_instance(error, commands.PrivateMessageOnly) or check_instance(error, application_checks.ApplicationPrivateMessageOnly):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("dms_only")}')
             elif check_instance(error, restrictions.NoRoomManagement):
                 await respond(f'{self.bot.ui_emojis.error} {selector.get("no_room_management")}')
