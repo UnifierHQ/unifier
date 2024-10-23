@@ -3246,6 +3246,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         except:
             vinfo = None
 
+        if vinfo:
+            footer_text = "Version " + vinfo['version'] + " | Made with \u2764\ufe0f by UnifierHQ"
+        else:
+            footer_text = "Unknown version | Made with \u2764\ufe0f by UnifierHQ"
+
         while True:
             if self.bot.user.id == 1187093090415149056:
                 embed = nextcord.Embed(
@@ -3259,9 +3264,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     color=self.bot.colors.unifier
                 )
             if vinfo:
-                embed.set_footer(text="Version " + vinfo['version'] + " | Made with \u2764\ufe0f by UnifierHQ")
+                embed.set_footer(text=footer_text)
             else:
-                embed.set_footer(text="Unknown version | Made with \u2764\ufe0f by UnifierHQ")
+                embed.set_footer(text=footer_text)
 
             if not show_attr:
                 embed.add_field(name=selector.get("developers"), value="@green.\n@itsasheer", inline=False)
@@ -3326,8 +3331,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         )
                     )
                 )
-                embed.set_footer(text=f'Page {page+1} of {maxpage+1 if maxpage >= 1 else 1} | '+embed.footer.text)
-                embed.set_footer(text=selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1})+' | '+embed.footer.text)
+                embed.set_footer(text=selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1})+' | '+footer_text)
                 await interaction.response.edit_message(embed=embed, view=view)
 
             def check(interaction):
