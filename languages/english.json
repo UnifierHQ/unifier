@@ -941,6 +941,12 @@
     "moderation": {
       "block": {
         "description": "Blocks a user or server from bridging messages to your server.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to block."
+          }
+        },
         "self_target_user": "You can't block yourself :thinking",
         "self_target_guild": "You can't block your own server :thinking",
         "mod_immunity": "Unifier moderators are immune to blocks!\n(Though, do feel free to report anyone who abuses this immunity.)",
@@ -949,11 +955,27 @@
       },
       "unblock": {
         "description": "Unblocks a user or server from bridging messages through Unifier.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to unblock."
+          }
+        },
         "not_blocked": "User/server not blocked!",
         "success": "User/server can now forward messages to this server!"
       },
       "warn": {
         "description": "Warns a user.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to warn."
+          },
+          "reason": {
+            "name": "reason",
+            "description": "The reason for the warning."
+          }
+        },
         "no_reason": "You need to have a reason to warn this user.",
         "self_target": "You can't warn yourself :thinking:",
         "bot": "...why would you want to warn a bot?",
@@ -963,6 +985,28 @@
       },
       "ban": {
         "description": "Bans a user or server from the Unifier network.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to ban."
+          },
+          "duration": {
+            "name": "duration",
+            "description": "The duration of the ban. Use inf or forever for permanent."
+          },
+          "reason": {
+            "name": "reason",
+            "description": "The reason for the ban."
+          },
+          "discreet": {
+            "name": "discreet",
+            "description": "Whether a message should be sent in the main room or not. Defaults to false."
+          },
+          "reveal-user": {
+            "name": "reveal-user",
+            "description": "Whether the target's identity should be revealed in the main room or not. Defaults to false."
+          }
+        },
         "no_reason": "no reason given",
         "self_target": "You can't ban yourself :thinking:",
         "already_banned": "User/server already banned!",
@@ -989,12 +1033,32 @@
       },
       "delete-warning": {
         "description": "Deletes a logged warning.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          },
+          "index": {
+            "name": "index",
+            "description": "The number of the warning to delete."
+          }
+        },
         "title": "Warning deleted",
         "success": "Warning was deleted!",
         "failed": "Could not find warning - maybe the index was too high?"
       },
-      "delban": {
+      "delete-ban": {
         "description": "Deletes a logged ban. Does not unban the user.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          },
+          "index": {
+            "name": "index",
+            "description": "The number of the ban to delete."
+          }
+        },
         "title": "Ban deleted",
         "disclaimer": "WARNING: This does NOT unban the user.",
         "success": "Ban was deleted!",
@@ -1008,6 +1072,12 @@
       },
       "deny-appeals": {
         "description": "Bans a user from appealing their ban.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          }
+        },
         "success_set": "User can no longer appeal bans.",
         "success_unset": "User can now appeal bans."
       },
@@ -1039,6 +1109,12 @@
       },
       "delete": {
         "description": "Deletes a message.",
+        "options": {
+          "message": {
+            "name": "message",
+            "description": "The ID of the message to delete."
+          }
+        },
         "no_message": "You didn't reply to a message when running this command!",
         "no_ownership": "You didn't send this message!",
         "deleting": "Deleting message...",
@@ -1048,6 +1124,12 @@
       },
       "standing": {
         "description": "Shows your account standing.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user to check."
+          }
+        },
         "title": "{identifier}'s account standing",
         "allgood_title": "All good!",
         "allgood_body": "You're on a clean or good record. Thank you for upholding your Unifier instance's rules!",
@@ -1078,10 +1160,26 @@
       },
       "identify": {
         "description": "Identifies the origin of a message.",
+        "options": {
+          "message": {
+            "name": "message",
+            "description": "The ID of the message to check."
+          }
+        },
         "sent_by": "Sent by @{username} ({userid}) in {servername} ({serverid}, {source})\n\nParent ID: {messageid}"
       },
       "anick": {
         "description": "Changes a given user's nickname.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          },
+          "nickname": {
+            "name": "nickname",
+            "description": "The new nickname of the user. Leave empty to reset."
+          }
+        },
         "success": "Nickname updated!"
       },
       "bridge-lock": {
@@ -1115,6 +1213,20 @@
       },
       "alert": {
         "description": "Sends a safety-related alert.",
+        "options": {
+          "risk_type": {
+            "name": "risk_type",
+            "description": "The type of the risk."
+          },
+          "level": {
+            "name": "level",
+            "description": "The severity of the risk."
+          },
+          "message": {
+            "name": "message",
+            "description": "The message to append to the alert."
+          }
+        },
         "invalid": "This is not a valid risk type.",
         "no_drill": "You cannot issue drill advisories",
         "send_title": "Are you sure you want to send this alert?",
@@ -1125,6 +1237,9 @@
         "send": "Send alert",
         "success_title": "Alert issued",
         "success_body": "Alert was issued to Unifier network."
+      },
+      "advisory": {
+        "description": "Sends a safety-related advisory."
       }
     },
     "badge": {
