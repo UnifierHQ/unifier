@@ -907,7 +907,7 @@
         "post_id": "Post ID: {post_id}",
         "post_reference": "Referencing Post #{post_id}",
         "moderated": "Moderated username",
-        "filesize_limit": "Your files passed the 25MB limit. Some files will not be sent.",
+        "filesize_limit": "Your files passed the {limit}MB limit. Some files will not be sent.",
         "replying": "Replying to {user}",
         "deleted": "Message deleted from `{roomname}`",
         "edited": "Message edited in `{roomname}`",

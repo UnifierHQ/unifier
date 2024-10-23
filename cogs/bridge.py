@@ -1753,14 +1753,25 @@ class UnifierBridge:
                 size_total += attachment.size
             else:
                 size_total += source_support.attachment_size(attachment)
-            if size_total > 25000000:
+
+            size_limit = 25000000
+            if self.__bot.config['global_filesize_limit'] < size_limit:
+                size_limit = self.__bot.config['global_filesize_limit']
+
+            if not platform == 'discord':
+                size_limit = dest_support.attachment_size_limit
+
+            if size_total > size_limit:
                 if not self.__bot.config['suppress_filesize_warning'] and source == platform:
                     if source=='discord':
                         await message.channel.send(selector.get('filesize_limit'),
                                                    reference=message)
                     else:
-                        await source_support.send(source_support.channel(message),selector.get('filesize_limit'),
-                                                  special={'reply':message})
+                        await source_support.send(
+                            source_support.channel(message),
+                            selector.fget('filesize_limit',values={'limit':size_limit // 1000000}),
+                            special={'reply':message}
+                        )
                 break
             max_files += 1
 
@@ -1793,10 +1804,14 @@ class UnifierBridge:
             for attachment in attachments:
                 if system:
                     break
+                size_limit = 25000000
+                if self.__bot.config['global_filesize_limit'] < size_limit:
+                    size_limit = self.__bot.config['global_filesize_limit']
+
                 if source == 'discord':
                     if (not 'audio' in attachment.content_type and not 'video' in attachment.content_type and
                             not 'image' in attachment.content_type and not 'text/plain' in attachment.content_type and
-                            self.__bot.config['safe_filetypes']) or attachment.size > 25000000:
+                            self.__bot.config['safe_filetypes']) or attachment.size > size_limit:
                         continue
                 else:
                     attachment_size = source_support.attachment_size(attachment)
@@ -1809,7 +1824,7 @@ class UnifierBridge:
                     if (
                             not 'audio' in content_type and not 'video' in content_type and not 'image' in content_type
                             and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
-                    ) or attachment_size > 25000000 or not is_allowed:
+                    ) or attachment_size > dest_support.attachment_size_limit or not is_allowed:
                         continue
 
                 try:

@@ -45,6 +45,18 @@ class PlatformBase:
         self.reply_using_text = False # change this to True if the platform needs to show message reply using text
         self.files_per_guild = False # change this to True if the platform library wipes file objects' data after send
         self.uses_image_markdown = False # change this to True if the platform uses media markdown (i.e. ![](image url))
+        self.filesize_limit = 25000000 # change this to the maximum total file size allowed by the platform
+
+    @property
+    def attachment_size_limit(self):
+        # This should return the smaller filesize limit. Don't override this.
+        if self.bot.config['global_filesize_limit'] <= 0:
+            return self.filesize_limit
+
+        return (
+            self.filesize_limit if self.filesize_limit < self.bot.config['global_filesize_limit']
+            else self.bot.config['global_filesize_limit']
+        )
 
     def is_available(self):
         return self.__available
