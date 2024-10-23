@@ -681,7 +681,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             custom_id='prev',
-                            label=selector.rawget("previous","commons.navigation"),
+                            label=selector.rawget("prev","commons.navigation"),
                             style=nextcord.ButtonStyle.blurple,
                             disabled=page==0
                         ),
@@ -694,7 +694,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     ) if len(embed.fields) >= 1 else ui.ActionRow(
                         nextcord.ui.Button(
                             custom_id='prev',
-                            label=selector.rawget("previous","commons.navigation"),
+                            label=selector.rawget("prev","commons.navigation"),
                             style=nextcord.ButtonStyle.blurple,
                             disabled=True
                         ),
@@ -734,7 +734,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     ui.ActionRow(
                         nextcord.ui.Button(
                             custom_id='prev',
-                            label=selector.rawget("previous", "commons.navigation"),
+                            label=selector.rawget("prev", "commons.navigation"),
                             style=nextcord.ButtonStyle.blurple,
                             disabled=page == 0
                         ),
@@ -747,7 +747,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     ) if len(embed.fields) >= 1 else ui.ActionRow(
                         nextcord.ui.Button(
                             custom_id='prev',
-                            label=selector.rawget("previous", "commons.navigation"),
+                            label=selector.rawget("prev", "commons.navigation"),
                             style=nextcord.ButtonStyle.blurple,
                             disabled=True
                         ),
@@ -775,6 +775,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
                 else:
                     msg = await ctx.send(embed=embed, view=components)
+                    msg = await msg.fetch()
             else:
                 if interaction:
                     await interaction.response.edit_message(embed=embed,view=components)
