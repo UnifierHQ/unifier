@@ -3093,7 +3093,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 stats = await self.bot.bridge.roomstats(roomname)
                 embed.add_field(name=selector.get("statistics"), value=(
                         f':homes: {selector.fget("servers", values={"count": stats["guilds"]})}\n' +
-                        f':green_circle: {selector.fget("online", values={"count": stats["online"]})}, ' +
                         f':busts_in_silhouette: {selector.fget("members", values={"count": stats["members"]})}\n' +
                         f':speech_balloon: {selector.fget("messages", values={"count": stats["messages"]})}'
                 ))

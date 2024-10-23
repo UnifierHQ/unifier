@@ -703,7 +703,6 @@
         "hide_inaccessible": "Hide inaccessible rooms",
         "statistics": "Statistics",
         "servers": "{count} servers",
-        "online": "{count} online",
         "members": "{count} members",
         "messages": "{count} messages sent today",
         "rules_nav": "rules",
