@@ -25,7 +25,12 @@ import tomli
 import tomli_w
 import traceback
 from nextcord.ext import commands
-from utils import secrets
+
+try:
+    sys.path.insert(0, '.')
+    from utils import secrets
+except:
+    raise
 
 install_option = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -168,6 +173,7 @@ except:
     sys.exit(1)
 
 tokenstore = secrets.TokenStore(False, password=encryption_password, salt=salt, content_override={'TOKEN': token})
+tokenstore.save('.encryptedenv', '.ivs')
 print('\x1b[36;1mYour tokens have been stored securely.\x1b[0m')
 
 with open('config.toml', 'rb') as file:
