@@ -80,7 +80,7 @@
         "modlog_info_title": "User modlogs info",
         "modlog_info_body": "This user has **{recent_warns}** recent warnings ({total_warns} in total) and **{recent_bans}** recent bans ({total_bans} in total) on record.",
         "appeal_title": "Did we make a mistake?",
-        "appeal_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`."
+        "appeal_body": "If you think we didn't make the right call, you can always appeal your ban using `/moderation appeal`."
       },
       "plugins": {
         "locked": "Extensions and Modifier management is disabled until restart.",
@@ -101,7 +101,7 @@
         "dms_only": "You can only run this command in DMs.",
         "no_room_management": "You do not have permissions to manage this room.",
         "no_room_join": "Your server does not have permissions to join this room.",
-        "banned": "Your account or this server is currently global banned. Run `{prefix}standing` for more info.",
+        "banned": "Your account or this server is currently global banned. Run `/moderation standing` for more info.",
         "under_attack": "This server is in Under Attack mode. Some functionality is unavailable.",
         "too_many_perms": "The bot should never have `{permission}` permissions, please remove it.",
         "permissions": "You do not have permissions to run this command.",
@@ -417,8 +417,8 @@
         "permanent_disabled": "Permanent invites are not enabled on this instance.",
         "duration_toolong": "Invites cannot last longer than 7 days.",
         "code": "Invite code:",
-        "join": "Servers can use `{prefix}bind {invite}` to join your room.",
-        "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `{prefix}invites` to view your invite.",
+        "join": "Servers can use `/bridge bind {invite}` to join your room.",
+        "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `/config invites` to view your invite.",
         "success": "Invite was created, check your DMs!"
       },
       "delete-invite": {
@@ -604,8 +604,8 @@
         "check_title": "Checking if channel is already connected...",
         "check_body": "We're checking if this channel is already connected. Give us a moment...",
         "already_linked_title": "Already connected",
-        "already_linked_body": "This channel is already connected to `{room}`!\nRun `{prefix}unbind {room}` to disconnect the channel.",
-        "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{prefix}unlink {room}` it then `{prefix}link {room}` it back.",
+        "already_linked_body": "This channel is already connected to `{room}`!\nRun `/bridge unbind {room}` to disconnect the channel.",
+        "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `/bridge unbind {room}` it then `/bridge bind {room}` it back.",
         "join_title": "Join {roomname}?",
         "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `/bridge rules {room}`.",
         "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
@@ -893,7 +893,7 @@
         "automated": "This is an automated action performed by a Modifier, always double-check before taking action",
         "owner_immunity": "just as a fyi: this would have banned you",
         "ban_reason": "Automatic action carried out by security Modifiers",
-        "cannot_appeal": "Unfortunately, this ban cannot be appealed using `{prefix}appeal`. You will need to ask moderators for help.",
+        "cannot_appeal": "Unfortunately, this ban cannot be appealed using `/moderation appeal`. You will need to ask moderators for help.",
         "limited_limit": "Your server is currently limited for security. The maximum character limit for now is **{count} characters**.",
         "limited_cooldown": "Your server is currently limited for security. Please wait before sending another message.",
         "delete_fail": "Parent message could not be deleted. I may be missing the `Manage Messages` permission.",
@@ -924,16 +924,16 @@
             "description": "The URL of the avatar you want to set. Leave this empty to view your current avatar."
           }
         },
-        "no_avatar": "You have no avatar! Run `{prefix}avatar <url>` or set an avatar in your profile settings.",
-        "custom_avatar": "You have a custom avatar! Run `{prefix}avatar <url>` to change it, or run `{prefix}avatar remove` to remove it.",
-        "default_avatar": "You have a default avatar! Run `{prefix}avatar <url>` to set a custom one.",
+        "no_avatar": "You have no avatar! Run `/bridge avatar <url>` or set an avatar in your profile settings.",
+        "custom_avatar": "You have a custom avatar! Run `/bridge avatar <url>` to change it, or run `/bridge avatar remove` to remove it.",
+        "default_avatar": "You have a default avatar! Run `/bridge avatar <url>` to set a custom one.",
         "title": "This is your Unifier avatar!",
         "invalid": "Invalid URL!",
         "error_missing": "You don't have a custom avatar!",
         "confirmation_title": "This is how you'll look!",
         "confirmation_body": "If you're satisfied, hit that green Apply button!",
         "apply": "Apply",
-        "change": "To change your avatar, run {prefix}avatar <url>.",
+        "change": "To change your avatar, run /bridge avatar <url>.",
         "success_unset": "Custom avatar removed!",
         "success_set": "Avatar successfully added!"
       }
