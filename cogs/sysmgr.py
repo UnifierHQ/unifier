@@ -3279,6 +3279,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if self.bot.user.id == 1187093090415149056:
                     embed.add_field(name=selector.get("profile_pic"), value="@green.\n@thegodlypenguin", inline=False)
                 embed.add_field(name=selector.get("source_code"), value=self.bot.config['repo'], inline=False)
+                embed.add_field(name=selector.get("legal"), value=(
+                        f'[{selector.get("terms")}]({self.bot.config["terms_url"]})\n'+
+                        f'[{selector.get("privacy")}]({self.bot.config["privacy_url"]})'
+                    ),
+                    inline=False
+                )
                 view = ui.MessageComponents()
                 view.add_row(
                     ui.ActionRow(
