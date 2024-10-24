@@ -1761,7 +1761,7 @@ class UnifierBridge:
                 size_total += source_support.attachment_size(attachment)
 
             size_limit = 25000000
-            if self.__bot.config['global_filesize_limit'] < size_limit:
+            if size_limit > self.__bot.config['global_filesize_limit'] > 0:
                 size_limit = self.__bot.config['global_filesize_limit']
 
             if not platform == 'discord':
@@ -1813,7 +1813,7 @@ class UnifierBridge:
                 if system:
                     break
                 size_limit = 25000000
-                if self.__bot.config['global_filesize_limit'] < size_limit:
+                if size_limit > self.__bot.config['global_filesize_limit'] > 0:
                     size_limit = self.__bot.config['global_filesize_limit']
 
                 if source == 'discord':
