@@ -2796,7 +2796,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         canrun = True
                     else:
                         try:
-                            if isinstance(cmd, nextcord.BaseApplicationCommand):
+                            if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                                 canrun = await cmd.can_run(ctx)
                             else:
                                 canrun = (
@@ -3102,7 +3102,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         for cmd in cmds:
             if query.lower() in cmd.qualified_name:
                 try:
-                    if isinstance(cmd, nextcord.BaseApplicationCommand):
+                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                         canrun = await cmd.can_run(ctx)
                     else:
                         canrun = (
