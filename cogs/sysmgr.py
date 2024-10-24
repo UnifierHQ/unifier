@@ -622,7 +622,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.bot.backup_cloud_task.start()
                 self.logger.debug(f'Backing up data to cloud every {round(self.bot.config["ping"])} seconds')
 
-    def get_commands(self, cog=None):
+    def get_all_commands(self, cog=None):
         def extract_subcommands(__command):
             subcommands = []
             if type(__command) is nextcord.MessageApplicationCommand or type(__command) is nextcord.UserApplicationCommand:
@@ -2749,7 +2749,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==1:
                 if cogname=='' or cogname=='search':
-                    cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
+                    cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
                 else:
                     query_cog = None
                     cmds = []
@@ -2759,7 +2759,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             break
 
                     if not query_cog is None:
-                        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands(cog=query_cog))
+                        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands(cog=query_cog))
 
                 offset = 0
 
@@ -2961,7 +2961,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
                 )
             elif panel==2:
-                cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
+                cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
                 cmd = [cmd for cmd in cmds if cmd.qualified_name==cmdname][0]
                 localized_cogname = selector.get("search_nav") if cogname == 'search' else cogname
                 embed.title = (
@@ -3079,7 +3079,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @help.on_autocomplete("query")
     async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
-        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
+        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
         overrides = {
             'admin': [],
             'mod': [],
