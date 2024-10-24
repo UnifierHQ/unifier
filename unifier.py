@@ -439,6 +439,14 @@ class DiscordBot(commands.Bot):
     def tokenstore(self):
         return self.__tokenstore
 
+    @property
+    def admins(self):
+        return [self.owner, *self.other_owners, *self.config['admin_ids']]
+
+    @property
+    def moderators(self):
+        return [self.owner, *self.other_owners, *self.admins, *self.db['moderators']]
+
     async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
         # suppress exception traceback as they're already logged
         pass

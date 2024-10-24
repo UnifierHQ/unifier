@@ -76,8 +76,6 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 self.bot.db.update({'emojis':[]})
                 self.bot.db.save_data()
             self.bot.bridged_emojis = self.bot.db['emojis']
-        self.bot.admins = self.bot.config['admin_ids']
-        self.bot.moderators = self.bot.admins + self.bot.db['moderators']
         if not hasattr(self.bot, 'trusted_group'):
             self.bot.trusted_group = self.bot.db['trusted']
         restrictions.attach_bot(self.bot)
@@ -791,18 +789,18 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             room: str = slash.option('config.add-rule.room'),
             rule: str = slash.option('config.add-rule.rule')
     ):
-        room = room.lower()
-        if not room in self.bot.bridge.rooms:
+        __room = room.lower()
+        if not __room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.can_manage(ctx.user, __room):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
 
-        if len(self.bot.db['rooms'][room]['meta']['rules']) >= 25:
+        if len(self.bot.db['rooms'][__room]['meta']['rules']) >= 25:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("exceed")}')
-        self.bot.db['rooms'][room]['meta']['rules'].append(rule)
+        self.bot.db['rooms'][__room]['meta']['rules'].append(rule)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 

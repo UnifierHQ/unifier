@@ -511,9 +511,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.bot.ui_emojis = Emojis(devmode=self.bot.devmode)
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
-        if not hasattr(self.bot, 'admins'):
-            self.bot.admins = self.bot.config['admin_ids']
-            self.bot.moderators = self.bot.admins + self.bot.db['moderators']
 
         self.bot.exhandler = CommandExceptionHandler(self.bot)
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
