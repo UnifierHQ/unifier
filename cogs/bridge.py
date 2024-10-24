@@ -3608,7 +3608,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if not platform in roominfo.keys() and not roominfo['meta']['private']:
                     possible.append(roomname)
                     break
-                if str(server) in roominfo[platform].keys() or not connected:
+                if str(server.id) in roominfo[platform].keys() or not connected:
                     possible.append(roomname)
                     break
 
