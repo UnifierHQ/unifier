@@ -877,8 +877,14 @@ class UnifierBridge:
         self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
     # noinspection PyTypeChecker
-    async def backup(self,filename='bridge.json',limit=10000):
+    async def backup(self,filename='bridge.json',limit=None):
         if self.backup_lock:
+            return
+
+        if not limit:
+            limit = self.__bot.config['cache_backup_limit']
+
+        if limit <= 0:
             return
 
         self.backup_running = True

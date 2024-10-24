@@ -887,7 +887,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.info("Backing up message cache...")
                 self.bot.db.save_data()
                 self.bot.bridge.backup_lock = False
-                await self.bot.bridge.backup(limit=10000)
+                await self.bot.bridge.backup()
                 self.logger.info("Backup complete")
             if restart:
                 embed.title = f'{self.bot.ui_emojis.success} {selector.get("rsuccess_title")}'
@@ -1003,7 +1003,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not self.bot.ready:
             return
         try:
-            tasks = [self.bot.loop.create_task(self.bot.bridge.backup(limit=10000))]
+            tasks = [self.bot.loop.create_task(self.bot.bridge.backup())]
             await asyncio.wait(tasks)
         except:
             self.logger.exception('Backup failed')
