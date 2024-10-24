@@ -1201,7 +1201,7 @@ class UnifierBridge:
                 todelete = await support.fetch_message(channel, msgs[key][1])
                 try:
                     threads.append(asyncio.create_task(
-                        support.delete_message(todelete)
+                        support.delete(todelete)
                     ))
                     count += 1
                 except:
@@ -5427,21 +5427,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         found = False
-        roomname = None
 
         # Optimized logic
-        for key in self.bot.db['rooms']:
-            if not 'discord' in self.bot.db['rooms'][key].keys():
-                continue
-            data = self.bot.db['rooms'][key]['discord']
-            if f'{message.guild.id}' in list(data.keys()):
-                guilddata = data[f'{message.guild.id}']
-                if len(guilddata) == 1:
-                    continue
-                if guilddata[1]==message.channel.id:
-                    roomname = key
-                    found = True
-                    break
+        roomname = self.bot.bridge.get_channel_room(message.channel)
 
         # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
         if not found:
@@ -5469,6 +5457,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     index += 1
                 if found:
                     break
+        else:
+            found = True
 
         if not found:
             return
@@ -5825,21 +5815,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         found = False
-        roomname = None
 
         # Optimized logic
-        for key in self.bot.db['rooms']:
-            if not 'discord' in self.bot.db['rooms'][key].keys():
-                continue
-            data = self.bot.db['rooms'][key]['discord']
-            if f'{message.guild.id}' in list(data.keys()):
-                guilddata = data[f'{message.guild.id}']
-                if len(guilddata) == 1:
-                    continue
-                if guilddata[1] == message.channel.id:
-                    roomname = key
-                    found = True
-                    break
+        roomname = self.bot.bridge.get_channel_room(message.channel)
 
         # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
         if not found:
@@ -5867,6 +5845,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     index += 1
                 if found:
                     break
+        else:
+            found = True
 
         if not found:
             return
@@ -5967,24 +5947,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return
 
             found = False
-            roomname = None
 
             # Optimized logic
-            for key in self.bot.db['rooms']:
-                if not 'discord' in self.bot.db['rooms'][key].keys():
-                    continue
-                data = self.bot.db['rooms'][key]['discord']
-                if f'{message.guild.id}' in list(data.keys()):
-                    guilddata = data[f'{message.guild.id}']
-                    if len(guilddata) == 1:
-                        continue
-                    if guilddata[1] == message.channel.id:
-                        roomname = key
-                        found = True
-                        break
+            roomname = self.bot.bridge.get_channel_room(message.channel)
 
             # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-            if not found:
+            if not roomname:
                 try:
                     hooks = await message.channel.webhooks()
                 except:
@@ -6006,6 +5974,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         index += 1
                     if found:
                         break
+            else:
+                found = True
 
             if not found:
                 return
@@ -6041,24 +6011,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         found = False
-        roomname = None
 
         # Optimized logic
-        for key in self.bot.db['rooms']:
-            if not 'discord' in self.bot.db['rooms'][key].keys():
-                continue
-            data = self.bot.db['rooms'][key]['discord']
-            if f'{message.guild.id}' in list(data.keys()):
-                guilddata = data[f'{message.guild.id}']
-                if len(guilddata) == 1:
-                    continue
-                if guilddata[1] == message.channel.id:
-                    roomname = key
-                    found = True
-                    break
+        roomname = self.bot.bridge.get_channel_room(message.channel)
 
         # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-        if not found:
+        if not roomname:
             try:
                 hooks = await message.channel.webhooks()
             except:
@@ -6083,6 +6041,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     index += 1
                 if found:
                     break
+        else:
+            found = True
 
         if not found:
             return
