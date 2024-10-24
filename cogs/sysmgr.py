@@ -2856,8 +2856,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 cmd.description or selector.get("no_desc")
                         )
 
+                        if type(cmd) is commands.Command:
+                            cmdtext = f'`{cmd.qualified_name}`'
+                        else:
+                            cmdtext = cmd.get_mention()
+
                         embed.add_field(
-                            name=f'`{cmd.qualified_name}`',
+                            name=cmdtext,
                             value=cmddesc,
                             inline=False
                         )
@@ -2966,23 +2971,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     cmddesc = cmd.description or selector.get("no_desc")
 
                 if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
-                    prefix = '/'
+                    cmdtext = cmd.get_mention()
                     embed.add_field(name=selector.get("usage"),
                                     value=selector.fget("usage_slash", values={"command": cmdname}), inline=False)
                 else:
-                    prefix = self.bot.command_prefix
+                    cmdtext = f'**`{self.bot.command_prefix}{cmdname}`**'
                     if len(cmd.aliases) > 0:
                         aliases = []
                         if isinstance(cmd, commands.Command):
                             for alias in cmd.aliases:
-                                aliases.append(f'`{prefix}{alias}`')
+                                aliases.append(f'`{self.bot.command_prefix}{alias}`')
                         embed.add_field(
                             name=selector.get("aliases"),value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
                         )
                     embed.add_field(name=selector.get("usage"), value=(
-                        f'`{prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else f'`{prefix}{cmdname}`'), inline=False
-                    )
-                embed.description = f'# **`{prefix}{cmdname}`**\n{cmddesc}'
+                        f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else
+                        f'`{self.bot.command_prefix}{cmdname}`'
+                    ), inline=False)
+                embed.description = f'# {cmdtext}\n{cmddesc}'
                 components.add_rows(
                     ui.ActionRow(
                         nextcord.ui.Button(
