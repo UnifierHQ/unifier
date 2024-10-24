@@ -74,7 +74,7 @@
         "offending_message": "Offending message",
         "actions_taken": "Actions taken",
         "warned": "You have been **warned**. Further rule violations may lead to sanctions on the Unifier moderators' discretion.",
-        "temp_ban": "Your ability to text and speak have been **restricted** until <t:{unix}:f>. This will expire <t:{unix}:R>.",
+        "temp_ban": "Your ability to text and speak have been **restricted** until <t:{expiry}:f>. This will expire <t:{expiry}:R>.",
         "perm_ban": "Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.",
         "perm_ban_appeal": "You must contact a moderator to appeal this restriction.",
         "modlog_info_title": "User modlogs info",
