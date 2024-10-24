@@ -306,7 +306,13 @@ class DiscordBot(commands.Bot):
         self.pyversion = sys.version_info
         self.db = AutoSaveDict({})
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
-        self.__tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'], data['debug'])
+        self.__tokenstore = secrets.TokenStore(
+            not should_encrypt,
+            password=os.environ['UNIFIER_ENCPASS'],
+            salt=data['encrypted_env_salt'],
+            debug=data['debug'],
+            onetime=['TOKEN']
+        )
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
 
@@ -598,6 +604,17 @@ async def on_command_error(_ctx, _command):
 @bot.event
 async def on_error(_event_name, *_args, **_kwargs):
     logger.exception('An error occurred!')
+
+@bot.event
+async def on_interaction(interaction: nextcord.Interaction):
+    if interaction.type == nextcord.InteractionType.application_command:
+        if interaction.user.id in bot.db['fullbanned']:
+            if interaction.user.id == bot.owner or interaction.user.id in bot.other_owners:
+                bot.db['fullbanned'].remove(interaction.user.id)
+                bot.db.save_data()
+            else:
+                return
+        await bot.process_application_commands(interaction)
 
 @bot.event
 async def on_message(message):
