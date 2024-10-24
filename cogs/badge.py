@@ -60,7 +60,8 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
     @nextcord.slash_command(
         description=language.desc('badge.badge'),
-        description_localizations=language.slash_desc('badge.badge')
+        description_localizations=language.slash_desc('badge.badge'),
+        integration_types=[nextcord.IntegrationType.guild_install]
     )
     async def badge(
             self, ctx: nextcord.Interaction,

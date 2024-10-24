@@ -3393,7 +3393,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         modal.add_item(signature)
         await interaction.response.send_modal(modal)
 
-    @nextcord.slash_command(contexts=[nextcord.InteractionContextType.guild])
+    @nextcord.slash_command(
+        contexts=[nextcord.InteractionContextType.guild],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
     async def bridge(self, ctx: nextcord.Interaction):
         pass
 
@@ -4343,7 +4346,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @nextcord.slash_command(
         description=language.desc('bridge.ping'),
-        description_localizations=language.slash_desc('bridge.ping')
+        description_localizations=language.slash_desc('bridge.ping'),
+        integration_types=[nextcord.IntegrationType.guild_install]
     )
     async def ping(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)

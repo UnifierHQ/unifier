@@ -95,7 +95,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         restrictions.attach_bot(self.bot)
         restrictions_legacy.attach_bot(self.bot)
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(integration_types=[nextcord.IntegrationType.guild_install])
     async def moderation(self, ctx):
         pass
 
@@ -1389,6 +1389,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         )
 
         msg = await ctx.send(embed=embed, view=components)
+        msg = await msg.fetch()
 
         def check(interaction):
             if not interaction.message:

@@ -171,7 +171,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         return possible
 
-    @nextcord.slash_command(contexts=[nextcord.InteractionContextType.guild])
+    @nextcord.slash_command(
+        contexts=[nextcord.InteractionContextType.guild],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
     async def config(self, ctx):
         pass
 
