@@ -299,7 +299,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
 
     @commands.command(description=language.desc('moderation.fullban'))
     @restrictions_legacy.admin()
-    async def fullban(self, ctx: nextcord.Interaction,target):
+    async def fullban(self, ctx: commands.Context, target):
         selector = language.get_selector(ctx)
 
         target.replace('<@', '', 1).replace('>', '', 1).replace('!', '', 1)
@@ -310,7 +310,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         except:
             pass
 
-        if target==ctx.user.id:
+        if target==ctx.author.id:
             return await ctx.send(selector.rawget("self_target","moderation.ban"))
 
         if target==self.bot.config['owner']:
