@@ -733,9 +733,9 @@ class UnifierBridge:
             user_id = user.id
             guild_id = user.guild.id
 
-        if (
-                str(guild_id) in roominfo['meta']['banned']
-        ) and (not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']):
+        if str(guild_id) in roominfo['meta']['banned'] and ((
+                not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']
+        ) or not roominfo['meta']['private']):
             raise self.RoomBannedError('banned from room')
 
         if roominfo['meta']['private']:
@@ -3527,16 +3527,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             embed.title = f'{self.bot.ui_emojis.error} {selector.get("failed")}'
 
+            should_raise = False
+
             if type(e) is self.bot.bridge.InviteNotFoundError:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("invalid_invite")}'
             elif type(e) is self.bot.bridge.RoomBannedError:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("room_banned")}'
+            else:
+                should_raise = True
 
             embed.colour = self.bot.colors.error
             await msg.edit(embed=embed)
             await interaction.delete_original_message()
 
-            if not type(e) is self.bot.bridge.InviteNotFoundError:
+            if should_raise:
                 raise
         else:
             embed.title = f'{self.bot.ui_emojis.success} {selector.get("success")}'
@@ -4137,7 +4141,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         for check_platform in data.keys():
             if check_platform == 'meta':
                 continue
-            if f'{server}' in data[check_platform].keys():
+            if server in data[check_platform].keys():
                 platform = check_platform
                 break
 
@@ -4150,10 +4154,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 guild_obj = self.bot.get_guild(int(server))
                 server_name = guild_obj.name
             else:
-                # if platform is None, this will error, this is normal
-                support = self.bot.platforms[platform]
-                guild_obj = support.get_server(server)
-                server_name = support.name(guild_obj)
+                if not platform:
+                    # try every platform until a match can be found
+                    guild_obj = self.bot.get_guild(int(server))
+                    if not guild_obj:
+                        for _check_platform in self.bot.platforms.keys():
+                            try:
+                                support = self.bot.platforms[platform]
+                                guild_obj = support.get_server(server)
+                                server_name = support.name(guild_obj)
+                                break
+                            except:
+                                pass
+                    else:
+                        server_name = guild_obj.name
+                else:
+                    support = self.bot.platforms[platform]
+                    guild_obj = support.get_server(server)
+                    server_name = support.name(guild_obj)
 
             if platform == 'discord':
                 hooks = await guild_obj.webhooks()
@@ -4219,10 +4237,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 guild_obj = self.bot.get_guild(int(server))
                 server_name = guild_obj.name
             else:
-                # if platform is None, this will error, this is normal
-                support = self.bot.platforms[platform]
-                guild_obj = support.get_server(server)
-                server_name = support.name(guild_obj)
+                if not platform:
+                    # try every platform until a match can be found
+                    guild_obj = self.bot.get_guild(int(server))
+                    if not guild_obj:
+                        for _check_platform in self.bot.platforms.keys():
+                            try:
+                                support = self.bot.platforms[platform]
+                                guild_obj = support.get_server(server)
+                                server_name = support.name(guild_obj)
+                                break
+                            except:
+                                pass
+                    else:
+                        server_name = guild_obj.name
+                else:
+                    support = self.bot.platforms[platform]
+                    guild_obj = support.get_server(server)
+                    server_name = support.name(guild_obj)
 
             if platform == 'discord':
                 hooks = await guild_obj.webhooks()
@@ -4240,8 +4272,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if platform:
             data[platform].pop(server)
 
-        if not server in data['meta']['banned']:
-            data['meta']['banned'].append(server)
+        if server in data['meta']['banned']:
+            data['meta']['banned'].remove(server)
 
         self.bot.bridge.update_room(room, data)
 
