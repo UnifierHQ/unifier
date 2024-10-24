@@ -3318,10 +3318,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg = await interaction.response.send_message(selector.get('question'), view=components, ephemeral=True)
         msg = await msg.fetch()
 
-        def check(interaction):
-            if not interaction.message:
+        def check(new_interaction):
+            if not new_interaction.message:
                 return False
-            return interaction.user.id == interaction.user.id and interaction.message.id == msg.id
+            return new_interaction.user.id == interaction.user.id and new_interaction.message.id == msg.id
 
         try:
             interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
@@ -5115,7 +5115,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         traceback.print_exc()
                         await interaction.edit_original_message(content=f'{self.bot.ui_emojis.error} ' + language.get("error","moderation.delete",language=selector.language_set))
             elif interaction.data["custom_id"].startswith('rpreview_'):
-                selector = language.get_selector('moderation.report',userid=interaction.user.id)
+                selector = language.get_selector('bridge.report',userid=interaction.user.id)
                 btns = ui.ActionRow(
                     nextcord.ui.Button(
                         style=nextcord.ButtonStyle.red, label=language.get("delete","commons.moderation",language=selector.language_set),
@@ -5133,7 +5133,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 author = f'@{interaction.user.name}'
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
-                embed.title = selector.rawfget("reviewed_notice","bridge.report",values={"moderator": author})
+                embed.title = selector.fget("reviewed_notice",values={"moderator": author})
                 await interaction.response.defer(ephemeral=True, with_message=True)
                 try:
                     thread = interaction.channel.get_thread(
