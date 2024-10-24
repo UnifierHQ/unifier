@@ -360,7 +360,7 @@ class CommandExceptionHandler:
                 cmd = self.bot.get_command(cmdname)
                 embed = nextcord.Embed(color=self.bot.colors.unifier)
 
-                helptext = selector.rawget("title", "sysmgr.help", values={"botname": self.bot.user.global_name or self.bot.user.name})
+                helptext = selector.rawfget("title", "sysmgr.help", values={"botname": self.bot.user.global_name or self.bot.user.name})
 
                 embed.title = f'{self.bot.ui_emojis.command} {helptext} / {cmdname}'
                 embed.description = (
