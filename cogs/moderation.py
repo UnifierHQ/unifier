@@ -469,6 +469,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         msg = await msg.fetch()
 
         def check(interaction):
+            if not interaction.message:
+                return False
             return interaction.message.id==msg.id and interaction.user.id==ctx.user.id
 
         try:
@@ -790,6 +792,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             embed.clear_fields()
 
             def check(interaction):
+                if not interaction.message:
+                    return False
                 return interaction.message.id==msg.id and interaction.user.id==ctx.user.id
 
             try:
@@ -1261,6 +1265,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         msg = await msg.fetch()
 
         def check(interaction):
+            if not interaction.message:
+                return False
             return interaction.user.id==ctx.user.id and interaction.message.id==msg.id
 
         try:
@@ -1385,6 +1391,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
+            if not interaction.message:
+                return False
             return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
 
         try:
@@ -1457,6 +1465,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         msg = await msg.fetch()
 
         def check(interaction):
+            if not interaction.message:
+                return False
             return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
 
         try:
@@ -1549,6 +1559,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         msg = await msg.fetch()
 
         def check(interaction):
+            if not interaction.message:
+                return False
             return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
 
         try:

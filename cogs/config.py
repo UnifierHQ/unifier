@@ -726,6 +726,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 await msg.edit(embed=embed, view=view)
 
             def check(interaction):
+                if not interaction.message:
+                    return False
                 return interaction.user.id==ctx.author.id and interaction.message.id==msg.id
 
             try:
@@ -863,6 +865,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         msg = await ctx.send(embed=embed,view=components)
 
         def check(interaction):
+            if not interaction.message:
+                return False
             return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
 
         try:
@@ -904,6 +908,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         msg = await ctx.send(embed=embed, view=components)
 
         def check(interaction):
+            if not interaction.message:
+                return False
             return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
 
         try:

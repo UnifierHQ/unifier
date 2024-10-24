@@ -3803,6 +3803,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         msg = await msg.fetch()
         if not url == '':
             def check(interaction):
+                if not interaction.message:
+                    return False
                 return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
 
             try:
@@ -3894,8 +3896,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     )
                 )
                 msg = await ctx.send(f'{self.bot.ui_emojis.warning} {selector.get("select")}', view=components)
+                msg = await msg.fetch()
 
                 def check(interaction):
+                    if not interaction.message:
+                        return False
                     return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
 
                 try:
