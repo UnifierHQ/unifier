@@ -543,11 +543,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if self.bot.db['rooms'][room]['meta']['restricted']:
             self.bot.db['rooms'][room]['meta']['restricted'] = False
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_set",values={"room":room})}')
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_unset",values={"room":room})}')
         else:
             self.bot.db['rooms'][room]['meta']['restricted'] = True
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_unset",values={"room":room})}')
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_set",values={"room":room})}')
 
     @config.subcommand(
         description=language.desc('config.lock'),
@@ -573,10 +573,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("is_public")}')
         if self.bot.db['rooms'][room]['meta']['locked']:
             self.bot.db['rooms'][room]['meta']['locked'] = False
-            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_set",values={"room":room})}')
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_unset",values={"room":room})}')
         else:
             self.bot.db['rooms'][room]['meta']['locked'] = True
-            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_unset",values={"room":room})}')
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_set",values={"room":room})}')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
     @commands.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
