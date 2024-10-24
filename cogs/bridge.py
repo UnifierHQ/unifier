@@ -5096,7 +5096,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 author = f'@{interaction.user.name}'
                 if not interaction.user.discriminator == '0':
                     author = f'{interaction.user.name}#{interaction.user.discriminator}'
-                embed.title = selector.fget("reviewed_notice",values={"moderator": author})
+                embed.title = selector.rawfget("reviewed_notice","bridge.report",values={"moderator": author})
                 await interaction.response.defer(ephemeral=True, with_message=True)
                 try:
                     thread = interaction.channel.get_thread(
@@ -5112,13 +5112,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         )
                     except:
                         try:
-                            await thread.send(selector.get("reviewed_thread"))
+                            await thread.send(selector.rawget("reviewed_thread", "bridge.report"))
                         except:
                             pass
                     self.bot.db['report_threads'].pop(str(interaction.message.id))
                     await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
                 await interaction.message.edit(embed=embed,view=components)
-                await interaction.edit_original_message(content=selector.get('reviewed'))
+                await interaction.edit_original_message(content=selector.rawget('reviewed', 'bridge.report'))
             elif interaction.data["custom_id"].startswith('apaccept_') or interaction.data["custom_id"].startswith('apreject_'):
                 selector = language.get_selector('moderation.appeal',userid=interaction.user.id)
                 btns = ui.ActionRow(
