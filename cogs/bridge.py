@@ -3912,7 +3912,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         view=None)
 
         if not self.bot.config['enable_private_rooms'] and roomtype == 'private':
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("private_disabled")}')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("private_disabled")}', ephemeral=True)
 
         if not room or roomtype == 'private':
             for _ in range(10):
@@ -3923,16 +3923,16 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if room in self.bot.bridge.rooms:
                 if interaction:
                     return await interaction.response.edit_message(
-                        content=f'{self.bot.ui_emojis.error} {selector.get("unique_fail")}'
+                        content=f'{self.bot.ui_emojis.error} {selector.get("unique_fail")}', ephemeral=True
                     )
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("unique_fail")}')
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("unique_fail")}', ephemeral=True)
 
         if room in list(self.bot.db['rooms'].keys()):
             if interaction:
                 return await interaction.response.edit_message(
-                    content=f'{self.bot.ui_emojis.error} {selector.get("exists")}'
+                    content=f'{self.bot.ui_emojis.error} {selector.get("exists")}', ephemeral=True
                 )
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("exists")}')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("exists")}', ephemeral=True)
         try:
             roomdata = self.bot.bridge.create_room(
                 room, private=roomtype == 'private', dry_run=dry_run, origin=ctx.guild.id
@@ -3941,10 +3941,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if interaction:
                 return await interaction.response.edit_message(
                     content=f'{self.bot.ui_emojis.error} {selector.fget("private_limit", values={"limit": self.bot.config["private_rooms_limit"]})}',
-                    view=None
+                    view=None, ephemeral=True
                 )
             return await ctx.send(
-                f'{self.bot.ui_emojis.error} {selector.fget("private_limit", values={"limit": self.bot.config["private_rooms_limit"]})}'
+                f'{self.bot.ui_emojis.error} {selector.fget("private_limit", values={"limit": self.bot.config["private_rooms_limit"]})}',
+                ephemeral=True
             )
 
         dry_run_text = ''
@@ -3959,7 +3960,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 view=None
             )
         await ctx.send(
-            f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}')
+            f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}'
+        )
 
     @bridge.subcommand(
         description=language.desc('bridge.disband'),
