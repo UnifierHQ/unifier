@@ -2,8 +2,8 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v3.5.0",
-  "release": 117,
+  "version": "v3.5.1",
+  "release": 118,
   "minimum": 0,
   "shutdown": false,
   "modules": [
