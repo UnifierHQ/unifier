@@ -1702,18 +1702,23 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('plugins/' + plugin_id + '.json', 'w') as file:
                 # noinspection PyTypeChecker
                 json.dump(plugin_info,file)
-            self.logger.info('Activating extensions')
-            for module in modules:
-                modname = 'cogs.' + module[:-3]
-                self.logger.debug('Activating extension: '+modname)
-                try:
-                    self.bot.load_extension(modname)
-                except:
-                    self.logger.warning(modname + ' could not be activated.')
-                    embed.set_footer(text=f':warning: {selector.get("load_failed")}')
+            if not 'bridge_platform' in services:
+                self.logger.info('Activating extensions')
+                for module in modules:
+                    modname = 'cogs.' + module[:-3]
+                    self.logger.debug('Activating extension: '+modname)
+                    try:
+                        self.bot.load_extension(modname)
+                    except:
+                        self.logger.warning(modname + ' could not be activated.')
+                        embed.set_footer(text=f':warning: {selector.get("load_failed")}')
             self.logger.debug('Installation complete')
             embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
             embed.description = selector.get("success_body")
+
+            if 'bridge_platform' in services:
+                embed.description = embed.description + '\n' + selector.get("restart_body")
+
             embed.colour = self.bot.colors.success
             await msg.edit(embed=embed)
         except:

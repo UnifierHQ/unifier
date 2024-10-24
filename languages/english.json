@@ -197,6 +197,7 @@
         "plugin_info": "Name: `{name}`\nVersion: `{version}`\n\n{desc}",
         "success_title": "Installation successful",
         "success_body": "The installation was successful! :partying_face:",
+        "restart_body": "To use the Modifier, please restart the bot.",
         "postfail_title": "Installation failed",
         "postfail_body": "The installation failed.",
         "load_failed": "Some extensions could not be activated.",
