@@ -4659,75 +4659,32 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if ctx.guild.id in self.bot.db['underattack']:
             raise restrictions.UnderAttack()
 
-        found = False
-        room = None
+        room = self.bot.bridge.get_channel_room(ctx.channel)
 
-        # Optimized logic
-        for key in self.bot.db['rooms']:
-            if not 'discord' in self.bot.db['rooms'][key].keys():
-                continue
-            data = self.bot.db['rooms'][key]['discord']
-            if f'{ctx.guild.id}' in list(data.keys()):
-                guilddata = data[f'{ctx.guild.id}']
-                if len(guilddata) == 1:
-                    continue
-                if guilddata[1] == ctx.channel.id:
-                    room = key
-                    found = True
-                    break
+        if not room:
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}', ephemeral=True)
 
-        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-        if not found:
-            try:
-                hooks = await ctx.channel.webhooks()
-            except:
-                try:
-                    hooks = await ctx.guild.webhooks()
-                except:
-                    return
-
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    if not 'discord' in self.bot.db['rooms'][key].keys():
-                        continue
-                    data = self.bot.db['rooms'][key]['discord']
-                    if f'{ctx.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{ctx.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        found = True
-                        room = list(self.bot.db['rooms'].keys())[index]
-                    index += 1
-                if found:
-                    break
-
-        if not found:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}')
-
-        hook_id = self.bot.db['rooms'][room]['discord'][f'{self.bot.config["home_guild"]}'][0]
         guild = self.bot.get_guild(self.bot.config['home_guild'])
-        hooks = await guild.webhooks()
 
         author = f'{ctx.user.name}#{ctx.user.discriminator}'
         if ctx.user.discriminator=='0':
             author = f'@{ctx.user.name}'
 
-        for hook in hooks:
-            if hook_id==hook.id:
-                ch = guild.get_channel(hook.channel_id)
-                try:
-                    role = self.bot.config["moderator_role"]
-                except:
-                    return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_moderator")}')
-                await ch.send(
-                    f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.user.id,"guildname":ctx.guild.name,"guildid":ctx.guild.id})}',
-                    allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False)
-                )
-                return await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
+        for ch in guild.text_channels:
+            connected_room = self.bot.bridge.get_channel_room(ch)
+            if not connected_room or not connected_room == room:
+                continue
+            try:
+                role = self.bot.config["moderator_role"]
+            except:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_moderator")}', ephemeral=True)
+            await ch.send(
+                f'<@&{role}> {selector.fget("needhelp",values={"username":author,"userid":ctx.user.id,"guildname":ctx.guild.name,"guildid":ctx.guild.id})}',
+                allowed_mentions=nextcord.AllowedMentions(roles=True,everyone=False,users=False)
+            )
+            return await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-        await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("bad_config")}')
+        await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("bad_config")}', ephemeral=True)
 
     @nextcord.message_command(name='View reactions')
     async def reactions_ctx(self, interaction, msg: nextcord.Message):
