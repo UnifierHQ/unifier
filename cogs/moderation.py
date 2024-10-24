@@ -861,7 +861,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 guildname = '[unknown]'
         await ctx.send(
-            selector.fget("identify",values={"username":username,"userid":msg_obj.author_id,"servername":guildname,"serverid":msg_obj.guild_id,"source":msg_obj.source,"messageid":msg_obj.id})
+            selector.fget("sent_by",values={"username":username,"userid":msg_obj.author_id,"servername":guildname,"serverid":msg_obj.guild_id,"source":msg_obj.source,"messageid":msg_obj.id})
         )
 
     @nextcord.message_command(name='Identify origin')
@@ -903,7 +903,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 guildname = '[unknown]'
         await interaction.response.send_message(
-            selector.fget("identify",values={"username":username,"userid":msg_obj.author_id,"servername":guildname,"serverid":msg_obj.guild_id,"source":msg_obj.source,"messageid":msg_obj.id})
+            selector.fget("sent_by",values={"username":username,"userid":msg_obj.author_id,"servername":guildname,"serverid":msg_obj.guild_id,"source":msg_obj.source,"messageid":msg_obj.id})
         )
 
     @moderation.subcommand(
