@@ -260,7 +260,7 @@
         "no_abort": "Once started, you cannot abort the upgrade.",
         "backupfail_title": "Backup failed",
         "backupfail_body": "Unifier could not create a backup. The upgrade has been aborted.",
-        "start": "Start the upgrade?",
+        "start": "Ready to upgrade?",
         "upgrading": "Upgrading Unifier",
         "downloading": "Downloading updates",
         "installing": "Installing updates",
