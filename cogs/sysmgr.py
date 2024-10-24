@@ -3066,7 +3066,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 match = 0
 
     @help.on_autocomplete("query")
-    async def bind_autocomplete(self, ctx: nextcord.Interaction, query: str):
+    async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
         cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
         overrides = {
             'admin': [],

@@ -607,7 +607,10 @@ async def on_error(_event_name, *_args, **_kwargs):
 
 @bot.event
 async def on_interaction(interaction: nextcord.Interaction):
-    if interaction.type == nextcord.InteractionType.application_command:
+    if (
+            interaction.type == nextcord.InteractionType.application_command or
+            interaction.type == nextcord.InteractionType.application_command_autocomplete
+    ):
         if interaction.user.id in bot.db['fullbanned']:
             if interaction.user.id == bot.owner or interaction.user.id in bot.other_owners:
                 bot.db['fullbanned'].remove(interaction.user.id)
