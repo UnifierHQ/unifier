@@ -4347,6 +4347,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @nextcord.slash_command(
         description=language.desc('bridge.ping'),
         description_localizations=language.slash_desc('bridge.ping'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
         integration_types=[nextcord.IntegrationType.guild_install]
     )
     async def ping(self, ctx: nextcord.Interaction):

@@ -1071,7 +1071,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def on_disconnect(self):
         self.bot.disconnects += 1
 
-    @nextcord.slash_command(integration_types=[nextcord.IntegrationType.guild_install])
+    @nextcord.slash_command(
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
     async def system(self, ctx):
         pass
 
@@ -2592,6 +2595,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @nextcord.slash_command(
         description=language.desc('sysmgr.help'),
         description_localizations=language.slash_desc('sysmgr.help'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
         integration_types=[nextcord.IntegrationType.guild_install]
     )
     async def help(
@@ -3251,6 +3255,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @nextcord.slash_command(
         description=language.desc('sysmgr.about'),
         description_localizations=language.slash_desc('sysmgr.about'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
         integration_types=[nextcord.IntegrationType.guild_install]
     )
     async def about(self, ctx: nextcord.Interaction):

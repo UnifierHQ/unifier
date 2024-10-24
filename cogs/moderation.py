@@ -95,7 +95,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         restrictions.attach_bot(self.bot)
         restrictions_legacy.attach_bot(self.bot)
 
-    @nextcord.slash_command(integration_types=[nextcord.IntegrationType.guild_install])
+    @nextcord.slash_command(
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
     async def moderation(self, ctx):
         pass
 
