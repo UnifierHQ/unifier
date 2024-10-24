@@ -169,8 +169,6 @@ class LanguageManager:
         else:
             extname, cmdname = parent.split('.')
         if not extname:
-            if self.__bot:
-                self.logger.error('Invalid extension in context, something is very wrong here')
             return default
         try:
             try:
