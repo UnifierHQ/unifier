@@ -107,6 +107,8 @@ class LanguageManager:
         return self.get('description',parent)
 
     def desc_from_all(self, command, language=None):
+        if ' ' in command:
+            command = command.split(' ')[len(command.split(' '))-1]
         try:
             base = self.__language_custom[language]['strings']
         except:

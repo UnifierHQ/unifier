@@ -2958,12 +2958,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     f'{self.bot.ui_emojis.command} {helptext} / {selector.get("all")} / {cmdname}'
                 )
 
-                cmddesc = cmd.description if cmd.description else selector.get("no_desc")
-
                 try:
                     cmddesc = selector.desc_from_all(cmd.qualified_name)
                 except:
-                    pass
+                    cmddesc = cmd.description or selector.get("no_desc")
 
                 if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                     prefix = '/'
