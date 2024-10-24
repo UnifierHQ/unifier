@@ -160,6 +160,19 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             traceback.print_exc()
             return False
 
+    async def room_manage_private_autocomplete(self, room, user):
+        # Usually I'd add this to a util or something to share it with other cogs,
+        # but I'm not feeling like that right now...maybe next patch?
+        possible = []
+        for roomname in self.bot.bridge.rooms:
+            roominfo = self.bot.bridge.get_room(roomname)
+            if not roominfo['meta']['private']:
+                continue
+            if self.bot.bridge.can_manage_room(roomname, user) and roomname.startswith(room):
+                possible.append(roomname)
+
+        return possible
+
     @nextcord.slash_command(contexts=[nextcord.InteractionContextType.guild])
     async def config(self, ctx):
         pass
@@ -382,6 +395,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         except:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dm_fail")}',ephemeral=True)
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
+
+    @invites.on_autocomplete("room")
+    async def unbind_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_manage_private_autocomplete(room, ctx.guild))
 
     @commands.command(description=language.desc('config.rename'))
     @restrictions_legacy.admin()
