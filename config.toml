@@ -21,6 +21,7 @@ guilded = ""
 prefix = "u!"
 ping = 0
 main_color = "ed4545"
+custom_slogan = ""
 
 [backups]
 compress_cache = true

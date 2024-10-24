@@ -3263,23 +3263,28 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         except:
             vinfo = None
 
+        try:
+            with open('boot/internal.json') as file:
+                pinfo = json.load(file)
+        except:
+            pinfo = None
+
         if vinfo:
             footer_text = "Version " + vinfo['version'] + " | Made with \u2764\ufe0f by UnifierHQ"
         else:
             footer_text = "Unknown version | Made with \u2764\ufe0f by UnifierHQ"
 
         while True:
-            if self.bot.user.id == 1187093090415149056:
-                embed = nextcord.Embed(
-                    title="Unifier",
-                    description=selector.get("slogan"),
-                    color=self.bot.colors.unifier)
-            else:
-                embed = nextcord.Embed(
-                    title=self.bot.user.global_name or self.bot.user.name,
-                    description="Powered by Unifier",
-                    color=self.bot.colors.unifier
-                )
+            embed = nextcord.Embed(
+                title=self.bot.user.global_name or self.bot.user.name,
+                description=(
+                    (self.bot.config["custom_slogan"] or "Powered by Unifier") + '\n\n' +
+                    selector.fget("team", values={
+                        "product": pinfo["product_name"], "maintainer": pinfo["maintainer"], "url": pinfo["maintainer_profile"]
+                    })
+                ),
+                color=self.bot.colors.unifier
+            )
             if vinfo:
                 embed.set_footer(text=footer_text)
             else:
@@ -3294,9 +3299,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 privacy_hyperlink = selector.get("privacy") + ' (' + selector.get("missing") + ')'
 
             if not show_attr:
-                embed.add_field(name=selector.get("developers"), value="@green.\n@itsasheer", inline=False)
-                if self.bot.user.id == 1187093090415149056:
-                    embed.add_field(name=selector.get("profile_pic"), value="@green.\n@thegodlypenguin", inline=False)
                 embed.add_field(name=selector.get("source_code"), value=self.bot.config['repo'], inline=False)
                 embed.add_field(name=selector.get("legal"), value=f'{terms_hyperlink}\n{privacy_hyperlink}',inline=False)
                 view = ui.MessageComponents()

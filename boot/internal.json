@@ -1,5 +1,6 @@
 {
   "maintainer": "UnifierHQ",
+  "maintainer_profile": "https://github.com/UnifierHQ",
   "product": "unifier",
   "product_name": "Unifier",
   "base_bootfile": "unifier.py",

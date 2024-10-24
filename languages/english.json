@@ -356,7 +356,7 @@
       },
       "about": {
         "description": "Shows bot info.",
-        "slogan": "Communities, connected.",
+        "team": "{product} is made by [{maintainer}]({url}), a team dedicated to making cross-platform communication better for everyone.",
         "developers": "Developers",
         "profile_pic": "PFP made by",
         "legal": "Legal stuff",
