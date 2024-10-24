@@ -229,8 +229,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             except:
                 pass
 
-        content = ctx.message.content
-        embed = nextcord.Embed(description=language.get("recently_banned","commons.moderation"),color=self.bot.colors.error)
+        original_msg = await ctx.original_message()
+
+        content = original_msg.content
+        embed = nextcord.Embed(description=language.get("recently_banned","moderation.ban"),color=self.bot.colors.error)
         if disclose:
             if not user:
                 embed.set_author(name='@unknown')
@@ -242,23 +244,23 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         else:
             embed.set_author(name='@hidden')
 
-        ctx.message.embeds = [embed]
+        original_msg.embeds = [embed]
 
         if not discreet:
             try:
-                await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, 'discord', system=True, content_override='')
+                await self.bot.bridge.send(self.bot.config['main_room'], original_msg, 'discord', system=True, content_override='')
             except:
                 # ignore fail so ban can be processed anyways
                 pass
         for platform in self.bot.platforms.keys():
             try:
-                await self.bot.bridge.send(self.bot.config['main_room'], ctx.message, platform, system=True, content_override='')
+                await self.bot.bridge.send(self.bot.config['main_room'], original_msg, platform, system=True, content_override='')
             except:
                 # ignore send fails so ban can be processed anyways
                 pass
 
-        ctx.message.embeds = []
-        ctx.message.content = content
+        original_msg.embeds = []
+        original_msg.content = content
 
         try:
             userid = int(userid)
@@ -428,16 +430,16 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                     banned = True
 
         if not banned:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_ban")}')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("no_ban")}', ephemeral=True)
 
         if ctx.user.id in self.bot.db['appealban']:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("banned")}')
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("banned")}', ephemeral=True)
 
         actions, _ = self.bot.bridge.get_modlogs(ctx.user.id)
 
         if len(actions['bans'])==0:
             return await ctx.send(
-                f'{self.bot.ui_emojis.error} {selector.get("missing_ban")}'
+                f'{self.bot.ui_emojis.error} {selector.get("missing_ban")}', ephemeral=True
             )
 
         ban = actions['bans'][len(actions['bans'])-1]
@@ -461,7 +463,10 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 )
             )
         )
-        msg = await ctx.send(f'{self.bot.ui_emojis.warning} {selector.get("confirm")}',embed=embed,view=components)
+
+        msg = await ctx.send(f'{self.bot.ui_emojis.warning} {selector.get("confirm")}', embed=embed, view=components, ephemeral=False)
+        # noinspection PyUnresolvedReferences
+        msg = await msg.fetch()
 
         def check(interaction):
             return interaction.message.id==msg.id and interaction.user.id==ctx.user.id
@@ -1253,6 +1258,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             )
         )
         msg = await ctx.send(embed=embed,view=components)
+        msg = await msg.fetch()
 
         def check(interaction):
             return interaction.user.id==ctx.user.id and interaction.message.id==msg.id

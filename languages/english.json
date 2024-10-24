@@ -1016,7 +1016,7 @@
         "restricted_perma": "Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.",
         "restricted_temp": "Your ability to text and speak have been **restricted** until <t:{expiry}:f>. This will expire <t:{expiry}:R>.",
         "mistake_title": "Did we make a mistake?",
-        "mistake_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`.",
+        "mistake_body": "If you think we didn't make the right call, you can always appeal your ban using `/moderation appeal`.",
         "recently_banned": "A user was recently banned from Unifier!",
         "success": "User was global banned. They may not use Unifier for the given time period.",
         "success_title": "User banned",
