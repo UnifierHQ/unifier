@@ -118,7 +118,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
 
     def get_user_role(self, user_id):
-        if user_id == self.bot.config['owner']:
+        if user_id == self.bot.owner or user_id in self.bot.other_owners:
             return UserRole.OWNER
         elif user_id in self.bot.admins:
             return UserRole.ADMIN
