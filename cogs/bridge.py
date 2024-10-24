@@ -5869,7 +5869,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return
 
         try:
-            if not self.bot.config['enable_logging'] or not self.bot.config['logging_edit']:
+            roomdata = self.bot.bridge.get_room(roomname)
+            if not self.bot.config['enable_logging'] or not self.bot.config['logging_edit'] or roomdata['meta']['private']:
+                # do not log
                 raise RuntimeError()
             ch = self.bot.get_channel(self.bot.config['logs_channel'])
 
@@ -6085,7 +6087,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.bridge.delete_copies(msg.id)
 
         try:
-            if not self.bot.config['enable_logging'] or not self.bot.config['logging_delete']:
+            roomdata = self.bot.bridge.get_room(roomname)
+            if not self.bot.config['enable_logging'] or not self.bot.config['logging_delete'] or roomdata['meta']['private']:
+                # do not log
                 raise RuntimeError()
             ch = self.bot.get_channel(self.bot.config['logs_channel'])
 
