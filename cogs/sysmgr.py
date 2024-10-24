@@ -2275,7 +2275,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             self.logger.warning(cog+' could not be reloaded.')
                             embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
                     self.logger.info('Updating localization')
-                    self.bot.langmgr = langmgr.LanguageManager(self.bot)
                     self.bot.langmgr.load()
                     await self.bot.discover_application_commands()
                     await self.bot.register_new_application_commands()
