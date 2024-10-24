@@ -361,6 +361,7 @@
         "legal": "Legal stuff",
         "terms": "Terms of Service",
         "privacy": "Privacy Policy",
+        "missing": "missing",
         "source_code": "View source code",
         "oss_attrib": "Open source attribution",
         "license": "{license} license",

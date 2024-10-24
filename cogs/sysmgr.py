@@ -3274,17 +3274,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             else:
                 embed.set_footer(text=footer_text)
 
+            terms_hyperlink = f'[{selector.get("terms")}]({self.bot.config["terms_url"]})'
+            if not self.bot.config["terms_url"]:
+                terms_hyperlink = selector.get("terms") + ' (' + selector.get("missing") + ')'
+
+            privacy_hyperlink = f'[{selector.get("privacy")}]({self.bot.config["privacy_url"]})'
+            if not self.bot.config["privacy_url"]:
+                privacy_hyperlink = selector.get("privacy") + ' (' + selector.get("missing") + ')'
+
             if not show_attr:
                 embed.add_field(name=selector.get("developers"), value="@green.\n@itsasheer", inline=False)
                 if self.bot.user.id == 1187093090415149056:
                     embed.add_field(name=selector.get("profile_pic"), value="@green.\n@thegodlypenguin", inline=False)
                 embed.add_field(name=selector.get("source_code"), value=self.bot.config['repo'], inline=False)
-                embed.add_field(name=selector.get("legal"), value=(
-                        f'[{selector.get("terms")}]({self.bot.config["terms_url"]})\n'+
-                        f'[{selector.get("privacy")}]({self.bot.config["privacy_url"]})'
-                    ),
-                    inline=False
-                )
+                embed.add_field(name=selector.get("legal"), value=f'{terms_hyperlink}\n{privacy_hyperlink}',inline=False)
                 view = ui.MessageComponents()
                 view.add_row(
                     ui.ActionRow(
