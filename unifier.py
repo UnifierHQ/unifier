@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
+from nextcord import Interaction, ApplicationError
 from nextcord.ext import commands
 import aiohttp
 import asyncio
@@ -32,7 +33,8 @@ import threading
 import shutil
 import filecmp
 import datetime
-from utils import log, secrets
+from typing_extensions import Self
+from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr
 from pathlib import Path
 
 # import ujson if installed
@@ -80,6 +82,11 @@ except:
         print('If you get a "Permission denied" error, run "chmod +x run.sh" and try again.')
     sys.exit(1)
 
+restrictions = r.Restrictions()
+restrictions_legacy = r_legacy.Restrictions()
+language = langmgr.partial()
+language.load()
+
 # upgrade files in directories not targeted by upgrader in previous versions
 directories = ['boot', 'languages', 'emojis']
 replaced_boot = False
@@ -104,6 +111,7 @@ try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
     if os.name == "win32":
+        # noinspection PyUnresolvedReferences
         import winloop as uvloop  # pylint: disable=import-error
     else:
         import uvloop  # pylint: disable=import-error
@@ -223,16 +231,6 @@ except:
     with open('update.json', 'r') as file:
         vinfo = json.load(file)
 
-if not data['skip_status_check']:
-    try:
-        incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
-        for incident in incidents:
-            logger.warning('Discord incident: ' + incident['name'])
-            logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
-    except:
-        logger.debug('Failed to get Discord status')
-
-
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -308,11 +306,31 @@ class DiscordBot(commands.Bot):
         self.pyversion = sys.version_info
         self.db = AutoSaveDict({})
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
-        self.__tokenstore = secrets.TokenStore(not should_encrypt, os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'], data['debug'])
+        self.__tokenstore = secrets.TokenStore(
+            not should_encrypt,
+            password=os.environ['UNIFIER_ENCPASS'],
+            salt=data['encrypted_env_salt'],
+            debug=data['debug'],
+            onetime=['TOKEN']
+        )
+        self.__langmgr = langmgr.LanguageManager(self)
+        self.cooldowns = {}
 
         if should_encrypt:
             self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
             os.remove('.env')
+
+    @property
+    def package(self):
+        return self.__config['package'] if self.__config else 'unifier'
+
+    @property
+    def loglevel(self):
+        return (logging.DEBUG if self.__config['debug'] else logging.INFO) if self.__config else logging.INFO
+
+    @property
+    def langmgr(self):
+        return self.__langmgr
 
     @property
     def owner(self):
@@ -335,6 +353,7 @@ class DiscordBot(commands.Bot):
         if self.__config:
             raise RuntimeError('Config already set')
         self.__config = config
+        self.__langmgr.load()
 
     @boot_config.setter
     def boot_config(self, config):
@@ -420,8 +439,33 @@ class DiscordBot(commands.Bot):
     def tokenstore(self):
         return self.__tokenstore
 
+    @property
+    def admins(self):
+        return [self.owner, *self.other_owners, *self.config['admin_ids']]
 
-bot = DiscordBot(command_prefix=data['prefix'],intents=nextcord.Intents.all())
+    @property
+    def moderators(self):
+        return [self.owner, *self.other_owners, *self.admins, *self.db['moderators']]
+
+    async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
+        # suppress exception traceback as they're already logged
+        pass
+
+class Intents(nextcord.Intents):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @classmethod
+    def no_presence(cls) -> Self:
+        """A factory method that creates a :class:`Intents` with everything enabled
+        except :attr:`presences`, :attr:`members`, and :attr:`message_content`.
+        """
+        self = cls.all()
+        self.presences = False
+        return self
+
+
+bot = DiscordBot(command_prefix=data['prefix'],intents=Intents.no_presence())
 bot.config = data
 bot.boot_config = boot_data
 bot.coreboot = 'core' in sys.argv
@@ -434,6 +478,15 @@ if not bot.tokenstore.test_decrypt():
     print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
     print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
     sys.exit(1)
+
+if not data['skip_status_check']:
+    try:
+        incidents = requests.get('https://discordstatus.com/api/v2/summary.json',timeout=10).json()['incidents']
+        for incident in incidents:
+            logger.warning('Discord incident: ' + incident['name'])
+            logger.warning(incident['status']+': '+incident['incident_updates'][0]['body'])
+    except:
+        logger.debug('Failed to get Discord status')
 
 if bot.coreboot:
     logger.warning('Core-only boot is enabled. Only core and System Manager will be loaded.')
@@ -538,9 +591,14 @@ async def on_ready():
                 logger.warning('Message restore failed')
         elif data['periodic_backup'] <= 0:
             logger.debug(f'Periodic backups disabled')
-        if data['enable_ctx_commands'] and not bot.coreboot:
-            logger.debug("Registering context commands...")
-            await bot.sync_application_commands()
+    logger.info("Registering application commands...")
+    try:
+        await bot.sync_all_application_commands()
+    except:
+        # If sync fails, all commands are removed from Discord then re-registered.
+        logger.warning('Register failed, trying alternate method...')
+        await bot.delete_application_commands()
+        await bot.register_new_application_commands()
     logger.info('Unifier is ready!')
     if not bot.ready:
         bot.ready = True
@@ -550,6 +608,24 @@ async def on_command_error(_ctx, _command):
     # ignore all errors raised outside cog
     # as core has no commands, all command errors from core can be ignored
     pass
+
+@bot.event
+async def on_error(_event_name, *_args, **_kwargs):
+    logger.exception('An error occurred!')
+
+@bot.event
+async def on_interaction(interaction: nextcord.Interaction):
+    if (
+            interaction.type == nextcord.InteractionType.application_command or
+            interaction.type == nextcord.InteractionType.application_command_autocomplete
+    ):
+        if interaction.user.id in bot.db['fullbanned']:
+            if interaction.user.id == bot.owner or interaction.user.id in bot.other_owners:
+                bot.db['fullbanned'].remove(interaction.user.id)
+                bot.db.save_data()
+            else:
+                return
+        await bot.process_application_commands(interaction)
 
 @bot.event
 async def on_message(message):

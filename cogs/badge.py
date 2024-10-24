@@ -18,12 +18,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import nextcord
 from nextcord.ext import commands
-from utils import log, langmgr, restrictions as r
+from typing import Optional
+from utils import log, langmgr, restrictions_legacy as r_legacy, slash as slash_handler
 from enum import Enum
 
-restrictions = r.Restrictions()
+restrictions_legacy = r_legacy.Restrictions()
 language = langmgr.partial()
 language.load()
+slash = slash_handler.SlashHelper(language)
 
 class UserRole(Enum):
     # let values be None until set by langmgr
@@ -54,18 +56,21 @@ class Badge(commands.Cog, name=':medal: Badge'):
             UserRole.BANNED: nextcord.Color.red(),
             UserRole.USER: nextcord.Color.blurple()
         }
-        restrictions.attach_bot(self.bot)
+        restrictions_legacy.attach_bot(self.bot)
 
-    @commands.command(description=language.desc('badge.badge'))
-    async def badge(self, ctx, *, user=None):
+    @nextcord.slash_command(
+        description=language.desc('badge.badge'),
+        description_localizations=language.slash_desc('badge.badge'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def badge(
+            self, ctx: nextcord.Interaction,
+            user: Optional[nextcord.User] = slash.option('badge.badge.user', required=False)
+    ):
         selector = language.get_selector(ctx)
-        if user:
-            try:
-                user = self.bot.get_user(int(user.replace('<@','',1).replace('>','',1).replace('!','',1)))
-            except:
-                user = ctx.author
-        else:
-            user = ctx.author
+        if not user:
+            user = ctx.user
         user_role = self.get_user_role(user.id)
         embed = nextcord.Embed(
             description=selector.fget("body", values={
@@ -83,7 +88,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         await ctx.send(embed=embed)
 
     @commands.command(hidden=True,aliases=['trust'],description=language.desc('badge.verify'))
-    @restrictions.admin()
+    @restrictions_legacy.admin()
     async def verify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)
 
@@ -98,7 +103,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
 
     @commands.command(hidden=True, aliases=['untrust'], description=language.desc('badge.unverify'))
-    @restrictions.admin()
+    @restrictions_legacy.admin()
     async def unverify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)
 
@@ -113,7 +118,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
 
     def get_user_role(self, user_id):
-        if user_id == self.bot.config['owner']:
+        if user_id == self.bot.owner or user_id in self.bot.other_owners:
             return UserRole.OWNER
         elif user_id in self.bot.admins:
             return UserRole.ADMIN

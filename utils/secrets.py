@@ -60,11 +60,13 @@ class Encryptor:
         return result
 
 class TokenStore:
-    def __init__(self, encrypted, password=None, salt=None, debug=False, content_override=None):
+    def __init__(self, encrypted, password=None, salt=None, debug=False, content_override=None, onetime=None):
         self.__is_encrypted = encrypted
         self.__encryptor = Encryptor()
         self.__password = password
         self.__salt = salt
+        self.__one_time = onetime or []
+        self.__accessed = []
 
         if encrypted:
             if not password:
@@ -114,6 +116,10 @@ class TokenStore:
         tokens = list(self.__data.keys())
         tokens.remove('test')
         return tokens
+
+    @property
+    def accessed(self):
+        return self.__accessed
 
     def to_encrypted(self, password, salt):
         dotenv = open('.env', 'r')
@@ -177,6 +183,10 @@ class TokenStore:
         return True
 
     def retrieve(self, identifier):
+        if identifier in self.__one_time:
+            if identifier in self.__accessed:
+                raise ValueError('token has already been retrieved')
+            self.__accessed.append(identifier)
         data = str.encode(self.__data[identifier])
         iv = self.__ivs[identifier]
         decrypted = self.__encryptor.decrypt(base64.b64decode(data), self.__password, self.__salt, iv)

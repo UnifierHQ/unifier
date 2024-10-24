@@ -1,5 +1,6 @@
 {
   "maintainer": "UnifierHQ",
+  "maintainer_profile": "https://github.com/UnifierHQ",
   "product": "unifier",
   "product_name": "Unifier",
   "base_bootfile": "unifier.py",
@@ -19,7 +20,7 @@
     {
         "id": "balanced",
         "name": "\u26a1 Balanced",
-        "description": "Uses the latest stable Nextcord and performance optimizations for balanced performance and stability. Recommended for most users.",
+        "description": "Uses performance optimizations for balanced performance and stability. Recommended for most users.",
         "default": false,
         "prefix": "balanced",
         "required_py_version": 12,
@@ -28,7 +29,7 @@
     {
         "id": "stable",
         "name": "\ud83d\udc8e Stable",
-        "description": "Uses the latest stable Nextcord for best stability.",
+        "description": "Uses no performance optimizations. May be slower, but has best stability.",
         "default": false,
         "prefix": "stable",
         "required_py_version": 9,

@@ -21,6 +21,7 @@ guilded = ""
 prefix = "u!"
 ping = 0
 main_color = "ed4545"
+custom_slogan = ""
 
 [backups]
 compress_cache = true
@@ -60,6 +61,7 @@ custom_status_messages = [] # example: [["custom", "just living life"], ["playin
 enable_safety_alerts = false
 safe_filetypes = true
 suppress_filesize_warning = false
+global_filesize_limit = 0 # This will be used if it's lower than the platform's filesize limit and vice versa. Set to 0 to disable.
 permanent_invites = false
 enable_private_rooms = false
 private_rooms_mod_access = true # Disable this if you don't want moderators to access Private Rooms.
@@ -68,3 +70,7 @@ main_room = "main"
 alerts_room = "alerts"
 posts_room = "posts"
 posts_ref_room = "post-comments"
+
+[legal]
+terms_url = "" # Add a link to your Terms of Service document here
+privacy_url = "" # Add a link to your Privacy Policy document here

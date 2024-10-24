@@ -1,6 +1,7 @@
 {
   "language": "English",
   "language_english": "English",
+  "locale": "en-US",
   "emoji": "\ud83c\uddec\ud83c\udde7",
   "author": "UnifierHQ",
   "strings": {
@@ -73,20 +74,20 @@
         "offending_message": "Offending message",
         "actions_taken": "Actions taken",
         "warned": "You have been **warned**. Further rule violations may lead to sanctions on the Unifier moderators' discretion.",
-        "temp_ban": "Your ability to text and speak have been **restricted** until <t:{unix}:f>. This will expire <t:{unix}:R>.",
+        "temp_ban": "Your ability to text and speak have been **restricted** until <t:{expiry}:f>. This will expire <t:{expiry}:R>.",
         "perm_ban": "Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.",
         "perm_ban_appeal": "You must contact a moderator to appeal this restriction.",
         "modlog_info_title": "User modlogs info",
         "modlog_info_body": "This user has **{recent_warns}** recent warnings ({total_warns} in total) and **{recent_bans}** recent bans ({total_bans} in total) on record.",
         "appeal_title": "Did we make a mistake?",
-        "appeal_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`."
+        "appeal_body": "If you think we didn't make the right call, you can always appeal your ban using `/moderation appeal`."
       },
       "plugins": {
         "locked": "Extensions and Modifier management is disabled until restart.",
         "git": "Git is not installed."
       },
       "rooms": {
-        "invalid": "This room does not exist. Run `{prefix}rooms` for a full list of rooms."
+        "invalid": "This room does not exist. Run `/bridge rooms` for a full list of rooms."
       }
     },
     "sysmgr": {
@@ -100,7 +101,7 @@
         "dms_only": "You can only run this command in DMs.",
         "no_room_management": "You do not have permissions to manage this room.",
         "no_room_join": "Your server does not have permissions to join this room.",
-        "banned": "Your account or this server is currently global banned. Run `{prefix}standing` for more info.",
+        "banned": "Your account or this server is currently global banned. Run `/moderation standing` for more info.",
         "under_attack": "This server is in Under Attack mode. Some functionality is unavailable.",
         "too_many_perms": "The bot should never have `{permission}` permissions, please remove it.",
         "permissions": "You do not have permissions to run this command.",
@@ -114,6 +115,7 @@
         "description": "Reloads bot services.",
         "in_progress": "Reloading services...",
         "completed": "Reload completed (`{success}`/`{total}` successful)\n\n{text}```",
+        "too_long": "The errors were too long to send, so they have been logged in the console instead.",
         "fail_logs": "Fail logs",
         "extension": "Extension"
       },
@@ -195,6 +197,7 @@
         "plugin_info": "Name: `{name}`\nVersion: `{version}`\n\n{desc}",
         "success_title": "Installation successful",
         "success_body": "The installation was successful! :partying_face:",
+        "restart_body": "To use the Modifier, please restart the bot.",
         "postfail_title": "Installation failed",
         "postfail_body": "The installation failed.",
         "load_failed": "Some extensions could not be activated.",
@@ -257,7 +260,7 @@
         "no_abort": "Once started, you cannot abort the upgrade.",
         "backupfail_title": "Backup failed",
         "backupfail_body": "Unifier could not create a backup. The upgrade has been aborted.",
-        "start": "Start the upgrade?",
+        "start": "Ready to upgrade?",
         "upgrading": "Upgrading Unifier",
         "downloading": "Downloading updates",
         "installing": "Installing updates",
@@ -291,6 +294,12 @@
       },
       "help": {
         "description": "Shows a list of all commands.",
+        "options": {
+          "query": {
+            "name": "query",
+            "description": "The command to search for."
+          }
+        },
         "title": "{botname} help",
         "search_nav": "search",
         "choose_ext": "Choose an extension to get started!",
@@ -308,9 +317,10 @@
         "cmd_desc": "Command description",
         "aliases": "Aliases",
         "usage": "Usage",
+        "usage_slash": "This is a slash command. Type `/{command}` to check its arguments.",
         "search_prompt": "Type a command..."
       },
-      "forcereg": {
+      "register-commands": {
         "description": "Registers commands. Only to be used when automatic registration fails.",
         "atoms": "gone, reduced to atoms (hopefully)",
         "registered": "Registered commands to bot"
@@ -346,9 +356,13 @@
       },
       "about": {
         "description": "Shows bot info.",
-        "slogan": "Communities, connected.",
+        "team": "{product} is made by [{maintainer}]({url}), a team dedicated to making cross-platform communication better for everyone.",
         "developers": "Developers",
         "profile_pic": "PFP made by",
+        "legal": "Legal stuff",
+        "terms": "Terms of Service",
+        "privacy": "Privacy Policy",
+        "missing": "missing",
         "source_code": "View source code",
         "oss_attrib": "Open source attribution",
         "license": "{license} license",
@@ -356,52 +370,81 @@
       }
     },
     "config": {
-      "addmod": {
-        "description": "Adds a moderator to the instance.",
-        "invalid": "Not a valid user!",
-        "already_mod": "This user is already a moderator!",
-        "self_target": "are you fr",
-        "success": "**{mod}** is now a moderator!"
+      "add-rule": {
+        "description": "Adds a rule to a given room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to add a rule to."
+          },
+          "rule": {
+            "name": "rule",
+            "description": "The rule you want to add."
+          }
+        },
+        "exceed": "You can only have up to 25 rules in a room!",
+        "success": "Added rule!"
       },
-      "removemod": {
-        "description": "Removes a moderator from the instance.",
-        "not_mod": "This user is not a moderator!",
-        "success": "**{mod}** is no longer a moderator!"
-      },
-      "make": {
-        "description": "Creates a new room.",
-        "alphanumeric": "Room names may only contain alphabets, numbers, dashes, and underscores.",
-        "private_name": "Private",
-        "private_desc": "Make a room just for me and my buddies.",
-        "public_name": "Public",
-        "public_desc": "Make a room for everyone to talk in.",
-        "select": "Please select the room type.",
-        "private_disabled": "Private Rooms are disabled.",
-        "private_limit": "You cannot create any more Private Rooms. The limit is {limit}.",
-        "unique_fail": "Could not generate a unique room name in 10 tries.",
-        "exists": "This room already exists!",
-        "success": "Created **{roomtype}** room `{room}`!",
-        "dryrun_warning": "This is a dry run, no actual room was made."
+      "delete-rule": {
+        "description": "Removes a given rule from a given room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to delete a rule from."
+          },
+          "rule": {
+            "name": "rule",
+            "description": "The number of the rule you want to delete."
+          }
+        },
+        "invalid": "Rule must be a number higher than 0.",
+        "success": "Removed rule!"
       },
       "create-invite": {
         "description": "Creates an invite.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to create an invite for."
+          },
+          "expiry": {
+            "name": "expiry",
+            "description": "How long the invite will be valid for. Defaults to 7 days."
+          },
+          "max-usage": {
+            "name": "max-usage",
+            "description": "The maximum uses possible for the invite. Defaults to unlimited."
+          }
+        },
         "is_public": "This is a public room!",
         "invites_limit": "You've reached the limit for invites. Delete some first, then try again.",
         "permanent": "Use `inf` instead for permanent invites.",
         "permanent_disabled": "Permanent invites are not enabled on this instance.",
         "duration_toolong": "Invites cannot last longer than 7 days.",
         "code": "Invite code:",
-        "join": "Servers can use `{prefix}bind {invite}` to join your room.",
-        "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `{prefix}invites` to view your invite.",
+        "join": "Servers can use `/bridge bind {invite}` to join your room.",
+        "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `/config invites` to view your invite.",
         "success": "Invite was created, check your DMs!"
       },
       "delete-invite": {
+        "options": {
+          "invite": {
+            "name": "invite",
+            "description": "The invite to delete."
+          }
+        },
         "description": "Deletes an invite.",
         "invalid": "Could not find invite.",
         "success": "Invite was deleted."
       },
       "invites": {
         "description": "Views your room's invites.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to check the invites of."
+          }
+        },
         "unlimited": "Unlimited usage",
         "remaining": "Remaining uses:",
         "expiry": "Expiry:",
@@ -416,8 +459,30 @@
         "is_private": "You cannot rename Private Rooms.",
         "success": "Room renamed!"
       },
+      "addmod": {
+        "description": "Adds a moderator to the instance.",
+        "invalid": "Not a valid user!",
+        "already_mod": "This user is already a moderator!",
+        "self_target": "are you fr",
+        "success": "**{mod}** is now a moderator!"
+      },
+      "removemod": {
+        "description": "Removes a moderator from the instance.",
+        "not_mod": "This user is not a moderator!",
+        "success": "**{mod}** is no longer a moderator!"
+      },
       "display-name": {
         "description": "Sets a room's display name.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to set a display name for."
+          },
+          "display-name": {
+            "name": "display-name",
+            "description": "The new display name. Leave empty to reset."
+          }
+        },
         "no_name": "There is no display name to reset for this room.",
         "removed": "Display name removed.",
         "toolong": "Display name is too long. Please keep it within 32 characters.",
@@ -425,70 +490,58 @@
       },
       "roomdesc": {
         "description": "Sets a room's description.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to set a description for."
+          },
+          "description": {
+            "name": "description",
+            "description": "The new description. Leave empty to reset."
+          }
+        },
         "no_desc": "There is no description to reset for this room.",
         "removed": "Description removed.",
         "success": "Description updated!"
       },
       "roomemoji": {
         "description": "Sets a room's emoji.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to set a room emoji for."
+          },
+          "emoji": {
+            "name": "emoji",
+            "description": "The new room emoji. Leave empty to reset."
+          }
+        },
         "not_emoji": "This is not a valid emoji.",
         "no_emoji": "There is no emoji to reset for this room.",
         "removed": "Emoji removed.",
         "success": "Updated emoji!"
       },
       "restrict": {
-        "description": "Restricts/unrestricts a room. Only admins will be able to collect to this room when restricted.",
+        "description": "Restricts/unrestricts a room. Only admins will be able to connect to this room when restricted.",
         "is_private": "Private rooms cannot be restricted.",
         "success_set": "Restricted `{room}`!",
         "success_unset": "Unrestricted `{room}`!"
       },
       "lock": {
         "description": "Locks/unlocks a room. Only moderators and admins will be able to chat in this room when locked.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to lock. Leave empty to autodetect."
+          },
+          "display-name": {
+            "name": "display-name",
+            "description": "The new display name. Leave empty to reset."
+          }
+        },
         "is_public": "You cannot manage public rooms.",
         "success_set": "Locked `{room}`!",
         "success_unset": "Unlocked `{room}`!"
-      },
-      "disband": {
-        "description": "Disbands a room.",
-        "confirm_title": "Disband `{room}`?",
-        "confirm_body": "Once the room is disbanded, it's gone forever!",
-        "disband": "Disband",
-        "success_title": "Disbanded `{room}`",
-        "success_body": "The room was disbanded successfully."
-      },
-      "bind": {
-        "description": "Connects the channel to a given room.",
-        "check_title": "Checking if channel is already connected...",
-        "check_body": "We're checking if this channel is already connected. Give us a moment...",
-        "already_linked_title": "Already connected",
-        "already_linked_body": "This channel is already connected to `{room}`!\nRun `{prefix}unbind {room}` to disconnect the channel.",
-        "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `{prefix}unlink {room}` it then `{prefix}link {room}` it back.",
-        "join_title": "Join {roomname}?",
-        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `{prefix}rules {room}`.",
-        "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
-        "display": "By joining this room, you and your members agree to these rules.\nThis message will be pinned (if possible) for better accessibility to the rules.",
-        "accept": "Accept & bind",
-        "no_agree": "Server did not agree to room rules.",
-        "failed": "Failed to connect.",
-        "invalid_invite": "Invite is invalid.",
-        "room_banned": "You are banned from this room.",
-        "success": "Connected to room!",
-        "say_hi": "You're now connected! Say hi!"
-      },
-      "unbind": {
-        "description": "Disconnects the server from a given room.",
-        "not_connected": "This channel is not connected to a room.",
-        "success": "Channel has been unbinded.",
-        "success_semi": "Channel has been unbinded, but the webhook could not be deleted."
-      },
-      "roomkick": {
-        "description": "Kicks a server from the room.",
-        "not_connected": "This server isn't connected to this room.",
-        "success": "Server {server} was kicked from the room."
-      },
-      "roomban": {
-        "description": "Bans a server from the room.",
-        "success": "Server {server} was banned from the room."
       },
       "map": {
         "description": "Maps channels to rooms in bulk.",
@@ -505,21 +558,6 @@
         "bind_locked": "Bind (create as locked)",
         "success": "Channels mapped!",
         "say_hi": "Channels are now connected! Say hi!"
-      },
-      "rules": {
-        "description": "Displays room rules for the specified room.",
-        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).",
-        "rules_title": "Room rules"
-      },
-      "addrule": {
-        "description": "Adds a rule to a given room.",
-        "exceed": "You can only have up to 25 rules in a room!",
-        "success": "Added rule!"
-      },
-      "delrule": {
-        "description": "Removes a given rule from a given room.",
-        "invalid": "Rule must be a number higher than 0.",
-        "success": "Removed rule!"
       },
       "addbridge": {
         "description": "Allows given user's webhooks to be bridged.",
@@ -539,6 +577,120 @@
         "success_title": "Blocked Webhooks from Unifier network!",
         "success_body": "This user's webhooks can no longer bridge messages through Unifier."
       },
+      "toggle-emoji": {
+        "description": "Enables or disables usage of server emojis as Global Emojis.",
+        "success_set": "All members can now use your emojis!",
+        "success_unset": "All members can now no longer use your emojis!"
+      }
+    },
+    "bridge": {
+      "disband": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to disband."
+          }
+        },
+        "description": "Disbands a room.",
+        "confirm_title": "Disband `{room}`?",
+        "confirm_body": "Once the room is disbanded, it's gone forever!",
+        "disband": "Disband",
+        "success_title": "Disbanded `{room}`",
+        "success_body": "The room was disbanded successfully."
+      },
+      "bind": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to bind to."
+          }
+        },
+        "description": "Connects the channel to a given room.",
+        "check_title": "Checking if channel is already connected...",
+        "check_body": "We're checking if this channel is already connected. Give us a moment...",
+        "already_linked_title": "Already connected",
+        "already_linked_body": "This channel is already connected to `{room}`!\nRun `/bridge unbind {room}` to disconnect the channel.",
+        "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `/bridge unbind {room}` it then `/bridge bind {room}` it back.",
+        "join_title": "Join {roomname}?",
+        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `/bridge rules {room}`.",
+        "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
+        "display": "By joining this room, you and your members agree to these rules.\nThis message will be pinned (if possible) for better accessibility to the rules.",
+        "accept": "Accept & bind",
+        "no_agree": "Server did not agree to room rules.",
+        "failed": "Failed to connect.",
+        "invalid_invite": "Invite is invalid.",
+        "room_banned": "You are banned from this room.",
+        "success": "Connected to room!",
+        "say_hi": "You're now connected! Say hi!"
+      },
+      "unbind": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to unbind from. Leave empty to autodetect."
+          }
+        },
+        "description": "Disconnects the server from a given room.",
+        "not_connected": "This channel is not connected to a room.",
+        "success": "Channel has been unbinded.",
+        "success_semi": "Channel has been unbinded, but the webhook could not be deleted."
+      },
+      "roomkick": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to kick a server from."
+          },
+          "server": {
+            "name": "server",
+            "description": "The server you want to kick from the room."
+          }
+        },
+        "description": "Kicks a server from the room.",
+        "not_connected": "This server isn't connected to this room.",
+        "success": "Server {server} was kicked from the room."
+      },
+      "roomban": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to ban a server from."
+          },
+          "server": {
+            "name": "server",
+            "description": "The server you want to ban from the room."
+          }
+        },
+        "description": "Bans a server from the room.",
+        "duplicate": "This server is already banned from your room!",
+        "success": "Server {server} was banned from the room."
+      },
+      "roomunban": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to unban a server from."
+          },
+          "server": {
+            "name": "server",
+            "description": "The server you want to unban from the room."
+          }
+        },
+        "description": "Unbans a server from the room.",
+        "missing": "This server is not banned from your room!",
+        "success": "Server {server} was unbanned from the room."
+      },
+      "rules": {
+        "description": "Displays room rules for the specified room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to view rules for. Leave empty to autodetect."
+          }
+        },
+        "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).",
+        "rules_title": "Room rules"
+      },
       "rooms": {
         "description": "Shows a list of rooms.",
         "title": "{botname} rooms",
@@ -556,41 +708,54 @@
         "hide_inaccessible": "Hide inaccessible rooms",
         "statistics": "Statistics",
         "servers": "{count} servers",
-        "online": "{count} online",
         "members": "{count} members",
         "messages": "{count} messages sent today",
         "rules_nav": "rules",
         "view_rules": "View room rules",
         "no_rules": "The room admins haven't added rules for this room yet.\nThough, do remember to use common sense and refrain from doing things that you shouldn't do."
       },
+      "private-rooms": {
+        "description": "Shows a list of Private Rooms your server can access."
+      },
       "servers": {
         "description": "Lists all servers connected to a given room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to check. Leave empty to autodetect."
+          }
+        },
         "title": "Servers connected to `{room}`"
       },
-      "toggle_emoji": {
-        "description": "Enables or disables usage of server emojis as Global Emojis.",
-        "success_set": "All members can now use your emojis!",
-        "success_unset": "All members can now no longer use your emojis!"
+      "create-room": {
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The name of the room you want to make. Only bot admins may fill out this field."
+          }
+        },
+        "description": "Creates a new room.",
+        "alphanumeric": "Room names may only contain alphabets, numbers, dashes, and underscores.",
+        "private_name": "Private",
+        "private_desc": "Make a room just for me and my buddies.",
+        "public_name": "Public",
+        "public_desc": "Make a room for everyone to talk in.",
+        "select": "Please select the room type.",
+        "private_disabled": "Private Rooms are disabled.",
+        "private_limit": "You cannot create any more Private Rooms. The limit is {limit}.",
+        "unique_fail": "Could not generate a unique room name in 10 tries.",
+        "exists": "This room already exists!",
+        "success": "Created **{roomtype}** room `{room}`!",
+        "dryrun_warning": "This is a dry run, no actual room was made."
       },
-      "avatar": {
-        "description": "Displays or sets custom avatar.",
-        "no_avatar": "You have no avatar! Run `{prefix}avatar <url>` or set an avatar in your profile settings.",
-        "custom_avatar": "You have a custom avatar! Run `{prefix}avatar <url>` to change it, or run `{prefix}avatar remove` to remove it.",
-        "default_avatar": "You have a default avatar! Run `{prefix}avatar <url>` to set a custom one.",
-        "title": "This is your Unifier avatar!",
-        "invalid": "Invalid URL!",
-        "error_missing": "You don't have a custom avatar!",
-        "confirmation_title": "This is how you'll look!",
-        "confirmation_body": "If you're satisfied, hit that green Apply button!",
-        "apply": "Apply",
-        "change": "To change your avatar, run {prefix}avatar <url>.",
-        "success_unset": "Custom avatar removed!",
-        "success_set": "Avatar successfully added!"
-      }
-    },
-    "bridge": {
       "color": {
-        "description": "Sets user color.",
+        "options": {
+          "color": {
+            "name": "color",
+            "description": "The user color you want to set. Leave this empty to view your current user color."
+          }
+        },
+        "description": "Sets or shows your user color.",
         "title": "Your user color",
         "default": "Default",
         "inherit": "Inherit from role",
@@ -599,6 +764,12 @@
         "success_custom": "Messages on supported platforms will now inherit the custom color."
       },
       "nickname": {
+        "options": {
+          "nickname": {
+            "name": "nickname",
+            "description": "The nickname you want to set. Leave this empty to reset your nickname."
+          }
+        },
         "description": "Sets a nickname. An empty provided nickname will reset it.",
         "exceed": "Please keep your nickname within 33 characters.",
         "success": "Nickname updated!"
@@ -632,6 +803,7 @@
         "description": "Pings all moderators to the chat. Use only when necessary.",
         "disabled": "Modping is disabled, contact your instance's owner.",
         "invalid": "This isn't a Unifier room!",
+        "private": "You can't ping moderators in a Private Room!",
         "no_moderator": "This instance doesn't have a moderator role set up. Contact your Unifier admins.",
         "bad_config": "It appears the home guild has configured Unifier wrong, and I cannot ping its moderators.",
         "needhelp": "**{username}** ({userid}) needs your help!\n\nSent from: **{guildname}** ({guildid})",
@@ -643,6 +815,13 @@
         "no_reactions": "No reactions yet!"
       },
       "report": {
+        "description": "Reports a message to Unifier moderators.",
+        "options": {
+          "message": {
+            "name": "message",
+            "description": "The ID of the message you want to report."
+          }
+        },
         "disabled": "Reporting and logging are disabled, contact your instance's owner.",
         "spam": "Spam",
         "abuse": "Abuse or harassment",
@@ -685,6 +864,12 @@
       },
       "level": {
         "description": "Shows you or someone else's level and EXP.",
+        "options": {
+          "user": {
+            "name": "user",
+            "description": "The user whose level you want to check. Leave this empty to check your own level."
+          }
+        },
         "disabled": "Leveling system is disabled on this instance.",
         "title_self": "Your level",
         "title_other": "{username}'s level",
@@ -713,7 +898,7 @@
         "automated": "This is an automated action performed by a Modifier, always double-check before taking action",
         "owner_immunity": "just as a fyi: this would have banned you",
         "ban_reason": "Automatic action carried out by security Modifiers",
-        "cannot_appeal": "Unfortunately, this ban cannot be appealed using `{prefix}appeal`. You will need to ask moderators for help.",
+        "cannot_appeal": "Unfortunately, this ban cannot be appealed using `/moderation appeal`. You will need to ask moderators for help.",
         "limited_limit": "Your server is currently limited for security. The maximum character limit for now is **{count} characters**.",
         "limited_cooldown": "Your server is currently limited for security. Please wait before sending another message.",
         "delete_fail": "Parent message could not be deleted. I may be missing the `Manage Messages` permission.",
@@ -727,7 +912,7 @@
         "post_id": "Post ID: {post_id}",
         "post_reference": "Referencing Post #{post_id}",
         "moderated": "Moderated username",
-        "filesize_limit": "Your files passed the 25MB limit. Some files will not be sent.",
+        "filesize_limit": "Your files passed the {limit}MB limit. Some files will not be sent.",
         "replying": "Replying to {user}",
         "deleted": "Message deleted from `{roomname}`",
         "edited": "Message edited in `{roomname}`",
@@ -735,11 +920,38 @@
         "new": "New",
         "embeds": "{count} embeds",
         "files": "{count} files"
+      },
+      "avatar": {
+        "description": "Displays or sets custom avatar.",
+        "options": {
+          "url": {
+            "name": "url",
+            "description": "The URL of the avatar you want to set. Leave this empty to view your current avatar."
+          }
+        },
+        "no_avatar": "You have no avatar! Run `/bridge avatar <url>` or set an avatar in your profile settings.",
+        "custom_avatar": "You have a custom avatar! Run `/bridge avatar <url>` to change it, or run `/bridge avatar remove` to remove it.",
+        "default_avatar": "You have a default avatar! Run `/bridge avatar <url>` to set a custom one.",
+        "title": "This is your Unifier avatar!",
+        "invalid": "Invalid URL!",
+        "error_missing": "You don't have a custom avatar!",
+        "confirmation_title": "This is how you'll look!",
+        "confirmation_body": "If you're satisfied, hit that green Apply button!",
+        "apply": "Apply",
+        "change": "To change your avatar, run /bridge avatar <url>.",
+        "success_unset": "Custom avatar removed!",
+        "success_set": "Avatar successfully added!"
       }
     },
     "moderation": {
       "block": {
         "description": "Blocks a user or server from bridging messages to your server.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to block."
+          }
+        },
         "self_target_user": "You can't block yourself :thinking",
         "self_target_guild": "You can't block your own server :thinking",
         "mod_immunity": "Unifier moderators are immune to blocks!\n(Though, do feel free to report anyone who abuses this immunity.)",
@@ -748,11 +960,27 @@
       },
       "unblock": {
         "description": "Unblocks a user or server from bridging messages through Unifier.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to unblock."
+          }
+        },
         "not_blocked": "User/server not blocked!",
         "success": "User/server can now forward messages to this server!"
       },
       "warn": {
         "description": "Warns a user.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to warn."
+          },
+          "reason": {
+            "name": "reason",
+            "description": "The reason for the warning."
+          }
+        },
         "no_reason": "You need to have a reason to warn this user.",
         "self_target": "You can't warn yourself :thinking:",
         "bot": "...why would you want to warn a bot?",
@@ -762,6 +990,28 @@
       },
       "ban": {
         "description": "Bans a user or server from the Unifier network.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user or server to ban."
+          },
+          "duration": {
+            "name": "duration",
+            "description": "The duration of the ban. Use inf or forever for permanent."
+          },
+          "reason": {
+            "name": "reason",
+            "description": "The reason for the ban."
+          },
+          "discreet": {
+            "name": "discreet",
+            "description": "Whether a message should be sent in the main room or not. Defaults to false."
+          },
+          "reveal-user": {
+            "name": "reveal-user",
+            "description": "Whether the target's identity should be revealed in the main room or not. Defaults to false."
+          }
+        },
         "no_reason": "no reason given",
         "self_target": "You can't ban yourself :thinking:",
         "already_banned": "User/server already banned!",
@@ -771,7 +1021,7 @@
         "restricted_perma": "Your ability to text and speak have been **restricted indefinitely**. This will not automatically expire.",
         "restricted_temp": "Your ability to text and speak have been **restricted** until <t:{expiry}:f>. This will expire <t:{expiry}:R>.",
         "mistake_title": "Did we make a mistake?",
-        "mistake_body": "If you think we didn't make the right call, you can always appeal your ban using `{prefix}!appeal`.",
+        "mistake_body": "If you think we didn't make the right call, you can always appeal your ban using `/moderation appeal`.",
         "recently_banned": "A user was recently banned from Unifier!",
         "success": "User was global banned. They may not use Unifier for the given time period.",
         "success_title": "User banned",
@@ -786,14 +1036,34 @@
         "not_banned": "User/server not banned!",
         "success": "User has been unbanned."
       },
-      "delwarn": {
+      "delete-warning": {
         "description": "Deletes a logged warning.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          },
+          "index": {
+            "name": "index",
+            "description": "The number of the warning to delete."
+          }
+        },
         "title": "Warning deleted",
         "success": "Warning was deleted!",
         "failed": "Could not find warning - maybe the index was too high?"
       },
-      "delban": {
+      "delete-ban": {
         "description": "Deletes a logged ban. Does not unban the user.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          },
+          "index": {
+            "name": "index",
+            "description": "The number of the ban to delete."
+          }
+        },
         "title": "Ban deleted",
         "disclaimer": "WARNING: This does NOT unban the user.",
         "success": "Ban was deleted!",
@@ -805,8 +1075,14 @@
         "success_set": "User has been banned from the bot.",
         "success_unset": "User has been unbanned from the bot."
       },
-      "appealban": {
+      "deny-appeals": {
         "description": "Bans a user from appealing their ban.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          }
+        },
         "success_set": "User can no longer appeal bans.",
         "success_unset": "User can now appeal bans."
       },
@@ -838,6 +1114,12 @@
       },
       "delete": {
         "description": "Deletes a message.",
+        "options": {
+          "message": {
+            "name": "message",
+            "description": "The ID of the message to delete."
+          }
+        },
         "no_message": "You didn't reply to a message when running this command!",
         "no_ownership": "You didn't send this message!",
         "deleting": "Deleting message...",
@@ -847,6 +1129,12 @@
       },
       "standing": {
         "description": "Shows your account standing.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user to check."
+          }
+        },
         "title": "{identifier}'s account standing",
         "allgood_title": "All good!",
         "allgood_body": "You're on a clean or good record. Thank you for upholding your Unifier instance's rules!",
@@ -877,13 +1165,29 @@
       },
       "identify": {
         "description": "Identifies the origin of a message.",
+        "options": {
+          "message": {
+            "name": "message",
+            "description": "The ID of the message to check."
+          }
+        },
         "sent_by": "Sent by @{username} ({userid}) in {servername} ({serverid}, {source})\n\nParent ID: {messageid}"
       },
       "anick": {
         "description": "Changes a given user's nickname.",
+        "options": {
+          "target": {
+            "name": "target",
+            "description": "The ID of the user."
+          },
+          "nickname": {
+            "name": "nickname",
+            "description": "The new nickname of the user. Leave empty to reset."
+          }
+        },
         "success": "Nickname updated!"
       },
-      "bridgelock": {
+      "bridge-lock": {
         "description" : "Locks Unifier Bridge down.",
         "already_locked": "Bridge already locked down.",
         "warning_title": "Lock bridge down?",
@@ -894,7 +1198,7 @@
         "success_title": "LOCKDOWN COMPLETED",
         "success_body": "Bridge has been locked down."
       },
-      "bridgeunlock": {
+      "bridge-unlock": {
         "description" : "Removes Unifier Bridge lockdown.",
         "not_locked": "Bridge not locked down.",
         "success": "Lockdown removed!"
@@ -914,6 +1218,20 @@
       },
       "alert": {
         "description": "Sends a safety-related alert.",
+        "options": {
+          "risk_type": {
+            "name": "risk_type",
+            "description": "The type of the risk."
+          },
+          "level": {
+            "name": "level",
+            "description": "The severity of the risk."
+          },
+          "message": {
+            "name": "message",
+            "description": "The message to append to the alert."
+          }
+        },
         "invalid": "This is not a valid risk type.",
         "no_drill": "You cannot issue drill advisories",
         "send_title": "Are you sure you want to send this alert?",
@@ -924,6 +1242,9 @@
         "send": "Send alert",
         "success_title": "Alert issued",
         "success_body": "Alert was issued to Unifier network."
+      },
+      "advisory": {
+        "description": "Sends a safety-related advisory."
       }
     },
     "badge": {
@@ -937,6 +1258,12 @@
       },
       "badge": {
         "description": "Shows your Unifier user badge.",
+        "options": {
+          "user": {
+            "name": "user",
+            "description": "The user to check. Leave this empty to check your own badge."
+          }
+        },
         "body": "{mention} is {role}.",
         "easter_egg": "L bozo"
       },
