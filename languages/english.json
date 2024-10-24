@@ -798,6 +798,7 @@
         "description": "Pings all moderators to the chat. Use only when necessary.",
         "disabled": "Modping is disabled, contact your instance's owner.",
         "invalid": "This isn't a Unifier room!",
+        "private": "You can't ping moderators in a Private Room!",
         "no_moderator": "This instance doesn't have a moderator role set up. Contact your Unifier admins.",
         "bad_config": "It appears the home guild has configured Unifier wrong, and I cannot ping its moderators.",
         "needhelp": "**{username}** ({userid}) needs your help!\n\nSent from: **{guildname}** ({guildid})",

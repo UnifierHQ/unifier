@@ -4664,6 +4664,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not room:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}', ephemeral=True)
 
+        roominfo = self.bot.bridge.get_room(room)
+        if roominfo['meta']['private']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("private")}', ephemeral=True)
+
         guild = self.bot.get_guild(self.bot.config['home_guild'])
 
         author = f'{ctx.user.name}#{ctx.user.discriminator}'
