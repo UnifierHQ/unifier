@@ -3798,8 +3798,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         components.add_row(btns)
         if url == '':
             embed.set_footer(text=selector.fget("change", values={"prefix": self.bot.command_prefix}))
-            components = None
+            components = ui.MessageComponents()
         msg = await ctx.send(embed=embed, view=components)
+        msg = await msg.fetch()
         if not url == '':
             def check(interaction):
                 return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
