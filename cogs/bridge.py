@@ -255,6 +255,11 @@ class UnifierPossibleRaidEvent:
         return self.impact_score > 300
 
 class UnifierBridge:
+    # In case of the infamous Room Robbery bug, (room ownership gets stolen from a server),
+    # convert some variables to private variables (e.g. room ==> __room). Should help.
+    #
+    # If it didn't, DM me so I can look into it
+
     def __init__(self, bot, logger, webhook_cache=None):
         self.__bot = bot
         self.bridged = []
@@ -532,9 +537,12 @@ class UnifierBridge:
 
         is_server = guild_id == roominfo['meta']['private_meta']['server']
 
+        if user_id in self.__bot.admins:
+            return True
+
         if roominfo['meta']['private']:
             if user:
-                if user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']:
+                if user_id in self.__bot.moderators and self.__bot.config['private_rooms_mod_access']:
                     return True
             return is_server and manage_guild
         else:
@@ -556,6 +564,9 @@ class UnifierBridge:
         is_server = guild_id == roominfo['meta']['private_meta']['server']
         can_join = guild_id in roominfo['meta']['private_meta']['allowed']
 
+        if user_id in self.__bot.admins:
+            return True
+
         if roominfo['meta']['private']:
             if user:
                 if user_id in self.__bot.moderators and self.__bot.config['private_rooms_mod_access']:
@@ -566,6 +577,10 @@ class UnifierBridge:
 
     def can_access_room(self, room, user, ignore_mod=False) -> bool:
         __roominfo = self.get_room(room)
+
+        if user.id in self.__bot.admins:
+            return True
+
         if __roominfo['meta']['private']:
             if user:
                 if user.id in self.__bot.moderators and (self.__bot.config['private_rooms_mod_access'] and not ignore_mod):
@@ -590,8 +605,8 @@ class UnifierBridge:
         if private and not origin:
             raise ValueError('origin must be provided')
 
-        room_base = {'meta': dict(self.__room_template)}
-        room_base['meta'].update({'private': private})
+        __room_base = {'meta': dict(self.__room_template)}
+        __room_base['meta'].update({'private': private})
 
         if private:
             if not self.__bot.config['enable_private_rooms']:
@@ -606,13 +621,13 @@ class UnifierBridge:
                 ):
                     raise self.TooManyRooms('exceeded limit')
                 self.__bot.db['rooms_count'][f'{origin}'] += 1
-            room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
+            __room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
 
         if not dry_run:
-            self.__bot.db['rooms'].update({room: room_base})
+            self.__bot.db['rooms'].update({room: __room_base})
             self.__bot.db.save_data()
 
-        return room_base
+        return __room_base
 
     def delete_room(self, room):
         if not room in self.rooms:
@@ -658,16 +673,16 @@ class UnifierBridge:
 
         while True:
             # generate unique invite
-            invite = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
-            if not invite in self.__bot.db['invites'].keys():
+            __invite = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+            if not __invite in self.__bot.db['invites'].keys():
                 break
 
-        self.__bot.db['invites'].update({invite: {
+        self.__bot.db['invites'].update({__invite: {
             'remaining': max_usage, 'expire': expire, 'room': room
         }})
-        self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].append(invite)
+        self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].append(__invite)
         self.__bot.db.save_data()
-        return invite
+        return __invite
 
     def delete_invite(self, invite):
         if not invite in self.__bot.db['invites'].keys():
@@ -4059,10 +4074,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.colour = self.bot.colors.success
         await interaction.response.edit_message(embed=embed, view=None)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-
-    @disband.on_autocomplete("room")
-    async def disband_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_manage_autocomplete(room, ctx.user))
 
     @bridge.subcommand(
         description=language.desc('bridge.roomkick'),
