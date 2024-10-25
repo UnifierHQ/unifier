@@ -606,7 +606,6 @@ class UnifierBridge:
             raise ValueError('origin must be provided')
 
         __room_base = {'meta': dict(self.room_template)}
-        print(__room_base)
         __room_base['meta'].update({'private': private})
 
         if private:
