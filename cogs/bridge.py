@@ -32,7 +32,6 @@ import re
 import ast
 import math
 import os
-import copy
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
 import importlib
 import emoji as pymoji
@@ -276,7 +275,11 @@ class UnifierBridge:
         self.msg_stats = {}
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
-        self.__room_template = {
+        self.alert = UnifierAlert
+
+    @property
+    def room_template(self):
+        return {
             'rules': [], 'restricted': False, 'locked': False, 'private': False,
             'private_meta': {
                 'server': None,
@@ -286,11 +289,6 @@ class UnifierBridge:
             },
             'emoji': None, 'description': None, 'display_name': None, 'banned': []
         }
-        self.alert = UnifierAlert
-
-    @property
-    def room_template(self):
-        return self.__room_template
 
     @property
     def rooms(self):
@@ -480,7 +478,7 @@ class UnifierBridge:
             support = self.__bot.platforms[platform]
 
         for room in self.rooms:
-            __roominfo = copy.copy(self.get_room(room))
+            __roominfo: dict = dict(self.get_room(room))
 
             if not platform in __roominfo.keys():
                 continue
