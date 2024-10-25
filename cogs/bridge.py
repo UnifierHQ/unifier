@@ -578,7 +578,7 @@ class UnifierBridge:
     def can_access_room(self, room, user, ignore_mod=False) -> bool:
         __roominfo = self.get_room(room)
 
-        if user.id in self.__bot.admins:
+        if user.id in self.__bot.admins and not ignore_mod:
             return True
 
         if __roominfo['meta']['private']:
