@@ -523,6 +523,9 @@ class UnifierBridge:
     def can_manage_room(self, room, user, platform='discord') -> bool:
         roominfo = self.get_room(room)
 
+        if not roominfo:
+            roominfo = self.get_room(self.get_invite(room)['room'])
+
         if platform == 'discord':
             manage_guild = user.guild_permissions.manage_channels
             user_id = user.id
@@ -548,6 +551,9 @@ class UnifierBridge:
 
     def can_join_room(self, room, user, platform='discord') -> bool:
         roominfo = self.get_room(room)
+
+        if not roominfo:
+            roominfo = self.get_room(self.get_invite(room)['room'])
 
         if platform == 'discord':
             manage_channels = user.guild_permissions.manage_channels
@@ -575,6 +581,9 @@ class UnifierBridge:
 
     def can_access_room(self, room, user, ignore_mod=False) -> bool:
         __roominfo = self.get_room(room)
+
+        if not __roominfo:
+            __roominfo = self.get_room(self.get_invite(room)['room'])
 
         if user.id in self.__bot.admins and not ignore_mod:
             return True
