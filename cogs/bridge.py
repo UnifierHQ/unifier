@@ -502,7 +502,7 @@ class UnifierBridge:
         This will be moved to UnifierBridge for a future update."""
         try:
             __roominfo = self.__bot.db['rooms'][room]
-            base = {'meta': dict(self.__room_template)}
+            base = {'meta': dict(self.room_template)}
 
             # add template keys and values to data
             for key in __roominfo.keys():
@@ -518,7 +518,7 @@ class UnifierBridge:
                 else:
                     base.update({key: __roominfo[key]})
 
-            return base
+            return dict(base)
         except:
             return None
 
@@ -605,7 +605,8 @@ class UnifierBridge:
         if private and not origin:
             raise ValueError('origin must be provided')
 
-        __room_base = {'meta': dict(self.__room_template)}
+        __room_base = {'meta': dict(self.room_template)}
+        print(__room_base)
         __room_base['meta'].update({'private': private})
 
         if private:
@@ -624,10 +625,10 @@ class UnifierBridge:
             __room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
 
         if not dry_run:
-            self.__bot.db['rooms'].update({room: __room_base})
+            self.__bot.db['rooms'].update({room: dict(__room_base)})
             self.__bot.db.save_data()
 
-        return __room_base
+        return dict(__room_base)
 
     def delete_room(self, room):
         if not room in self.rooms:
