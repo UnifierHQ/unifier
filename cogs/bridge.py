@@ -579,22 +579,30 @@ class UnifierBridge:
         else:
             return manage_channels
 
-    def can_access_room(self, room, user, ignore_mod=False) -> bool:
+    def can_access_room(self, room, user, platform='discord', ignore_mod=False) -> bool:
         __roominfo = self.get_room(room)
 
         if not __roominfo:
             __roominfo = self.get_room(self.get_invite(room)['room'])
+
+        if platform=='discord':
+            user_id = user.id
+            guild_id = user.guild.id
+        else:
+            support = self.__bot.platforms[platform]
+            user_id = support.get_id(user)
+            guild_id = support.get_id(support.server(user))
 
         if user.id in self.__bot.admins and not ignore_mod:
             return True
 
         if __roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators and (self.__bot.config['private_rooms_mod_access'] and not ignore_mod):
+                if user_id in self.__bot.moderators and (self.__bot.config['private_rooms_mod_access'] and not ignore_mod):
                     return True
             return (
-                    user.guild.id == __roominfo['meta']['private_meta']['server'] or
-                    user.guild.id in __roominfo['meta']['private_meta']['allowed']
+                    guild_id == __roominfo['meta']['private_meta']['server'] or
+                    guild_id in __roominfo['meta']['private_meta']['allowed']
             )
         else:
             return True
