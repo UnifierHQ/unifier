@@ -5461,41 +5461,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.id == self.bot.user.id:
             return
 
-        found = False
-
         # Optimized logic
         roomname = self.bot.bridge.get_channel_room(message.channel)
-
-        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-        if not found:
-            try:
-                hooks = await message.channel.webhooks()
-            except:
-                try:
-                    hooks = await message.guild.webhooks()
-                except:
-                    return
-
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    if not 'discord' in self.bot.db['rooms'][key].keys():
-                        continue
-                    data = self.bot.db['rooms'][key]['discord']
-                    if f'{message.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{message.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        found = True
-                        roomname = list(self.bot.db['rooms'].keys())[index]
-                    index += 1
-                if found:
-                    break
-        else:
-            found = True
-
-        if not found:
+        if not roomname:
             return
 
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
@@ -5505,9 +5473,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.bot or len(message.embeds) > 0:
             for emb in message.embeds:
                 og_embeds.append(emb)
-
-        if not found:
-            return
 
         unsafe, responses = await self.bot.bridge.run_security(message)
         message = await self.bot.bridge.run_stylizing(message)
@@ -5849,42 +5814,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.id == self.bot.user.id:
             return
 
-        found = False
-
-        # Optimized logic
         roomname = self.bot.bridge.get_channel_room(message.channel)
 
-        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-        if not found:
-            try:
-                hooks = await message.channel.webhooks()
-            except:
-                try:
-                    hooks = await message.guild.webhooks()
-                except:
-                    return
-
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    if not 'discord' in self.bot.db['rooms'][key].keys():
-                        continue
-                    data = self.bot.db['rooms'][key]['discord']
-                    if f'{message.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{message.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        found = True
-                        roomname = list(self.bot.db['rooms'].keys())[index]
-                    index += 1
-                if found:
-                    break
-        else:
-            found = True
-
-        if not found:
-            return
+        if not roomname:
+            retur
 
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
             return
@@ -5981,38 +5914,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if message.author.id == self.bot.user.id:
                 return
 
-            found = False
-
-            # Optimized logic
             roomname = self.bot.bridge.get_channel_room(message.channel)
 
-            # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
             if not roomname:
-                try:
-                    hooks = await message.channel.webhooks()
-                except:
-                    return
-
-                for webhook in hooks:
-                    index = 0
-                    for key in self.bot.db['rooms']:
-                        if not 'discord' in self.bot.db['rooms'][key].keys():
-                            continue
-                        data = self.bot.db['rooms'][key]['discord']
-                        if f'{message.guild.id}' in list(data.keys()):
-                            hook_ids = data[f'{message.guild.id}']
-                        else:
-                            hook_ids = []
-                        if webhook.id in hook_ids:
-                            found = True
-                            roomname = list(self.bot.db['rooms'].keys())[index]
-                        index += 1
-                    if found:
-                        break
-            else:
-                found = True
-
-            if not found:
                 return
 
             if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
@@ -6045,41 +5949,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.guild.me.guild_permissions.administrator:
             return
 
-        found = False
-
-        # Optimized logic
         roomname = self.bot.bridge.get_channel_room(message.channel)
 
-        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
         if not roomname:
-            try:
-                hooks = await message.channel.webhooks()
-            except:
-                try:
-                    hooks = await message.guild.webhooks()
-                except:
-                    return
-
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    if not 'discord' in self.bot.db['rooms'][key].keys():
-                        continue
-                    data = self.bot.db['rooms'][key]['discord']
-                    if f'{message.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{message.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        found = True
-                        roomname = list(self.bot.db['rooms'].keys())[index]
-                    index += 1
-                if found:
-                    break
-        else:
-            found = True
-
-        if not found:
             return
 
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
