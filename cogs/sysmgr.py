@@ -3294,10 +3294,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 ),
                 color=self.bot.colors.unifier
             )
-            if vinfo:
-                embed.set_footer(text=footer_text)
-            else:
-                embed.set_footer(text=footer_text)
+            embed.set_footer(text=footer_text)
 
             terms_hyperlink = f'[{selector.get("terms")}]({self.bot.config["terms_url"]})'
             if not self.bot.config["terms_url"]:
