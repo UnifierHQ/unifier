@@ -5817,7 +5817,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         roomname = self.bot.bridge.get_channel_room(message.channel)
 
         if not roomname:
-            retur
+            return
 
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
             return
