@@ -6,7 +6,7 @@ perfect, and there may be vulnerabilities in our code that may impact
 the safety of hosters and users every now and then.
 
 ## Supported Versions
-All Unifier release series will receive at least 6 months of bug fixes and
+All Unifier release series will receive at least 4 months of bug fixes and
 security updates after being superseded by a newer series. LTS release
 series are supported for at least one year.
 
