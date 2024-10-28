@@ -7,14 +7,16 @@ the safety of hosters and users every now and then.
 
 ## Supported Versions
 All Unifier release series will receive at least 6 months of bug fixes and
-security updates after being superseded by a newer series. All EoL dates
-are in dd/mm/yyyy format.
-| Version                      | Type     | Supported                    | EoL        |
-| ---------------------------- | -------- | ---------------------------- | ---------- |
-| 3.x   (`elegant-elderberry`) | release  | :white_check_mark: Supported | Not legacy |
-| 2.x   (`daring-dragonfruit`) | legacy   | :white_check_mark: Supported | 17/03/2025 |
-| 1.2.x (`cheerful-cranberry`) | legacy   | :white_check_mark: Supported | 05/12/2024 |
-| < 1.2                        | eol      | :x: Unsupported              | EoL        |
+security updates after being superseded by a newer series. LTS release
+series are supported for at least one year.
+
+All EoL dates are in dd/mm/yyyy format.
+| Version                        | Type     | Supported                    | EoL        |
+| ------------------------------ | -------- | ---------------------------- | ---------- |
+| 3.x (`elegant-elderberry`)     | release  | :white_check_mark: Supported | Not legacy |
+| 2.x LTS (`daring-dragonfruit`) | legacy   | :white_check_mark: Supported | 17/09/2025 |
+| 1.2.x (`cheerful-cranberry`)   | legacy   | :warning: Nearing EoL        | 05/12/2024 |
+| < 1.2                          | eol      | :x: Unsupported              | EoL        |
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.
