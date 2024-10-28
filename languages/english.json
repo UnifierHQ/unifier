@@ -620,6 +620,7 @@
         "failed": "Failed to connect.",
         "invalid_invite": "Invite is invalid.",
         "room_banned": "You are banned from this room.",
+        "too_many": "Server has reached maximum number of connections.",
         "success": "Connected to room!",
         "say_hi": "You're now connected! Say hi!"
       },

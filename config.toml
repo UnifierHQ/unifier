@@ -67,6 +67,7 @@ permanent_invites = false
 enable_private_rooms = false
 private_rooms_mod_access = true # Disable this if you don't want moderators to access Private Rooms.
 private_rooms_limit = 0
+private_rooms_connections_limit = 0
 main_room = "main"
 alerts_room = "alerts"
 posts_room = "posts"

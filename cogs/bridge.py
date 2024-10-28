@@ -384,6 +384,11 @@ class UnifierBridge:
         pass
 
     class TooManyRooms(Exception):
+        """Server has reached maximum Private Room creations."""
+        pass
+
+    class TooManyConnections(Exception):
+        """Server has reached maximum Private Room connections."""
         pass
 
     class RoomBannedError(Exception):
@@ -628,12 +633,11 @@ class UnifierBridge:
                 raise ValueError('private rooms are disabled')
 
             if not dry_run:
+                limit = self.get_rooms_limit(origin)
+
                 if not f'{origin}' in self.__bot.db['rooms_count'].keys():
                     self.__bot.db['rooms_count'].update({f'{origin}': 0})
-                if (
-                        self.__bot.db['rooms_count'][f'{origin}'] >= self.__bot.config['private_rooms_limit'] and
-                        not self.__bot.config['private_rooms_limit'] == 0
-                ):
+                if self.__bot.db['rooms_count'][f'{origin}'] >= limit and not limit == 0:
                     raise self.TooManyRooms('exceeded limit')
                 self.__bot.db['rooms_count'][f'{origin}'] += 1
             __room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
@@ -742,6 +746,31 @@ class UnifierBridge:
         self.update_room(invite['room'], roominfo)
         self.__bot.db.save_data()
 
+    def get_connections_count(self, guild_id, platform):
+        count = 0
+        for room in self.rooms:
+            roominfo = self.get_room(room)
+            if not roominfo['meta']['private']:
+                continue
+            try:
+                if str(guild_id) in roominfo[platform].keys():
+                    count += 1
+            except KeyError:
+                continue
+        return count
+
+    def get_rooms_limit(self, guild_id):
+        if str(guild_id) in self.__bot.db['allocations_override'].keys():
+            return self.__bot.db['allocations_override'][f'{guild_id}']['rooms']
+        else:
+            return self.__bot.config['private_rooms_limit']
+
+    def get_connections_limit(self, guild_id):
+        if str(guild_id) in self.__bot.db['allocations_override'].keys():
+            return self.__bot.db['allocations_override'][f'{guild_id}']['connections']
+        else:
+            return self.__bot.config['private_rooms_connections_limit']
+
     async def join_room(self, user, room, channel, webhook_id=None, platform='discord'):
         roominfo = self.get_room(room)
         if not roominfo:
@@ -762,6 +791,15 @@ class UnifierBridge:
             channel_id = channel.id
             user_id = user.id
             guild_id = user.guild.id
+
+        limit = self.get_connections_limit(guild_id)
+
+        if not f'{guild_id}' in self.__bot.db['connections_count'].keys():
+            self.__bot.db['connections_count'].update({f'{guild_id}': self.get_connections_count(guild_id, platform)})
+
+        if roominfo['meta']['private']:
+            if self.__bot.db['connections_count'][f'{guild_id}'] >= limit and not limit == 0:
+                raise self.TooManyConnections('exceeded limit')
 
         if str(guild_id) in roominfo['meta']['banned'] and ((
                 not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']
@@ -793,6 +831,10 @@ class UnifierBridge:
             raise ValueError('already joined')
 
         self.__bot.db['rooms'][room][platform].update({guild_id: ids})
+
+        if roominfo['meta']['private']:
+            self.__bot.db['connections_count'][f'{guild_id}'] += 1
+
         self.__bot.db.save_data()
 
     async def leave_room(self, guild, room, platform='discord'):
@@ -810,6 +852,9 @@ class UnifierBridge:
         else:
             guild_id = support.get_id(guild)
 
+        if not f'{guild_id}' in self.__bot.db['connections_count'].keys():
+            self.__bot.db['connections_count'].update({f'{guild_id}': self.get_connections_count(guild_id, platform)})
+
         guild_id = str(guild_id)
 
         if not platform in roominfo.keys():
@@ -819,6 +864,12 @@ class UnifierBridge:
             raise ValueError('not joined')
 
         self.__bot.db['rooms'][room][platform].pop(guild_id)
+
+        if roominfo['meta']['private']:
+            self.__bot.db['connections_count'][f'{guild_id}'] -= 1
+            if self.__bot.db['connections_count'][f'{guild_id}'] < 0:
+                self.__bot.db['connections_count'][f'{guild_id}'] = 0
+
         self.__bot.db.save_data()
 
     async def optimize(self, platform='discord'):
@@ -853,6 +904,7 @@ class UnifierBridge:
                             except:
                                 channel_id = support.channel_id(hook)
                             self.__bot.db['rooms'][room][platform][guild].append(channel_id)
+
         self.__bot.db.save_data()
 
     async def convert_1(self):
@@ -3581,6 +3633,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("invalid_invite")}'
             elif type(e) is self.bot.bridge.RoomBannedError:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("room_banned")}'
+            elif type(e) is self.bot.bridge.TooManyConnections:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("too_many")}'
             else:
                 should_raise = True
 
