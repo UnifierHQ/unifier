@@ -184,13 +184,19 @@ def reencrypt_tokens():
 
 def command_help():
     print('\x1b[36;1mCommands:\x1b[0m')
-    print('\x1b[36madd-token\x1b[0m')
-    print('\x1b[36mreplace-token\x1b[0m')
-    print('\x1b[36mdelete-token\x1b[0m')
-    print('\x1b[36mlist-tokens\x1b[0m')
-    print('\x1b[36mreencrypt-tokens\x1b[0m')
-    print('\x1b[36mhelp\x1b[0m')
-    print('\x1b[36mexit\x1b[0m')
+    for command in commands:
+        print(f'\x1b[36m{command}\x1b[0m')
+
+
+commands = {
+    'add-token': add_token,
+    'replace-token': replace_token,
+    'delete-token': delete_token,
+    'list-tokens': list_tokens,
+    'reencrypt-tokens': reencrypt_tokens,
+    'help': command_help,
+    'exit': lambda: sys.exit(0)
+}
 
 
 list_tokens()
@@ -204,22 +210,9 @@ while True:
         break
 
     try:
-        if command == 'add-token':
-            add_token()
-        elif command == 'replace-token':
-            replace_token()
-        elif command == 'delete-token':
-            delete_token()
-        elif command == 'list-tokens':
-            list_tokens()
-        elif command == 'reencrypt-tokens':
-            reencrypt_tokens()
-        elif command == 'help':
-            command_help()
-        elif command == 'exit':
-            break
-        else:
-            print('\x1b[33;1mInvalid command. Type "help" for a list of commands.\x1b[0m')
+        commands[command]()
+    except KeyError:
+        print('\x1b[33;1mInvalid command. Type "help" for a list of commands.\x1b[0m')
     except KeyboardInterrupt:
         pass
     except:
