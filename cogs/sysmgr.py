@@ -1189,79 +1189,35 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
 
-    @commands.command(aliases=['plugins'],hidden=True,description=language.desc('sysmgr.modifiers'))
-    async def modifiers(self, ctx, *, plugin=None):
+    @system.subcommand(
+        description=language.desc('sysmgr.modifiers'),
+        description_localizations=language.slash_desc('sysmgr.modifiers')
+    )
+    async def modifiers(
+            self, ctx: nextcord.Interaction
+    ):
         selector = language.get_selector(ctx)
-        if plugin:
-            plugin = plugin.lower()
         page = 0
-        try:
-            page = int(plugin) - 1
-            if page < 0:
-                page = 0
-            plugin = None
-        except:
-            pass
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
-        if not plugin:
+        offset = page * 20
+        embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
+        if offset > len(pluglist):
+            page = len(pluglist) // 20 - 1
             offset = page * 20
-            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
-            if offset > len(pluglist):
-                page = len(pluglist) // 20 - 1
-                offset = page * 20
-            for x in range(offset, 20 + offset):
-                if x == len(pluglist):
-                    break
-                with open('plugins/'+pluglist[x]) as file:
-                    pluginfo = json.load(file)
-                embed.add_field(
-                    name=f'{pluginfo["name"]} (`{pluginfo["id"]}`, {pluginfo["version"]})',
-                    value=pluginfo["description"],
-                    inline=False
-                )
-            embed.set_footer(text=selector.rawfget(
-                'page', 'sysmgr.extensions', values={'page': page + 1}
-            ))
-            return await ctx.send(embed=embed)
-        found = False
-        index = 0
-        for plugname in pluglist:
-            if plugname[:-5] == plugin:
-                found = True
+        for x in range(offset, 20 + offset):
+            if x == len(pluglist):
                 break
-            index += 1
-        if found:
-            with open('plugins/' + plugin + '.json') as file:
+            with open('plugins/'+pluglist[x]) as file:
                 pluginfo = json.load(file)
-        else:
-            return await ctx.send(selector.rawget('notfound', 'sysmgr.extensions'))
-        embed = nextcord.Embed(
-            title=pluginfo["name"],
-            description=(selector.fget('version',values={'version':pluginfo['version'],'release':pluginfo['release']})
-                         + '\n\n' + pluginfo["description"]),
-            color=self.bot.colors.unifier
-        )
-        if plugin == 'system':
-            embed.description = embed.description + selector.get('system_plugin')
-        try:
-            embed.url = str(pluginfo['repository'])[:-4]
-        except:
-            pass
-        modtext = 'None'
-        for module in pluginfo['modules']:
-            if modtext=='None':
-                modtext = '- ' + module
-            else:
-                modtext = modtext + '\n- ' + module
-        embed.add_field(name=selector.get('modules'),value=modtext,inline=False)
-        modtext = 'None'
-        for module in pluginfo['utils']:
-            if modtext == 'None':
-                modtext = '- ' + module
-            else:
-                modtext = modtext + '\n- ' + module
-        embed.add_field(name=selector.get('utilities'), value=modtext, inline=False)
-        await ctx.send(embed=embed)
+            embed.add_field(
+                name=f'{pluginfo["name"]} (`{pluginfo["id"]}`, {pluginfo["version"]})',
+                value=pluginfo["description"],
+                inline=False
+            )
+        embed.set_footer(text=selector.rawfget(
+            'page', 'sysmgr.extensions', values={'page': page + 1}
+        ))
+        return await ctx.send(embed=embed)
 
     @commands.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
     @restrictions_legacy.owner()
