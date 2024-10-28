@@ -890,6 +890,10 @@
         "description": "Sends a message as system.",
         "success": "Sent as system"
       },
+      "purge": {
+        "description": "Purges all data linked to a user.",
+        "success": "User data has been purged."
+      },
       "bridge": {
         "blocked_title": "Content blocked",
         "blocked_body": "Your message was blocked. Moderators may be able to see the blocked content.",

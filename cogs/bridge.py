@@ -5441,13 +5441,32 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.command(hidden=True,description=language.desc("bridge.system"))
     @restrictions_legacy.owner()
     @restrictions_legacy.no_admin_perms()
-    async def system(self, ctx: nextcord.Interaction, room, *, content):
+    async def system(self, ctx, room, *, content):
         selector = language.get_selector(ctx)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True,content_override=content)
         for platform in self.bot.platforms.keys():
             await self.bot.bridge.send(
                 room, ctx.message, platform, system=True,
                 content_override=content)
+        await ctx.send(selector.get("success"))
+
+    @commands.command(hidden=True, description=language.desc("bridge.purge"))
+    @restrictions_legacy.owner()
+    async def purge(self, ctx, user_id):
+        selector = language.get_selector(ctx)
+
+        # purge messages
+        for message in self.bot.bridge.bridged:
+            if str(message.author_id) == user_id:
+                await self.bot.bridge.delete_message(message)
+
+        # purge preferences and exp
+        self.bot.db['nicknames'].pop(str(user_id), None)
+        self.bot.db['avatars'].pop(str(user_id), None)
+        self.bot.db['colors'].pop(str(user_id), None)
+        self.bot.db['exp'].pop(str(user_id), None)
+        self.bot.db['languages'].pop(str(user_id), None)
+
         await ctx.send(selector.get("success"))
 
     @commands.Cog.listener()
