@@ -891,7 +891,7 @@
         "success": "Sent as system"
       },
       "purge": {
-        "description": "Purges all data linked to a user.",
+        "description": "Purges all data linked to a user. Does not purge moderation records.",
         "warning_title": "Purge {user}'s data?",
         "warning_body": "All data related to this user will be purged. There is no going back.",
         "purge": "Purge",
