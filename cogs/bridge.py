@@ -678,7 +678,7 @@ class UnifierBridge:
                 continue
             for guild in room[platform].keys():
                 if not guild in self.__bot.db['connections_count'].keys():
-                    pass
+                    continue
                 self.__bot.db['connections_count'][guild] -= 1
                 if self.__bot.db['connections_count'][guild] < 0:
                     self.__bot.db['connections_count'][guild] = 0
