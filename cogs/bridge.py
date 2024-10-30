@@ -5456,7 +5456,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         selector = language.get_selector(ctx)
 
         embed = nextcord.Embed(
-            title=f'{self.bot.ui_emojis.warning} {selector.get("warning_title")}',
+            title=f'{self.bot.ui_emojis.warning} {selector.fget("warning_title",values={"user": user_id})}',
             description=selector.get("warning_body"),
             color=self.bot.colors.warning
         )
