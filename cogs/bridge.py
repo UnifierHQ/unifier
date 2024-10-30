@@ -671,6 +671,16 @@ class UnifierBridge:
             # not something to worry about
             pass
 
+        for platform in room.keys():
+            if platform == 'meta':
+                continue
+            for guild in room[platform].keys():
+                if not guild in self.__bot.db['connections_count'].keys():
+                    pass
+                self.__bot.db['connections_count'][guild] -= 1
+                if self.__bot.db['connections_count'][guild] < 0:
+                    self.__bot.db['connections_count'][guild] = 0
+
         self.__bot.db['rooms'].pop(roomname)
         self.__bot.db.save_data()
 
