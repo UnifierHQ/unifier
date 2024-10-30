@@ -672,6 +672,8 @@ class UnifierBridge:
             pass
 
         for platform in room.keys():
+            if not room['meta']['private']:
+                break
             if platform == 'meta':
                 continue
             for guild in room[platform].keys():
