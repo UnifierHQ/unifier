@@ -892,7 +892,11 @@
       },
       "purge": {
         "description": "Purges all data linked to a user.",
-        "success": "User data has been purged."
+        "warning_title": "Purge {user}'s data?",
+        "warning_body": "All data related to this user will be purged. There is no going back.",
+        "purge": "Purge",
+        "success_title": "Data purged",
+        "success_body": "The user's data have been purged."
       },
       "bridge": {
         "blocked_title": "Content blocked",

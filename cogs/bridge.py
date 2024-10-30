@@ -5455,6 +5455,45 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def purge(self, ctx, user_id):
         selector = language.get_selector(ctx)
 
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} {selector.get("warning_title")}',
+            description=selector.get("warning_body"),
+            color=self.bot.colors.warning
+        )
+
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    label=selector.get("purge"),
+                    style=nextcord.ButtonStyle.red,
+                    custom_id='confirm'
+                ),
+                nextcord.ui.Button(
+                    label=selector.rawget("cancel", "commons.navigation"),
+                    style=nextcord.ButtonStyle.gray,
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            if not interaction.message:
+                return False
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=30)
+        except:
+            return await msg.edit(view=None)
+
+        if not interaction.data['custom_id'] == 'confirm':
+            return await interaction.response.edit_message(view=None)
+
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
         # purge messages
         for message in self.bot.bridge.bridged:
             if str(message.author_id) == user_id:
@@ -5467,7 +5506,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.db['exp'].pop(str(user_id), None)
         self.bot.db['languages'].pop(str(user_id), None)
 
-        await ctx.send(selector.get("success"))
+        embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+        embed.description = selector.get("success_body")
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+        await interaction.delete_original_message()
 
     @commands.Cog.listener()
     async def on_message(self, message):
