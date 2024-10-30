@@ -746,7 +746,16 @@ class UnifierBridge:
         self.update_room(invite['room'], roominfo)
         self.__bot.db.save_data()
 
-    def get_connections_count(self, guild_id, platform):
+    def get_rooms_count(self, guild_id):
+        # we don't need to pull some fancy logic here since this existed since v3
+        return (
+            self.__bot.db['rooms_count'][f'{guild_id}'] if str(guild_id) in self.__bot.db['rooms_count'].keys() else 0
+        )
+
+    def get_connections_count(self, guild_id, platform='discord'):
+        if str(guild_id) in self.__bot.db['connections_count'].keys():
+            return self.__bot.db['connections_count'][f'{guild_id}']
+
         count = 0
         for room in self.rooms:
             roominfo = self.get_room(room)
@@ -4074,6 +4083,52 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send(
             f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}'
         )
+
+    @bridge.subcommand(
+        name='allocations',
+        description=language.desc('bridge.allocations'),
+        description_localizations=language.slash_desc('bridge.allocations')
+    )
+    async def allocations(self, ctx: nextcord.Interaction):
+        selector = language.get_selector(ctx)
+
+        create_used = self.bot.bridge.get_rooms_count(ctx.guild.id)
+        conn_used = self.bot.bridge.get_connections_count(ctx.guild.id)
+        create_limit = self.bot.bridge.get_rooms_limit(ctx.guild.id)
+        conn_limit = self.bot.bridge.get_connections_limit(ctx.guild.id)
+
+        if create_limit > 0:
+            create_warning = f'{self.bot.ui_emojis.warning} ' if (create_used / create_limit) > 0.8 else ''
+        else:
+            create_warning = ''
+
+        if conn_limit > 0:
+            conn_warning = f'{self.bot.ui_emojis.warning} ' if (conn_used / conn_limit) > 0.8 else ''
+        else:
+            conn_warning = ''
+
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.rooms} {selector.get("title")}',
+            color=self.bot.colors.unifier
+        )
+        embed.add_field(
+            name=selector.get('create'),
+            value=create_warning + (
+                selector.get('create_unlimited') if create_limit == 0 else
+                selector.fget('create_limit', values={"used": create_used, "total": create_limit})
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name=selector.get('conn'),
+            value=conn_warning + (
+                selector.get('conn_unlimited') if conn_limit == 0 else
+                selector.fget('conn_limit', values={"used": conn_used, "total": conn_limit})
+            ),
+            inline=False
+        )
+        embed.set_footer(text=f'{selector.get("disclaimer")}\n{selector.get("disclaimer_2")}')
+        await ctx.send(embed=embed)
 
     @bridge.subcommand(
         description=language.desc('bridge.disband'),

@@ -749,6 +749,18 @@
         "success": "Created **{roomtype}** room `{room}`!",
         "dryrun_warning": "This is a dry run, no actual room was made."
       },
+      "allocations": {
+        "description": "Shows your server's Private Rooms creation and connection allocations.",
+        "title": "Your Private Rooms allocations",
+        "create": "Private Rooms creations",
+        "conn": "Private Rooms connections",
+        "create_unlimited": "You have **unlimited** Private Rooms creations.",
+        "conn_unlimited": "You have **unlimited** Private Rooms connections.",
+        "create_limit": "You've used **{used}** out of **{total}** allocated Private Rooms creations.",
+        "conn_limit": "You've used **{used}** out of **{total}** allocated Private Rooms connections.",
+        "disclaimer": "You can always disband or disconnect from Private Rooms to free up allocations.",
+        "disclaimer_2": "Public Rooms connections don't count towards your Private Rooms connections usage."
+      },
       "color": {
         "options": {
           "color": {
