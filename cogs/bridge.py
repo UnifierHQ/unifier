@@ -5506,6 +5506,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.db['exp'].pop(str(user_id), None)
         self.bot.db['languages'].pop(str(user_id), None)
 
+        # remove verified status
+        try:
+            self.bot.db['trusted'].remove(int(user_id))
+        except:
+            pass
+
         embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
         embed.description = selector.get("success_body")
         embed.colour = self.bot.colors.success
