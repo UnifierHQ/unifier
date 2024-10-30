@@ -664,9 +664,9 @@ class UnifierBridge:
         try:
             if (
                     (room['meta']['private_meta']['server']) and
-                    (self.__bot.db['rooms_count'][room['meta']['private_meta']['server']] > 0)
+                    (self.__bot.db['rooms_count'][str(room['meta']['private_meta']['server'])] > 0)
             ):
-                self.__bot.db['rooms_count'][room['meta']['private_meta']['server']] -= 1
+                self.__bot.db['rooms_count'][str(room['meta']['private_meta']['server'])] -= 1
         except:
             # not something to worry about
             pass
