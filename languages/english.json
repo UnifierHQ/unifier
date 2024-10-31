@@ -87,7 +87,8 @@
         "git": "Git is not installed."
       },
       "rooms": {
-        "invalid": "This room does not exist. Run `/bridge rooms` for a full list of rooms."
+        "invalid": "This room does not exist. Run `/bridge rooms` for a full list of rooms.",
+        "private_disabled": "Private Rooms are disabled."
       }
     },
     "sysmgr": {
@@ -742,7 +743,6 @@
         "public_name": "Public",
         "public_desc": "Make a room for everyone to talk in.",
         "select": "Please select the room type.",
-        "private_disabled": "Private Rooms are disabled.",
         "private_limit": "You cannot create any more Private Rooms. The limit is {limit}.",
         "unique_fail": "Could not generate a unique room name in 10 tries.",
         "exists": "This room already exists!",

@@ -4045,7 +4045,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         view=None)
 
         if not self.bot.config['enable_private_rooms'] and roomtype == 'private':
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("private_disabled")}', ephemeral=True)
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} {selector.rawget("private_disabled","commons.rooms")}', ephemeral=True
+            )
 
         if not room or roomtype == 'private':
             for _ in range(10):
@@ -4103,6 +4105,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     )
     async def allocations(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
+
+        if not self.bot.config['enable_private_rooms']:
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} {selector.rawget("private_disabled","commons.rooms")}', ephemeral=True
+            )
 
         create_used = self.bot.bridge.get_rooms_count(ctx.guild.id)
         conn_used = self.bot.bridge.get_connections_count(ctx.guild.id)
