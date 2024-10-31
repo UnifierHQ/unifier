@@ -173,6 +173,7 @@ except:
     sys.exit(1)
 
 tokenstore = secrets.TokenStore(True, password=encryption_password, salt=salt, content_override={'TOKEN': token})
+tokenstore.add_token('TOKEN', token)
 tokenstore.save('.encryptedenv', '.ivs')
 print('\x1b[36;1mYour tokens have been stored securely.\x1b[0m')
 
@@ -180,6 +181,7 @@ with open('config.toml', 'rb') as file:
     config = tomli.load(file)
 
 config['roles']['owner'] = user_id
+config['system']['encrypted_env_salt'] = salt
 
 if not internal['skip_server']:
     config['moderation']['home_guild'] = server_id
