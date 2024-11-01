@@ -158,7 +158,7 @@ attribution = {
         'author': 'UltraJSON',
         'description': 'Ultra fast JSON decoder and encoder written in C with Python bindings',
         'repo': 'https://github.com/ultrajson/ultrajson',
-        'license': 'Custom',
+        'license': 'BSD-3-Clause',
         'license_url': 'https://github.com/ultrajson/ultrajson/blob/main/LICENSE.txt'
     },
     'emoji': {
