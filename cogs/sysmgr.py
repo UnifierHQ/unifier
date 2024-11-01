@@ -679,14 +679,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     async def download(self):
         endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
-        __apikey = os.environ.get('API_KEY')
+        __apikey = self.bot.tokenstore.retrieve('CLOUD_BACKUP_API_KEY')
         __headers = {
             'Accept': 'application/json',
             'Authorization': f"Bearer {__apikey}"
         }
         try:
             __salt = self.bot.config['cloud_backup_salt']
-            __pass = os.environ.get('ENCRYPTION_PASSWORD')
+            __pass = self.bot.tokenstore.retrieve('CLOUD_BACKUP_PASSWORD')
         except:
             return
         resp = await self.bot.loop.run_in_executor(
@@ -703,7 +703,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     async def check_backup(self):
         endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
-        __apikey = os.environ.get('API_KEY')
+        __apikey = self.bot.tokenstore.retrieve('CLOUD_BACKUP_API_KEY')
         __headers = {
             'Accept': 'application/json',
             'Authorization': f"Bearer {__apikey}"
@@ -1013,14 +1013,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not self.bot.ready:
             return
         endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
-        __apikey = os.environ.get('API_KEY')
+        __apikey = self.bot.tokenstore.retrieve('CLOUD_BACKUP_API_KEY')
         __headers = {
             'Accept': 'application/json',
             'Authorization': f"Bearer {__apikey}"
         }
         try:
             __salt = self.bot.config['cloud_backup_salt']
-            __pass = os.environ.get('ENCRYPTION_PASSWORD')
+            __pass = self.bot.tokenstore.retrieve('CLOUD_BACKUP_PASSWORD')
             if not __salt or not __pass:
                 return
         except:
