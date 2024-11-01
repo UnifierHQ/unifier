@@ -215,6 +215,8 @@ while True:
         print('\x1b[33;1mInvalid command. Type "help" for a list of commands.\x1b[0m')
     except KeyboardInterrupt:
         pass
+    except SystemExit:
+        break
     except:
         traceback.print_exc()
         print('\x1b[31;1mAn error occurred.\x1b[0m')
