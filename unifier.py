@@ -648,6 +648,8 @@ async def on_message(message):
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
 
+release_key = bot.tokenstore.request_password_key('UNIFIER_ENCPASS')
+
 try:
     bot.run(bot.tokenstore.retrieve('TOKEN'))
 except SystemExit as e:
@@ -655,6 +657,7 @@ except SystemExit as e:
         code = int(f'{e}')
     except:
         code = 'unknown'
+    bot.tokenstore.release_password_key(release_key)
     if code==0 or code==130:
         logger.info(f'Exiting with code {code}')
     else:
