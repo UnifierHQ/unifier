@@ -34,6 +34,10 @@ reports will be taken down and may result in sanctions.
 Instead, please either DM a developer on Discord, or report the 
 vulnerability to us, so we can privately patch the vulnerability.
 
+When reporting a vulnerability using GitHub, please use CVSS 3.1 or 4.0
+to evaluate the severity of the vulnerability. This lets us know how
+severe the vulnerability is and what it affects.
+
 ### What counts as a vulnerability?
 Here are examples of what you **should** report to us as security
 vulnerabilities:
