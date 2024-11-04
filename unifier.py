@@ -648,6 +648,8 @@ async def on_message(message):
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
 
+os.environ.pop('UNIFIER_ENCPASS')
+
 try:
     bot.run(bot.tokenstore.retrieve('TOKEN'))
 except SystemExit as e:
