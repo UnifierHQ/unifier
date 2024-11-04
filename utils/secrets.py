@@ -66,7 +66,6 @@ class TokenStore:
         self.__password = password
         self.__request_password = None
         self.__requested_password = True
-        self.__deleted_var = None
         self.__salt = salt
         self.__one_time = onetime or []
         self.__accessed = []
@@ -123,32 +122,6 @@ class TokenStore:
     @property
     def accessed(self):
         return self.__accessed
-
-    def request_password_key(self, envvar):
-        """Removes the given environment variable and returns 64 random bytes that can
-        be used to add the encryption password back to that variable.
-
-        This can only be done once and is used to prevent Modifiers from accessing the
-        encryption password through environment variables.."""
-        if not self.__requested_password:
-            os.environ.pop(envvar)
-            self.__request_password = CryptoRandom.get_random_bytes(64)
-            self.__requested_password = True
-            self.__deleted_var = envvar
-            return self.__request_password
-        raise ValueError('password has already been requested')
-
-    def release_password_key(self, key):
-        """Readds the encryption password back to the environment variable if the
-        provided bytes match."""
-        if not self.__request_password:
-            raise ValueError('key has not been requested')
-        elif not key == self.__request_password:
-            raise ValueError('invalid key')
-        else:
-            os.environ[self.__deleted_var] = self.__password
-            self.__request_password = None
-            self.__deleted_var = None
 
     def to_encrypted(self, password, salt):
         dotenv = open('.env', 'r')
