@@ -213,6 +213,7 @@ while True:
     encrypted = os.path.isfile('.encryptedenv')
     if not choice is None and os.environ.get('UNIFIER_ENCPASS') is None:
         # choice is set but not the password, likely due to wrong password
+        print("Please enter your encryption password.")
         encryption_password = str(getpass.getpass('Password: '))
         os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
     elif not choice is None:
