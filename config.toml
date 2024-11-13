@@ -25,6 +25,7 @@ custom_slogan = ""
 
 [backups]
 compress_cache = true
+cache_backup_limit = 10000
 periodic_backup = 0
 periodic_backup_cloud = 0
 cloud_backup_endpoint = ""
@@ -65,7 +66,8 @@ global_filesize_limit = 0 # This will be used if it's lower than the platform's 
 permanent_invites = false
 enable_private_rooms = false
 private_rooms_mod_access = true # Disable this if you don't want moderators to access Private Rooms.
-private_rooms_limit = 0
+private_rooms_limit = 0 # Limits total Private Rooms that can be created by a server
+private_rooms_connections_limit = 0 # Limits total Private Rooms that can be connected to by a server
 main_room = "main"
 alerts_room = "alerts"
 posts_room = "posts"

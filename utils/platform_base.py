@@ -50,12 +50,12 @@ class PlatformBase:
     @property
     def attachment_size_limit(self):
         # This should return the smaller filesize limit. Don't override this.
-        if self.bot.config['global_filesize_limit'] <= 0:
+        if self.parent.config['global_filesize_limit'] <= 0:
             return self.filesize_limit
 
         return (
-            self.filesize_limit if self.filesize_limit < self.bot.config['global_filesize_limit']
-            else self.bot.config['global_filesize_limit']
+            self.filesize_limit if self.filesize_limit < self.parent.config['global_filesize_limit']
+            else self.parent.config['global_filesize_limit']
         )
 
     def is_available(self):

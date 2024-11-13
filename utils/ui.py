@@ -34,7 +34,7 @@ class ActionRow:
     def __init__(self, *args):
         if len(args) > 5:
             raise ValueError("too many items")
-        if len(args) < 0:
+        if len(args) == 0:
             raise ValueError("no items")
 
         self.items = list(args)

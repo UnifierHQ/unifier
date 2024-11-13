@@ -158,7 +158,7 @@ attribution = {
         'author': 'UltraJSON',
         'description': 'Ultra fast JSON decoder and encoder written in C with Python bindings',
         'repo': 'https://github.com/ultrajson/ultrajson',
-        'license': 'Custom',
+        'license': 'BSD-3-Clause',
         'license_url': 'https://github.com/ultrajson/ultrajson/blob/main/LICENSE.txt'
     },
     'emoji': {
@@ -360,7 +360,7 @@ class CommandExceptionHandler:
                 cmd = self.bot.get_command(cmdname)
                 embed = nextcord.Embed(color=self.bot.colors.unifier)
 
-                helptext = selector.rawget("title", "sysmgr.help", values={"botname": self.bot.user.global_name or self.bot.user.name})
+                helptext = selector.rawfget("title", "sysmgr.help", values={"botname": self.bot.user.global_name or self.bot.user.name})
 
                 embed.title = f'{self.bot.ui_emojis.command} {helptext} / {cmdname}'
                 embed.description = (
@@ -622,7 +622,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.bot.backup_cloud_task.start()
                 self.logger.debug(f'Backing up data to cloud every {round(self.bot.config["ping"])} seconds')
 
-    def get_commands(self, cog=None):
+    def get_all_commands(self, cog=None):
         def extract_subcommands(__command):
             subcommands = []
             if type(__command) is nextcord.MessageApplicationCommand or type(__command) is nextcord.UserApplicationCommand:
@@ -679,14 +679,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     async def download(self):
         endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
-        __apikey = os.environ.get('API_KEY')
+        __apikey = self.bot.tokenstore.retrieve('CLOUD_BACKUP_API_KEY')
         __headers = {
             'Accept': 'application/json',
             'Authorization': f"Bearer {__apikey}"
         }
         try:
             __salt = self.bot.config['cloud_backup_salt']
-            __pass = os.environ.get('ENCRYPTION_PASSWORD')
+            __pass = self.bot.tokenstore.retrieve('CLOUD_BACKUP_PASSWORD')
         except:
             return
         resp = await self.bot.loop.run_in_executor(
@@ -703,7 +703,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     async def check_backup(self):
         endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
-        __apikey = os.environ.get('API_KEY')
+        __apikey = self.bot.tokenstore.retrieve('CLOUD_BACKUP_API_KEY')
         __headers = {
             'Accept': 'application/json',
             'Authorization': f"Bearer {__apikey}"
@@ -887,7 +887,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.info("Backing up message cache...")
                 self.bot.db.save_data()
                 self.bot.bridge.backup_lock = False
-                await self.bot.bridge.backup(limit=10000)
+                await self.bot.bridge.backup()
                 self.logger.info("Backup complete")
             if restart:
                 embed.title = f'{self.bot.ui_emojis.success} {selector.get("rsuccess_title")}'
@@ -1003,7 +1003,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not self.bot.ready:
             return
         try:
-            tasks = [self.bot.loop.create_task(self.bot.bridge.backup(limit=10000))]
+            tasks = [self.bot.loop.create_task(self.bot.bridge.backup())]
             await asyncio.wait(tasks)
         except:
             self.logger.exception('Backup failed')
@@ -1013,14 +1013,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not self.bot.ready:
             return
         endpoint = 'https://' + self.bot.config['cloud_backup_endpoint']
-        __apikey = os.environ.get('API_KEY')
+        __apikey = self.bot.tokenstore.retrieve('CLOUD_BACKUP_API_KEY')
         __headers = {
             'Accept': 'application/json',
             'Authorization': f"Bearer {__apikey}"
         }
         try:
             __salt = self.bot.config['cloud_backup_salt']
-            __pass = os.environ.get('ENCRYPTION_PASSWORD')
+            __pass = self.bot.tokenstore.retrieve('CLOUD_BACKUP_PASSWORD')
             if not __salt or not __pass:
                 return
         except:
@@ -1189,79 +1189,35 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
 
-    @commands.command(aliases=['plugins'],hidden=True,description=language.desc('sysmgr.modifiers'))
-    async def modifiers(self, ctx, *, plugin=None):
+    @system.subcommand(
+        description=language.desc('sysmgr.modifiers'),
+        description_localizations=language.slash_desc('sysmgr.modifiers')
+    )
+    async def modifiers(
+            self, ctx: nextcord.Interaction
+    ):
         selector = language.get_selector(ctx)
-        if plugin:
-            plugin = plugin.lower()
         page = 0
-        try:
-            page = int(plugin) - 1
-            if page < 0:
-                page = 0
-            plugin = None
-        except:
-            pass
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
-        if not plugin:
+        offset = page * 20
+        embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
+        if offset > len(pluglist):
+            page = len(pluglist) // 20 - 1
             offset = page * 20
-            embed = nextcord.Embed(title=selector.get('title'), color=self.bot.colors.unifier)
-            if offset > len(pluglist):
-                page = len(pluglist) // 20 - 1
-                offset = page * 20
-            for x in range(offset, 20 + offset):
-                if x == len(pluglist):
-                    break
-                with open('plugins/'+pluglist[x]) as file:
-                    pluginfo = json.load(file)
-                embed.add_field(
-                    name=f'{pluginfo["name"]} (`{pluginfo["id"]}`, {pluginfo["version"]})',
-                    value=pluginfo["description"],
-                    inline=False
-                )
-            embed.set_footer(text=selector.rawfget(
-                'page', 'sysmgr.extensions', values={'page': page + 1}
-            ))
-            return await ctx.send(embed=embed)
-        found = False
-        index = 0
-        for plugname in pluglist:
-            if plugname[:-5] == plugin:
-                found = True
+        for x in range(offset, 20 + offset):
+            if x == len(pluglist):
                 break
-            index += 1
-        if found:
-            with open('plugins/' + plugin + '.json') as file:
+            with open('plugins/'+pluglist[x]) as file:
                 pluginfo = json.load(file)
-        else:
-            return await ctx.send(selector.rawget('notfound', 'sysmgr.extensions'))
-        embed = nextcord.Embed(
-            title=pluginfo["name"],
-            description=(selector.fget('version',values={'version':pluginfo['version'],'release':pluginfo['release']})
-                         + '\n\n' + pluginfo["description"]),
-            color=self.bot.colors.unifier
-        )
-        if plugin == 'system':
-            embed.description = embed.description + selector.get('system_plugin')
-        try:
-            embed.url = str(pluginfo['repository'])[:-4]
-        except:
-            pass
-        modtext = 'None'
-        for module in pluginfo['modules']:
-            if modtext=='None':
-                modtext = '- ' + module
-            else:
-                modtext = modtext + '\n- ' + module
-        embed.add_field(name=selector.get('modules'),value=modtext,inline=False)
-        modtext = 'None'
-        for module in pluginfo['utils']:
-            if modtext == 'None':
-                modtext = '- ' + module
-            else:
-                modtext = modtext + '\n- ' + module
-        embed.add_field(name=selector.get('utilities'), value=modtext, inline=False)
-        await ctx.send(embed=embed)
+            embed.add_field(
+                name=f'{pluginfo["name"]} (`{pluginfo["id"]}`, {pluginfo["version"]})',
+                value=pluginfo["description"],
+                inline=False
+            )
+        embed.set_footer(text=selector.rawfget(
+            'page', 'sysmgr.extensions', values={'page': page + 1}
+        ))
+        return await ctx.send(embed=embed)
 
     @commands.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
     @restrictions_legacy.owner()
@@ -2274,11 +2230,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         except:
                             self.logger.warning(cog+' could not be reloaded.')
                             embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
+                    self.logger.info('Updating localization')
+                    self.bot.langmgr.load()
                     await self.bot.discover_application_commands()
                     await self.bot.register_new_application_commands()
-                    self.logger.info('Updating localization')
-                    self.bot.langmgr = langmgr.LanguageManager(self.bot)
-                    self.bot.langmgr.load()
                     self.logger.info('Upgrade complete')
                     embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
                     embed.description = selector.get("success_body")
@@ -2750,7 +2705,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==1:
                 if cogname=='' or cogname=='search':
-                    cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
+                    cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
                 else:
                     query_cog = None
                     cmds = []
@@ -2760,7 +2715,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             break
 
                     if not query_cog is None:
-                        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands(cog=query_cog))
+                        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands(cog=query_cog))
 
                 offset = 0
 
@@ -2796,7 +2751,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         canrun = True
                     else:
                         try:
-                            if isinstance(cmd, nextcord.BaseApplicationCommand):
+                            if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                                 canrun = await cmd.can_run(ctx)
                             else:
                                 canrun = (
@@ -2962,7 +2917,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
                 )
             elif panel==2:
-                cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
+                cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
                 cmd = [cmd for cmd in cmds if cmd.qualified_name==cmdname][0]
                 localized_cogname = selector.get("search_nav") if cogname == 'search' else cogname
                 embed.title = (
@@ -3080,7 +3035,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     @help.on_autocomplete("query")
     async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
-        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_commands())
+        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
         overrides = {
             'admin': [],
             'mod': [],
@@ -3102,7 +3057,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         for cmd in cmds:
             if query.lower() in cmd.qualified_name:
                 try:
-                    if isinstance(cmd, nextcord.BaseApplicationCommand):
+                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                         canrun = await cmd.can_run(ctx)
                     else:
                         canrun = (
@@ -3295,10 +3250,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 ),
                 color=self.bot.colors.unifier
             )
-            if vinfo:
-                embed.set_footer(text=footer_text)
-            else:
-                embed.set_footer(text=footer_text)
+            embed.set_footer(text=footer_text)
 
             terms_hyperlink = f'[{selector.get("terms")}]({self.bot.config["terms_url"]})'
             if not self.bot.config["terms_url"]:

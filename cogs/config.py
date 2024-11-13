@@ -283,7 +283,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -338,7 +338,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             invite: str = slash.option('config.delete-invite.invite')
     ):
         invite = invite.lower()
-        if not self.can_manage(ctx.user, invite):
+        if not self.bot.bridge.can_manage_room(invite, ctx.user):
             raise restrictions.NoRoomManagement()
         selector = language.get_selector(ctx)
         try:
@@ -360,7 +360,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -409,7 +409,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.author, room):
+        if not self.bot.bridge.can_manage_room(room, ctx.author):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -443,7 +443,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -478,7 +478,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -507,7 +507,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -796,7 +796,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not __room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, __room):
+        if not self.bot.bridge.can_manage_room(__room, ctx.user):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)
@@ -822,7 +822,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
 
-        if not self.can_manage(ctx.user, room):
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
             raise restrictions.NoRoomManagement()
 
         selector = language.get_selector(ctx)

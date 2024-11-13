@@ -87,7 +87,8 @@
         "git": "Git is not installed."
       },
       "rooms": {
-        "invalid": "This room does not exist. Run `/bridge rooms` for a full list of rooms."
+        "invalid": "This room does not exist. Run `/bridge rooms` for a full list of rooms.",
+        "private_disabled": "Private Rooms are disabled."
       }
     },
     "sysmgr": {
@@ -620,6 +621,7 @@
         "failed": "Failed to connect.",
         "invalid_invite": "Invite is invalid.",
         "room_banned": "You are banned from this room.",
+        "too_many": "Server has reached maximum number of connections.",
         "success": "Connected to room!",
         "say_hi": "You're now connected! Say hi!"
       },
@@ -741,12 +743,23 @@
         "public_name": "Public",
         "public_desc": "Make a room for everyone to talk in.",
         "select": "Please select the room type.",
-        "private_disabled": "Private Rooms are disabled.",
         "private_limit": "You cannot create any more Private Rooms. The limit is {limit}.",
         "unique_fail": "Could not generate a unique room name in 10 tries.",
         "exists": "This room already exists!",
         "success": "Created **{roomtype}** room `{room}`!",
         "dryrun_warning": "This is a dry run, no actual room was made."
+      },
+      "allocations": {
+        "description": "Shows your server's Private Rooms creation and connection allocations.",
+        "title": "Your Private Rooms allocations",
+        "create": "Private Rooms creations",
+        "conn": "Private Rooms connections",
+        "create_unlimited": "You have **unlimited** Private Rooms creations.",
+        "conn_unlimited": "You have **unlimited** Private Rooms connections.",
+        "create_limit": "You've used **{used}** out of **{total}** allocated Private Rooms creations.",
+        "conn_limit": "You've used **{used}** out of **{total}** allocated Private Rooms connections.",
+        "disclaimer": "You can always disband or disconnect from Private Rooms to free up allocations.",
+        "disclaimer_2": "Public Rooms connections don't count towards your Private Rooms connections usage."
       },
       "color": {
         "options": {
@@ -888,6 +901,14 @@
       "system": {
         "description": "Sends a message as system.",
         "success": "Sent as system"
+      },
+      "purge": {
+        "description": "Purges all data linked to a user. Does not purge moderation records.",
+        "warning_title": "Purge {user}'s data?",
+        "warning_body": "All data related to this user will be purged. There is no going back.",
+        "purge": "Purge",
+        "success_title": "Data purged",
+        "success_body": "The user's data have been purged."
       },
       "bridge": {
         "blocked_title": "Content blocked",

@@ -151,6 +151,8 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
         # sleep to prevent 429s
         time.sleep(5)
 
+encryption_password = ''
+
 if clear_tokens:
     print('\x1b[37;41;1mWARNING: ALL TOKENS WILL BE CLEARED!\x1b[0m')
     print('\x1b[33;1mYou should only clear your tokens if you forgot your password.\x1b[0m')
@@ -211,7 +213,7 @@ while True:
     encrypted = os.path.isfile('.encryptedenv')
     if not choice is None and os.environ.get('UNIFIER_ENCPASS') is None:
         # choice is set but not the password, likely due to wrong password
-        encryption_password = getpass.getpass('Password: ')
+        encryption_password = str(getpass.getpass('Password: '))
         os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
     elif not choice is None:
         # choice is set and password is correct
@@ -247,12 +249,10 @@ while True:
             encryption_password = getpass.getpass('Password: ')
 
         os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
-        del encryption_password
     elif choice == 1:
         encryption_password = getpass.getpass('New password: ')
         confirm_password = getpass.getpass('Confirm password: ')
         os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
-        del encryption_password
         del confirm_password
         should_encrypt = True
 
@@ -280,8 +280,11 @@ while True:
             os.remove('.restart')
 
         print(f'\x1b[33;1mRestarting {internal["product_name"]}...\x1b[0m')
+        if encryption_password:
+            os.environ['UNIFIER_ENCPASS'] = encryption_password
     else:
         print(f'\x1b[36;1m{internal["product_name"]} shutdown successful.\x1b[0m')
+        del encryption_password
         sys.exit(0)
 
     first_boot = True

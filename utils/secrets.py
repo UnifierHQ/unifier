@@ -64,6 +64,8 @@ class TokenStore:
         self.__is_encrypted = encrypted
         self.__encryptor = Encryptor()
         self.__password = password
+        self.__request_password = None
+        self.__requested_password = True
         self.__salt = salt
         self.__one_time = onetime or []
         self.__accessed = []

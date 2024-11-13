@@ -32,7 +32,6 @@ import re
 import ast
 import math
 import os
-import copy
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
 import importlib
 import emoji as pymoji
@@ -255,6 +254,11 @@ class UnifierPossibleRaidEvent:
         return self.impact_score > 300
 
 class UnifierBridge:
+    # In case of the infamous Room Robbery bug, (room ownership gets stolen from a server),
+    # convert some variables to private variables (e.g. room ==> __room). Should help.
+    #
+    # If it didn't, DM me so I can look into it
+
     def __init__(self, bot, logger, webhook_cache=None):
         self.__bot = bot
         self.bridged = []
@@ -271,7 +275,11 @@ class UnifierBridge:
         self.msg_stats = {}
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
-        self.__room_template = {
+        self.alert = UnifierAlert
+
+    @property
+    def room_template(self):
+        return {
             'rules': [], 'restricted': False, 'locked': False, 'private': False,
             'private_meta': {
                 'server': None,
@@ -281,11 +289,6 @@ class UnifierBridge:
             },
             'emoji': None, 'description': None, 'display_name': None, 'banned': []
         }
-        self.alert = UnifierAlert
-
-    @property
-    def room_template(self):
-        return self.__room_template
 
     @property
     def rooms(self):
@@ -381,6 +384,11 @@ class UnifierBridge:
         pass
 
     class TooManyRooms(Exception):
+        """Server has reached maximum Private Room creations."""
+        pass
+
+    class TooManyConnections(Exception):
+        """Server has reached maximum Private Room connections."""
         pass
 
     class RoomBannedError(Exception):
@@ -475,7 +483,7 @@ class UnifierBridge:
             support = self.__bot.platforms[platform]
 
         for room in self.rooms:
-            __roominfo = copy.copy(self.get_room(room))
+            __roominfo: dict = dict(self.get_room(room))
 
             if not platform in __roominfo.keys():
                 continue
@@ -497,7 +505,7 @@ class UnifierBridge:
         This will be moved to UnifierBridge for a future update."""
         try:
             __roominfo = self.__bot.db['rooms'][room]
-            base = {'meta': dict(self.__room_template)}
+            base = {'meta': dict(self.room_template)}
 
             # add template keys and values to data
             for key in __roominfo.keys():
@@ -513,12 +521,15 @@ class UnifierBridge:
                 else:
                     base.update({key: __roominfo[key]})
 
-            return base
+            return dict(base)
         except:
             return None
 
     def can_manage_room(self, room, user, platform='discord') -> bool:
         roominfo = self.get_room(room)
+
+        if not roominfo:
+            roominfo = self.get_room(self.get_invite(room)['room'])
 
         if platform == 'discord':
             manage_guild = user.guild_permissions.manage_channels
@@ -532,9 +543,12 @@ class UnifierBridge:
 
         is_server = guild_id == roominfo['meta']['private_meta']['server']
 
+        if user_id in self.__bot.admins:
+            return True
+
         if roominfo['meta']['private']:
             if user:
-                if user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']:
+                if user_id in self.__bot.moderators and self.__bot.config['private_rooms_mod_access']:
                     return True
             return is_server and manage_guild
         else:
@@ -542,6 +556,9 @@ class UnifierBridge:
 
     def can_join_room(self, room, user, platform='discord') -> bool:
         roominfo = self.get_room(room)
+
+        if not roominfo:
+            roominfo = self.get_room(self.get_invite(room)['room'])
 
         if platform == 'discord':
             manage_channels = user.guild_permissions.manage_channels
@@ -556,6 +573,9 @@ class UnifierBridge:
         is_server = guild_id == roominfo['meta']['private_meta']['server']
         can_join = guild_id in roominfo['meta']['private_meta']['allowed']
 
+        if user_id in self.__bot.admins:
+            return True
+
         if roominfo['meta']['private']:
             if user:
                 if user_id in self.__bot.moderators and self.__bot.config['private_rooms_mod_access']:
@@ -564,15 +584,30 @@ class UnifierBridge:
         else:
             return manage_channels
 
-    def can_access_room(self, room, user, ignore_mod=False) -> bool:
+    def can_access_room(self, room, user, platform='discord', ignore_mod=False) -> bool:
         __roominfo = self.get_room(room)
+
+        if not __roominfo:
+            __roominfo = self.get_room(self.get_invite(room)['room'])
+
+        if platform=='discord':
+            user_id = user.id
+            guild_id = user.guild.id
+        else:
+            support = self.__bot.platforms[platform]
+            user_id = support.get_id(user)
+            guild_id = support.get_id(support.server(user))
+
+        if user.id in self.__bot.admins and not ignore_mod:
+            return True
+
         if __roominfo['meta']['private']:
             if user:
-                if user.id in self.__bot.moderators and (self.__bot.config['private_rooms_mod_access'] and not ignore_mod):
+                if user_id in self.__bot.moderators and (self.__bot.config['private_rooms_mod_access'] and not ignore_mod):
                     return True
             return (
-                    user.guild.id == __roominfo['meta']['private_meta']['server'] or
-                    user.guild.id in __roominfo['meta']['private_meta']['allowed']
+                    guild_id == __roominfo['meta']['private_meta']['server'] or
+                    guild_id in __roominfo['meta']['private_meta']['allowed']
             )
         else:
             return True
@@ -590,29 +625,28 @@ class UnifierBridge:
         if private and not origin:
             raise ValueError('origin must be provided')
 
-        room_base = {'meta': dict(self.__room_template)}
-        room_base['meta'].update({'private': private})
+        __room_base = {'meta': dict(self.room_template)}
+        __room_base['meta'].update({'private': private})
 
         if private:
             if not self.__bot.config['enable_private_rooms']:
                 raise ValueError('private rooms are disabled')
 
             if not dry_run:
+                limit = self.get_rooms_limit(origin)
+
                 if not f'{origin}' in self.__bot.db['rooms_count'].keys():
                     self.__bot.db['rooms_count'].update({f'{origin}': 0})
-                if (
-                        self.__bot.db['rooms_count'][f'{origin}'] >= self.__bot.config['private_rooms_limit'] and
-                        not self.__bot.config['private_rooms_limit'] == 0
-                ):
+                if self.__bot.db['rooms_count'][f'{origin}'] >= limit and not limit == 0:
                     raise self.TooManyRooms('exceeded limit')
                 self.__bot.db['rooms_count'][f'{origin}'] += 1
-            room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
+            __room_base['meta']['private_meta'].update({'server': origin, 'platform': platform})
 
         if not dry_run:
-            self.__bot.db['rooms'].update({room: room_base})
+            self.__bot.db['rooms'].update({room: dict(__room_base)})
             self.__bot.db.save_data()
 
-        return room_base
+        return dict(__room_base)
 
     def delete_room(self, room):
         if not room in self.rooms:
@@ -630,12 +664,24 @@ class UnifierBridge:
         try:
             if (
                     (room['meta']['private_meta']['server']) and
-                    (self.__bot.db['rooms_count'][room['meta']['private_meta']['server']] > 0)
+                    (self.__bot.db['rooms_count'][str(room['meta']['private_meta']['server'])] > 0)
             ):
-                self.__bot.db['rooms_count'][room['meta']['private_meta']['server']] -= 1
+                self.__bot.db['rooms_count'][str(room['meta']['private_meta']['server'])] -= 1
         except:
             # not something to worry about
             pass
+
+        for platform in room.keys():
+            if not room['meta']['private']:
+                break
+            if platform == 'meta':
+                continue
+            for guild in room[platform].keys():
+                if not guild in self.__bot.db['connections_count'].keys():
+                    continue
+                self.__bot.db['connections_count'][guild] -= 1
+                if self.__bot.db['connections_count'][guild] < 0:
+                    self.__bot.db['connections_count'][guild] = 0
 
         self.__bot.db['rooms'].pop(roomname)
         self.__bot.db.save_data()
@@ -658,16 +704,16 @@ class UnifierBridge:
 
         while True:
             # generate unique invite
-            invite = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
-            if not invite in self.__bot.db['invites'].keys():
+            __invite = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+            if not __invite in self.__bot.db['invites'].keys():
                 break
 
-        self.__bot.db['invites'].update({invite: {
+        self.__bot.db['invites'].update({__invite: {
             'remaining': max_usage, 'expire': expire, 'room': room
         }})
-        self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].append(invite)
+        self.__bot.db['rooms'][room]['meta']['private_meta']['invites'].append(__invite)
         self.__bot.db.save_data()
-        return invite
+        return __invite
 
     def delete_invite(self, invite):
         if not invite in self.__bot.db['invites'].keys():
@@ -712,6 +758,40 @@ class UnifierBridge:
         self.update_room(invite['room'], roominfo)
         self.__bot.db.save_data()
 
+    def get_rooms_count(self, guild_id):
+        # we don't need to pull some fancy logic here since this existed since v3
+        return (
+            self.__bot.db['rooms_count'][f'{guild_id}'] if str(guild_id) in self.__bot.db['rooms_count'].keys() else 0
+        )
+
+    def get_connections_count(self, guild_id, platform='discord'):
+        if str(guild_id) in self.__bot.db['connections_count'].keys():
+            return self.__bot.db['connections_count'][f'{guild_id}']
+
+        count = 0
+        for room in self.rooms:
+            roominfo = self.get_room(room)
+            if not roominfo['meta']['private']:
+                continue
+            try:
+                if str(guild_id) in roominfo[platform].keys():
+                    count += 1
+            except KeyError:
+                continue
+        return count
+
+    def get_rooms_limit(self, guild_id):
+        if str(guild_id) in self.__bot.db['allocations_override'].keys():
+            return self.__bot.db['allocations_override'][f'{guild_id}']['rooms']
+        else:
+            return self.__bot.config['private_rooms_limit']
+
+    def get_connections_limit(self, guild_id):
+        if str(guild_id) in self.__bot.db['allocations_override'].keys():
+            return self.__bot.db['allocations_override'][f'{guild_id}']['connections']
+        else:
+            return self.__bot.config['private_rooms_connections_limit']
+
     async def join_room(self, user, room, channel, webhook_id=None, platform='discord'):
         roominfo = self.get_room(room)
         if not roominfo:
@@ -732,6 +812,15 @@ class UnifierBridge:
             channel_id = channel.id
             user_id = user.id
             guild_id = user.guild.id
+
+        limit = self.get_connections_limit(guild_id)
+
+        if not f'{guild_id}' in self.__bot.db['connections_count'].keys():
+            self.__bot.db['connections_count'].update({f'{guild_id}': self.get_connections_count(guild_id, platform)})
+
+        if roominfo['meta']['private']:
+            if self.__bot.db['connections_count'][f'{guild_id}'] >= limit and not limit == 0:
+                raise self.TooManyConnections('exceeded limit')
 
         if str(guild_id) in roominfo['meta']['banned'] and ((
                 not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']
@@ -763,6 +852,10 @@ class UnifierBridge:
             raise ValueError('already joined')
 
         self.__bot.db['rooms'][room][platform].update({guild_id: ids})
+
+        if roominfo['meta']['private']:
+            self.__bot.db['connections_count'][f'{guild_id}'] += 1
+
         self.__bot.db.save_data()
 
     async def leave_room(self, guild, room, platform='discord'):
@@ -780,6 +873,9 @@ class UnifierBridge:
         else:
             guild_id = support.get_id(guild)
 
+        if not f'{guild_id}' in self.__bot.db['connections_count'].keys():
+            self.__bot.db['connections_count'].update({f'{guild_id}': self.get_connections_count(guild_id, platform)})
+
         guild_id = str(guild_id)
 
         if not platform in roominfo.keys():
@@ -789,6 +885,12 @@ class UnifierBridge:
             raise ValueError('not joined')
 
         self.__bot.db['rooms'][room][platform].pop(guild_id)
+
+        if roominfo['meta']['private']:
+            self.__bot.db['connections_count'][f'{guild_id}'] -= 1
+            if self.__bot.db['connections_count'][f'{guild_id}'] < 0:
+                self.__bot.db['connections_count'][f'{guild_id}'] = 0
+
         self.__bot.db.save_data()
 
     async def optimize(self, platform='discord'):
@@ -823,6 +925,7 @@ class UnifierBridge:
                             except:
                                 channel_id = support.channel_id(hook)
                             self.__bot.db['rooms'][room][platform][guild].append(channel_id)
+
         self.__bot.db.save_data()
 
     async def convert_1(self):
@@ -877,8 +980,14 @@ class UnifierBridge:
         self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
     # noinspection PyTypeChecker
-    async def backup(self,filename='bridge.json',limit=10000):
+    async def backup(self,filename='bridge.json',limit=None):
         if self.backup_lock:
+            return
+
+        if not limit:
+            limit = self.__bot.config['cache_backup_limit']
+
+        if limit <= 0:
             return
 
         self.backup_running = True
@@ -1195,7 +1304,7 @@ class UnifierBridge:
                 todelete = await support.fetch_message(channel, msgs[key][1])
                 try:
                     threads.append(asyncio.create_task(
-                        support.delete_message(todelete)
+                        support.delete(todelete)
                     ))
                     count += 1
                 except:
@@ -1754,8 +1863,12 @@ class UnifierBridge:
             else:
                 size_total += source_support.attachment_size(attachment)
 
-            size_limit = 25000000
-            if self.__bot.config['global_filesize_limit'] < size_limit:
+            if platform == 'discord':
+                size_limit = 25000000
+            else:
+                size_limit = dest_support.attachment_size_limit or 0
+
+            if size_limit > self.__bot.config['global_filesize_limit'] > 0:
                 size_limit = self.__bot.config['global_filesize_limit']
 
             if not platform == 'discord':
@@ -1806,8 +1919,13 @@ class UnifierBridge:
             for attachment in attachments:
                 if system:
                     break
-                size_limit = 25000000
-                if self.__bot.config['global_filesize_limit'] < size_limit:
+
+                if platform == 'discord':
+                    size_limit = 25000000
+                else:
+                    size_limit = dest_support.attachment_size_limit or 0
+
+                if size_limit > self.__bot.config['global_filesize_limit'] > 0:
                     size_limit = self.__bot.config['global_filesize_limit']
 
                 if source == 'discord':
@@ -1826,7 +1944,7 @@ class UnifierBridge:
                     if (
                             not 'audio' in content_type and not 'video' in content_type and not 'image' in content_type
                             and not 'text/plain' in content_type and self.__bot.config['safe_filetypes']
-                    ) or attachment_size > dest_support.attachment_size_limit or not is_allowed:
+                    ) or attachment_size > size_limit or not is_allowed:
                         continue
 
                 try:
@@ -3536,6 +3654,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("invalid_invite")}'
             elif type(e) is self.bot.bridge.RoomBannedError:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("room_banned")}'
+            elif type(e) is self.bot.bridge.TooManyConnections:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("too_many")}'
             else:
                 should_raise = True
 
@@ -3925,7 +4045,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         view=None)
 
         if not self.bot.config['enable_private_rooms'] and roomtype == 'private':
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("private_disabled")}', ephemeral=True)
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} {selector.rawget("private_disabled","commons.rooms")}', ephemeral=True
+            )
 
         if not room or roomtype == 'private':
             for _ in range(10):
@@ -3975,6 +4097,57 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send(
             f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}'
         )
+
+    @bridge.subcommand(
+        name='allocations',
+        description=language.desc('bridge.allocations'),
+        description_localizations=language.slash_desc('bridge.allocations')
+    )
+    async def allocations(self, ctx: nextcord.Interaction):
+        selector = language.get_selector(ctx)
+
+        if not self.bot.config['enable_private_rooms']:
+            return await ctx.send(
+                f'{self.bot.ui_emojis.error} {selector.rawget("private_disabled","commons.rooms")}', ephemeral=True
+            )
+
+        create_used = self.bot.bridge.get_rooms_count(ctx.guild.id)
+        conn_used = self.bot.bridge.get_connections_count(ctx.guild.id)
+        create_limit = self.bot.bridge.get_rooms_limit(ctx.guild.id)
+        conn_limit = self.bot.bridge.get_connections_limit(ctx.guild.id)
+
+        if create_limit > 0:
+            create_warning = f'{self.bot.ui_emojis.warning} ' if (create_used / create_limit) > 0.8 else ''
+        else:
+            create_warning = ''
+
+        if conn_limit > 0:
+            conn_warning = f'{self.bot.ui_emojis.warning} ' if (conn_used / conn_limit) > 0.8 else ''
+        else:
+            conn_warning = ''
+
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.rooms} {selector.get("title")}',
+            color=self.bot.colors.unifier
+        )
+        embed.add_field(
+            name=selector.get('create'),
+            value=create_warning + (
+                selector.get('create_unlimited') if create_limit == 0 else
+                selector.fget('create_limit', values={"used": create_used, "total": create_limit})
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name=selector.get('conn'),
+            value=conn_warning + (
+                selector.get('conn_unlimited') if conn_limit == 0 else
+                selector.fget('conn_limit', values={"used": conn_used, "total": conn_limit})
+            ),
+            inline=False
+        )
+        embed.set_footer(text=f'{selector.get("disclaimer")}\n{selector.get("disclaimer_2")}')
+        await ctx.send(embed=embed)
 
     @bridge.subcommand(
         description=language.desc('bridge.disband'),
@@ -4053,10 +4226,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.colour = self.bot.colors.success
         await interaction.response.edit_message(embed=embed, view=None)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-
-    @disband.on_autocomplete("room")
-    async def disband_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_manage_autocomplete(room, ctx.user))
 
     @bridge.subcommand(
         description=language.desc('bridge.roomkick'),
@@ -5346,7 +5515,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @commands.command(hidden=True,description=language.desc("bridge.system"))
     @restrictions_legacy.owner()
     @restrictions_legacy.no_admin_perms()
-    async def system(self, ctx: nextcord.Interaction, room, *, content):
+    async def system(self, ctx, room, *, content):
         selector = language.get_selector(ctx)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True,content_override=content)
         for platform in self.bot.platforms.keys():
@@ -5354,6 +5523,75 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 room, ctx.message, platform, system=True,
                 content_override=content)
         await ctx.send(selector.get("success"))
+
+    @commands.command(hidden=True, description=language.desc("bridge.purge"))
+    @restrictions_legacy.owner()
+    async def purge(self, ctx, user_id):
+        selector = language.get_selector(ctx)
+
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} {selector.fget("warning_title",values={"user": user_id})}',
+            description=selector.get("warning_body"),
+            color=self.bot.colors.warning
+        )
+
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    label=selector.get("purge"),
+                    style=nextcord.ButtonStyle.red,
+                    custom_id='confirm'
+                ),
+                nextcord.ui.Button(
+                    label=selector.rawget("cancel", "commons.navigation"),
+                    style=nextcord.ButtonStyle.gray,
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+
+        def check(interaction):
+            if not interaction.message:
+                return False
+            return interaction.message.id == msg.id and interaction.user.id == ctx.author.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=30)
+        except:
+            return await msg.edit(view=None)
+
+        if not interaction.data['custom_id'] == 'confirm':
+            return await interaction.response.edit_message(view=None)
+
+        await interaction.response.defer(ephemeral=True, with_message=True)
+
+        # purge messages
+        for message in self.bot.bridge.bridged:
+            if str(message.author_id) == user_id:
+                await self.bot.bridge.delete_message(message)
+
+        # purge preferences and exp
+        self.bot.db['nicknames'].pop(str(user_id), None)
+        self.bot.db['avatars'].pop(str(user_id), None)
+        self.bot.db['colors'].pop(str(user_id), None)
+        self.bot.db['exp'].pop(str(user_id), None)
+        self.bot.db['languages'].pop(str(user_id), None)
+
+        # remove verified status
+        try:
+            self.bot.db['trusted'].remove(int(user_id))
+        except:
+            pass
+
+        embed.title = f'{self.bot.ui_emojis.success} {selector.get("success_title")}'
+        embed.description = selector.get("success_body")
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+        await interaction.delete_original_message()
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -5420,51 +5658,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.id == self.bot.user.id:
             return
 
-        found = False
-        roomname = None
-
         # Optimized logic
-        for key in self.bot.db['rooms']:
-            if not 'discord' in self.bot.db['rooms'][key].keys():
-                continue
-            data = self.bot.db['rooms'][key]['discord']
-            if f'{message.guild.id}' in list(data.keys()):
-                guilddata = data[f'{message.guild.id}']
-                if len(guilddata) == 1:
-                    continue
-                if guilddata[1]==message.channel.id:
-                    roomname = key
-                    found = True
-                    break
-
-        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-        if not found:
-            try:
-                hooks = await message.channel.webhooks()
-            except:
-                try:
-                    hooks = await message.guild.webhooks()
-                except:
-                    return
-
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    if not 'discord' in self.bot.db['rooms'][key].keys():
-                        continue
-                    data = self.bot.db['rooms'][key]['discord']
-                    if f'{message.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{message.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        found = True
-                        roomname = list(self.bot.db['rooms'].keys())[index]
-                    index += 1
-                if found:
-                    break
-
-        if not found:
+        roomname = self.bot.bridge.get_channel_room(message.channel)
+        if not roomname:
             return
 
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
@@ -5474,9 +5670,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.bot or len(message.embeds) > 0:
             for emb in message.embeds:
                 og_embeds.append(emb)
-
-        if not found:
-            return
 
         unsafe, responses = await self.bot.bridge.run_security(message)
         message = await self.bot.bridge.run_stylizing(message)
@@ -5818,51 +6011,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.author.id == self.bot.user.id:
             return
 
-        found = False
-        roomname = None
+        roomname = self.bot.bridge.get_channel_room(message.channel)
 
-        # Optimized logic
-        for key in self.bot.db['rooms']:
-            if not 'discord' in self.bot.db['rooms'][key].keys():
-                continue
-            data = self.bot.db['rooms'][key]['discord']
-            if f'{message.guild.id}' in list(data.keys()):
-                guilddata = data[f'{message.guild.id}']
-                if len(guilddata) == 1:
-                    continue
-                if guilddata[1] == message.channel.id:
-                    roomname = key
-                    found = True
-                    break
-
-        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-        if not found:
-            try:
-                hooks = await message.channel.webhooks()
-            except:
-                try:
-                    hooks = await message.guild.webhooks()
-                except:
-                    return
-
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    if not 'discord' in self.bot.db['rooms'][key].keys():
-                        continue
-                    data = self.bot.db['rooms'][key]['discord']
-                    if f'{message.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{message.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        found = True
-                        roomname = list(self.bot.db['rooms'].keys())[index]
-                    index += 1
-                if found:
-                    break
-
-        if not found:
+        if not roomname:
             return
 
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
@@ -5960,48 +6111,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if message.author.id == self.bot.user.id:
                 return
 
-            found = False
-            roomname = None
+            roomname = self.bot.bridge.get_channel_room(message.channel)
 
-            # Optimized logic
-            for key in self.bot.db['rooms']:
-                if not 'discord' in self.bot.db['rooms'][key].keys():
-                    continue
-                data = self.bot.db['rooms'][key]['discord']
-                if f'{message.guild.id}' in list(data.keys()):
-                    guilddata = data[f'{message.guild.id}']
-                    if len(guilddata) == 1:
-                        continue
-                    if guilddata[1] == message.channel.id:
-                        roomname = key
-                        found = True
-                        break
-
-            # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-            if not found:
-                try:
-                    hooks = await message.channel.webhooks()
-                except:
-                    return
-
-                for webhook in hooks:
-                    index = 0
-                    for key in self.bot.db['rooms']:
-                        if not 'discord' in self.bot.db['rooms'][key].keys():
-                            continue
-                        data = self.bot.db['rooms'][key]['discord']
-                        if f'{message.guild.id}' in list(data.keys()):
-                            hook_ids = data[f'{message.guild.id}']
-                        else:
-                            hook_ids = []
-                        if webhook.id in hook_ids:
-                            found = True
-                            roomname = list(self.bot.db['rooms'].keys())[index]
-                        index += 1
-                    if found:
-                        break
-
-            if not found:
+            if not roomname:
                 return
 
             if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
@@ -6034,51 +6146,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if message.guild.me.guild_permissions.administrator:
             return
 
-        found = False
-        roomname = None
+        roomname = self.bot.bridge.get_channel_room(message.channel)
 
-        # Optimized logic
-        for key in self.bot.db['rooms']:
-            if not 'discord' in self.bot.db['rooms'][key].keys():
-                continue
-            data = self.bot.db['rooms'][key]['discord']
-            if f'{message.guild.id}' in list(data.keys()):
-                guilddata = data[f'{message.guild.id}']
-                if len(guilddata) == 1:
-                    continue
-                if guilddata[1] == message.channel.id:
-                    roomname = key
-                    found = True
-                    break
-
-        # Unoptimized logic, in case channel ID is missing. Adds about 300-500ms extra latency
-        if not found:
-            try:
-                hooks = await message.channel.webhooks()
-            except:
-                try:
-                    hooks = await message.guild.webhooks()
-                except:
-                    return
-
-            for webhook in hooks:
-                index = 0
-                for key in self.bot.db['rooms']:
-                    if not 'discord' in self.bot.db['rooms'][key].keys():
-                        continue
-                    data = self.bot.db['rooms'][key]['discord']
-                    if f'{message.guild.id}' in list(data.keys()):
-                        hook_ids = data[f'{message.guild.id}']
-                    else:
-                        hook_ids = []
-                    if webhook.id in hook_ids:
-                        found = True
-                        roomname = list(self.bot.db['rooms'].keys())[index]
-                    index += 1
-                if found:
-                    break
-
-        if not found:
+        if not roomname:
             return
 
         if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:

@@ -241,8 +241,9 @@ class AutoSaveDict(dict):
         self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
                      'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
                      'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
-                     'exp': {}, 'squads': {}, 'squads_joined': {}, 'squads_optout': {}, 'appealban': [],
-                     'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [], 'rooms_count': {}})
+                     'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
+                     'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}}
+                    )
         self.threads = []
 
         # Load data
@@ -646,6 +647,8 @@ async def on_message(message):
     if message.content.lower().startswith(bot.command_prefix) and not message.author.bot:
         message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
         return await bot.process_commands(message)
+
+os.environ.pop('UNIFIER_ENCPASS')
 
 try:
     bot.run(bot.tokenstore.retrieve('TOKEN'))
