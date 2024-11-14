@@ -984,7 +984,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 failed.update({toload_cog: e})
         return len(toload), success, failed
 
-    async def manage_cog_cmd(self, ctx: Union[commands.Context, nextcord.Interaction], action: int, cogs: str):
+    async def manage_cog_cmd(self, ctx: Union[commands.Context, nextcord.Interaction], action: CogAction, cogs: str):
         if type(ctx) is commands.Context:
             selector = language.get_selector('sysmgr.manage_cog', userid=ctx.author.id)
             author = ctx.author
@@ -996,8 +996,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             return await ctx.send(selector.get('disabled'))
 
         cogs = cogs.split(' ')
-
-        action = CogAction(action)
 
         if action == CogAction.load:
             action_str = 'load'
@@ -1414,161 +1412,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description=language.desc('sysmgr.reload'))
     @restrictions_legacy.owner()
     async def reload(self, ctx, *, extensions):
-        selector = language.get_selector(ctx)
-        if self.bot.update:
-            return await ctx.send(selector.get('disabled'))
-
-        extensions = extensions.split(' ')
-        msg = await ctx.send(selector.get('in_progress'))
-        failed = []
-        errors = []
-        error_objs = []
-        text = ''
-        for extension in extensions:
-            try:
-                if extension == 'lockdown':
-                    raise ValueError('Cannot unload lockdown extension for security purposes.')
-                await self.preunload(extension)
-                self.bot.reload_extension(f'cogs.{extension}')
-                if len(text) == 0:
-                    text = f'```diff\n+ [DONE] {extension}'
-                else:
-                    text += f'\n+ [DONE] {extension}'
-            except Exception as error:
-                e = traceback.format_exc()
-                failed.append(extension)
-                errors.append(e)
-                error_objs.append(error)
-                if len(text) == 0:
-                    text = f'```diff\n- [FAIL] {extension}'
-                else:
-                    text += f'\n- [FAIL] {extension}'
-        if len(extensions) - len(failed) > 0:
-            await self.bot.discover_application_commands()
-            await self.bot.register_new_application_commands()
-        await msg.edit(content=selector.rawfget(
-            'completed', 'sysmgr.reload_services', values={
-                'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text
-            }
-        ))
-        text = ''
-        index = 0
-        for fail in failed:
-            if len(text) == 0:
-                text = f'{selector.rawget("extension","sysmgr.reload_services")} `{fail}`\n```{errors[index]}```'
-            else:
-                text = f'\n\n{selector.rawget("extension","sysmgr.reload_services")} `{fail}`\n```{errors[index]}```'
-            index += 1
-        if not len(failed) == 0:
-            if len(text) > 2000:
-                for error in error_objs:
-                    self.logger.exception('An error occurred!', exc_info=error)
-                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
+        await self.manage_cog_cmd(ctx, CogAction.reload, extensions)
 
     @commands.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions_legacy.owner()
     async def load(self, ctx, *, extensions):
-        selector = language.get_selector(ctx)
-        if self.bot.update:
-            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
-
-        extensions = extensions.split(' ')
-        msg = await ctx.send(selector.get('in_progress'))
-        failed = []
-        errors = []
-        error_objs = []
-        text = ''
-        for extension in extensions:
-            try:
-                self.bot.load_extension(f'cogs.{extension}')
-                if len(text) == 0:
-                    text = f'```diff\n+ [DONE] {extension}'
-                else:
-                    text += f'\n+ [DONE] {extension}'
-            except Exception as error:
-                e = traceback.format_exc()
-                failed.append(extension)
-                errors.append(e)
-                error_objs.append(error)
-                if len(text) == 0:
-                    text = f'```diff\n- [FAIL] {extension}'
-                else:
-                    text += f'\n- [FAIL] {extension}'
-        if len(extensions) - len(failed) > 0:
-            await self.bot.discover_application_commands()
-            await self.bot.register_new_application_commands()
-        await msg.edit(content=selector.fget(
-            'completed',
-            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
-        ))
-        text = ''
-        index = 0
-        for fail in failed:
-            if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
-            else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-            index += 1
-        if not len(failed) == 0:
-            if len(text) > 2000:
-                for error in error_objs:
-                    self.logger.exception('An error occurred!', exc_info=error)
-                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
+        await self.manage_cog_cmd(ctx, CogAction.load, extensions)
 
     @commands.command(hidden=True,description='Unloads an extension.')
     @restrictions_legacy.owner()
     async def unload(self, ctx, *, extensions):
-        selector = language.get_selector(ctx)
-        if self.bot.update:
-            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
-
-        extensions = extensions.split(' ')
-        msg = await ctx.send('Unloading extensions...')
-        failed = []
-        errors = []
-        error_objs = []
-        text = ''
-        for extension in extensions:
-            try:
-                if extension == 'sysmgr':
-                    raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
-                if extension == 'lockdown':
-                    raise ValueError('Cannot unload lockdown extension for security purposes.')
-                await self.preunload(extension)
-                self.bot.unload_extension(f'cogs.{extension}')
-                if len(text) == 0:
-                    text = f'```diff\n+ [DONE] {extension}'
-                else:
-                    text += f'\n+ [DONE] {extension}'
-            except Exception as error:
-                e = traceback.format_exc()
-                failed.append(extension)
-                errors.append(e)
-                error_objs.append(error)
-                if len(text) == 0:
-                    text = f'```diff\n- [FAIL] {extension}'
-                else:
-                    text += f'\n- [FAIL] {extension}'
-        await msg.edit(content=selector.fget(
-            'completed',
-            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
-        ))
-        text = ''
-        index = 0
-        for fail in failed:
-            if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
-            else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-            index += 1
-        if not len(failed) == 0:
-            if len(text) > 2000:
-                for error in error_objs:
-                    self.logger.exception('An error occurred!', exc_info=error)
-                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
+        await self.manage_cog_cmd(ctx, CogAction.unload, extensions)
 
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions_legacy.owner()
