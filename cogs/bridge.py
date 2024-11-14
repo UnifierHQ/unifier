@@ -2453,6 +2453,8 @@ class UnifierBridge:
                                                          components if components and not system else ui.MessageComponents()
                                                      ), wait=True)
                     except:
+                        if self.__bot.config['debug']:
+                            raise
                         return None
                     tbresult = [
                         {f'{destguild.id}': [webhook.channel.id, msg.id]},
@@ -2504,6 +2506,8 @@ class UnifierBridge:
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
+                        if self.__bot.config['debug']:
+                            raise
                         continue
                     message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
@@ -2580,7 +2584,7 @@ class UnifierBridge:
                             ch, content_override if can_override else (content + stickertext), special=special
                         )
                     except Exception as e:
-                        if dest_support.error_is_unavoidable(e):
+                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
                             return None
                         raise
                     tbresult = [
@@ -2647,7 +2651,7 @@ class UnifierBridge:
                             content_override if can_override else ((friendly_content + stickertext) if friendlified else (msg_content + stickertext)), special=special
                         )
                     except Exception as e:
-                        if dest_support.error_is_unavoidable(e):
+                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
                             continue
                         raise
 
