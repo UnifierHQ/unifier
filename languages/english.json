@@ -172,6 +172,14 @@
         "notfound": "Could not find extension!",
         "system_module": "\n# SYSTEM MODULE\nThis module cannot be unloaded."
       },
+      "manage_cog": {
+        "reload": "Reloading extensions...",
+        "load": "Loading extensions...",
+        "unload": "Unloading extensions...",
+        "completed": "Completed ({success}/{total} successful)",
+        "disabled": "Extensions and Modifier management is disabled until restart.",
+        "viewerror": "Select failed job..."
+      },
       "reload": {
         "description": "Reloads an extension.",
         "disabled": "Extensions and Modifier management is disabled until restart.",

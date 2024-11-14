@@ -58,6 +58,8 @@ import requests
 import time
 import shutil
 import datetime
+from enum import Enum
+from typing import Union
 
 # import ujson if installed
 try:
@@ -473,6 +475,11 @@ class CommandExceptionHandler:
         except:
             self.logger.exception('An error occurred!')
             await respond(f'{self.bot.ui_emojis.error} {selector.get("handler_error")}')
+
+class CogAction(Enum):
+    load = 0
+    reload = 1
+    unload = 2
 
 class SysManager(commands.Cog, name=':wrench: System Manager'):
     """An extension that oversees a lot of the bot system.
@@ -922,6 +929,136 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         self.logger.info("Shutdown complete")
         await self.bot.close()
         sys.exit(0)
+
+    async def manage_cog(self, cogs: list, action: CogAction):
+        toload = []
+        skip = []
+        success = []
+        failed = {}
+
+        async def run_check(plugin_name, plugin):
+            if not plugin['shutdown']:
+                return
+
+            script = importlib.import_module('utils.' + plugin_name + '_check')
+            await script.check(self.bot)
+
+        for cog in cogs:
+            cog_exists = f'{cog}.py' in os.listdir('cogs')
+            plugin_exists = f'{cog}.json' in os.listdir('plugins')
+
+            plugin_data = {}
+
+            if plugin_exists:
+                with open(f'plugins/{cog}.json') as file:
+                    plugin_data = json.load(file)
+
+            if plugin_exists and cog_exists:
+                if self.bot.config['plugin_priority']:
+                    toload.extend(plugin_data['modules'])
+                    await run_check(cog, plugin_data)
+                else:
+                    toload.append(f'cogs.{cog}')
+            elif plugin_exists:
+                toload.extend(plugin_data['modules'])
+                await run_check(cog, plugin_data)
+            elif cog_exists:
+                toload.append(f'cogs.{cog}')
+            else:
+                toload.append(f'cogs.{cog}')
+                skip.append(f'cogs.{cog}')
+                failed.update({cog: 'The cog or plugin does not exist.'})
+        for toload_cog in toload:
+            if toload_cog in skip:
+                continue
+            try:
+                if action == CogAction.load:
+                    self.bot.load_extension(toload_cog)
+                elif action == CogAction.reload:
+                    self.bot.reload_extension(toload_cog)
+                elif action == CogAction.unload:
+                    self.bot.unload_extension(toload_cog)
+                success.append(toload_cog)
+            except:
+                e = traceback.format_exc()
+                failed.update({toload_cog: e})
+        return len(toload), success, failed
+
+    async def manage_cog_cmd(self, ctx: Union[commands.Context, nextcord.Interaction], action: int, cogs: str):
+        if type(ctx) is commands.Context:
+            selector = language.get_selector('sysmgr.manage_cog', userid=ctx.author.id)
+            author = ctx.author
+        else:
+            selector = language.get_selector('sysmgr.manage_cog', userid=ctx.user.id)
+            author = ctx.user
+
+        if self.bot.update:
+            return await ctx.send(selector.get('disabled'))
+
+        cogs = cogs.split(' ')
+
+        action = CogAction(action)
+
+        if action == CogAction.load:
+            action_str = 'load'
+        elif action == CogAction.reload:
+            action_str = 'reload'
+        elif action == CogAction.unload:
+            action_str = 'unload'
+        else:
+            # default to load
+            action_str = 'load'
+
+        msg = await ctx.send(f'{self.bot.ui_emojis.loading} {selector.get(action_str)}')
+        if type(ctx) is nextcord.Interaction:
+            msg = await msg.fetch()
+
+        total, success, failed = await self.manage_cog(cogs, action)
+
+        components = ui.MessageComponents()
+        if failed:
+            selection = nextcord.ui.StringSelect(
+                placeholder=selector.get("viewerror"),
+                max_values=1,
+                min_values=1,
+                custom_id='selection'
+            )
+
+            for fail in failed.keys():
+                selection.add_option(
+                    label=fail,
+                    value=fail
+                )
+
+            components.add_row(
+                ui.ActionRow(selection)
+            )
+
+        await msg.edit(
+            content=f'{self.bot.ui_emojis.success} {selector.fget("completed", values={"total":total, "success": len(success)})}',
+            view=components
+        )
+
+        if not failed:
+            return
+
+        while True:
+            def check(interaction):
+                if not interaction.message:
+                    return
+
+                return interaction.message.id == msg.id and interaction.user.id == author.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except asyncio.TimeoutError:
+                return await msg.edit(view=None)
+
+            selected = interaction.data['values'][0]
+            error = failed[selected]
+            await interaction.response.send_message(
+                f'{self.bot.ui_emojis.error} {selected}\n```\n{error}```', ephemeral=True
+            )
 
     @tasks.loop(seconds=300)
     async def changestatus(self):
