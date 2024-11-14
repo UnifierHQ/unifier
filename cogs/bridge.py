@@ -410,6 +410,9 @@ class UnifierBridge:
     class RoomExistsError(Exception):
         pass
 
+    class AlreadyJoined(Exception):
+        pass
+
     class InviteNotFoundError(Exception):
         pass
 
@@ -859,7 +862,7 @@ class UnifierBridge:
             self.__bot.db['rooms'][room].update({platform:{}})
 
         if guild_id in self.__bot.db['rooms'][room][platform].keys():
-            raise ValueError('already joined')
+            raise self.AlreadyJoined('already joined')
 
         self.__bot.db['rooms'][room][platform].update({guild_id: ids})
 
@@ -3687,6 +3690,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("room_banned")}'
             elif type(e) is self.bot.bridge.TooManyConnections:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("too_many")}'
+            elif type(e) is self.bot.bridge.AlreadyJoined:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("already_linked_server")}'
             else:
                 should_raise = True
 

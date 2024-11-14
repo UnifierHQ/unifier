@@ -619,7 +619,6 @@
         "check_body": "We're checking if this channel is already connected. Give us a moment...",
         "already_linked_title": "Already connected",
         "already_linked_body": "This channel is already connected to `{room}`!\nRun `/bridge unbind {room}` to disconnect the channel.",
-        "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `/bridge unbind {room}` it then `/bridge bind {room}` it back.",
         "join_title": "Join {roomname}?",
         "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `/bridge rules {room}`.",
         "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
@@ -629,7 +628,8 @@
         "failed": "Failed to connect.",
         "invalid_invite": "Invite is invalid.",
         "room_banned": "You are banned from this room.",
-        "too_many": "Server has reached maximum number of connections.",
+        "too_many": "Server has reached maximum number of Private Rooms connections.",
+        "already_linked_server": "Your server is already binded to this room. Unbind the room and try again.",
         "success": "Connected to room!",
         "say_hi": "You're now connected! Say hi!"
       },
