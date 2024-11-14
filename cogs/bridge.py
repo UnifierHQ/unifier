@@ -2500,6 +2500,7 @@ class UnifierBridge:
                                     )
                                 )
                             )
+                        files = await get_files(message.attachments)
                         msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
                                                  content=content_override if can_override else tosend_content,
                                                  files=files, allowed_mentions=touse_mentions, view=(
