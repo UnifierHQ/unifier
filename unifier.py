@@ -110,7 +110,7 @@ for directory in directories:
 try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
-    if os.name == "win32":
+    if sys.platform == "win32":
         # noinspection PyUnresolvedReferences
         import winloop as uvloop  # pylint: disable=import-error
     else:
