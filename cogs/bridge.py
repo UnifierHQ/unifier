@@ -2424,11 +2424,8 @@ class UnifierBridge:
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
-                async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
+                async def tbsend(webhook,url,msg_author_dc,embeds,message,mentions,components,sameguild,
                                  destguild):
-                    if sys.platform == 'windows':
-                        # this isn't needed on linux
-                        nonlocal files
                     try:
                         tosend_content = (friendly_content if friendlified else msg_content) + stickertext
                         if len(tosend_content) > 2000:
@@ -2442,16 +2439,20 @@ class UnifierBridge:
                                     )
                                 )
                             )
+                        if sys.platform == 'win32':
+                            __files = await get_files(message.attachments)
+                        else:
+                            __files = files
                         if self.__bot.config['use_multicore']:
                             async with aiohttp.ClientSession() as session:
                                 webhook.session = session
                                 msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                         content=content_override if can_override else tosend_content, files=files, allowed_mentions=mentions, view=(
+                                                         content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions, view=(
                                                              components if components and not system else ui.MessageComponents()
                                                          ), wait=True)
                         else:
                             msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                     content=content_override if can_override else tosend_content, files=files, allowed_mentions=mentions,
+                                                     content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions,
                                                      view=(
                                                          components if components and not system else ui.MessageComponents()
                                                      ), wait=True)
@@ -2549,6 +2550,12 @@ class UnifierBridge:
 
                 async def tbsend(msg_author,url,color,useremoji,reply,content, files, destguild):
                     guild_id = dest_support.get_id(destguild)
+
+                    if sys.platform == 'win32':
+                        __files = await get_files(message.attachments)
+                    else:
+                        __files = files
+
                     special = {
                         'bridge': {
                             'name': msg_author,
@@ -2556,7 +2563,7 @@ class UnifierBridge:
                             'color': color,
                             'emoji': useremoji
                         },
-                        'files': files if not alert else None,
+                        'files': __files if not alert else None,
                         'embeds': (
                             dest_support.convert_embeds(message.embeds) if source=='discord'
                             else dest_support.convert_embeds(
@@ -2803,9 +2810,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.reports = {}
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
 
-        if sys.platform == 'win32':
-            self.logger.warning('You are running Unifier on Windows, where some performance optimizations do not work.')
-            self.logger.warning('Though most things will work, speed will be significantly reduced.')
+        if sys.platform == 'win32' and self.bot.config['use_multicore']:
+            self.logger.warning('Multicore is enabled, but it is not supported on Windows. Unifier will not use it.')
             self.logger.warning('Please consider using a Linux/macOS server for production environments.')
 
         msgs = []
