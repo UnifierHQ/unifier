@@ -22,6 +22,7 @@ import shutil
 import json
 import time
 import getpass
+from pathlib import Path
 
 reinstall = '--reinstall' in sys.argv
 depinstall = '--install-deps' in sys.argv
@@ -54,6 +55,38 @@ options = bootloader_config.get('options')
 boot_file = bootloader_config.get('boot_file', internal["base_bootfile"])
 autoreboot = bootloader_config.get('autoreboot', False)
 threshold = bootloader_config.get('autoreboot_threshold', 60)
+
+cgroup = Path('/proc/self/cgroup')
+uses_docker = Path('/.dockerenv').is_file() or cgroup.is_file() and 'docker' in cgroup.read_text()
+
+if boot_config.get('ptero') is None and uses_docker:
+    print('\x1b[33;1mWe detected that you are running Unifier in a Docker container.\x1b[0m')
+    print('\x1b[33;1mThis may mean that you are using Pterodactyl/Pelican panel to run your server.\x1b[0m')
+    print('\x1b[33;1mIf this is the case, we recommend enabling Pterodactyl support.\x1b[0m')
+    print('\x1b[33;1mEnable Pterodactyl support? (y/n)\x1b[0m')
+
+    try:
+        answer = input().lower()
+        enable_ptero = answer == 'y'
+
+        if answer == 'y':
+            boot_config['ptero'] = True
+        elif answer == 'n':
+            boot_config['ptero'] = False
+        else:
+            print('\x1b[33;1mInvalid answer, defaulting to no. We will ask you again on next boot.\x1b[0m')
+
+        if answer == 'y' or answer == 'n':
+            with open('boot_config.json', 'w+') as file:
+                # noinspection PyTypeChecker
+                json.dump(boot_config, file, indent=4)
+    except KeyboardInterrupt:
+        print('\x1b[31;1mAborting.\x1b[0m')
+        sys.exit(1)
+
+    ptero_support = uses_docker and enable_ptero
+else:
+    ptero_support = uses_docker and boot_config.get('ptero', False)
 
 if not options:
     options = ''
@@ -213,7 +246,8 @@ while True:
     encrypted = os.path.isfile('.encryptedenv')
     if not choice is None and os.environ.get('UNIFIER_ENCPASS') is None:
         # choice is set but not the password, likely due to wrong password
-        print("Please enter your encryption password.")
+        if ptero_support:
+            print(f'\x1b[36;1mPlease enter your encryption password using the console input.\x1b[0m')
         encryption_password = str(getpass.getpass('Password: '))
         os.environ['UNIFIER_ENCPASS'] = str(encryption_password)
     elif not choice is None:
