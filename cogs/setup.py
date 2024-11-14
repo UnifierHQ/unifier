@@ -37,7 +37,7 @@ class SetupDialog:
         self.__bot = bot
         self.embed = nextcord.Embed()
         self.language = self.__bot.langmgr
-        self.use_language = None
+        self.use_language = 'english'
         self.message = None
         self.user = self.__bot.get_user(self.__bot.owner)
 
