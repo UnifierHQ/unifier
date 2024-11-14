@@ -2424,7 +2424,7 @@ class UnifierBridge:
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
-                async def tbsend(webhook,url,msg_author_dc,embeds,files,_message,mentions,components,sameguild,
+                async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
                                  destguild):
                     try:
                         tosend_content = (friendly_content if friendlified else msg_content) + stickertext
@@ -2463,14 +2463,14 @@ class UnifierBridge:
                     ]
                     return tbresult
 
-                if tb_v2 and not alert:
+                if tb_v2 and not alert and not sys.platform == 'win32':
                     if self.__bot.config['use_multicore'] and not force_disable_multicore:
                         # noinspection PyTypeChecker
                         threads.append(
                             Worker(
                                 target=tbsend,
                                 args=(
-                                    webhook, url, msg_author_dc, embeds, files, message,
+                                    webhook, url, msg_author_dc, embeds, message,
                                     touse_mentions, components, sameguild,
                                     destguild
                                 ),
@@ -2479,7 +2479,7 @@ class UnifierBridge:
                         )
                         threads[len(threads) - 1].start()
                     else:
-                        threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_dc, embeds, files, message,
+                        threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_dc, embeds, message,
                                                                   touse_mentions, components, sameguild,
                                                                   destguild)))
                 else:
@@ -2606,7 +2606,7 @@ class UnifierBridge:
                     friendly_content = content_override
                     msg_content = content_override
 
-                if dest_support.enable_tb:
+                if dest_support.enable_tb and not sys.platform == 'win32':
                     threads.append(asyncio.create_task(tbsend(
                         msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
