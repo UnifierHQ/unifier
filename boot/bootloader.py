@@ -123,8 +123,8 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
 
                 for index in range(len(install_options)):
                     option = install_options[index]
-                    print(f'{option["color"]};1m{option["name"]} (option {index})\x1b[0m')
-                    print(f'{option["color"]}m{option["description"]}\x1b[0m')
+                    print(f'\x1b[{option["color"]};1m{option["name"]} (option {index})\x1b[0m')
+                    print(f'\x1b[{option["color"]}m{option["description"]}\x1b[0m')
 
                 print(f'\n\x1b[33;1mWhich installation option would you like to install? (0-{len(install_options)-1})\x1b[0m')
 
