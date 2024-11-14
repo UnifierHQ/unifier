@@ -2424,7 +2424,7 @@ class UnifierBridge:
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
-                async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
+                async def tbsend(webhook,url,msg_author_dc,embeds,files,_message,mentions,components,sameguild,
                                  destguild):
                     try:
                         tosend_content = (friendly_content if friendlified else msg_content) + stickertext
@@ -2470,7 +2470,7 @@ class UnifierBridge:
                             Worker(
                                 target=tbsend,
                                 args=(
-                                    webhook, url, msg_author_dc, embeds, message,
+                                    webhook, url, msg_author_dc, embeds, files, message,
                                     touse_mentions, components, sameguild,
                                     destguild
                                 ),
@@ -2479,7 +2479,7 @@ class UnifierBridge:
                         )
                         threads[len(threads) - 1].start()
                     else:
-                        threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_dc, embeds, message,
+                        threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_dc, embeds, files, message,
                                                                   touse_mentions, components, sameguild,
                                                                   destguild)))
                 else:
