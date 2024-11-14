@@ -172,7 +172,6 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
             sys.exit(exit_code)
 
         if depinstall:
-            print('\x1b[36;1mDependencies installed successfully.\x1b[0m')
             sys.exit(0)
 
         exit_code = os.system(f'{binary} boot/installer.py {install_option}{options}')
