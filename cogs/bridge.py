@@ -32,6 +32,7 @@ import re
 import ast
 import math
 import os
+import sys
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
 import importlib
 import emoji as pymoji
@@ -45,7 +46,11 @@ try:
 except:
     pass
 
-aiomultiprocess.set_start_method("fork")
+if not sys.platform == 'win32':
+    force_disable_multicore = False # disables multicore regardless of config
+    aiomultiprocess.set_start_method("fork")
+else:
+    force_disable_multicore = True
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=True)
@@ -2452,7 +2457,7 @@ class UnifierBridge:
                     return tbresult
 
                 if tb_v2 and not alert:
-                    if self.__bot.config['use_multicore']:
+                    if self.__bot.config['use_multicore'] and not force_disable_multicore:
                         # noinspection PyTypeChecker
                         threads.append(
                             Worker(
