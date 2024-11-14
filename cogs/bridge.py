@@ -46,6 +46,11 @@ try:
 except:
     pass
 
+try:
+    import uvloop  # pylint: disable=import-error
+except:
+    pass
+
 if not sys.platform == 'win32':
     force_disable_multicore = False # disables multicore regardless of config
     aiomultiprocess.set_start_method("fork")
@@ -2466,7 +2471,8 @@ class UnifierBridge:
                                     webhook, url, msg_author_dc, embeds, message,
                                     touse_mentions, components, sameguild,
                                     destguild
-                                )
+                                ),
+                                loop_initializer=uvloop.new_event_loop
                             )
                         )
                         threads[len(threads) - 1].start()
