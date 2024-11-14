@@ -2799,6 +2799,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not hasattr(self.bot, 'reports'):
             self.bot.reports = {}
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
+
+        if sys.platform == 'win32':
+            self.logger.warning('You are running Unifier on Windows, where some performance optimizations do not work.')
+            self.logger.warning('Though most things will work, speed will be significantly reduced.')
+            self.logger.warning('Please consider using a Linux/macOS server for production environments.')
+
         msgs = []
         prs = {}
         msg_stats = {}
