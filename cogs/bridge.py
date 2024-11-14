@@ -2426,6 +2426,9 @@ class UnifierBridge:
                 # unifier bridge using webhooks with ultra low latency.
                 async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
                                  destguild):
+                    if sys.platform == 'windows':
+                        # this isn't needed on linux
+                        nonlocal files
                     try:
                         tosend_content = (friendly_content if friendlified else msg_content) + stickertext
                         if len(tosend_content) > 2000:
@@ -2463,7 +2466,7 @@ class UnifierBridge:
                     ]
                     return tbresult
 
-                if tb_v2 and not alert and not sys.platform == 'win32':
+                if tb_v2 and not alert:
                     if self.__bot.config['use_multicore'] and not force_disable_multicore:
                         # noinspection PyTypeChecker
                         threads.append(
@@ -2607,7 +2610,7 @@ class UnifierBridge:
                     friendly_content = content_override
                     msg_content = content_override
 
-                if dest_support.enable_tb and not sys.platform == 'win32':
+                if dest_support.enable_tb:
                     threads.append(asyncio.create_task(tbsend(
                         msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
