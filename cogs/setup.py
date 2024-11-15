@@ -431,6 +431,8 @@ class SetupDialog:
             return None
         if modal.custom_id == 'summon_modal':
             return None
+        if not isinstance(defaults, list):
+            defaults = [defaults]
 
         self.update(title, description, image_url=image_url)
 
