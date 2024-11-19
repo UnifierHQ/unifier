@@ -240,7 +240,7 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                 else:
                     print(f'\x1b[33;1mFound {len(installed)} available Python installations:\x1b[0m')
                     for index in range(len(installed)):
-                        print(f'\x1b[33m({index+1}) {installed}\x1b[0m')
+                        print(f'\x1b[33m({index+1}) {installed[index]}\x1b[0m')
 
                     print(f'\n\x1b[33;1mWhich version would you like to use? (1-{len(installed)})\x1b[0m')
 
