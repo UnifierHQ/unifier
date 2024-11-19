@@ -22,7 +22,12 @@ import shutil
 import json
 import time
 import getpass
+import subprocess
 from pathlib import Path
+
+if sys.version_info.major < 3 or sys.version_info.minor < 9:
+    print('\x1b[31;1mThis version of Python is unsupported. You need Python 3.9 or newer.\x1b[0m')
+    sys.exit(1)
 
 reinstall = '--reinstall' in sys.argv
 depinstall = '--install-deps' in sys.argv
@@ -58,6 +63,91 @@ threshold = bootloader_config.get('autoreboot_threshold', 60)
 
 cgroup = Path('/proc/self/cgroup')
 uses_docker = Path('/.dockerenv').is_file() or cgroup.is_file() and 'docker' in cgroup.read_text()
+
+class PythonInstallation:
+    def __init__(self, major, minor, patch, filepath, default=False, emulated=False):
+        self.__version = (major, minor, patch)
+        self.__filepath = filepath
+        self.__default = default
+        self.__emulated = emulated
+
+    def __str__(self):
+        extras = ''
+        if self.__default:
+            extras += ' \U00002B50'
+        if self.__emulated:
+            extras += ' (Emulated x86_64)'
+        return f'Python {self.__version[0]}.{self.__version[1]}.{self.__version[2]} @ {self.__filepath}'
+
+    @property
+    def version(self):
+        return self.__version
+
+    @property
+    def emulated(self):
+        return self.__emulated
+
+    @property
+    def default(self):
+        return self.__default
+
+    @property
+    def supported(self):
+        return self.__version >= (3, 9, 0)
+
+def check_for_python(path, found=None):
+    versions = []
+    blacklist = ['-config', 't', 't-config', 't-intel64']
+
+    if not found:
+        found = []
+
+    defaults = [
+        file for file in
+        subprocess.check_output([f'whereis', 'python3']).decode('utf-8').replace('\n','').split(' ')
+        if not file == 'python3:'
+    ]
+
+    try:
+        for item in os.listdir(path):
+            emulated = False
+
+            if not item.startswith('python'):
+                continue
+            if True in [item.endswith(blacklisted) for blacklisted in blacklist]:
+                continue
+
+            if item.endswith('-intel64'):
+                if not os.uname().machine == 'x86_64':
+                    emulated = True
+
+            try:
+                output = subprocess.check_output([f'{path}/{item}', '--version'])
+            except:
+                continue
+
+            versiontext = output.decode('utf-8').replace('\n','').split(' ')[1]
+            major, minor, patch = versiontext.split('.')
+
+            if not patch.isdigit():
+                fixed = ''
+                for char in patch:
+                    if not char.isdigit():
+                        return
+                    fixed += char
+                patch = fixed
+
+            installation = PythonInstallation(
+                int(major), int(minor), int(patch), f'{path}/{item}', default=f'{path}/{item}' in defaults,
+                emulated=emulated
+            )
+            if not installation in versions and not installation in found:
+                versions.append(installation)
+    except FileNotFoundError:
+        return []
+
+    return versions
+
 
 if boot_config.get('ptero') is None and uses_docker:
     print('\x1b[33;1mWe detected that you are running Unifier in a Docker container.\x1b[0m')
@@ -138,6 +228,77 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                     sys.exit(1)
 
                 install_option = install_options[install_option]['id']
+
+            if not uses_docker and not sys.platform == 'win32':
+                print('\x1b[33;1mDetecting python installations...\x1b[0m')
+                installed = []
+                installed.extend(check_for_python('/usr/bin'))
+                installed.extend(check_for_python('/usr/local/bin', found=installed))
+
+                if len(installed) == 1:
+                    print('\x1b[33;1mOnly the default Python installation was detected, using default.\x1b[0m')
+                else:
+                    print(f'\x1b[33;1mFound {len(installed)} available Python installations:\x1b[0m')
+                    for index in range(len(installed)):
+                        print(f'\x1b[33m({index+1}) {installed}\x1b[0m')
+
+                    print(f'\n\x1b[33;1mWhich version would you like to use? (1-{len(installed)})\x1b[0m')
+
+                    choice = None
+                    while True:
+                        try:
+                            choice = int(input()) - 1
+                            if choice < 0 or choice >= len(installed):
+                                raise ValueError()
+                        except ValueError:
+                            print(f'\x1b[31;1mInvalid answer, try again.\x1b[0m')
+                            continue
+                        except KeyboardInterrupt:
+                            print(f'\x1b[31;1mAborting.\x1b[0m')
+                            sys.exit(1)
+                        break
+
+                    binary = installed[choice].filepath
+
+                    print('\n\x1b[33;1mWould you like to use a virtual environment? This is highly recommended as this prevents\x1b[0m')
+                    print('\n\x1b[33;1mglobal packages from breaking and allows for easier recovery. (y/n)\x1b[0m')
+
+                    use_venv = False
+                    while True:
+                        try:
+                            choice = input().lower()
+                            if not choice == 'y' and not choice == 'n':
+                                raise ValueError()
+                        except ValueError:
+                            print(f'\x1b[31;1mInvalid answer, try again.\x1b[0m')
+                            continue
+                        except KeyboardInterrupt:
+                            print(f'\x1b[31;1mAborting.\x1b[0m')
+                            sys.exit(1)
+
+                        use_venv = choice == 'y'
+                        break
+
+                    if not boot_config.get('bootloader'):
+                        boot_config.update({'bootloader': {}})
+
+                    if use_venv:
+                        print(f'\n\x1b[33;1mCreating virtual environment in {os.getcwd()}/.venv...\x1b[0m')
+                        code = os.system(f'{binary} -m venv .venv')
+                        if code == 0:
+                            binary = './.venv/bin/python'
+                            print(f'\x1b[36;1mVirtual environment created successfully.\x1b[0m')
+                        else:
+                            print(f'\x1b[31;1mFailed to create virtual environment, aborting.\x1b[0m')
+                            sys.exit(1)
+                        boot_config['bootloader'].update({'binary': binary})
+                    else:
+                        boot_config['bootloader'].update({'binary': binary})
+                        boot_config['bootloader'].update({'global_dep_install': True})
+
+                    with open('boot_config.json', 'w+') as file:
+                        # noinspection PyTypeChecker
+                        json.dump(boot_config, file, indent=4)
 
             print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
             print(f'- Product to install: {internal["product_name"]}')
