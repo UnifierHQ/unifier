@@ -265,8 +265,13 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
 
                     binary = installed[choice].filepath
 
-                    print('\n\x1b[33;1mWould you like to use a virtual environment? This is highly recommended as this prevents\x1b[0m')
-                    print('\x1b[33;1mglobal packages from breaking and allows for easier recovery. (y/n)\x1b[0m')
+                    bootloader_exists = os.path.exists('.venv')
+
+                    if bootloader_exists:
+                        print('\n\x1b[33;1mAn existing virtual environment was found. Would you like to use it? (y/n)\x1b[0m')
+                    else:
+                        print('\n\x1b[33;1mWould you like to use a virtual environment? This is highly recommended as this prevents\x1b[0m')
+                        print('\x1b[33;1mglobal packages from breaking and allows for easier recovery. (y/n)\x1b[0m')
 
                     use_venv = False
                     while True:
@@ -288,18 +293,19 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                         boot_config.update({'bootloader': {}})
 
                     if use_venv:
-                        print(f'\n\x1b[33;1mCreating virtual environment in {os.getcwd()}/.venv...\x1b[0m')
-                        code = os.system(f'{binary} -m venv .venv')
-                        if code == 0:
-                            binary = './.venv/bin/python'
-                            print(f'\x1b[36;1mVirtual environment created successfully.\x1b[0m')
-                        else:
-                            print(f'\x1b[31;1mFailed to create virtual environment, aborting.\x1b[0m')
-                            sys.exit(1)
-                        boot_config['bootloader'].update({'binary': binary})
-                    else:
+                        if not bootloader_exists:
+                            print(f'\n\x1b[33;1mCreating virtual environment in {os.getcwd()}/.venv...\x1b[0m')
+                            code = os.system(f'{binary} -m venv .venv')
+                            if code == 0:
+                                print(f'\x1b[36;1mVirtual environment created successfully.\x1b[0m')
+                            else:
+                                print(f'\x1b[31;1mFailed to create virtual environment, aborting.\x1b[0m')
+                                sys.exit(1)
+                        binary = './.venv/bin/python'
                         boot_config['bootloader'].update({'binary': binary})
                         boot_config['bootloader'].update({'global_dep_install': True})
+                    else:
+                        boot_config['bootloader'].update({'binary': binary})
 
                     with open('boot_config.json', 'w+') as file:
                         # noinspection PyTypeChecker
