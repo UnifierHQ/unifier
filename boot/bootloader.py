@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
+import platform
 import sys
 import shutil
 import json
@@ -127,7 +128,7 @@ def check_for_python(path, found=None, venv=False):
                 continue
 
             if item.endswith('-intel64'):
-                if not os.uname().machine == 'x86_64':
+                if not platform.uname().machine == 'x86_64':
                     emulated = True
 
             try:
