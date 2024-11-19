@@ -266,7 +266,7 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                     binary = installed[choice].filepath
 
                     print('\n\x1b[33;1mWould you like to use a virtual environment? This is highly recommended as this prevents\x1b[0m')
-                    print('\n\x1b[33;1mglobal packages from breaking and allows for easier recovery. (y/n)\x1b[0m')
+                    print('\x1b[33;1mglobal packages from breaking and allows for easier recovery. (y/n)\x1b[0m')
 
                     use_venv = False
                     while True:
