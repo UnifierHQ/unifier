@@ -97,6 +97,10 @@ class PythonInstallation:
         return self.__default
 
     @property
+    def venv(self):
+        return self.__venv
+
+    @property
     def supported(self):
         return self.__version >= (3, 9, 0)
 
