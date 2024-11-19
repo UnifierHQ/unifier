@@ -25,12 +25,22 @@ import tomli
 import tomli_w
 import traceback
 from nextcord.ext import commands
+from pathlib import Path
+from typing_extensions import Self
 
 try:
     sys.path.insert(0, '.')
     from utils import secrets
 except:
     raise
+
+with open('boot_config.json') as file:
+    boot_config = json.load(file)
+
+cgroup = Path('/proc/self/cgroup')
+uses_docker = Path('/.dockerenv').is_file() or cgroup.is_file() and 'docker' in cgroup.read_text()
+
+ptero_support = uses_docker and boot_config.get('ptero', False)
 
 install_option = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -45,9 +55,23 @@ if not install_option:
             install_option = option['id']
             break
 
+class Intents(nextcord.Intents):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @classmethod
+    def no_presence(cls) -> Self:
+        """A factory method that creates a :class:`Intents` with everything enabled
+        except :attr:`presences`, :attr:`members`, and :attr:`message_content`.
+        """
+        self = cls.all()
+        self.presences = False
+        return self
+
+
 bot = commands.Bot(
     command_prefix='u!',
-    intents=nextcord.Intents.all()
+    intents=Intents.no_presence()
 )
 
 user_id = 0
@@ -137,7 +161,10 @@ print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS TOKEN, NOT EVEN WITH {internal["
 print(f'\x1b[31;49m{internal["maintainer"]} will NEVER ask for your token. Please keep this token to yourself and only share it with trusted instance maintainers.\x1b[0m')
 print('\x1b[31;49mFor security reasons, the installer will hide the input.\x1b[0m')
 
-token = getpass.getpass()
+if ptero_support:
+    print(f'\x1b[36;1mPlease enter your bot token using the console input.\x1b[0m')
+
+token = getpass.getpass('Token: ')
 
 encryption_password = ''
 salt = ''
@@ -160,6 +187,9 @@ print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS TOKEN, NOT EVEN WITH {internal["
 print(f'\x1b[31;49m{internal["maintainer"]} will NEVER ask for your encryption password. Please keep this password to yourself and only share it with trusted instance maintainers.\x1b[0m')
 print('\x1b[31;49mFor security reasons, the installer will hide the input.\x1b[0m')
 
+if ptero_support:
+    print(f'\x1b[36;1mPlease enter your encryption password using the console input.\x1b[0m')
+
 encryption_password = getpass.getpass()
 
 print('\x1b[36;1mStarting bot...\x1b[0m')
@@ -169,7 +199,7 @@ try:
 except:
     traceback.print_exc()
     print('\x1b[31;49mLogin failed. Perhaps your token is invalid?\x1b[0m')
-    print('\x1b[31;49mMake sure all privileged intents are enabled for the bot.\x1b[0m')
+    print('\x1b[31;49mMake sure Server Members and Message Content intents are enabled for the bot.\x1b[0m')
     sys.exit(1)
 
 tokenstore = secrets.TokenStore(True, password=encryption_password, salt=salt, content_override={'TOKEN': token})

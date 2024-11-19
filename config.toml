@@ -6,6 +6,7 @@ package = "unifier"
 language = "english"
 skip_status_check = false
 encrypted_env_salt = 10 # change this to whatever you want, as long as the bot doesn't crash
+plugin_priority = true # set this to false if you want to load cogs instead of modifiers with the same name
 
 [roles]
 owner = -1

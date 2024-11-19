@@ -32,6 +32,7 @@ import re
 import ast
 import math
 import os
+import sys
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
 import importlib
 import emoji as pymoji
@@ -45,7 +46,16 @@ try:
 except:
     pass
 
-aiomultiprocess.set_start_method("fork")
+try:
+    import uvloop  # pylint: disable=import-error
+except:
+    pass
+
+if not sys.platform == 'win32':
+    force_disable_multicore = False # disables multicore regardless of config
+    aiomultiprocess.set_start_method("fork")
+else:
+    force_disable_multicore = True
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=True)
@@ -380,6 +390,61 @@ class UnifierBridge:
             return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0],
                                      self.external_copies[platform][str(guild_id)][1])
 
+    class UnifierUser:
+        def __init__(self, bot, user_id, name, global_name=None, platform='discord', system=False):
+            self.__bot = bot
+            self.__id = user_id
+            self.__name = name
+            self.__global_name = global_name
+            self.__platform = platform
+            self.__system = system
+            self.__redacted = False
+
+        @property
+        def id(self):
+            return self.__id
+
+        @property
+        def name(self):
+            return self.__name
+
+        @property
+        def global_name(self):
+            return self.__global_name or self.__name
+
+        @property
+        def platform(self):
+            return self.__platform
+
+        @property
+        def unifier_name(self):
+            if self.__redacted:
+                return '[hidden username]'
+            return (
+                    self.__bot.db['nicknames'].get(f'{self.id}') or self.global_name
+            ) + (
+                ' (system)' if self.__system else ''
+            )
+
+        @property
+        def unifier_avatar(self):
+            return (
+                    self.__bot.db['avatars'].get(f'{self.id}') or self.avatar_url
+            ) if not self.__system else (
+                    self.__bot.user.avatar.url if self.__bot.user.avatar else None
+            )
+
+        @property
+        def avatar_url(self):
+            if self.platform == 'discord':
+                return self.__bot.get_user(self.id).avatar.url
+
+            source_support = self.__bot.platforms[self.platform]
+            return source_support.avatar(source_support.get_user(self.id))
+
+        def redact(self):
+            self.__redacted = True
+
     class RoomForbiddenError(Exception):
         pass
 
@@ -398,6 +463,9 @@ class UnifierBridge:
         pass
 
     class RoomExistsError(Exception):
+        pass
+
+    class AlreadyJoined(Exception):
         pass
 
     class InviteNotFoundError(Exception):
@@ -849,7 +917,7 @@ class UnifierBridge:
             self.__bot.db['rooms'][room].update({platform:{}})
 
         if guild_id in self.__bot.db['rooms'][room][platform].keys():
-            raise ValueError('already joined')
+            raise self.AlreadyJoined('already joined')
 
         self.__bot.db['rooms'][room][platform].update({guild_id: ids})
 
@@ -1608,6 +1676,19 @@ class UnifierBridge:
         source_support = self.__bot.platforms[source] if source != 'discord' else None
         dest_support = self.__bot.platforms[platform] if platform != 'discord' else None
 
+        if source == 'discord':
+            unifier_user: UnifierBridge.UnifierUser = UnifierBridge.UnifierUser(
+                self.__bot, message.author.id, message.author.name, global_name=message.author.global_name,
+                system=system
+            )
+        else:
+            unifier_user: UnifierBridge.UnifierUser = UnifierBridge.UnifierUser(
+                self.__bot, source_support.get_id(source_support.author(message)),
+                source_support.name(source_support.author(message)),
+                global_name=source_support.display_name(source_support.author(message)),
+                platform=source, system=system
+            )
+
         if not source in self.__bot.platforms.keys() and not source=='discord':
             raise ValueError('invalid platform')
 
@@ -1757,17 +1838,6 @@ class UnifierBridge:
                 channel = source_support.channel(message)
                 await source_support.send(channel, selector.fget('post_id',values={'post_id': pr_id}), reply=message)
 
-        # Username
-        if source == 'discord':
-            author = message.author.global_name if message.author.global_name else message.author.name
-            if f'{message.author.id}' in list(self.__bot.db['nicknames'].keys()):
-                author = self.__bot.db['nicknames'][f'{message.author.id}']
-        else:
-            author_obj = source_support.author(message)
-            author = source_support.display_name(author_obj)
-            if f'{source_support.get_id(author_obj)}' in list(self.__bot.db['nicknames'].keys()):
-                author = self.__bot.db['nicknames'][f'{source_support.get_id(author_obj)}']
-
         # Get dedupe
         if source == 'discord':
             author_id = message.author.id
@@ -1776,27 +1846,12 @@ class UnifierBridge:
             author_id = source_support.get_id(source_support.author(message))
             is_bot = source_support.is_bot(source_support.author(message))
 
-        dedupe = await self.dedupe_name(author, author_id)
+        dedupe = await self.dedupe_name(unifier_user.unifier_name, author_id)
         should_dedupe = dedupe > -1
 
         # Emoji time
         useremoji = None
         if self.__bot.config['enable_emoji_tags'] and not system:
-            while True:
-                author_split = [*author]
-                if len(author_split) == 1:
-                    if source == 'discord':
-                        author = message.author.name
-                    else:
-                        author = source_support.user_name(message.author)
-                    break
-                if pymoji.is_emoji(author_split[len(author_split)-1]):
-                    author_split.pop(len(author_split)-1)
-                    author = ''.join(author_split)
-                    while author.endswith(' '):
-                        author = author[:-1]
-                else:
-                    break
             if (
                     author_id == self.__bot.config['owner'] or (
                             author_id == self.__bot.config['owner_external'][source]
@@ -2336,45 +2391,20 @@ class UnifierBridge:
                             reply_row
                         )
 
-            # Avatar
-            try:
-                if f'{author_id}' in self.__bot.db['avatars']:
-                    url = self.__bot.db['avatars'][f'{author_id}']
-                else:
-                    if source == 'discord':
-                        url = message.author.avatar.url
-                    else:
-                        url = source_support.avatar(message.author)
-            except:
-                url = None
-
-            if system:
-                try:
-                    url = self.__bot.user.avatar.url
-                except:
-                    url = None
-
-            # Add system identifier
-            msg_author = author
-            if system:
-                msg_author = (
-                    self.__bot.user.global_name if self.__bot.user.global_name else self.__bot.user.name
-                )+ ' (system)'
-
             # Send message
             embeds = message.embeds
             if not message.author.bot and not system:
                 embeds = []
 
-            if msg_author.lower()==f'{self.__bot.user.name} (system)'.lower() and not system:
-                msg_author = '[hidden username]'
+            if unifier_user.unifier_name.lower()==f'{self.__bot.user.name} (system)'.lower() and not system:
+                unifier_user.redact()
 
             if platform=='discord':
-                msg_author_dc = msg_author
-                if len(msg_author) > 35:
-                    msg_author_dc = msg_author[:-(len(msg_author) - 35)]
+                msg_author_dc = unifier_user.unifier_name
+                if len(msg_author_dc) > 35:
+                    msg_author_dc = msg_author_dc[:-(len(msg_author_dc) - 35)]
                     if useremoji:
-                        msg_author_dc = msg_author[:-2]
+                        msg_author_dc = msg_author_dc[:-2]
 
                 if useremoji:
                     msg_author_dc = msg_author_dc + ' ' + useremoji
@@ -2414,7 +2444,7 @@ class UnifierBridge:
                 # fun fact: tbsend stands for "threaded bridge send", but we read it
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
-                async def tbsend(webhook,url,msg_author_dc,embeds,_message,mentions,components,sameguild,
+                async def tbsend(webhook,msg_author_dc,embeds,message,mentions,components,sameguild,
                                  destguild):
                     try:
                         tosend_content = (friendly_content if friendlified else msg_content) + stickertext
@@ -2429,20 +2459,26 @@ class UnifierBridge:
                                     )
                                 )
                             )
+                        if sys.platform == 'win32':
+                            __files = await get_files(message.attachments)
+                        else:
+                            __files = files
                         if self.__bot.config['use_multicore']:
                             async with aiohttp.ClientSession() as session:
                                 webhook.session = session
-                                msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                         content=content_override if can_override else tosend_content, files=files, allowed_mentions=mentions, view=(
+                                msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
+                                                         content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions, view=(
                                                              components if components and not system else ui.MessageComponents()
                                                          ), wait=True)
                         else:
-                            msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
-                                                     content=content_override if can_override else tosend_content, files=files, allowed_mentions=mentions,
+                            msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
+                                                     content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions,
                                                      view=(
                                                          components if components and not system else ui.MessageComponents()
                                                      ), wait=True)
                     except:
+                        if self.__bot.config['debug']:
+                            raise
                         return None
                     tbresult = [
                         {f'{destguild.id}': [webhook.channel.id, msg.id]},
@@ -2452,21 +2488,22 @@ class UnifierBridge:
                     return tbresult
 
                 if tb_v2 and not alert:
-                    if self.__bot.config['use_multicore']:
+                    if self.__bot.config['use_multicore'] and not force_disable_multicore:
                         # noinspection PyTypeChecker
                         threads.append(
                             Worker(
                                 target=tbsend,
                                 args=(
-                                    webhook, url, msg_author_dc, embeds, message,
+                                    webhook, msg_author_dc, embeds, message,
                                     touse_mentions, components, sameguild,
                                     destguild
-                                )
+                                ),
+                                loop_initializer=uvloop.new_event_loop
                             )
                         )
                         threads[len(threads) - 1].start()
                     else:
-                        threads.append(asyncio.create_task(tbsend(webhook, url, msg_author_dc, embeds, message,
+                        threads.append(asyncio.create_task(tbsend(webhook, msg_author_dc, embeds, message,
                                                                   touse_mentions, components, sameguild,
                                                                   destguild)))
                 else:
@@ -2487,12 +2524,15 @@ class UnifierBridge:
                                     )
                                 )
                             )
-                        msg = await webhook.send(avatar_url=url, username=msg_author_dc, embeds=embeds,
+                        files = await get_files(message.attachments)
+                        msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
                                                  content=content_override if can_override else tosend_content,
                                                  files=files, allowed_mentions=touse_mentions, view=(
                                                      components if components and not system else ui.MessageComponents()
                                                  ), wait=True)
                     except:
+                        if self.__bot.config['debug']:
+                            raise
                         continue
                     message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
                     urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
@@ -2530,6 +2570,12 @@ class UnifierBridge:
 
                 async def tbsend(msg_author,url,color,useremoji,reply,content, files, destguild):
                     guild_id = dest_support.get_id(destguild)
+
+                    if sys.platform == 'win32':
+                        __files = await get_files(message.attachments)
+                    else:
+                        __files = files
+
                     special = {
                         'bridge': {
                             'name': msg_author,
@@ -2537,7 +2583,7 @@ class UnifierBridge:
                             'color': color,
                             'emoji': useremoji
                         },
-                        'files': files if not alert else None,
+                        'files': __files if not alert else None,
                         'embeds': (
                             dest_support.convert_embeds(message.embeds) if source=='discord'
                             else dest_support.convert_embeds(
@@ -2569,7 +2615,7 @@ class UnifierBridge:
                             ch, content_override if can_override else (content + stickertext), special=special
                         )
                     except Exception as e:
-                        if dest_support.error_is_unavoidable(e):
+                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
                             return None
                         raise
                     tbresult = [
@@ -2593,14 +2639,14 @@ class UnifierBridge:
 
                 if dest_support.enable_tb:
                     threads.append(asyncio.create_task(tbsend(
-                        msg_author,url,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
+                        unifier_user.unifier_name,unifier_user.unifier_avatar,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
                 else:
                     try:
                         special = {
                             'bridge': {
-                                'name': msg_author,
-                                'avatar': url,
+                                'name': unifier_user.unifier_name,
+                                'avatar': unifier_user.unifier_avatar,
                                 'color': color,
                                 'emoji': useremoji
                             },
@@ -2636,7 +2682,7 @@ class UnifierBridge:
                             content_override if can_override else ((friendly_content + stickertext) if friendlified else (msg_content + stickertext)), special=special
                         )
                     except Exception as e:
-                        if dest_support.error_is_unavoidable(e):
+                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
                             continue
                         raise
 
@@ -2681,7 +2727,10 @@ class UnifierBridge:
         if system:
             msg_author = self.__bot.user.id
         else:
-            msg_author = message.author.id
+            if source == 'discord':
+                msg_author = message.author.id
+            else:
+                msg_author = source_support.get_id(source_support.author(message))
 
         if id_override:
             parent_id = id_override
@@ -2750,9 +2799,7 @@ class UnifierBridge:
         return parent_id
 
 class Bridge(commands.Cog, name=':link: Bridge'):
-    """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
-
-    Developed by Green and ItsAsheer"""
+    """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related."""
 
     def __init__(self, bot):
         global language
@@ -2783,6 +2830,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not hasattr(self.bot, 'reports'):
             self.bot.reports = {}
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
+
+        if sys.platform == 'win32' and self.bot.config['use_multicore']:
+            self.logger.warning('Multicore is enabled, but it is not supported on Windows. Unifier will not use it.')
+            self.logger.warning('Please consider using a Linux/macOS server for production environments.')
+
         msgs = []
         prs = {}
         msg_stats = {}
@@ -3656,6 +3708,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("room_banned")}'
             elif type(e) is self.bot.bridge.TooManyConnections:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("too_many")}'
+            elif type(e) is self.bot.bridge.AlreadyJoined:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("already_linked_server")}'
             else:
                 should_raise = True
 

@@ -58,6 +58,8 @@ import requests
 import time
 import shutil
 import datetime
+from enum import Enum
+from typing import Union
 
 # import ujson if installed
 try:
@@ -474,10 +476,13 @@ class CommandExceptionHandler:
             self.logger.exception('An error occurred!')
             await respond(f'{self.bot.ui_emojis.error} {selector.get("handler_error")}')
 
-class SysManager(commands.Cog, name=':wrench: System Manager'):
-    """An extension that oversees a lot of the bot system.
+class CogAction(Enum):
+    load = 0
+    reload = 1
+    unload = 2
 
-    Developed by Green"""
+class SysManager(commands.Cog, name=':wrench: System Manager'):
+    """An extension that oversees a lot of the bot system."""
 
     class SysExtensionLoadFailed(Exception):
         pass
@@ -923,6 +928,143 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.close()
         sys.exit(0)
 
+    async def manage_cog(self, cogs: list, action: CogAction):
+        toload = []
+        skip = []
+        success = []
+        failed = {}
+
+        async def run_check(plugin_name, plugin):
+            if not plugin['shutdown']:
+                return
+
+            script = importlib.import_module('utils.' + plugin_name + '_check')
+            await script.check(self.bot)
+
+        for cog in cogs:
+            cog_exists = f'{cog}.py' in os.listdir('cogs')
+            plugin_exists = f'{cog}.json' in os.listdir('plugins')
+
+            plugin_data = {}
+
+            if plugin_exists:
+                with open(f'plugins/{cog}.json') as file:
+                    plugin_data = json.load(file)
+
+            if plugin_exists and cog_exists:
+                if self.bot.config['plugin_priority']:
+                    toload.extend(plugin_data['modules'])
+                    await run_check(cog, plugin_data)
+                else:
+                    toload.append(f'cogs.{cog}')
+            elif plugin_exists:
+                toload.extend([f'cogs.{module[:-3]}' for module in plugin_data['modules']])
+
+                if not action == CogAction.load:
+                    try:
+                        await run_check(cog, plugin_data)
+                    except:
+                        skip.extend([f'cogs.{module}' for module in plugin_data['modules']])
+                        for child_cog in [f'cogs.{module}' for module in plugin_data['modules']]:
+                            failed.update({child_cog: 'Could not run pre-unload script.'})
+            elif cog_exists:
+                toload.append(f'cogs.{cog}')
+            else:
+                toload.append(f'cogs.{cog}')
+                skip.append(f'cogs.{cog}')
+                failed.update({cog: 'The cog or plugin does not exist.'})
+        for toload_cog in toload:
+            if toload_cog in skip:
+                continue
+            try:
+                if action == CogAction.load:
+                    self.bot.load_extension(toload_cog)
+                elif action == CogAction.reload:
+                    self.bot.reload_extension(toload_cog)
+                elif action == CogAction.unload:
+                    self.bot.unload_extension(toload_cog)
+                success.append(toload_cog)
+            except:
+                e = traceback.format_exc()
+                failed.update({toload_cog: e})
+        return len(toload), success, failed
+
+    async def manage_cog_cmd(self, ctx: Union[commands.Context, nextcord.Interaction], action: CogAction, cogs: str):
+        if type(ctx) is commands.Context:
+            selector = language.get_selector('sysmgr.manage_cog', userid=ctx.author.id)
+            author = ctx.author
+        else:
+            selector = language.get_selector('sysmgr.manage_cog', userid=ctx.user.id)
+            author = ctx.user
+
+        if self.bot.update:
+            return await ctx.send(selector.get('disabled'))
+
+        cogs = cogs.split(' ')
+
+        if action == CogAction.load:
+            action_str = 'load'
+        elif action == CogAction.reload:
+            action_str = 'reload'
+        elif action == CogAction.unload:
+            action_str = 'unload'
+        else:
+            # default to load
+            action_str = 'load'
+
+        msg = await ctx.send(f'{self.bot.ui_emojis.loading} {selector.get(action_str)}')
+        if type(ctx) is nextcord.Interaction:
+            msg = await msg.fetch()
+
+        total, success, failed = await self.manage_cog(cogs, action)
+
+        components = ui.MessageComponents()
+        if failed:
+            selection = nextcord.ui.StringSelect(
+                placeholder=selector.get("viewerror"),
+                max_values=1,
+                min_values=1,
+                custom_id='selection'
+            )
+
+            for fail in failed.keys():
+                selection.add_option(
+                    label=fail,
+                    value=fail
+                )
+
+            components.add_row(
+                ui.ActionRow(selection)
+            )
+
+        touse_emoji = self.bot.ui_emojis.success if len(success) == total else self.bot.ui_emojis.warning
+
+        await msg.edit(
+            content=f'{touse_emoji} {selector.fget("completed", values={"total":total, "success": len(success)})}',
+            view=components
+        )
+
+        if not failed:
+            return
+
+        while True:
+            def check(interaction):
+                if not interaction.message:
+                    return
+
+                return interaction.message.id == msg.id and interaction.user.id == author.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction',check=check,timeout=60)
+            except asyncio.TimeoutError:
+                return await msg.edit(view=None)
+
+            selected = interaction.data['values'][0]
+            error = failed[selected]
+            await interaction.response.send_message(
+                f'{self.bot.ui_emojis.error} {selected}\n```\n{error}```', ephemeral=True
+            )
+
     @tasks.loop(seconds=300)
     async def changestatus(self):
         dt = datetime.datetime.now(datetime.timezone.utc)
@@ -1277,161 +1419,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(hidden=True,description=language.desc('sysmgr.reload'))
     @restrictions_legacy.owner()
     async def reload(self, ctx, *, extensions):
-        selector = language.get_selector(ctx)
-        if self.bot.update:
-            return await ctx.send(selector.get('disabled'))
-
-        extensions = extensions.split(' ')
-        msg = await ctx.send(selector.get('in_progress'))
-        failed = []
-        errors = []
-        error_objs = []
-        text = ''
-        for extension in extensions:
-            try:
-                if extension == 'lockdown':
-                    raise ValueError('Cannot unload lockdown extension for security purposes.')
-                await self.preunload(extension)
-                self.bot.reload_extension(f'cogs.{extension}')
-                if len(text) == 0:
-                    text = f'```diff\n+ [DONE] {extension}'
-                else:
-                    text += f'\n+ [DONE] {extension}'
-            except Exception as error:
-                e = traceback.format_exc()
-                failed.append(extension)
-                errors.append(e)
-                error_objs.append(error)
-                if len(text) == 0:
-                    text = f'```diff\n- [FAIL] {extension}'
-                else:
-                    text += f'\n- [FAIL] {extension}'
-        if len(extensions) - len(failed) > 0:
-            await self.bot.discover_application_commands()
-            await self.bot.register_new_application_commands()
-        await msg.edit(content=selector.rawfget(
-            'completed', 'sysmgr.reload_services', values={
-                'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text
-            }
-        ))
-        text = ''
-        index = 0
-        for fail in failed:
-            if len(text) == 0:
-                text = f'{selector.rawget("extension","sysmgr.reload_services")} `{fail}`\n```{errors[index]}```'
-            else:
-                text = f'\n\n{selector.rawget("extension","sysmgr.reload_services")} `{fail}`\n```{errors[index]}```'
-            index += 1
-        if not len(failed) == 0:
-            if len(text) > 2000:
-                for error in error_objs:
-                    self.logger.exception('An error occurred!', exc_info=error)
-                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
+        await self.manage_cog_cmd(ctx, CogAction.reload, extensions)
 
     @commands.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions_legacy.owner()
     async def load(self, ctx, *, extensions):
-        selector = language.get_selector(ctx)
-        if self.bot.update:
-            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
-
-        extensions = extensions.split(' ')
-        msg = await ctx.send(selector.get('in_progress'))
-        failed = []
-        errors = []
-        error_objs = []
-        text = ''
-        for extension in extensions:
-            try:
-                self.bot.load_extension(f'cogs.{extension}')
-                if len(text) == 0:
-                    text = f'```diff\n+ [DONE] {extension}'
-                else:
-                    text += f'\n+ [DONE] {extension}'
-            except Exception as error:
-                e = traceback.format_exc()
-                failed.append(extension)
-                errors.append(e)
-                error_objs.append(error)
-                if len(text) == 0:
-                    text = f'```diff\n- [FAIL] {extension}'
-                else:
-                    text += f'\n- [FAIL] {extension}'
-        if len(extensions) - len(failed) > 0:
-            await self.bot.discover_application_commands()
-            await self.bot.register_new_application_commands()
-        await msg.edit(content=selector.fget(
-            'completed',
-            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
-        ))
-        text = ''
-        index = 0
-        for fail in failed:
-            if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
-            else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-            index += 1
-        if not len(failed) == 0:
-            if len(text) > 2000:
-                for error in error_objs:
-                    self.logger.exception('An error occurred!', exc_info=error)
-                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
+        await self.manage_cog_cmd(ctx, CogAction.load, extensions)
 
     @commands.command(hidden=True,description='Unloads an extension.')
     @restrictions_legacy.owner()
     async def unload(self, ctx, *, extensions):
-        selector = language.get_selector(ctx)
-        if self.bot.update:
-            return await ctx.send(selector.rawget('disabled','sysmgr.reload'))
-
-        extensions = extensions.split(' ')
-        msg = await ctx.send('Unloading extensions...')
-        failed = []
-        errors = []
-        error_objs = []
-        text = ''
-        for extension in extensions:
-            try:
-                if extension == 'sysmgr':
-                    raise ValueError('Cannot unload the sysmgr extension, let\'s not break the bot here!')
-                if extension == 'lockdown':
-                    raise ValueError('Cannot unload lockdown extension for security purposes.')
-                await self.preunload(extension)
-                self.bot.unload_extension(f'cogs.{extension}')
-                if len(text) == 0:
-                    text = f'```diff\n+ [DONE] {extension}'
-                else:
-                    text += f'\n+ [DONE] {extension}'
-            except Exception as error:
-                e = traceback.format_exc()
-                failed.append(extension)
-                errors.append(e)
-                error_objs.append(error)
-                if len(text) == 0:
-                    text = f'```diff\n- [FAIL] {extension}'
-                else:
-                    text += f'\n- [FAIL] {extension}'
-        await msg.edit(content=selector.fget(
-            'completed',
-            values={'success': len(extensions)-len(failed), 'total': len(extensions), 'text': text}
-        ))
-        text = ''
-        index = 0
-        for fail in failed:
-            if len(text) == 0:
-                text = f'Extension `{fail}`\n```{errors[index]}```'
-            else:
-                text = f'\n\nExtension `{fail}`\n```{errors[index]}```'
-            index += 1
-        if not len(failed) == 0:
-            if len(text) > 2000:
-                for error in error_objs:
-                    self.logger.exception('An error occurred!', exc_info=error)
-                    return await ctx.author.send(selector.rawget("too_long", "sysmgr.reload_services"))
-            await ctx.author.send(f'**{selector.rawget("fail_logs","sysmgr.reload_services")}**\n{text}')
+        await self.manage_cog_cmd(ctx, CogAction.unload, extensions)
 
     @commands.command(hidden=True,description='Installs a plugin.')
     @restrictions_legacy.owner()
@@ -3238,6 +3236,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             footer_text = "Version " + vinfo['version'] + " | Made with \u2764\ufe0f by UnifierHQ"
         else:
             footer_text = "Unknown version | Made with \u2764\ufe0f by UnifierHQ"
+
+        footer_text += f'\nUsing Nextcord {nextcord.__version__} on Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'
 
         while True:
             embed = nextcord.Embed(

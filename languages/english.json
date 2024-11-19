@@ -172,6 +172,14 @@
         "notfound": "Could not find extension!",
         "system_module": "\n# SYSTEM MODULE\nThis module cannot be unloaded."
       },
+      "manage_cog": {
+        "reload": "Reloading extensions...",
+        "load": "Loading extensions...",
+        "unload": "Unloading extensions...",
+        "completed": "Completed ({success}/{total} successful)",
+        "disabled": "Extensions and Modifier management is disabled until restart.",
+        "viewerror": "Select failed job..."
+      },
       "reload": {
         "description": "Reloads an extension.",
         "disabled": "Extensions and Modifier management is disabled until restart.",
@@ -611,7 +619,6 @@
         "check_body": "We're checking if this channel is already connected. Give us a moment...",
         "already_linked_title": "Already connected",
         "already_linked_body": "This channel is already connected to `{room}`!\nRun `/bridge unbind {room}` to disconnect the channel.",
-        "already_room": "Your server is already linked to this room.\n**Accidentally deleted the webhook?** `/bridge unbind {room}` it then `/bridge bind {room}` it back.",
         "join_title": "Join {roomname}?",
         "no_rules": "This room doesn't have any rules yet! For now, follow the main room's rules (and common sense).\nYou can always view rules if any get added using `/bridge rules {room}`.",
         "disclaimer": "Failure to follow room rules may result in user or server restrictions.",
@@ -621,7 +628,8 @@
         "failed": "Failed to connect.",
         "invalid_invite": "Invite is invalid.",
         "room_banned": "You are banned from this room.",
-        "too_many": "Server has reached maximum number of connections.",
+        "too_many": "Server has reached maximum number of Private Rooms connections.",
+        "already_linked_server": "Your server is already binded to this room. Unbind the room and try again.",
         "success": "Connected to room!",
         "say_hi": "You're now connected! Say hi!"
       },
@@ -1326,6 +1334,7 @@
         "welcome_body": "Welcome to Unifier - an open source, fast, and versatile bridge bot.",
         "welcome_continue": "First, let's choose your system language, so we can get your Unifier set up and running!",
         "welcome_upgraded": "An upgraded installation was detected. If you've used this Unifier instance before, press \"Skip\".",
+        "select_language": "Select a language...",
         "prefix_title": "Command prefix",
         "prefix_body": "A prefix is the text that comes before the command. For example, if the prefix is `!`, users will need to run `!command`.",
         "prefix_default": "Default value: `u!`",

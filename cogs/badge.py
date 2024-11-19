@@ -37,9 +37,7 @@ class UserRole(Enum):
     USER = language.get('user','badge.roles')
 
 class Badge(commands.Cog, name=':medal: Badge'):
-    """Badge contains commands that show you your role in Unifier.
-
-    Developed by Green and ItsAsheer"""
+    """Badge contains commands that show you your role in Unifier."""
 
     def __init__(self, bot):
         global language

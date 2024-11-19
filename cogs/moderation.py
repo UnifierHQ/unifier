@@ -83,9 +83,7 @@ def timetoint(t,timeoutcap=False):
     return total
 
 class Moderation(commands.Cog, name=":shield: Moderation"):
-    """Moderation allows server moderators and instance moderators to punish bad actors.
-
-    Developed by Green and ItsAsheer"""
+    """Moderation allows server moderators and instance moderators to punish bad actors."""
 
     def __init__(self,bot):
         global language

@@ -60,6 +60,21 @@ if prefix:
 else:
     code = os.system(f'{binary} -m pip install{user_arg} -U -r requirements.txt')
 
+for plugin in os.listdir('plugins'):
+    if not plugin.endswith('.json') or plugin == 'system.json':
+        continue
+
+    try:
+        with open(f'plugins/{plugin}') as file:
+            plugin_data = json.load(file)
+    except:
+        continue
+
+    if len(plugin_data['requirements']) > 0:
+        code = os.system(f'{binary} -m pip install{user_arg} -U {" ".join(plugin_data["requirements"])}')
+        if not code == 0:
+            break
+
 if not code == 0:
     print('\x1b[31;1mCould not install dependencies.\x1b[0m')
     print('\x1b[31;1mIf you\'re using a virtualenv, you might want to set global_dep_install to true in bootloader configuration to fix this.\x1b[0m')

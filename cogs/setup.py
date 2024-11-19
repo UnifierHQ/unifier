@@ -37,7 +37,7 @@ class SetupDialog:
         self.__bot = bot
         self.embed = nextcord.Embed()
         self.language = self.__bot.langmgr
-        self.use_language = None
+        self.use_language = 'english'
         self.message = None
         self.user = self.__bot.get_user(self.__bot.owner)
 
@@ -431,6 +431,8 @@ class SetupDialog:
             return None
         if modal.custom_id == 'summon_modal':
             return None
+        if not isinstance(defaults, list):
+            defaults = [defaults]
 
         self.update(title, description, image_url=image_url)
 
@@ -477,7 +479,9 @@ class SetupDialog:
 
         return values
 
-class Setup(commands.Cog):
+class Setup(commands.Cog, name=":beginner: Setup"):
+    """Setup provides a guided setup process for the bot for both instance owners and server owners and admins."""
+
     def __init__(self, bot):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'setup', self.bot.loglevel)

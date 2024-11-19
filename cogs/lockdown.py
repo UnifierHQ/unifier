@@ -33,9 +33,7 @@ language = langmgr.partial()
 language.load()
 
 class Lockdown(commands.Cog, name=':lock: Lockdown'):
-    """An emergency extension that unloads literally everything.
-
-    Developed by Green and ItsAsheer"""
+    """An emergency extension that unloads literally everything."""
 
     def __init__(self,bot):
         global language
