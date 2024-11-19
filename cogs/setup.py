@@ -479,7 +479,9 @@ class SetupDialog:
 
         return values
 
-class Setup(commands.Cog):
+class Setup(commands.Cog, name=":beginner: Setup"):
+    """Setup provides a guided setup process for the bot for both instance owners and server owners and admins."""
+
     def __init__(self, bot):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'setup', self.bot.loglevel)

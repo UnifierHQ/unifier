@@ -2799,9 +2799,7 @@ class UnifierBridge:
         return parent_id
 
 class Bridge(commands.Cog, name=':link: Bridge'):
-    """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related.
-
-    Developed by Green and ItsAsheer"""
+    """Bridge is the heart of Unifier, it's the extension that handles the bridging and everything chat related."""
 
     def __init__(self, bot):
         global language

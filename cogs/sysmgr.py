@@ -482,9 +482,7 @@ class CogAction(Enum):
     unload = 2
 
 class SysManager(commands.Cog, name=':wrench: System Manager'):
-    """An extension that oversees a lot of the bot system.
-
-    Developed by Green"""
+    """An extension that oversees a lot of the bot system."""
 
     class SysExtensionLoadFailed(Exception):
         pass

@@ -64,9 +64,7 @@ def timetoint(t):
     return total
 
 class Config(commands.Cog, name=':construction_worker: Config'):
-    """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server.
-
-    Developed by Green and ItsAsheer"""
+    """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server."""
 
     def __init__(self,bot):
         global language
