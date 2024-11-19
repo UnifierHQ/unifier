@@ -325,6 +325,7 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                             boot_config['bootloader'].update({'global_dep_install': True})
                         else:
                             boot_config['bootloader'].update({'binary': binary})
+                            boot_config['bootloader'].update({'global_dep_install': False})
 
                         with open('boot_config.json', 'w+') as file:
                             # noinspection PyTypeChecker
