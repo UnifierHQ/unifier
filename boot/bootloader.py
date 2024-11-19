@@ -88,6 +88,10 @@ class PythonInstallation:
         return self.__emulated
 
     @property
+    def filepath(self):
+        return self.__filepath
+
+    @property
     def default(self):
         return self.__default
 
@@ -238,6 +242,7 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                 if len(installed) == 1:
                     print('\x1b[33;1mOnly the default Python installation was detected, using default.\x1b[0m')
                 else:
+                    installed.sort(key=lambda x: x.version, reverse=True)
                     print(f'\x1b[33;1mFound {len(installed)} available Python installations:\x1b[0m')
                     for index in range(len(installed)):
                         print(f'\x1b[33m({index+1}) {installed[index]}\x1b[0m')
