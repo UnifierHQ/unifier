@@ -960,8 +960,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 else:
                     toload.append(f'cogs.{cog}')
             elif plugin_exists:
-                toload.extend(plugin_data['modules'])
-                await run_check(cog, plugin_data)
+                toload.extend([f'cogs.{module[:-3]}' for module in plugin_data['modules']])
+
+                if not action == CogAction.load:
+                    try:
+                        await run_check(cog, plugin_data)
+                    except:
+                        skip.extend([f'cogs.{module}' for module in plugin_data['modules']])
+                        for child_cog in [f'cogs.{module}' for module in plugin_data['modules']]:
+                            failed.update({child_cog: 'Could not run pre-unload script.'})
             elif cog_exists:
                 toload.append(f'cogs.{cog}')
             else:
@@ -1032,8 +1039,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 ui.ActionRow(selection)
             )
 
+        touse_emoji = self.bot.ui_emojis.success if len(success) == total else self.bot.ui_emojis.warning
+
         await msg.edit(
-            content=f'{self.bot.ui_emojis.success} {selector.fget("completed", values={"total":total, "success": len(success)})}',
+            content=f'{touse_emoji} {selector.fget("completed", values={"total":total, "success": len(success)})}',
             view=components
         )
 
