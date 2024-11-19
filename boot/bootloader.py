@@ -155,7 +155,7 @@ def check_for_python(path, found=None, venv=False):
     except FileNotFoundError:
         return []
 
-    return versions
+    return versions or []
 
 
 if boot_config.get('ptero') is None and uses_docker:
@@ -241,8 +241,12 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
             if not uses_docker and not sys.platform == 'win32':
                 print('\x1b[33;1mDetecting python installations...\x1b[0m')
                 installed = []
-                installed.extend(check_for_python('/usr/bin'))
-                installed.extend(check_for_python('/usr/local/bin', found=installed))
+                installed.extend(check_for_python('/usr/bin') or [])
+                installed.extend(check_for_python('/usr/local/bin', found=installed) or [])
+
+                if os.path.exists('/Library/Frameworks/Python.framework/Versions'):
+                    for item in os.listdir('/Library/Frameworks/Python.framework/Versions'):
+                        installed.extend(check_for_python(f'/Library/Frameworks/Python.framework/Versions/{item}/bin', found=installed) or [])
 
                 for item in os.listdir():
                     if not os.path.isdir(item):
