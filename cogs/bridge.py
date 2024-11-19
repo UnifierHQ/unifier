@@ -436,6 +436,9 @@ class UnifierBridge:
 
         @property
         def avatar_url(self):
+            if self.platform == 'discord':
+                return self.__bot.get_user(self.id).avatar.url
+
             source_support = self.__bot.platforms[self.platform]
             return source_support.avatar(source_support.get_user(self.id))
 
