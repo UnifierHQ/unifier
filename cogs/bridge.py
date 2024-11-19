@@ -1803,6 +1803,7 @@ class UnifierBridge:
                     else:
                         author = source_support.user_name(source_support.author(message))
                     break
+
                 if pymoji.is_emoji(author_split[len(author_split)-1]):
                     author_split.pop(len(author_split)-1)
                     author = ''.join(author_split)
@@ -1810,6 +1811,7 @@ class UnifierBridge:
                         author = author[:-1]
                 else:
                     break
+
             if (
                     author_id == self.__bot.config['owner'] or (
                             author_id == self.__bot.config['owner_external'][source]
