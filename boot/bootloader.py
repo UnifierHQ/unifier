@@ -77,7 +77,7 @@ class PythonInstallation:
             extras += ' \U00002B50'
         if self.__emulated:
             extras += ' (Emulated x86_64)'
-        return f'Python {self.__version[0]}.{self.__version[1]}.{self.__version[2]} @ {self.__filepath}'
+        return f'Python {self.__version[0]}.{self.__version[1]}.{self.__version[2]} @ {self.__filepath}{extras}'
 
     @property
     def version(self):
