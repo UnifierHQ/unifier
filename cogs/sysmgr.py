@@ -3230,6 +3230,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         else:
             footer_text = "Unknown version | Made with \u2764\ufe0f by UnifierHQ"
 
+        footer_text += f'\nUsing Nextcord {nextcord.__version__} on Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'
+
         while True:
             embed = nextcord.Embed(
                 title=self.bot.user.global_name or self.bot.user.name,
