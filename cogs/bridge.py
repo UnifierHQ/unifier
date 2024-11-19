@@ -1801,7 +1801,7 @@ class UnifierBridge:
                     if source == 'discord':
                         author = message.author.name
                     else:
-                        author = source_support.user_name(message.author)
+                        author = source_support.user_name(source_support.author(message))
                     break
                 if pymoji.is_emoji(author_split[len(author_split)-1]):
                     author_split.pop(len(author_split)-1)
@@ -2357,7 +2357,7 @@ class UnifierBridge:
                     if source == 'discord':
                         url = message.author.avatar.url
                     else:
-                        url = source_support.avatar(message.author)
+                        url = source_support.avatar(source_support.author(message))
             except:
                 url = None
 
