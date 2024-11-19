@@ -65,11 +65,12 @@ cgroup = Path('/proc/self/cgroup')
 uses_docker = Path('/.dockerenv').is_file() or cgroup.is_file() and 'docker' in cgroup.read_text()
 
 class PythonInstallation:
-    def __init__(self, major, minor, patch, filepath, default=False, emulated=False):
+    def __init__(self, major, minor, patch, filepath, default=False, emulated=False, venv=False):
         self.__version = (major, minor, patch)
         self.__filepath = filepath
         self.__default = default
         self.__emulated = emulated
+        self.__venv = venv
 
     def __str__(self):
         extras = ''
@@ -99,7 +100,7 @@ class PythonInstallation:
     def supported(self):
         return self.__version >= (3, 9, 0)
 
-def check_for_python(path, found=None):
+def check_for_python(path, found=None, venv=False):
     versions = []
     blacklist = ['-config', 't', 't-config', 't-intel64']
 
@@ -143,7 +144,7 @@ def check_for_python(path, found=None):
 
             installation = PythonInstallation(
                 int(major), int(minor), int(patch), f'{path}/{item}', default=f'{path}/{item}' in defaults,
-                emulated=emulated
+                emulated=emulated, venv=venv
             )
             if not installation in versions and not installation in found:
                 versions.append(installation)
@@ -239,7 +240,13 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                 installed.extend(check_for_python('/usr/bin'))
                 installed.extend(check_for_python('/usr/local/bin', found=installed))
 
-                if len(installed) == 1:
+                for item in os.listdir():
+                    if not os.path.isdir(item):
+                        continue
+
+                    installed.extend(check_for_python(f'{item}/bin', found=installed, venv=True))
+
+                if len(installed) <= 1:
                     print('\x1b[33;1mOnly the default Python installation was detected, using default.\x1b[0m')
                 else:
                     installed.sort(key=lambda x: x.version, reverse=True)
@@ -264,52 +271,60 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                         break
 
                     binary = installed[choice].filepath
-
-                    bootloader_exists = os.path.exists('.venv')
-
-                    if bootloader_exists:
-                        print('\n\x1b[33;1mAn existing virtual environment was found. Would you like to use it? (y/n)\x1b[0m')
-                    else:
-                        print('\n\x1b[33;1mWould you like to use a virtual environment? This is highly recommended as this prevents\x1b[0m')
-                        print('\x1b[33;1mglobal packages from breaking and allows for easier recovery. (y/n)\x1b[0m')
-
-                    use_venv = False
-                    while True:
-                        try:
-                            choice = input().lower()
-                            if not choice == 'y' and not choice == 'n':
-                                raise ValueError()
-                        except ValueError:
-                            print(f'\x1b[31;1mInvalid answer, try again.\x1b[0m')
-                            continue
-                        except KeyboardInterrupt:
-                            print(f'\x1b[31;1mAborting.\x1b[0m')
-                            sys.exit(1)
-
-                        use_venv = choice == 'y'
-                        break
-
-                    if not boot_config.get('bootloader'):
-                        boot_config.update({'bootloader': {}})
-
-                    if use_venv:
-                        if not bootloader_exists:
-                            print(f'\n\x1b[33;1mCreating virtual environment in {os.getcwd()}/.venv...\x1b[0m')
-                            code = os.system(f'{binary} -m venv .venv')
-                            if code == 0:
-                                print(f'\x1b[36;1mVirtual environment created successfully.\x1b[0m')
-                            else:
-                                print(f'\x1b[31;1mFailed to create virtual environment, aborting.\x1b[0m')
-                                sys.exit(1)
-                        binary = './.venv/bin/python'
+                    if installed[choice].venv:
+                        if not boot_config.get('bootloader'):
+                            boot_config.update({'bootloader': {}})
                         boot_config['bootloader'].update({'binary': binary})
                         boot_config['bootloader'].update({'global_dep_install': True})
+                        with open('boot_config.json', 'w+') as file:
+                            # noinspection PyTypeChecker
+                            json.dump(boot_config, file, indent=4)
                     else:
-                        boot_config['bootloader'].update({'binary': binary})
+                        bootloader_exists = os.path.isdir('.venv')
 
-                    with open('boot_config.json', 'w+') as file:
-                        # noinspection PyTypeChecker
-                        json.dump(boot_config, file, indent=4)
+                        if bootloader_exists:
+                            print('\n\x1b[33;1mAn existing virtual environment was found. Would you like to use it? (y/n)\x1b[0m')
+                        else:
+                            print('\n\x1b[33;1mWould you like to use a virtual environment? This is highly recommended as this prevents\x1b[0m')
+                            print('\x1b[33;1mglobal packages from breaking and allows for easier recovery. (y/n)\x1b[0m')
+
+                        use_venv = False
+                        while True:
+                            try:
+                                choice = input().lower()
+                                if not choice == 'y' and not choice == 'n':
+                                    raise ValueError()
+                            except ValueError:
+                                print(f'\x1b[31;1mInvalid answer, try again.\x1b[0m')
+                                continue
+                            except KeyboardInterrupt:
+                                print(f'\x1b[31;1mAborting.\x1b[0m')
+                                sys.exit(1)
+
+                            use_venv = choice == 'y'
+                            break
+
+                        if not boot_config.get('bootloader'):
+                            boot_config.update({'bootloader': {}})
+
+                        if use_venv:
+                            if not bootloader_exists:
+                                print(f'\n\x1b[33;1mCreating virtual environment in {os.getcwd()}/.venv...\x1b[0m')
+                                code = os.system(f'{binary} -m venv .venv')
+                                if code == 0:
+                                    print(f'\x1b[36;1mVirtual environment created successfully.\x1b[0m')
+                                else:
+                                    print(f'\x1b[31;1mFailed to create virtual environment, aborting.\x1b[0m')
+                                    sys.exit(1)
+                            binary = './.venv/bin/python'
+                            boot_config['bootloader'].update({'binary': binary})
+                            boot_config['bootloader'].update({'global_dep_install': True})
+                        else:
+                            boot_config['bootloader'].update({'binary': binary})
+
+                        with open('boot_config.json', 'w+') as file:
+                            # noinspection PyTypeChecker
+                            json.dump(boot_config, file, indent=4)
 
             print('\x1b[33;1mPlease review the following before continuing:\x1b[0m')
             print(f'- Product to install: {internal["product_name"]}')
