@@ -1039,6 +1039,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         touse_emoji = self.bot.ui_emojis.success if len(success) == total else self.bot.ui_emojis.warning
 
+        if len(success) > 0 and not action == CogAction.unload:
+            await self.bot.discover_application_commands()
+            await self.bot.register_new_application_commands()
+
         await msg.edit(
             content=f'{touse_emoji} {selector.fget("completed", values={"total":total, "success": len(success)})}',
             view=components
