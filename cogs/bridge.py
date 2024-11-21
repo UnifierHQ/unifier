@@ -4143,13 +4143,29 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         roomtype_text = selector.get(roomtype + '_name')
 
+        steps = '\n'.join([f'- {step}' for step in ([
+            selector.fget(
+                'step_1',
+                values={'command': self.bot.get_application_command_from_signature('config create-invite').get_mention()}
+            ),
+            selector.get('step_2')
+        ] if roomtype == 'private' else [selector.get('step_2')])])
+
+        embed = nextcord.Embed(
+            title=selector.rawget('nextsteps', 'commons.navigation'),
+            description=steps,
+            color=self.bot.colors.unifier
+        )
+
         if interaction:
             return await interaction.response.edit_message(
                 content=f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}',
-                view=None
+                embed=embed, view=None
             )
+
         await ctx.send(
-            f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}'
+            f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}',
+            embed=embed
         )
 
     @bridge.subcommand(
