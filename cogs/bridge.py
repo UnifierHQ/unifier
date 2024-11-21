@@ -5644,7 +5644,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.description = selector.get("success_body")
         embed.colour = self.bot.colors.success
 
-        await msg.edit(embed=embed)
+        await msg.edit(embed=embed, view=None)
         await interaction.delete_original_message()
 
     @commands.Cog.listener()
