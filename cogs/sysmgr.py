@@ -3234,7 +3234,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             with open('boot/internal.json') as file:
                 pinfo = json.load(file)
         except:
-            pinfo = None
+            pinfo = {}
 
         if vinfo:
             footer_text = "Version " + vinfo['version'] + " | Made with \u2764\ufe0f by UnifierHQ"
@@ -3249,7 +3249,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 description=(
                     (self.bot.config["custom_slogan"] or "Powered by Unifier") + '\n\n' +
                     selector.fget("team", values={
-                        "product": pinfo["product_name"], "maintainer": pinfo["maintainer"], "url": pinfo["maintainer_profile"]
+                        "product": pinfo.get("product_name",'unknown'),
+                        "maintainer": pinfo.get("maintainer",'unknown'),
+                        "url": pinfo.get("maintainer_profile",'unknown')
                     })
                 ),
                 color=self.bot.colors.unifier
