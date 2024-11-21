@@ -94,7 +94,7 @@
     "sysmgr": {
       "cogmeta": {
         "name": ":wrench: System Manager",
-        "description": "An extension that oversees a lot of the bot system.\n\nDeveloped by Green"
+        "description": "An extension that oversees a lot of the bot system."
       },
       "error_handler": {
         "argument": "`{arg}` is a required argument.",
