@@ -3217,9 +3217,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     )
     async def about(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
+
+        all_attribs = dict(attribution)
+
+        for plugin in os.listdir('plugins'):
+            if not plugin.endswith('.json') or plugin == 'system.json':
+                continue
+            with open(f'plugins/{plugin}') as file:
+                plugin_info = json.load(file)
+            all_attribs.update(plugin_info.get('attribution', {}))
+
         attr_limit = 10
         page = 0
-        maxpage = math.ceil(len(attribution.keys())/attr_limit)-1
+        maxpage = math.ceil(len(all_attribs.keys())/attr_limit)-1
         show_attr = False
         interaction = None
         msg = None
@@ -3287,13 +3297,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await interaction.response.edit_message(embed=embed, view=view)
             else:
                 embed.clear_fields()
+
                 for index in range(
                         page*attr_limit,
-                        (page+1)*attr_limit if (page+1)*attr_limit < len(attribution.keys()) else len(attribution.keys())
+                        (page+1)*attr_limit if (page+1)*attr_limit < len(all_attribs.keys()) else len(all_attribs.keys())
                 ):
-                    attr_data = attribution[list(attribution.keys())[index]]
+                    attr_data = all_attribs[list(all_attribs.keys())[index]]
                     embed.add_field(
-                        name=f'{list(attribution.keys())[index]} by {attr_data["author"]}',
+                        name=f'{list(all_attribs.keys())[index]} by {attr_data["author"]}',
                         value=(
                                   f'{attr_data["description"]}\n[{selector.get("repo_link")}]({attr_data["repo"]}) • '+
                                   f'[{selector.fget("license",values={"license": attr_data["license"]})}]({attr_data["license_url"]})'
