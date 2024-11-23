@@ -1393,7 +1393,7 @@
         "aroom_body": "Which room should be used for Safety Alerts?",
         "aroom_name": "The room with the matching name will be used for Safety Alerts.",
         "aroom_default": "Default value: `alerts`",
-        "finish_title": "Setup complete!",
+        "finish_title": "You're all set!",
         "finish_body": "Unifier is now ready for action!",
         "finish_reboot": "Please press \"Restart\" to complete setup."
       }
