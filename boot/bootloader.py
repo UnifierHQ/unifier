@@ -35,6 +35,14 @@ reinstall = '--reinstall' in sys.argv
 depinstall = '--install-deps' in sys.argv
 manage_tokens = '--tokens' in sys.argv
 clear_tokens = '--clear-tokens' in sys.argv
+ignore_sudo = '--ignore-sudo' in sys.argv
+
+if os.geteuid() == 0:
+    print('\x1b[31;1mWARNING: YOU ARE RUNNING THE PROGRAM WITH SUPERUSER PRIVILEGES!\x1b[0m')
+    print('\x1b[31mThis is very dangerous, and running this program with these privileges is NOT RECOMMENDED,\x1b[0m')
+    print('\x1b[31mespecially since the program connects to the internet.\x1b[0m')
+    print('\x1b[31mPlease run the program with regular user privileges, or run the bootloader again with\x1b[0m')
+    print('\x1b[31m--ignore-sudo to silence this.\x1b[0m')
 
 if os.getcwd().endswith('/boot'):
     print('\x1b[31;1mYou are running the bootloader directly. Please run the run.sh file instead.\x1b[0m')
