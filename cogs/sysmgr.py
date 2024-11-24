@@ -589,7 +589,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         extinfo = json.load(file)
                     for extension in extinfo['modules']:
                         try:
-                            self.bot.load_extension('cogs.' + extension[:-3])
+                            if extinfo.get('required_tokens') and extension[:-3] in extinfo.get('uses_tokenstore', []):
+                                self.bot.load_extension(
+                                    'cogs.' + extension[:-3],
+                                    extras={'tokenstore': self.bot.get_restrictive_tokenstore(plugin[:-5])}
+                                )
+                            else:
+                                self.bot.load_extension('cogs.' + extension[:-3])
                             self.logger.debug('Loaded plugin ' + extension)
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
@@ -940,6 +946,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         toload = []
         skip = []
         success = []
+        tokenstores = {}
         failed = {}
 
         async def run_check(plugin_name, plugin):
@@ -954,19 +961,43 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             plugin_exists = f'{cog}.json' in os.listdir('plugins')
 
             plugin_data = {}
+            __tokenstore = None
 
             if plugin_exists:
                 with open(f'plugins/{cog}.json') as file:
                     plugin_data = json.load(file)
+                if plugin_data.get('required_tokens'):
+                    __tokenstore = self.bot.get_restrictive_tokenstore(cog)
 
             if plugin_exists and cog_exists:
                 if self.bot.config['plugin_priority']:
                     toload.extend(plugin_data['modules'])
-                    await run_check(cog, plugin_data)
+
+                    for ext in plugin_data['modules']:
+                        if not __tokenstore:
+                            break
+
+                        if ext in plugin_data.get('uses_tokenstore', []):
+                            tokenstores.update({ext: __tokenstore})
+
+                    if not action == CogAction.load:
+                        try:
+                            await run_check(cog, plugin_data)
+                        except:
+                            skip.extend([f'cogs.{module}' for module in plugin_data['modules']])
+                            for child_cog in [f'cogs.{module}' for module in plugin_data['modules']]:
+                                failed.update({child_cog: 'Could not run pre-unload script.'})
                 else:
                     toload.append(f'cogs.{cog}')
             elif plugin_exists:
                 toload.extend([f'cogs.{module[:-3]}' for module in plugin_data['modules']])
+
+                for ext in plugin_data['modules']:
+                    if not __tokenstore:
+                        break
+
+                    if ext in plugin_data.get('uses_tokenstore', []):
+                        tokenstores.update({ext: __tokenstore})
 
                 if not action == CogAction.load:
                     try:
@@ -986,9 +1017,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 continue
             try:
                 if action == CogAction.load:
-                    self.bot.load_extension(toload_cog)
+                    if toload_cog in tokenstores.keys():
+                        self.bot.load_extension(toload_cog, extras={'tokenstore': tokenstores[toload_cog]})
+                    else:
+                        self.bot.load_extension(toload_cog)
                 elif action == CogAction.reload:
-                    self.bot.reload_extension(toload_cog)
+                    if toload_cog in tokenstores.keys():
+                        self.bot.reload_extension(toload_cog, extras={'tokenstore': tokenstores[toload_cog]})
+                    else:
+                        self.bot.reload_extension(toload_cog)
                 elif action == CogAction.unload:
                     self.bot.unload_extension(toload_cog)
                 success.append(toload_cog)

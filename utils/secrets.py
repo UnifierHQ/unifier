@@ -294,3 +294,17 @@ class TokenStore:
         with open(filename, 'w+') as file:
             # noinspection PyTypeChecker
             json.dump(self.__data, file)
+
+class RestrictiveTokenStore:
+    def __init__(self, tokenstore, allowed_tokens):
+        self.__tokenstore = tokenstore
+        self.__allowed_tokens = allowed_tokens
+
+    @property
+    def allowed_tokens(self):
+        return self.__allowed_tokens
+
+    def retrieve(self, identifier):
+        if not identifier in self.__allowed_tokens:
+            raise ValueError('token not allowed')
+        return self.__tokenstore.retrieve(identifier)

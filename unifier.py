@@ -436,10 +436,6 @@ class DiscordBot(commands.Bot):
         return self.__uses_v3
 
     @property
-    def tokenstore(self):
-        return self.__tokenstore
-
-    @property
     def admins(self):
         return [self.owner, *self.other_owners, *self.config['admin_ids']]
 
@@ -450,6 +446,24 @@ class DiscordBot(commands.Bot):
     async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
         # suppress exception traceback as they're already logged
         pass
+
+    def test_decrypt(self):
+        return self.__tokenstore.test_decrypt()
+
+    def retrieve_token(self):
+        return self.__tokenstore.retrieve('TOKEN')
+
+    def get_restrictive_tokenstore(self, plugin):
+        try:
+            with open(f'plugins/{plugin}.json') as file:
+                plugin_data = json.load(file)
+        except FileNotFoundError:
+            return None
+
+        if not plugin_data.get('required_tokens', False):
+            return None
+
+        return secrets.RestrictiveTokenStore(self.__tokenstore, plugin_data['required_tokens'])
 
 class Intents(nextcord.Intents):
     def __init__(self, **kwargs):
@@ -473,7 +487,7 @@ bot.safemode = 'safemode' in sys.argv and not bot.coreboot
 bot.devmode = 'devmode' in sys.argv
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
-if not bot.tokenstore.test_decrypt():
+if not bot.test_decrypt():
     del os.environ['UNIFIER_ENCPASS']
     print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
     print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
@@ -650,7 +664,7 @@ async def on_message(message):
 os.environ.pop('UNIFIER_ENCPASS')
 
 try:
-    bot.run(bot.tokenstore.retrieve('TOKEN'))
+    bot.run(bot.retrieve_token())
 except SystemExit as e:
     try:
         code = int(f'{e}')
