@@ -310,7 +310,6 @@ class DiscordBot(commands.Bot):
         self.__tokenstore = secrets.TokenStore(
             not should_encrypt,
             password=os.environ['UNIFIER_ENCPASS'],
-            salt=data['encrypted_env_salt'],
             debug=data['debug'],
             onetime=['TOKEN']
         )
@@ -318,7 +317,7 @@ class DiscordBot(commands.Bot):
         self.cooldowns = {}
 
         if should_encrypt:
-            self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
+            self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'])
             os.remove('.env')
 
     @property

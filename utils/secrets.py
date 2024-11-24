@@ -1,6 +1,6 @@
 """
 Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2024  Green, ItsAsheer
+Copyright (C) 2023-present  UnifierHQ
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -26,7 +26,6 @@ from Crypto.Random import random
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
 from Crypto import Random as CryptoRandom
-from Crypto.Util.Padding import pad, unpad
 
 # import ujson if installed
 try:
@@ -38,73 +37,75 @@ class Encryptor:
     def __init__(self):
         pass
 
-    def encrypt(self, encoded, password, salt):
+    def encrypt(self, encoded, password):
         """Encrypts a given bytes object."""
+        salt = CryptoRandom.get_random_bytes(16)
         __key = PBKDF2(password, salt, dkLen=32)
 
-        iv = CryptoRandom.get_random_bytes(16)
-        __cipher = AES.new(__key, AES.MODE_CBC, iv=iv)
-        result = __cipher.encrypt(pad(encoded, AES.block_size))
+        nonce = CryptoRandom.get_random_bytes(12)
+        __cipher = AES.new(__key, AES.MODE_GCM, nonce=nonce)
+        result, tag = __cipher.encrypt_and_digest(encoded)
         del __key
         del __cipher
-        return result, base64.b64encode(iv).decode('ascii')
+        return result, base64.b64encode(tag).decode('ascii'), base64.b64encode(nonce).decode('ascii'), base64.b64encode(salt).decode('ascii')
 
-    def decrypt(self, encrypted, password, salt, iv_string):
+    def decrypt(self, encrypted, password, tag_string, salt_string, nonce_string):
         """Decrypts a given encrypted bytes object."""
-        iv = base64.b64decode(iv_string)
+        nonce = base64.b64decode(nonce_string)
+        tag = base64.b64decode(tag_string)
+        salt = base64.b64decode(salt_string)
         __key = PBKDF2(password, salt, dkLen=32)
-        __cipher = AES.new(__key, AES.MODE_CBC, iv=iv)
-        result = unpad(__cipher.decrypt(encrypted), AES.block_size)
+        __cipher = AES.new(__key, AES.MODE_GCM, nonce=nonce)
+        result = __cipher.decrypt_and_verify(encrypted, tag)
         del __key
         del __cipher
         return result
 
 class TokenStore:
-    def __init__(self, encrypted, password=None, salt=None, debug=False, content_override=None, onetime=None):
+    def __init__(self, encrypted, password=None, debug=False, content_override=None, onetime=None):
         self.__is_encrypted = encrypted
         self.__encryptor = Encryptor()
         self.__password = password
-        self.__request_password = None
-        self.__requested_password = True
-        self.__salt = salt
         self.__one_time = onetime or []
         self.__accessed = []
 
         if encrypted:
             if not password:
                 raise ValueError('encryption password must be provided')
-            if not salt:
-                raise ValueError('encryption salt must be provided')
 
             # file is in json format
             try:
-                with open('.encryptedenv', 'r') as file:
-                    self.__data = json.load(file)
-                with open('.ivs', 'r') as file:
-                    self.__ivs = json.load(file)
+                with open('secrets/.encryptedenv', 'r') as file:
+                    self.__data: dict = json.load(file)
             except:
-                self.__data = {}
-                self.__ivs = {}
+                self.__data: dict = {}
         else:
             # file is in dotenv format, load using load_dotenv
             # we will not encapsulate dotenv data for the sake of backwards compatibility
             if content_override:
                 # content override is a feature only to be used by bootloader
-                self.__data = content_override
+                self.__data: dict = content_override
             else:
                 load_dotenv()
-                self.__data = os.environ
+                self.__data: dict = dict(os.environ)
 
         self.__debug = debug
+
+        if not 'test' in self.__data.keys():
+            test_value, test_tag, test_nonce, test_salt = self.__encryptor.encrypt(str.encode(
+                ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(16)])
+            ), self.__password)
+
+            self.__data['test'] = {
+                "ciphertext": base64.b64encode(test_value).decode('ascii'),
+                "tag": test_tag,
+                "nonce": test_nonce,
+                "salt": test_salt
+            }
 
     @property
     def encrypted(self):
         return self.__is_encrypted
-
-    @property
-    def ivs(self):
-        # initialization vectors are public, so they can be safely displayed in plaintext
-        return self.__ivs
 
     @property
     def debug(self):
@@ -123,7 +124,7 @@ class TokenStore:
     def accessed(self):
         return self.__accessed
 
-    def to_encrypted(self, password, salt):
+    def to_encrypted(self, password):
         dotenv = open('.env', 'r')
         lines = dotenv.readlines()
         dotenv.close()
@@ -136,14 +137,17 @@ class TokenStore:
             keys.append(key)
 
         encrypted_env = {'test': None}
-        ivs = {'test': None}
 
-        test_value, test_iv = self.__encryptor.encrypt(str.encode(
+        test_value, test_tag, test_nonce, test_salt = self.__encryptor.encrypt(str.encode(
             ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(16)])
-        ), password, salt)
+        ), password)
 
-        encrypted_env['test'] = base64.b64encode(test_value).decode('ascii')
-        ivs['test'] = test_iv
+        encrypted_env['test'] = {
+            "ciphertext": base64.b64encode(test_value).decode('ascii'),
+            "tag": test_tag,
+            "nonce": test_nonce,
+            "salt": test_salt
+        }
 
         # we can get values from dotenv, since that's been done if TokenStore is not encrypted
 
@@ -152,23 +156,21 @@ class TokenStore:
             if not __token:
                 continue
 
-            encrypted_value, iv = self.__encryptor.encrypt(str.encode(__token), password, salt)
-            encrypted_env.update({key: base64.b64encode(encrypted_value).decode('ascii')})
-            ivs.update({key: iv})
+            encrypted_value, tag, nonce, salt = self.__encryptor.encrypt(str.encode(__token), password)
+            encrypted_env.update({key: {
+                "ciphertext": base64.b64encode(encrypted_value).decode('ascii'),
+                "tag": tag,
+                "nonce": nonce,
+                "salt": salt
+            }})
             del os.environ[key]
 
-        with open('.encryptedenv', 'w+') as file:
+        with open('secrets/.encryptedenv', 'w+') as file:
             # noinspection PyTypeChecker
             json.dump(encrypted_env, file)
 
-        with open('.ivs', 'w+') as file:
-            # noinspection PyTypeChecker
-            json.dump(ivs, file)
-
         self.__data = encrypted_env
-        self.__ivs = ivs
         self.__password = password
-        self.__salt = salt
         self.__is_encrypted = True
 
     def test_decrypt(self, password=None):
@@ -176,7 +178,13 @@ class TokenStore:
             return True
 
         try:
-            self.__encryptor.decrypt(base64.b64decode(self.__data['test']), password or self.__password, self.__salt, self.__ivs['test'])
+            self.__encryptor.decrypt(
+                base64.b64decode(self.__data['test']['ciphertext']),
+                password or self.__password,
+                self.__data['test']['tag'],
+                self.__data['test']['salt'],
+                self.__data['test']['nonce']
+            )
         except:
             if self.__debug:
                 traceback.print_exc()
@@ -189,19 +197,31 @@ class TokenStore:
             if identifier in self.__accessed:
                 raise ValueError('token has already been retrieved')
             self.__accessed.append(identifier)
-        data = str.encode(self.__data[identifier])
-        iv = self.__ivs[identifier]
-        decrypted = self.__encryptor.decrypt(base64.b64decode(data), self.__password, self.__salt, iv)
+        data = str.encode(self.__data[identifier]['ciphertext'])
+        nonce = self.__data[identifier]['nonce']
+        tag = self.__data[identifier]['tag']
+        salt = self.__data[identifier]['salt']
+        decrypted = self.__encryptor.decrypt(
+            base64.b64decode(data),
+            self.__password,
+            tag,
+            salt,
+            nonce
+        )
         return decrypted.decode('utf-8')
 
     def add_token(self, identifier, token):
         if identifier in self.__data.keys():
             raise KeyError('token already exists')
 
-        encrypted, iv = self.__encryptor.encrypt(str.encode(token), self.__password, self.__salt)
-        self.__data.update({identifier: base64.b64encode(encrypted).decode('ascii')})
-        self.__ivs.update({identifier: iv})
-        self.save('.encryptedenv', '.ivs')
+        encrypted, tag, nonce, salt = self.__encryptor.encrypt(str.encode(token), self.__password)
+        self.__data.update({identifier: {
+            'ciphertext': base64.b64encode(encrypted).decode('ascii'),
+            "tag": tag,
+            "nonce": nonce,
+            "salt": salt
+        }})
+        self.save('secrets/.encryptedenv')
         return len(self.__data)
 
     def replace_token(self, identifier, token, password):
@@ -215,10 +235,14 @@ class TokenStore:
         if identifier == 'test':
             raise ValueError('cannot replace token, this is needed for password verification')
 
-        encrypted, iv = self.__encryptor.encrypt(str.encode(token), self.__password, self.__salt)
-        self.__data.update({identifier: base64.b64encode(encrypted).decode('ascii')})
-        self.__ivs.update({identifier: iv})
-        self.save('.encryptedenv', '.ivs')
+        encrypted, tag, nonce, salt = self.__encryptor.encrypt(str.encode(token), self.__password)
+        self.__data.update({identifier: {
+            'ciphertext': base64.b64encode(encrypted).decode('ascii'),
+            'tag': tag,
+            'nonce': nonce,
+            'salt': salt
+        }})
+        self.save('secrets/.encryptedenv')
 
     def delete_token(self, identifier, password):
         # password prompt to prevent unauthorized token deletion
@@ -232,39 +256,41 @@ class TokenStore:
             raise ValueError('cannot delete token, this is needed for password verification')
 
         del self.__data[identifier]
-        del self.__ivs[identifier]
-        self.save('.encryptedenv', '.ivs')
+        self.save('secrets/.encryptedenv')
         return len(self.__data)
 
-    def reencrypt(self, current_password, password, salt):
+    def reencrypt(self, current_password, password):
         if not self.test_decrypt(password=current_password):
             raise ValueError('invalid password')
 
         for key in self.__data.keys():
             token = self.retrieve(key)
-            encrypted, iv = self.__encryptor.encrypt(str.encode(token), password, salt)
-            self.__data[key] = base64.b64encode(encrypted).decode('ascii')
-            self.__ivs[key] = iv
+            encrypted, tag, nonce, salt = self.__encryptor.encrypt(str.encode(token), password)
+            self.__data[key] = {
+                'ciphertext': base64.b64encode(encrypted).decode('ascii'),
+                'tag': tag,
+                'nonce': nonce,
+                'salt': salt
+            }
 
         self.__password = password
-        self.__salt = salt
-        self.save('.encryptedenv', '.ivs')
+        self.save('secrets/.encryptedenv')
 
-    def save(self, filename, iv_filename):
+    def save(self, filename):
         if not self.__is_encrypted:
             raise ValueError('cannot save unencrypted data')
 
-        test_value, test_iv = self.__encryptor.encrypt(str.encode(
+        test_value, test_tag, test_nonce, test_salt = self.__encryptor.encrypt(str.encode(
             ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(16)])
-        ), self.__password, self.__salt)
+        ), self.__password)
 
-        self.__data['test'] = base64.b64encode(test_value).decode('ascii')
-        self.__ivs['test'] = test_iv
+        self.__data.update({'test': {
+            'ciphertext': base64.b64encode(test_value).decode('ascii'),
+            'tag': test_tag,
+            'nonce': test_nonce,
+            'salt': test_salt
+        }})
 
         with open(filename, 'w+') as file:
             # noinspection PyTypeChecker
             json.dump(self.__data, file)
-
-        with open(iv_filename, 'w+') as file:
-            # noinspection PyTypeChecker
-            json.dump(self.__ivs, file)

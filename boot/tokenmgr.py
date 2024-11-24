@@ -38,7 +38,7 @@ with open('config.toml', 'rb') as file:
 salt = config['system']['encrypted_env_salt']
 
 try:
-    tokenmgr = secrets.TokenStore(True, password=os.environ.get('UNIFIER_ENCPASS'), salt=salt)
+    tokenmgr = secrets.TokenStore(True, password=os.environ.get('UNIFIER_ENCPASS'))
 except ValueError:
     print('\x1b[31;1mYou must provide a password.\x1b[0m')
     sys.exit(1)
@@ -170,7 +170,7 @@ def reencrypt_tokens():
         return
 
     try:
-        tokenmgr.reencrypt(current_password, password, salt)
+        tokenmgr.reencrypt(current_password, password)
     except ValueError:
         print('\x1b[31;1mInvalid password. Your current encryption password is needed to re-encrypt tokens.\x1b[0m')
         return
