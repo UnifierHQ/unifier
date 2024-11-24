@@ -321,6 +321,7 @@ class DiscordBot(commands.Bot):
             os.remove('.env')
 
         if not self.__tokenstore.test_decrypt() and '.ivs' in os.listdir():
+            logger.info('AES-256-CBC encryption detected, converting to GCM mode...')
             converter = secrets.ToGCMTokenStore(
                 password=os.environ['UNIFIER_ENCPASS'],
                 salt=data['encrypted_env_salt'],
