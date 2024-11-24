@@ -90,20 +90,6 @@ attribution = {
         'license': 'MIT',
         'license_url': 'https://github.com/nextcord/nextcord/blob/master/LICENSE'
     },
-    'revolt.py': {
-        'author': 'Revolt',
-        'description': 'Python wrapper for https://revolt.chat',
-        'repo': 'https://github.com/revoltchat/revolt.py',
-        'license': 'MIT',
-        'license_url': 'https://github.com/revoltchat/revolt.py/blob/master/LICENSE'
-    },
-    'guilded.py': {
-        'author': 'shay',
-        'description': 'Asynchronous Guilded API wrapper for Python',
-        'repo': 'https://github.com/shayypy/guilded.py',
-        'license': 'MIT',
-        'license_url': 'https://github.com/shayypy/guilded.py/blob/master/LICENSE'
-    },
     'aiofiles': {
         'author': 'Tin Tvrtković',
         'description': 'File support for asyncio',
