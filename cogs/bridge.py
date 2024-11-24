@@ -51,11 +51,7 @@ try:
 except:
     pass
 
-if not sys.platform == 'win32':
-    force_disable_multicore = False # disables multicore regardless of config
-    aiomultiprocess.set_start_method("fork")
-else:
-    force_disable_multicore = True
+aiomultiprocess.set_start_method("fork")
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=True)
@@ -286,6 +282,12 @@ class UnifierBridge:
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
         self.alert = UnifierAlert
+
+    @property
+    def can_multicore(self):
+        """Returns if the host system supports multicore bridging."""
+
+        return sys.platform != 'win32' and os.cpu_count() > 1
 
     @property
     def room_template(self):
@@ -2400,7 +2402,8 @@ class UnifierBridge:
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
                 async def tbsend(webhook,msg_author_dc,embeds,message,mentions,components,sameguild,
-                                 destguild):
+                                 destguild, alert_additional=None):
+                    """Send method for TBsend"""
                     try:
                         tosend_content = (friendly_content if friendlified else msg_content) + stickertext
                         if len(tosend_content) > 2000:
@@ -2418,16 +2421,21 @@ class UnifierBridge:
                             __files = await get_files(message.attachments)
                         else:
                             __files = files
+
+                        __content = content_override if can_override else tosend_content
+                        if alert_additional:
+                            __content = alert_additional + __content
+
                         if self.__bot.config['use_multicore']:
                             async with aiohttp.ClientSession() as session:
                                 webhook.session = session
                                 msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
-                                                         content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions, view=(
+                                                         content=__content, files=__files, allowed_mentions=mentions, view=(
                                                              components if components and not system else ui.MessageComponents()
                                                          ), wait=True)
                         else:
                             msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
-                                                     content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions,
+                                                     content=__content, files=__files, allowed_mentions=mentions,
                                                      view=(
                                                          components if components and not system else ui.MessageComponents()
                                                      ), wait=True)
@@ -2442,69 +2450,56 @@ class UnifierBridge:
                     ]
                     return tbresult
 
+                # Use threaded TBsend where possible, otherwise default to regular async.
+                # Safety alerts will default to async for better reliability.
                 if tb_v2 and not alert:
-                    if self.__bot.config['use_multicore'] and not force_disable_multicore:
+                    # Use multicore if enabled and possible.
+                    if self.__bot.config['use_multicore'] and self.can_multicore:
+                        # Attempt to use uvloop for performance optimization
                         try:
                             # noinspection PyTypeChecker
-                            threads.append(
-                                Worker(
-                                    target=tbsend,
-                                    args=(
-                                        webhook, msg_author_dc, embeds, message,
-                                        touse_mentions, components, sameguild,
-                                        destguild
-                                    ),
-                                    loop_initializer=uvloop.new_event_loop
-                                )
-                            )
+                            threads.append(Worker(
+                                target=tbsend,
+                                args=(
+                                    webhook, msg_author_dc, embeds, message,
+                                    touse_mentions, components, sameguild,
+                                    destguild
+                                ),
+                                loop_initializer=uvloop.new_event_loop
+                            ))
                         except NameError:
-                            # uvloop wasn't imported
+                            # uvloop wasn't imported, so don't set it as loop initializer
                             # noinspection PyTypeChecker
-                            threads.append(
-                                Worker(
-                                    target=tbsend,
-                                    args=(
-                                        webhook, msg_author_dc, embeds, message,
-                                        touse_mentions, components, sameguild,
-                                        destguild
-                                    )
-                                )
-                            )
+                            threads.append(Worker(
+                                target=tbsend,
+                                args=(
+                                    webhook, msg_author_dc, embeds, message,
+                                    touse_mentions, components, sameguild,
+                                    destguild
+                                ),
+                                kwargs={
+                                    'alert_additional': alert_pings
+                                }
+                            ))
                         threads[len(threads) - 1].start()
                     else:
-                        threads.append(asyncio.create_task(tbsend(webhook, msg_author_dc, embeds, message,
-                                                                  touse_mentions, components, sameguild,
-                                                                  destguild)))
+                        threads.append(asyncio.create_task(tbsend(
+                            webhook, msg_author_dc, embeds, message, touse_mentions, components, sameguild, destguild
+                        )))
                 else:
                     try:
-                        tosend_content = alert_pings + (friendly_content if friendlified else msg_content) + stickertext
+                        result = await tbsend(
+                            webhook, msg_author_dc, embeds, message, touse_mentions, components, sameguild, destguild
+                        )
+                    except Exception as e:
+                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
+                            continue
+                        raise
 
-                        if content_override:
-                            tosend_content = content_override
+                    if result[1]:
+                        urls.update(result[1])
 
-                        if len(tosend_content) > 2000:
-                            tosend_content = tosend_content[:-(len(tosend_content) - 2000)]
-                            if not components:
-                                components = ui.MessageComponents()
-                            components.add_row(
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.gray, label='[Message truncated]', disabled=True
-                                    )
-                                )
-                            )
-                        files = await get_files(message.attachments)
-                        msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
-                                                 content=content_override if can_override else tosend_content,
-                                                 files=files, allowed_mentions=touse_mentions, view=(
-                                                     components if components and not system else ui.MessageComponents()
-                                                 ), wait=True)
-                    except:
-                        if self.__bot.config['debug']:
-                            raise
-                        continue
-                    message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                    urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                    message_ids.update(result[0])
             else:
                 ch_id = self.__bot.db['rooms'][room][platform][guild][0]
                 if len(self.__bot.db['rooms'][room][platform][guild]) > 1:
@@ -2538,6 +2533,7 @@ class UnifierBridge:
                     friendly_content = msg_content = alert_text
 
                 async def tbsend(msg_author,url,color,useremoji,reply,content, files, destguild):
+                    """Send method for TBsend."""
                     guild_id = dest_support.get_id(destguild)
 
                     if sys.platform == 'win32':
@@ -2606,66 +2602,29 @@ class UnifierBridge:
                     friendly_content = content_override
                     msg_content = content_override
 
+                # Use threaded TBsend where possible, otherwise default to regular async.
                 if dest_support.enable_tb:
                     threads.append(asyncio.create_task(tbsend(
                         unifier_user.unifier_name,unifier_user.unifier_avatar,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
                 else:
                     try:
-                        special = {
-                            'bridge': {
-                                'name': unifier_user.unifier_name,
-                                'avatar': unifier_user.unifier_avatar,
-                                'color': color,
-                                'emoji': useremoji
-                            },
-                            'files': await get_files(message.attachments) if dest_support.files_per_guild else (files if not alert else None),
-                            'embeds': (
-                                dest_support.convert_embeds(message.embeds) if source=='discord'
-                                else dest_support.convert_embeds(
-                                    source_support.convert_embeds_discord(
-                                        source_support.embeds(message)
-                                    )
-                                )
-                            ) if not alert else None,
-                            'reply': None
-                        }
-
-                        if source == 'discord':
-                            if not message.author.bot:
-                                special['embeds'] = []
-                        else:
-                            try:
-                                if not dest_support.is_bot(dest_support.author(message)):
-                                    special['embeds'] = []
-                            except platform_base.MissingImplementation:
-                                # assume user is not a bot
-                                special['embeds'] = []
-
-                        if reply and not alert:
-                            special.update({'reply': reply})
-                        if trimmed:
-                            special.update({'reply_content': trimmed})
-                        msg = await dest_support.send(
-                            ch,
-                            content_override if can_override else ((friendly_content + stickertext) if friendlified else (msg_content + stickertext)), special=special
+                        result = await tbsend(
+                            unifier_user.unifier_name, unifier_user.unifier_avatar, color, useremoji, reply,
+                            content_override if can_override else (friendly_content if friendlified else msg_content),
+                            files, destguild
                         )
                     except Exception as e:
                         if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
                             continue
                         raise
 
-                    message_ids.update({
-                        str(dest_support.get_id(destguild)): [
-                            dest_support.get_id(ch),dest_support.get_id(msg)
-                        ]
-                    })
-                    try:
-                        urls.update({str(dest_support.get_id(destguild)): dest_support.url(msg)})
-                    except platform_base.MissingImplementation:
-                        pass
+                    if result[1]:
+                        urls.update(result[1])
 
-        # Free up memory
+                    message_ids.update(result[0])
+
+        # Free up memory (hopefully)
         del files
 
         # Update cache
@@ -6171,6 +6130,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def on_message_delete(self, message):
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
         gbans = self.bot.db['banned']
+
+        if not message.guild:
+            return
 
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
             return
