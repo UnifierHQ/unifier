@@ -70,7 +70,7 @@ for plugin in os.listdir('plugins'):
     except:
         continue
 
-    if len(plugin_data['requirements']) > 0:
+    if len(plugin_data.get('requirements', [])) > 0:
         code = os.system(f'{binary} -m pip install{user_arg} -U {" ".join(plugin_data["requirements"])}')
         if not code == 0:
             break
