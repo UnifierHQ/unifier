@@ -2489,18 +2489,32 @@ class UnifierBridge:
 
                 if tb_v2 and not alert:
                     if self.__bot.config['use_multicore'] and not force_disable_multicore:
-                        # noinspection PyTypeChecker
-                        threads.append(
-                            Worker(
-                                target=tbsend,
-                                args=(
-                                    webhook, msg_author_dc, embeds, message,
-                                    touse_mentions, components, sameguild,
-                                    destguild
-                                ),
-                                loop_initializer=uvloop.new_event_loop
+                        try:
+                            # noinspection PyTypeChecker
+                            threads.append(
+                                Worker(
+                                    target=tbsend,
+                                    args=(
+                                        webhook, msg_author_dc, embeds, message,
+                                        touse_mentions, components, sameguild,
+                                        destguild
+                                    ),
+                                    loop_initializer=uvloop.new_event_loop
+                                )
                             )
-                        )
+                        except NameError:
+                            # uvloop wasn't imported
+                            # noinspection PyTypeChecker
+                            threads.append(
+                                Worker(
+                                    target=tbsend,
+                                    args=(
+                                        webhook, msg_author_dc, embeds, message,
+                                        touse_mentions, components, sameguild,
+                                        destguild
+                                    )
+                                )
+                            )
                         threads[len(threads) - 1].start()
                     else:
                         threads.append(asyncio.create_task(tbsend(webhook, msg_author_dc, embeds, message,
