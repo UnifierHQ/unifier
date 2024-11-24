@@ -99,12 +99,15 @@ class TokenStore:
             if not password:
                 raise ValueError('encryption password must be provided')
 
-            # file is in json format
-            try:
-                with open('.encryptedenv', 'r') as file:
-                    self.__data: dict = json.load(file)
-            except:
-                self.__data: dict = {}
+            if not content_override is None:
+                # content override is a feature only to be used by bootloader
+                self.__data: dict = content_override
+            else:
+                try:
+                    with open('.encryptedenv', 'r') as file:
+                        self.__data: dict = json.load(file)
+                except:
+                    self.__data: dict = {}
         else:
             # file is in dotenv format, load using load_dotenv
             # we will not encapsulate dotenv data for the sake of backwards compatibility
@@ -325,8 +328,14 @@ class ToGCMTokenStore(TokenStore):
     def __init__(self, password=None, salt=None, debug=False, content_override=None, onetime=None):
         super().__init__(True, password=password, debug=debug, content_override=content_override, onetime=onetime)
 
+        # make attributes accessible by subclass
+        self.__password = password
+        self.__debug = debug
+        self.__one_time = onetime
+
         # use CBC encryptor
         self.__encryptor = CBCEncryptor()
+
         self.__salt = salt
         self.__converted = False
 
@@ -341,9 +350,6 @@ class ToGCMTokenStore(TokenStore):
             self.__ivs = {}
 
     def test_decrypt(self, password=None):
-        if not self.__is_encrypted:
-            return True
-
         try:
             self.__encryptor.decrypt(base64.b64decode(self.__data['test']), password or self.__password, self.__salt,
                                      self.__ivs['test'])
@@ -396,9 +402,6 @@ class ToGCMTokenStore(TokenStore):
         raise ValueError('cannot modify ToGCMTokenStore')
 
     def _save_cbc(self, filename, iv_filename):
-        if not self.__is_encrypted:
-            raise ValueError('cannot save unencrypted data')
-
         test_value, test_iv = self.__encryptor.encrypt(str.encode(
             ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(16)])
         ), self.__password, self.__salt)
