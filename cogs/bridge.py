@@ -299,7 +299,7 @@ class UnifierBridge:
                 'allowed': [],
                 'invites': [],
                 'platform': 'discord'
-            }, 'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'filters': {}
+            }, 'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'filters': {}, 'settings': {}
         }
 
     @property
@@ -467,6 +467,10 @@ class UnifierBridge:
         """User or server is banned from this room."""
         pass
 
+    class BridgeBannedError(BridgeError):
+        """User or server is global banned."""
+        pass
+
     class RoomNotFoundError(BridgeError):
         """Room does not exist."""
         pass
@@ -489,6 +493,14 @@ class UnifierBridge:
 
     class ContentBlocked(BridgeError):
         """Content was blocked by a filter or security Modifier."""
+        pass
+
+    class FeatureDisabled(BridgeError):
+        """Feature is unavailable or disabled."""
+        pass
+
+    class UnderAttackMode(BridgeError):
+        """Server has UAM enabled."""
         pass
 
     def load_filters(self, path='filters'):
@@ -1324,6 +1336,7 @@ class UnifierBridge:
 
     async def delete_parent(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
+
         if msg.source=='discord':
             ch = self.__bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
@@ -1344,6 +1357,15 @@ class UnifierBridge:
 
     async def delete_copies(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
+
+        if not msg.room in self.rooms:
+            return 0
+
+        roomdata = self.get_room(msg.room)
+
+        if not roomdata['meta']['settings'].get('relay_delete'):
+            return 0
+
         threads = []
 
         async def delete_discord(msgs):
@@ -1546,32 +1568,53 @@ class UnifierBridge:
 
         roomdata = self.get_room(room)
 
+        if source == 'discord':
+            is_bot = message.author.bot and not message.author.id == self.__bot.user.id
+            author = message.author.id
+            server = message.guild.id
+        else:
+            is_bot = support.is_bot(
+                support.author(message)
+            ) and not support.get_id(support.author(message)) == support.bot_id()
+            author = support.get_id(support.author(message))
+            server = support.get_id(support.server(message))
+
+        if str(server) in roomdata['meta']['banned']:
+            raise self.RoomBannedError('server is banned from room')
+
+        if str(server) in self.__bot.db['underattack']:
+            raise self.UnderAttackMode('server enabled UAM')
+
+        if str(server) in self.__bot.db['banned']:
+            if self.__bot.db['banned'][str(server)] < time.time() and not self.__bot.db['banned'][str(server)] == 0:
+                self.__bot.db['banned'].pop(str(server))
+            else:
+                raise self.BridgeBannedError()
+
+        if str(author) in self.__bot.db['banned']:
+            if self.__bot.db['banned'][str(author)] < time.time() and not self.__bot.db['banned'][str(author)] == 0:
+                self.__bot.db['banned'].pop(str(author))
+            else:
+                raise self.BridgeBannedError()
+
         for bridge_filter in self.filters:
             if not bridge_filter in roomdata['meta']['filters']:
                 continue
 
             if roomdata['meta']['filters'][bridge_filter]['enabled']:
-                if source == 'discord':
-                    is_bot = message.author.bot and not message.author.id == self.__bot.user.id
-                    author = str(message.author.id)
-                    server = str(message.guild.id)
-                else:
-                    is_bot = support.is_bot(
-                        support.author(message)
-                    ) and not support.get_id(support.author(message)) == support.bot_id()
-                    author = str(support.get_id(support.author(message)))
-                    server = str(support.get_id(support.server(message)))
-
                 data = {
                     'config': roomdata['meta']['filters'][bridge_filter],
-                    'data': self.filter_data.get(bridge_filter, {}).get(server, {})
+                    'data': self.filter_data.get(bridge_filter, {}).get(str(server), {})
                 }
+
+                if str(author) in data['config'].get('whitelist', []):
+                    continue
 
                 filter_obj = self.filters[bridge_filter]
 
                 try:
                     result = await self.__bot.loop.run_in_executor(
-                        None, lambda: filter_obj.check(author, is_bot, content, files, data)
+                        None, lambda: filter_obj.check(str(author), is_bot, content, files, data)
                     )
                 except base_filter.MissingFilter:
                     continue
@@ -1579,13 +1622,12 @@ class UnifierBridge:
                 if not bridge_filter in self.filter_data.keys():
                     self.filter_data.update({bridge_filter:{}})
 
-                self.filter_data[bridge_filter].update({server: result.data['data']})
+                self.filter_data[bridge_filter].update({str(server): result.data['data']})
 
                 if not result.allowed:
                     raise self.ContentBlocked(result.message)
 
         return True
-
 
     async def edit(self, message, content):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
@@ -1598,6 +1640,14 @@ class UnifierBridge:
             server = self.__bot.get_guild(int(msg.guild_id))
         else:
             server = source_support.get_server(msg.guild_id)
+
+        if not msg.room in self.rooms:
+            return
+
+        roomdata = self.get_room(msg.room)
+
+        if not roomdata['meta']['settings'].get('relay_edit'):
+            return
 
         async def edit_discord(msgs,friendly=False):
             threads = []
@@ -1769,24 +1819,15 @@ class UnifierBridge:
         if not platform in self.__bot.platforms.keys() and not platform=='discord':
             raise ValueError('invalid platform')
 
-        # redundant check in case on_message or plugin does not respect ban status, and also
-        # for under attack mode
+        # check if content can be sent by the user
+        # if using multisend, messages can be checked by running this again
         if source == 'discord':
-            if (
-                    f'{message.author.id}' in self.__bot.db['banned'].keys() or
-                    f'{message.guild.id}' in self.__bot.db['banned'].keys() or
-                    f'{message.guild.id}' in self.__bot.db['rooms'][room]['meta']['banned'] or
-                    f'{message.guild.id}' in self.__bot.db['underattack']
-            ):
-                return
+            scan_content = message.content
+            scan_files = len(message.attachments)
         else:
-            if (
-                    f'{source_support.get_id(source_support.author(message))}' in self.__bot.db['banned'].keys() or
-                    f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['banned'].keys() or
-                    f'{source_support.get_id(source_support.author(message))}' in self.__bot.db['rooms'][room]['meta']['banned'] or
-                    f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['underattack']
-            ):
-                return
+            scan_content = source_support.content(message)
+            scan_files = len(source_support.attachments(message))
+        await self.can_send(room, message, scan_content, scan_files, source=source)
 
         if not platform in self.__bot.db['rooms'][room].keys():
             return
