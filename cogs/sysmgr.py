@@ -627,6 +627,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.bot.backup_cloud_task.start()
                 self.logger.debug(f'Backing up data to cloud every {round(self.bot.config["ping"])} seconds')
 
+        try:
+            with open('boot_config.json') as file:
+                boot_config = json.load(file)
+        except:
+            pass
+        else:
+            self.pip_user_arg = ' --user' if not boot_config['bootloader'].get('global_dep_install', False) else ''
+
     def get_all_commands(self, cog=None):
         def extract_subcommands(__command):
             subcommands = []
@@ -1617,12 +1625,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if sys.platform == 'win32':
                             binary = bootloader_config.get('binary', 'py -3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
                         else:
                             binary = bootloader_config.get('binary', 'python3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
             except:
                 self.logger.exception('Dependency installation failed')
@@ -2126,12 +2134,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if sys.platform == 'win32':
                         binary = bootloader_config.get('binary', 'py -3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                            os.system(f'{binary} -m pip install{self.pip_user_arg} -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
                     else:
                         binary = bootloader_config.get('binary', 'python3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                            os.system(f'{binary} -m pip install{self.pip_user_arg} -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
@@ -2376,12 +2384,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             if sys.platform == 'win32':
                                 binary = bootloader_config.get('binary', 'py -3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                    os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                             else:
                                 binary = bootloader_config.get('binary', 'python3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                    os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                 except:
                     self.logger.exception('Dependency installation failed')
