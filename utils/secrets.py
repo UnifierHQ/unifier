@@ -418,6 +418,9 @@ class ToGCMTokenStore(TokenStore):
             json.dump(self.__ivs, file)
 
 class RestrictiveTokenStore:
+    """A heavily restricted read-only TokenStore wrapper.
+    Only allows retrieval of specific tokens."""
+
     def __init__(self, tokenstore, allowed_tokens):
         self.__tokenstore = tokenstore
         self.__allowed_tokens = allowed_tokens
@@ -427,6 +430,6 @@ class RestrictiveTokenStore:
         return self.__allowed_tokens
 
     def retrieve(self, identifier):
-        if not identifier in self.__allowed_tokens:
+        if not identifier in self.allowed_tokens:
             raise ValueError('token not allowed')
         return self.__tokenstore.retrieve(identifier)
