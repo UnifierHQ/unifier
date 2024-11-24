@@ -320,6 +320,17 @@ class DiscordBot(commands.Bot):
             self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'])
             os.remove('.env')
 
+        if not self.__tokenstore.test_decrypt() and '.ivs' in os.listdir():
+            converter = secrets.ToGCMTokenStore(
+                password=os.environ['UNIFIER_ENCPASS'],
+                salt=data['encrypted_env_salt'],
+                debug=data['debug'],
+                onetime=['TOKEN']
+            )
+
+            if converter.test_decrypt():
+                self.__tokenstore = converter.to_gcm()
+
     @property
     def package(self):
         return self.__config['package'] if self.__config else 'unifier'

@@ -26,6 +26,7 @@ from Crypto.Random import random
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
 from Crypto import Random as CryptoRandom
+from Crypto.Util.Padding import pad, unpad
 
 # import ujson if installed
 try:
@@ -33,7 +34,7 @@ try:
 except:
     pass
 
-class Encryptor:
+class GCMEncryptor:
     def __init__(self):
         pass
 
@@ -61,10 +62,35 @@ class Encryptor:
         del __cipher
         return result
 
+class CBCEncryptor:
+    def __init__(self):
+        pass
+
+    def encrypt(self, encoded, password, salt):
+        """Encrypts a given bytes object."""
+        __key = PBKDF2(password, salt, dkLen=32)
+
+        iv = CryptoRandom.get_random_bytes(16)
+        __cipher = AES.new(__key, AES.MODE_CBC, iv=iv)
+        result = __cipher.encrypt(pad(encoded, AES.block_size))
+        del __key
+        del __cipher
+        return result, base64.b64encode(iv).decode('ascii')
+
+    def decrypt(self, encrypted, password, salt, iv_string):
+        """Decrypts a given encrypted bytes object."""
+        iv = base64.b64decode(iv_string)
+        __key = PBKDF2(password, salt, dkLen=32)
+        __cipher = AES.new(__key, AES.MODE_CBC, iv=iv)
+        result = unpad(__cipher.decrypt(encrypted), AES.block_size)
+        del __key
+        del __cipher
+        return result
+
 class TokenStore:
     def __init__(self, encrypted, password=None, debug=False, content_override=None, onetime=None):
         self.__is_encrypted = encrypted
-        self.__encryptor = Encryptor()
+        self.__encryptor = GCMEncryptor()
         self.__password = password
         self.__one_time = onetime or []
         self.__accessed = []
@@ -294,6 +320,99 @@ class TokenStore:
         with open(filename, 'w+') as file:
             # noinspection PyTypeChecker
             json.dump(self.__data, file)
+
+class ToGCMTokenStore(TokenStore):
+    def __init__(self, password=None, salt=None, debug=False, content_override=None, onetime=None):
+        super().__init__(True, password=password, debug=debug, content_override=content_override, onetime=onetime)
+
+        # use CBC encryptor
+        self.__encryptor = CBCEncryptor()
+        self.__salt = salt
+        self.__converted = False
+
+        # override __data to make it accessible to subclass and add __ivs for CBC support
+        try:
+            with open('.encryptedenv', 'r') as file:
+                self.__data = json.load(file)
+            with open('.ivs', 'r') as file:
+                self.__ivs = json.load(file)
+        except:
+            self.__data = {}
+            self.__ivs = {}
+
+    def test_decrypt(self, password=None):
+        if not self.__is_encrypted:
+            return True
+
+        try:
+            self.__encryptor.decrypt(base64.b64decode(self.__data['test']), password or self.__password, self.__salt,
+                                     self.__ivs['test'])
+        except:
+            if self.__debug:
+                traceback.print_exc()
+
+            return False
+        return True
+
+    def to_gcm(self):
+        if not self.test_decrypt():
+            raise ValueError('invalid password')
+
+        if self.__converted:
+            raise ValueError('already converted to GCM TokenStore')
+
+        new_tokenstore = TokenStore(
+            True, self.__password, self.__debug, content_override={}, onetime=self.__one_time
+        )
+
+        try:
+            for identifier in self.__data.keys():
+                if identifier == 'test':
+                    continue
+
+                data = str.encode(self.__data[identifier])
+                iv = self.__ivs[identifier]
+                decrypted = self.__encryptor.decrypt(base64.b64decode(data), self.__password, self.__salt, iv).decode('utf-8')
+                new_tokenstore.add_token(identifier, decrypted)
+        except:
+            # rollback to CBC to prevent data loss
+            self._save_cbc('.encryptedenv', '.ivs')
+            raise
+
+        os.remove('.ivs')
+        self.__converted = True
+        return new_tokenstore
+
+    def add_token(self, identifier, token):
+        raise ValueError('cannot modify ToGCMTokenStore')
+
+    def replace_token(self, identifier, token, password):
+        raise ValueError('cannot modify ToGCMTokenStore')
+
+    def delete_token(self, identifier, password):
+        raise ValueError('cannot modify ToGCMTokenStore')
+
+    def reencrypt(self, current_password, password):
+        raise ValueError('cannot modify ToGCMTokenStore')
+
+    def _save_cbc(self, filename, iv_filename):
+        if not self.__is_encrypted:
+            raise ValueError('cannot save unencrypted data')
+
+        test_value, test_iv = self.__encryptor.encrypt(str.encode(
+            ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(16)])
+        ), self.__password, self.__salt)
+
+        self.__data['test'] = base64.b64encode(test_value).decode('ascii')
+        self.__ivs['test'] = test_iv
+
+        with open(filename, 'w+') as file:
+            # noinspection PyTypeChecker
+            json.dump(self.__data, file)
+
+        with open(iv_filename, 'w+') as file:
+            # noinspection PyTypeChecker
+            json.dump(self.__ivs, file)
 
 class RestrictiveTokenStore:
     def __init__(self, tokenstore, allowed_tokens):
