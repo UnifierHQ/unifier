@@ -135,7 +135,7 @@ class SetupDialog:
 
     async def finish(self, skipped=False):
         self.update(
-            self.get('finish_title'),
+            '\U0001F973 ' + self.get('finish_title'),
             self.get('finish_body') + '\n' + self.get('finish_reboot')
         )
 

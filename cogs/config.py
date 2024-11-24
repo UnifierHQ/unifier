@@ -323,7 +323,25 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             )
         except:
             return await ctx.send(f'{self.bot.ui_emojis.warning} {selector.fget("dm_fail",values={"prefix":self.bot.command_prefix})}',ephemeral=True)
-        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
+
+        steps = '\n'.join([f'- {step}' for step in [
+            selector.fget(
+                'step_1',
+                values={'command': self.bot.get_application_command_from_signature('bridge bind').get_mention()}
+            ),
+            selector.get('step_2')
+        ]])
+
+        embed = nextcord.Embed(
+            title=selector.rawget('nextsteps','commons.navigation'),
+            description=steps,
+            color=self.bot.colors.unifier
+        )
+
+        await ctx.send(
+            f'{self.bot.ui_emojis.success} {selector.get("success")}\n{selector.get("disclaimer")}', embed=embed,
+            ephemeral=True
+        )
 
     @config.subcommand(
         name='delete-invite',

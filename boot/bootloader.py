@@ -24,6 +24,7 @@ import json
 import time
 import getpass
 import subprocess
+import traceback
 from pathlib import Path
 
 if sys.version_info.major < 3 or sys.version_info.minor < 9:
@@ -34,6 +35,15 @@ reinstall = '--reinstall' in sys.argv
 depinstall = '--install-deps' in sys.argv
 manage_tokens = '--tokens' in sys.argv
 clear_tokens = '--clear-tokens' in sys.argv
+ignore_sudo = '--ignore-sudo' in sys.argv
+
+if sys.platform != 'win32' and not ignore_sudo:
+    if os.geteuid() == 0: # pylint: disable=E1101
+        print('\x1b[31;1mWARNING: YOU ARE RUNNING THE PROGRAM WITH SUPERUSER PRIVILEGES!\x1b[0m')
+        print('\x1b[31mThis is very dangerous, and running this program with these privileges is NOT RECOMMENDED,\x1b[0m')
+        print('\x1b[31mespecially since the program connects to the internet.\x1b[0m')
+        print('\x1b[31mPlease run the program with regular user privileges, or run the bootloader again with\x1b[0m')
+        print('\x1b[31m--ignore-sudo to silence this warning.\x1b[0m')
 
 if os.getcwd().endswith('/boot'):
     print('\x1b[31;1mYou are running the bootloader directly. Please run the run.sh file instead.\x1b[0m')
@@ -133,10 +143,10 @@ def check_for_python(path, found=None, venv=False):
 
             try:
                 output = subprocess.check_output([f'{path}/{item}', '--version'])
+                versiontext = output.decode('utf-8').replace('\n', '').split(' ')[1]
             except:
                 continue
 
-            versiontext = output.decode('utf-8').replace('\n','').split(' ')[1]
             major, minor, patch = versiontext.split('.')
 
             if not patch.isdigit():
@@ -240,24 +250,30 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                 install_option = install_options[install_option]['id']
 
             if not uses_docker and not sys.platform == 'win32':
-                print('\x1b[33;1mDetecting python installations...\x1b[0m')
+                print('\x1b[33;1mDetecting Python installations...\x1b[0m')
                 installed = []
-                installed.extend(check_for_python('/usr/bin') or [])
-                installed.extend(check_for_python('/usr/local/bin', found=installed) or [])
+                failed = False
+                try:
+                    installed.extend(check_for_python('/usr/bin') or [])
+                    installed.extend(check_for_python('/usr/local/bin', found=installed) or [])
 
-                if os.path.exists('/Library/Frameworks/Python.framework/Versions'):
-                    for item in os.listdir('/Library/Frameworks/Python.framework/Versions'):
-                        installed.extend(check_for_python(f'/Library/Frameworks/Python.framework/Versions/{item}/bin', found=installed) or [])
+                    if os.path.exists('/Library/Frameworks/Python.framework/Versions'):
+                        for item in os.listdir('/Library/Frameworks/Python.framework/Versions'):
+                            installed.extend(check_for_python(f'/Library/Frameworks/Python.framework/Versions/{item}/bin', found=installed) or [])
 
-                for item in os.listdir():
-                    if not os.path.isdir(item):
-                        continue
+                    for item in os.listdir():
+                        if not os.path.isdir(item):
+                            continue
 
-                    installed.extend(check_for_python(f'{item}/bin', found=installed, venv=True))
+                        installed.extend(check_for_python(f'{item}/bin', found=installed, venv=True))
+                except:
+                    failed = True
+                    traceback.print_exc()
+                    print(f'\x1b[31;1mCould not detect Python installations, using default.\x1b[0m')
 
-                if len(installed) <= 1:
+                if len(installed) <= 1 and not failed:
                     print('\x1b[33;1mOnly the default Python installation was detected, using default.\x1b[0m')
-                else:
+                elif not failed:
                     installed.sort(key=lambda x: x.version, reverse=True)
                     print(f'\x1b[33;1mFound {len(installed)} available Python installations:\x1b[0m')
                     for index in range(len(installed)):

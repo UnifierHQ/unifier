@@ -24,7 +24,8 @@
         "restart": "Restart",
         "aborted": "Aborted.",
         "timeout": "Timed out.",
-        "double_confirm": "I know what I'm doing!"
+        "double_confirm": "I know what I'm doing!",
+        "nextsteps": "Next steps"
       },
       "search": {
         "search": "Search",
@@ -94,7 +95,7 @@
     "sysmgr": {
       "cogmeta": {
         "name": ":wrench: System Manager",
-        "description": "An extension that oversees a lot of the bot system.\n\nDeveloped by Green"
+        "description": "An extension that oversees a lot of the bot system."
       },
       "error_handler": {
         "argument": "`{arg}` is a required argument.",
@@ -433,7 +434,10 @@
         "code": "Invite code:",
         "join": "Servers can use `/bridge bind {invite}` to join your room.",
         "dm_fail": "Invite was created, but it could not be DMed. Turn your DMs on, then run `/config invites` to view your invite.",
-        "success": "Invite was created, check your DMs!"
+        "success": "Invite was created, check your DMs!",
+        "disclaimer": "Please note that anyone will be able to join your Private Room using this invite. We recommend setting a usage limit or revoking the invite after use.",
+        "step_1": "Connect to your room using {command}",
+        "step_2": "Share the invite with all servers you want to connect to your room"
       },
       "delete-invite": {
         "options": {
@@ -755,7 +759,9 @@
         "unique_fail": "Could not generate a unique room name in 10 tries.",
         "exists": "This room already exists!",
         "success": "Created **{roomtype}** room `{room}`!",
-        "dryrun_warning": "This is a dry run, no actual room was made."
+        "dryrun_warning": "This is a dry run, no actual room was made.",
+        "step_1": "Create an invite by running {command}.",
+        "step_2": "Deck your room out with customization commands"
       },
       "allocations": {
         "description": "Shows your server's Private Rooms creation and connection allocations.",
@@ -1387,7 +1393,7 @@
         "aroom_body": "Which room should be used for Safety Alerts?",
         "aroom_name": "The room with the matching name will be used for Safety Alerts.",
         "aroom_default": "Default value: `alerts`",
-        "finish_title": "Setup complete!",
+        "finish_title": "You're all set!",
         "finish_body": "Unifier is now ready for action!",
         "finish_reboot": "Please press \"Restart\" to complete setup."
       }

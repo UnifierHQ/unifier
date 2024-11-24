@@ -2198,13 +2198,17 @@ class UnifierBridge:
                     trimmed = trimmed.replace('\n', ' ')
 
             if platform=='discord':
+                if source == 'discord':
+                    button_style = nextcord.ButtonStyle.blurple
+                elif source == 'revolt':
+                    button_style = nextcord.ButtonStyle.red
+                else:
+                    button_style = nextcord.ButtonStyle.gray
+
+                components = ui.MessageComponents()
+
+                # Posts buttons generation
                 if is_pr or is_pr_ref:
-                    if source == 'discord':
-                        button_style = nextcord.ButtonStyle.blurple
-                    elif source == 'revolt':
-                        button_style = nextcord.ButtonStyle.red
-                    else:
-                        button_style = nextcord.ButtonStyle.gray
                     if is_pr:
                         pr_actionrow = ui.ActionRow(
                             nextcord.ui.Button(style=button_style,
@@ -2232,17 +2236,53 @@ class UnifierBridge:
                                                        emoji='\U0001F517', disabled=True)
                                 )
                     if pr_actionrow:
-                        components = ui.View()
                         components.add_row(pr_actionrow)
 
-                if reply_msg:
-                    author_text = '[unknown]'
-                    if source == 'discord':
-                        button_style = nextcord.ButtonStyle.blurple
-                    elif source == 'revolt':
-                        button_style = nextcord.ButtonStyle.red
+                # Reply buttons processing
+                if replying and not reply_msg:
+                    try:
+                        if source == 'discord':
+                            if message.reference.cached_message:
+                                authid = message.reference.cached_message.author.id
+                            else:
+                                authmsg = await message.channel.fetch_message(message.reference.message_id)
+                                authid = authmsg.author.id
+                        else:
+                            reply_msg_id = source_support.reply(message)
+                            if type(reply_msg_id) is str or type(reply_msg_id) is int:
+                                authmsg = await source_support.fetch_message(
+                                    source_support.channel(message), reply_msg_id
+                                )
+                            else:
+                                authmsg = reply_msg_id
+                            authid = source_support.get_id(source_support.author(authmsg))
+                    except:
+                        authid = None
+
+                    botext = (authid == source_support.bot_id()) if platform != 'discord' else False
+
+                    if authid==self.__bot.user.id or botext:
+                        components.add_row(
+                            ui.ActionRow(
+                                nextcord.ui.Button(
+                                    style=nextcord.ButtonStyle.gray,
+                                    label=selector.fget('replying',values={'user': '[system]'}),
+                                    disabled=True
+                                )
+                            )
+                        )
                     else:
-                        button_style = nextcord.ButtonStyle.gray
+                        components.add_row(
+                            ui.ActionRow(
+                                nextcord.ui.Button(
+                                    style=nextcord.ButtonStyle.gray,
+                                    label=selector.fget('replying',values={'user': '[unknown]'}),
+                                    disabled=True
+                                )
+                            )
+                        )
+                elif replying and reply_msg:
+                    author_text = '[unknown]'
 
                     try:
                         if reply_msg.source=='discord':
@@ -2257,7 +2297,7 @@ class UnifierBridge:
                     except:
                         pass
 
-                    # Prevent empty buttons
+                    # Get embeds and images count
                     try:
                         if source == 'discord':
                             count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
@@ -2284,112 +2324,27 @@ class UnifierBridge:
                         )
                     else:
                         content_btn = nextcord.ui.Button(
-                            style=button_style, label=trimmed, disabled=True
+                            style=button_style, label=trimmed, disabled=True, emoji='\U0001F3DE' if count > 0 else None
                         )
 
-                    # Add PR buttons too.
-                    if is_pr or is_pr_ref:
-                        components = ui.View()
-                        try:
-                            components.add_rows(
-                                pr_actionrow,
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.url,
-                                        label=selector.fget('replying',values={'user': author_text}),
-                                        url=await reply_msg.fetch_url(guild)
-                                    )
-                                ),
-                                ui.ActionRow(
-                                    content_btn
-                                )
-                            )
-                        except:
-                            components.add_rows(
-                                pr_actionrow,
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.gray,
-                                        label=selector.fget('replying',values={'user': '[unknown]'}),
-                                        disabled=True
-                                    )
-                                )
-                            )
-                    else:
-                        try:
-                            components = ui.View()
-                            components.add_rows(
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.url,
-                                        label=selector.fget('replying',values={'user': author_text}),
-                                        url=await reply_msg.fetch_url(guild)
-                                    )
-                                ),
-                                ui.ActionRow(
-                                    content_btn
-                                )
-                            )
-                        except:
-                            components = ui.View()
-                            components.add_rows(
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.gray,
-                                        label=selector.fget('replying',values={'user': '[unknown]'}),
-                                        disabled=True
-                                    )
-                                ),
-                                ui.ActionRow(
-                                    content_btn
-                                )
-                            )
-                elif replying:
                     try:
-                        if source == 'discord':
-                            if message.reference.cached_message:
-                                authid = message.reference.cached_message.author.id
-                            else:
-                                authmsg = await message.channel.fetch_message(message.reference.message_id)
-                                authid = authmsg.author.id
-                        else:
-                            reply_msg_id = source_support.reply(message)
-                            if type(reply_msg_id) is str or type(reply_msg_id) is int:
-                                authmsg = await source_support.fetch_message(
-                                    source_support.channel(message), reply_msg_id
-                                )
-                            else:
-                                authmsg = reply_msg_id
-                            authid = source_support.get_id(source_support.author(authmsg))
+                        url = await reply_msg.fetch_url(guild)
                     except:
-                        authid = None
-                    if platform == 'discord':
-                        botext = False
-                    else:
-                        botext = authid == source_support.bot_id()
+                        url = None
 
-                    if authid==self.__bot.user.id or botext:
-                        reply_row = ui.ActionRow(
-                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
-                                               label=selector.fget('replying',values={'user': '[system]'}),
-                                               disabled=True)
+                    components.add_rows(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                style=nextcord.ButtonStyle.url if url else nextcord.ButtonStyle.gray,
+                                label=selector.fget('replying', values={'user': author_text}),
+                                url=url,
+                                disabled=url is None
+                            )
+                        ),
+                        ui.ActionRow(
+                            content_btn
                         )
-                    else:
-                        reply_row = ui.ActionRow(
-                            nextcord.ui.Button(style=nextcord.ButtonStyle.gray,
-                                               label=selector.fget('replying',values={'user': '[unknown]'}),
-                                               disabled=True)
-                        )
-                    if pr_actionrow:
-                        components = ui.MessageComponents()
-                        components.add_rows(
-                            pr_actionrow,reply_row
-                        )
-                    else:
-                        components = ui.MessageComponents()
-                        components.add_rows(
-                            reply_row
-                        )
+                    )
 
             # Send message
             embeds = message.embeds
@@ -2489,18 +2444,32 @@ class UnifierBridge:
 
                 if tb_v2 and not alert:
                     if self.__bot.config['use_multicore'] and not force_disable_multicore:
-                        # noinspection PyTypeChecker
-                        threads.append(
-                            Worker(
-                                target=tbsend,
-                                args=(
-                                    webhook, msg_author_dc, embeds, message,
-                                    touse_mentions, components, sameguild,
-                                    destguild
-                                ),
-                                loop_initializer=uvloop.new_event_loop
+                        try:
+                            # noinspection PyTypeChecker
+                            threads.append(
+                                Worker(
+                                    target=tbsend,
+                                    args=(
+                                        webhook, msg_author_dc, embeds, message,
+                                        touse_mentions, components, sameguild,
+                                        destguild
+                                    ),
+                                    loop_initializer=uvloop.new_event_loop
+                                )
                             )
-                        )
+                        except NameError:
+                            # uvloop wasn't imported
+                            # noinspection PyTypeChecker
+                            threads.append(
+                                Worker(
+                                    target=tbsend,
+                                    args=(
+                                        webhook, msg_author_dc, embeds, message,
+                                        touse_mentions, components, sameguild,
+                                        destguild
+                                    )
+                                )
+                            )
                         threads[len(threads) - 1].start()
                     else:
                         threads.append(asyncio.create_task(tbsend(webhook, msg_author_dc, embeds, message,
@@ -4143,13 +4112,29 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         roomtype_text = selector.get(roomtype + '_name')
 
+        steps = '\n'.join([f'- {step}' for step in ([
+            selector.fget(
+                'step_1',
+                values={'command': self.bot.get_application_command_from_signature('config create-invite').get_mention()}
+            ),
+            selector.get('step_2')
+        ] if roomtype == 'private' else [selector.get('step_2')])])
+
+        embed = nextcord.Embed(
+            title=selector.rawget('nextsteps', 'commons.navigation'),
+            description=steps,
+            color=self.bot.colors.unifier
+        )
+
         if interaction:
             return await interaction.response.edit_message(
                 content=f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}',
-                view=None
+                embed=embed, view=None
             )
+
         await ctx.send(
-            f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}'
+            f'{self.bot.ui_emojis.success} {selector.fget("success", values={"roomtype": roomtype_text, "room": room})}{dry_run_text}',
+            embed=embed
         )
 
     @bridge.subcommand(
@@ -5644,7 +5629,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.description = selector.get("success_body")
         embed.colour = self.bot.colors.success
 
-        await msg.edit(embed=embed)
+        await msg.edit(embed=embed, view=None)
         await interaction.delete_original_message()
 
     @commands.Cog.listener()
