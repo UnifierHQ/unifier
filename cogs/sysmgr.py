@@ -78,7 +78,7 @@ slash = slash_helper.SlashHelper(language)
 attribution = {
     'unifier': {
         'author': 'UnifierHQ',
-        'description': 'A fast and versatile Discord bot connecting servers and platforms',
+        'description': 'A cross-server and cross-platform bridge bot that works just as fast as you can type \U0001F680',
         'repo': 'https://github.com/UnifierHQ/unifier',
         'license': 'AGPLv3',
         'license_url': 'https://github.com/UnifierHQ/unifier/blob/main/LICENSE.txt'
