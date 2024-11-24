@@ -2297,7 +2297,7 @@ class UnifierBridge:
                     except:
                         pass
 
-                    # Prevent empty buttons
+                    # Get embeds and images count
                     try:
                         if source == 'discord':
                             count = len(message.reference.cached_message.embeds) + len(message.reference.cached_message.attachments)
@@ -2324,7 +2324,7 @@ class UnifierBridge:
                         )
                     else:
                         content_btn = nextcord.ui.Button(
-                            style=button_style, label=trimmed, disabled=True
+                            style=button_style, label=trimmed, disabled=True, emoji='\U0001F3DE' if count > 0 else None
                         )
 
                     try:
