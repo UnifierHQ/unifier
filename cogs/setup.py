@@ -492,7 +492,7 @@ class Setup(commands.Cog, name=":beginner: Setup"):
         if not install_data['setup']:
             self.bot.setup_task = asyncio.create_task(self.setup())
 
-        if not hasattr(self.bot, 'tokenstore'):
+        if not hasattr(self.bot, 'tokenstore') and not hasattr(self.bot, 'test_decrypt'):
             self.bot.reminder_task = asyncio.create_task(self.encrypt_reminder())
 
     async def encrypt_reminder(self):
