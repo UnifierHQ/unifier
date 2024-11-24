@@ -511,17 +511,6 @@ class UnifierBridge:
             filter_obj = importlib.import_module(path + '.' + bridge_filter[:-3]).Filter()
             self.filters.update({filter_obj.id: filter_obj})
 
-    def get_reply_style(self, guild_id):
-        if str(guild_id) in self.__bot.db['settings'].keys():
-            return self.__bot.db['settings'][f'{guild_id}'].get('reply_layout',0)
-        return 0
-
-    def set_reply_style(self, guild_id, reply_type):
-        if not str(guild_id) in self.__bot.db['settings'].keys():
-            self.__bot.db['settings'].update({f'{guild_id}': {}})
-
-        self.__bot.db['settings'][f'{guild_id}'].update({'reply_layout': reply_type})
-
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
         try:
