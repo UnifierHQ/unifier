@@ -43,7 +43,7 @@ if sys.platform != 'win32' and not ignore_sudo:
         print('\x1b[31mThis is very dangerous, and running this program with these privileges is NOT RECOMMENDED,\x1b[0m')
         print('\x1b[31mespecially since the program connects to the internet.\x1b[0m')
         print('\x1b[31mPlease run the program with regular user privileges, or run the bootloader again with\x1b[0m')
-        print('\x1b[31m--ignore-sudo to silence this.\x1b[0m')
+        print('\x1b[31m--ignore-sudo to silence this warning.\x1b[0m')
 
 if os.getcwd().endswith('/boot'):
     print('\x1b[31;1mYou are running the bootloader directly. Please run the run.sh file instead.\x1b[0m')
