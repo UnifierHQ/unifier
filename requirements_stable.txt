@@ -12,3 +12,4 @@ tomli
 tomli-w
 setuptools
 aiomultiprocess
+better_profanity

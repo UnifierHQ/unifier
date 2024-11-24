@@ -33,7 +33,7 @@ import ast
 import math
 import os
 import sys
-from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
+from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper, base_filter
 import importlib
 import emoji as pymoji
 import aiomultiprocess
@@ -282,6 +282,8 @@ class UnifierBridge:
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
         self.alert = UnifierAlert
+        self.filters = {}
+        self.filter_data = {}
 
     @property
     def can_multicore(self):
@@ -292,14 +294,12 @@ class UnifierBridge:
     @property
     def room_template(self):
         return {
-            'rules': [], 'restricted': False, 'locked': False, 'private': False,
-            'private_meta': {
+            'rules': [], 'restricted': False, 'locked': False, 'private': False, 'private_meta': {
                 'server': None,
                 'allowed': [],
                 'invites': [],
                 'platform': 'discord'
-            },
-            'emoji': None, 'description': None, 'display_name': None, 'banned': []
+            }, 'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'filters': {}
         }
 
     @property
@@ -447,34 +447,57 @@ class UnifierBridge:
         def redact(self):
             self.__redacted = True
 
-    class RoomForbiddenError(Exception):
+    class BridgeError(Exception):
+        """Generic Unifier Bridge exception."""
         pass
 
-    class TooManyRooms(Exception):
+    class RoomForbiddenError(BridgeError):
+        """Generic missing permissions exception."""
+        pass
+
+    class TooManyRooms(BridgeError):
         """Server has reached maximum Private Room creations."""
         pass
 
-    class TooManyConnections(Exception):
+    class TooManyConnections(BridgeError):
         """Server has reached maximum Private Room connections."""
         pass
 
-    class RoomBannedError(Exception):
+    class RoomBannedError(RoomForbiddenError):
+        """User or server is banned from this room."""
         pass
 
-    class RoomNotFoundError(Exception):
+    class RoomNotFoundError(BridgeError):
+        """Room does not exist."""
         pass
 
-    class RoomExistsError(Exception):
+    class RoomExistsError(BridgeError):
+        """Room already exists."""
         pass
 
-    class AlreadyJoined(Exception):
+    class AlreadyJoined(BridgeError):
+        """Server is already in the room."""
         pass
 
-    class InviteNotFoundError(Exception):
+    class InviteNotFoundError(BridgeError):
+        """Invite does not exist."""
         pass
 
-    class InviteExistsError(Exception):
+    class InviteExistsError(BridgeError):
+        """Invite already exists."""
         pass
+
+    class ContentBlocked(BridgeError):
+        """Content was blocked by a filter or security Modifier."""
+        pass
+
+    def load_filters(self, path='filters'):
+        for bridge_filter in os.listdir(path):
+            if not bridge_filter.endswith('.py'):
+                continue
+
+            filter_obj = importlib.import_module(path + '.' + filter[:-3]).Filter()
+            self.filters.update({filter_obj.id: filter_obj})
 
     def get_reply_style(self, guild_id):
         if str(guild_id) in self.__bot.db['settings'].keys():
@@ -1514,6 +1537,55 @@ class UnifierBridge:
             offset += 1
 
         return text
+
+    async def can_send(self, room, message, content, files, source='discord'):
+        support = self.__bot.platforms[source] if source != 'discord' else None
+
+        if not room in self.rooms:
+            raise self.RoomNotFoundError('invalid room')
+
+        roomdata = self.get_room(room)
+
+        for bridge_filter in self.filters:
+            if not bridge_filter in roomdata['meta']['filters']:
+                continue
+
+            if roomdata['meta']['filters'][bridge_filter]['enabled']:
+                if source == 'discord':
+                    is_bot = message.author.bot and not message.author.id == self.__bot.user.id
+                    author = str(message.author.id)
+                    server = str(message.guild.id)
+                else:
+                    is_bot = support.is_bot(
+                        support.author(message)
+                    ) and not support.get_id(support.author(message)) == support.bot_id()
+                    author = str(support.get_id(support.author(message)))
+                    server = str(support.get_id(support.server(message)))
+
+                data = {
+                    'config': roomdata['meta']['filters'][bridge_filter],
+                    'data': self.filter_data.get(bridge_filter, {}).get(server, {})
+                }
+
+                filter_obj = self.filters[bridge_filter]
+
+                try:
+                    result = await self.__bot.loop.run_in_executor(
+                        None, lambda: filter_obj.check(author, is_bot, content, files, data)
+                    )
+                except base_filter.MissingFilter:
+                    continue
+
+                if not bridge_filter in self.filter_data.keys():
+                    self.filter_data.update({bridge_filter:{}})
+
+                self.filter_data[bridge_filter].update({server: result.data['data']})
+
+                if not result.allowed:
+                    raise self.ContentBlocked(result.message)
+
+        return True
+
 
     async def edit(self, message, content):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
