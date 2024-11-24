@@ -75,7 +75,7 @@ class TokenStore:
 
             # file is in json format
             try:
-                with open('secrets/.encryptedenv', 'r') as file:
+                with open('.encryptedenv', 'r') as file:
                     self.__data: dict = json.load(file)
             except:
                 self.__data: dict = {}
@@ -165,7 +165,7 @@ class TokenStore:
             }})
             del os.environ[key]
 
-        with open('secrets/.encryptedenv', 'w+') as file:
+        with open('.encryptedenv', 'w+') as file:
             # noinspection PyTypeChecker
             json.dump(encrypted_env, file)
 
@@ -221,7 +221,7 @@ class TokenStore:
             "nonce": nonce,
             "salt": salt
         }})
-        self.save('secrets/.encryptedenv')
+        self.save('.encryptedenv')
         return len(self.__data)
 
     def replace_token(self, identifier, token, password):
@@ -242,7 +242,7 @@ class TokenStore:
             'nonce': nonce,
             'salt': salt
         }})
-        self.save('secrets/.encryptedenv')
+        self.save('.encryptedenv')
 
     def delete_token(self, identifier, password):
         # password prompt to prevent unauthorized token deletion
@@ -256,7 +256,7 @@ class TokenStore:
             raise ValueError('cannot delete token, this is needed for password verification')
 
         del self.__data[identifier]
-        self.save('secrets/.encryptedenv')
+        self.save('.encryptedenv')
         return len(self.__data)
 
     def reencrypt(self, current_password, password):
@@ -274,7 +274,7 @@ class TokenStore:
             }
 
         self.__password = password
-        self.save('secrets/.encryptedenv')
+        self.save('.encryptedenv')
 
     def save(self, filename):
         if not self.__is_encrypted:
