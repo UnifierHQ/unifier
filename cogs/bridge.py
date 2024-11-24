@@ -508,7 +508,7 @@ class UnifierBridge:
             if not bridge_filter.endswith('.py'):
                 continue
 
-            filter_obj = importlib.import_module(path + '.' + filter[:-3]).Filter()
+            filter_obj = importlib.import_module(path + '.' + bridge_filter[:-3]).Filter()
             self.filters.update({filter_obj.id: filter_obj})
 
     def get_reply_style(self, guild_id):
