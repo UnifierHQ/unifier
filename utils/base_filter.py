@@ -7,10 +7,12 @@ class MissingCheck(Exception):
     pass
 
 class FilterResult:
-    def __init__(self, allowed: bool, data: Optional[dict] = None, message: Optional[str] = None):
+    def __init__(self, allowed: bool, data: Optional[dict] = None, message: Optional[str] = None,
+                 should_log: bool = False):
         self.__allowed = allowed
         self.__data = data or {}
         self.__message = message
+        self.__should_log = should_log
 
     @property
     def allowed(self):
@@ -24,6 +26,10 @@ class FilterResult:
     def message(self):
         return self.__message or 'A filter blocked your message.'
 
+    @property
+    def should_log(self):
+        return self.__should_log
+
 class FilterConfig:
     types = {
         'string': str,
@@ -31,8 +37,6 @@ class FilterConfig:
         'integer': int,
         'float': float,
         'boolean': bool,
-        'array': list,
-        'list': list
     }
 
     def __init__(self, name, description, config_type, limits: Optional[set] = None, default=None):
@@ -80,6 +84,10 @@ class BaseFilter:
     @property
     def description(self):
         return self.__description
+
+    @property
+    def configs(self):
+        return self.__configs
 
     def add_config(self, config_id, config: FilterConfig):
         if config_id in self.__configs:
