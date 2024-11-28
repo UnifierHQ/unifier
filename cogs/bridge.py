@@ -284,6 +284,7 @@ class UnifierBridge:
         self.alert = UnifierAlert
         self.filters = {}
         self.filter_data = {}
+        self.global_filters = []
 
     @property
     def can_multicore(self):
@@ -299,7 +300,8 @@ class UnifierBridge:
                 'allowed': [],
                 'invites': [],
                 'platform': 'discord'
-            }, 'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'filters': {}, 'settings': {}
+            }, 'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'filters': {}, 'nsfw': False,
+            'relay_deletes': True, 'relay_edits': True
         }
 
     @property
@@ -501,6 +503,10 @@ class UnifierBridge:
 
     class UnderAttackMode(BridgeError):
         """Server has UAM enabled."""
+        pass
+
+    class AgeGateMismatch(BridgeError):
+        """Server tried to join an NSFW room using a non-NSFW channel or vice versa."""
         pass
 
     def load_filters(self, path='filters'):
@@ -902,10 +908,25 @@ class UnifierBridge:
             channel_id = support.get_id(channel)
             user_id = support.get_id(user)
             guild_id = support.get_id(support.server(user))
+
+            nsfw = False
+            try:
+                nsfw = support.is_nsfw(channel) or support.is_nsfw(support.server(user))
+            except platform_base.MissingImplementation:
+                pass
         else:
             channel_id = channel.id
             user_id = user.id
             guild_id = user.guild.id
+            nsfw = channel.nsfw or (
+                user.guild.nsfw_level == nextcord.NSFWLevel.explicit or
+                user.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
+            )
+
+        if not nsfw and roominfo['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is NSFW but channel is not NSFW')
+        elif nsfw and not roominfo['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is not NSFW but channel is NSFW')
 
         limit = self.get_connections_limit(guild_id)
 
@@ -1561,6 +1582,10 @@ class UnifierBridge:
             is_bot = message.author.bot and not message.author.id == self.__bot.user.id
             author = message.author.id
             server = message.guild.id
+            nsfw = message.channel.nsfw or (
+                message.guild.nsfw_level == nextcord.NSFWLevel.explicit or
+                message.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
+            )
         else:
             is_bot = support.is_bot(
                 support.author(message)
@@ -1568,33 +1593,59 @@ class UnifierBridge:
             author = support.get_id(support.author(message))
             server = support.get_id(support.server(message))
 
+            nsfw = False
+            try:
+                nsfw = support.is_nsfw(support.channel(message)) or support.is_nsfw(support.server(message))
+            except platform_base.MissingImplementation:
+                pass
+
+        # Check if SFW/NSFW statuses of room and channel match
+        if not nsfw and roomdata['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is NSFW but channel is not NSFW')
+        elif nsfw and not roomdata['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is not NSFW but channel is NSFW')
+
+        # Check if server is banned from the room
         if str(server) in roomdata['meta']['banned']:
             raise self.RoomBannedError('server is banned from room')
 
+        # Check if server is under attack
         if str(server) in self.__bot.db['underattack']:
             raise self.UnderAttackMode('server enabled UAM')
 
+        # Check if server is global banned
         if str(server) in self.__bot.db['banned']:
             if self.__bot.db['banned'][str(server)] < time.time() and not self.__bot.db['banned'][str(server)] == 0:
                 self.__bot.db['banned'].pop(str(server))
             else:
                 raise self.BridgeBannedError()
 
+        # Check if user is global banned
         if str(author) in self.__bot.db['banned']:
             if self.__bot.db['banned'][str(author)] < time.time() and not self.__bot.db['banned'][str(author)] == 0:
                 self.__bot.db['banned'].pop(str(author))
             else:
                 raise self.BridgeBannedError()
 
+        # Run filters
         for bridge_filter in self.filters:
             if not bridge_filter in roomdata['meta']['filters']:
                 continue
 
-            if roomdata['meta']['filters'][bridge_filter]['enabled']:
-                data = {
-                    'config': roomdata['meta']['filters'][bridge_filter],
-                    'data': self.filter_data.get(bridge_filter, {}).get(str(server), {})
-                }
+            if (
+                    roomdata['meta']['filters'][bridge_filter]['enabled'] or
+                    bridge_filter in self.global_filters
+            ):
+                if bridge_filter in self.global_filters:
+                    data = {
+                        'config': self.__bot.db['filters'][bridge_filter],
+                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {})
+                    }
+                else:
+                    data = {
+                        'config': roomdata['meta']['filters'][bridge_filter],
+                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {})
+                    }
 
                 if str(author) in data['config'].get('whitelist', []):
                     continue
@@ -2447,6 +2498,24 @@ class UnifierBridge:
                         ),
                         ui.ActionRow(
                             content_btn
+                        )
+                    )
+                elif source == 'discord' and (
+                        message.type == nextcord.MessageType.chat_input_command or
+                        message.type == nextcord.MessageType.context_menu_command
+                ):
+                    cmd_meta = message.reference.cached_message.interaction_metadata
+                    components.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                style=nextcord.ButtonStyle.blurple,
+                                label=selector.fget('command', values={
+                                    'user': cmd_meta.user.global_name or cmd_meta.user.name,
+                                    'command': cmd_meta.name or '[unknown command]'
+                                }),
+                                emoji=self.__bot.ui_emojis.command,
+                                disabled=True
+                            )
                         )
                     )
 
@@ -5713,7 +5782,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             message.content = message.content.replace('--match ','',1)
             idmatch = True
 
-        if not message.webhook_id == None:
+        if message.webhook_id and (
+                not message.type == nextcord.MessageType.chat_input_command and
+                not message.type == nextcord.MessageType.context_menu_command
+        ):
             # webhook msg
             try:
                 hook = await self.bot.fetch_webhook(message.webhook_id)
@@ -6128,6 +6200,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
+            if not roomdata['meta']['relay_edits']:
+                return
+
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_edit'] or roomdata['meta']['private']:
                 # do not log
                 raise RuntimeError()
@@ -6219,6 +6294,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
                 return
 
+            roomdata = self.bot.bridge.get_room(roomname)
+            if not roomdata['meta']['relay_edits']:
+                return
+
             try:
                 msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(message.id)
                 if not str(msg.id) == str(message.id):
@@ -6268,6 +6347,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
+            if not roomdata['meta']['relay_deletes']:
+                return
+
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_delete'] or roomdata['meta']['private']:
                 # do not log
                 raise RuntimeError()
