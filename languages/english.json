@@ -965,7 +965,7 @@
         "moderated": "Moderated username",
         "filesize_limit": "Your files passed the {limit}MB limit. Some files will not be sent.",
         "replying": "Replying to {user}",
-        "command": "{user} ran {command}",
+        "command": "@{user} ran {command}",
         "deleted": "Message deleted from `{roomname}`",
         "edited": "Message edited in `{roomname}`",
         "original": "Original",
