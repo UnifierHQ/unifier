@@ -2504,7 +2504,7 @@ class UnifierBridge:
                         message.type == nextcord.MessageType.chat_input_command or
                         message.type == nextcord.MessageType.context_menu_command
                 ):
-                    cmd_meta = message.reference.cached_message.interaction_metadata
+                    cmd_meta = message.interaction_metadata
                     components.add_row(
                         ui.ActionRow(
                             nextcord.ui.Button(
