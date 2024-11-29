@@ -295,13 +295,13 @@ class FilterDialog:
                 components.add_row(ui.ActionRow(self.selection))
 
             components.add_rows(
-                *[ui.ActionRow(*[buttons[index]]) for index in range(len(buttons))]
+                *[ui.ActionRow(*buttons[index]) for index in range(len(buttons))]
             )
 
             if not self.message:
                 self.message = await self.ctx.send(embed=self.embed, view=components)
                 if type(self.ctx) is nextcord.Interaction:
-                    await self.message.fetch()
+                    self.message = await self.message.fetch()
             elif not interaction.response.is_done():
                 # noinspection PyUnresolvedReferences
                 await interaction.response.edit_message(embed=self.embed, view=components)
@@ -313,7 +313,7 @@ class FilterDialog:
                 return interaction.user.id == self.author.id and interaction.message.id == self.message.id
 
             try:
-                interaction = await self.__bot.wait_for('message_component', check=check, timeout=60)
+                interaction = await self.__bot.wait_for('interaction', check=check, timeout=60)
             except asyncio.TimeoutError:
                 return await self.message.edit(view=None)
 
