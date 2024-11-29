@@ -596,6 +596,17 @@
         "success_unset": "All members can now no longer use your emojis!"
       },
       "filters": {
+        "description": "Manages Filters for a room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to manage Filters for. Leave empty to autodetect."
+          },
+          "query": {
+            "name": "query",
+            "description": "The filter to search for."
+          }
+        },
         "title": "Room Filters",
         "choose_filter": "Choose a filter to view its info!",
         "selection": "Filter...",

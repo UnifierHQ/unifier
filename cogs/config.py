@@ -1289,5 +1289,31 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
 
+    @config.subcommand(
+        name='filters',
+        description=language.desc('config.filters'),
+        description_localizations=language.slash_desc('config.filters')
+    )
+    @restrictions.not_banned()
+    async def filters(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('config.filters.room', required=False),
+            query: Optional[str] = slash.option('config.filters.query', required=False)
+    ):
+        if not room:
+            room = self.bot.bridge.check_duplicate(ctx.channel)
+            if not room:
+                raise restrictions.UnknownRoom()
+
+        roomdata = self.bot.bridge.get_room(room)
+        if not roomdata:
+            raise restrictions.UnknownRoom()
+
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
+            raise restrictions.NoRoomManagement()
+
+        dialog = FilterDialog(self.bot, ctx, room, query=query)
+        await dialog.run()
+
 def setup(bot):
     bot.add_cog(Config(bot))
