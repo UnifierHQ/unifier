@@ -608,6 +608,7 @@
           }
         },
         "title": "Room Filters",
+        "title_global": "Global Filters",
         "choose_filter": "Choose a filter to view its info!",
         "selection": "Filter...",
         "selection_config": "Configuration...",

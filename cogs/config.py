@@ -66,7 +66,7 @@ def timetoint(t):
     return total
 
 class FilterDialog:
-    def __init__(self, bot, ctx: Union[nextcord.Interaction, commands.Context], room, query=None):
+    def __init__(self, bot, ctx: Union[nextcord.Interaction, commands.Context], room=None, query=None):
         self.ctx = ctx
         self.__bot = bot
         self.room = room
@@ -82,6 +82,7 @@ class FilterDialog:
         self.match_both = False
         self.match_name = True
         self.match_desc = True
+        self.global_filters = not room
 
     @property
     def author(self):
@@ -346,19 +347,28 @@ class FilterDialog:
                     )
                     await interaction.response.send_modal(self.modal)
                 elif custom_id == 'change':
-                    roominfo = self.__bot.bridge.get_room(self.room)
-
                     if not self.filter.configs[self.config].type == 'bool':
                         await interaction.response.send_modal(self.modal)
                         continue
 
-                    current = roominfo['meta']['filters'].get(self.filter.id, {}).get(self.config, self.filter.configs[self.config].default)
+                    if self.global_filters:
+                        current = self.__bot.db['filters'].get(self.filter.id, {}).get(self.config, self.filter.configs[self.config].default)
 
-                    if not self.filter.id in roominfo['meta']['filters'].keys():
-                        roominfo['meta']['filters'].update({self.filter.id: {}})
+                        if not self.filter.id in self.__bot.db['filters']['meta']['filters'].keys():
+                            self.__bot.db['filters']['filters'].update({self.filter.id: {}})
 
-                    roominfo['meta']['filters'][self.filter.id].update({self.config: not current})
-                    self.__bot.bridge.update_room(self.room, roominfo)
+                        self.__bot.db['filters']['filters'][self.filter.id].update({self.config: not current})
+                        self.__bot.db.save_data()
+                    else:
+                        roominfo = self.__bot.bridge.get_room(self.room)
+
+                        current = roominfo['meta']['filters'].get(self.filter.id, {}).get(self.config, self.filter.configs[self.config].default)
+
+                        if not self.filter.id in roominfo['meta']['filters'].keys():
+                            roominfo['meta']['filters'].update({self.filter.id: {}})
+
+                        roominfo['meta']['filters'][self.filter.id].update({self.config: not current})
+                        self.__bot.bridge.update_room(self.room, roominfo)
             elif interaction.type == nextcord.InteractionType.modal_submit:
                 if panel == 0:
                     panel = 1
@@ -368,13 +378,7 @@ class FilterDialog:
                     self.match_name = True
                     self.match_desc = True
                 elif panel == 2:
-                    roominfo = self.__bot.bridge.get_room(self.room)
-
-                    if not self.filter.id in roominfo['meta']['filters'].keys():
-                        roominfo['meta']['filters'].update({self.filter.id: {}})
-
                     new_value = interaction.data['components'][0]['components'][0]['value']
-
                     if (
                             self.filter.configs[self.config].type == 'integer' or
                             self.filter.configs[self.config].type == 'number'
@@ -389,8 +393,20 @@ class FilterDialog:
                         except ValueError:
                             continue
 
-                    roominfo['meta']['filters'][self.filter.id].update({self.config: new_value})
-                    self.__bot.bridge.update_room(self.room, roominfo)
+                    if self.global_filters:
+                        if not self.filter.id in self.__bot.db['filters']['meta']['filters'].keys():
+                            self.__bot.db['filters']['filters'].update({self.filter.id: {}})
+
+                        self.__bot.db['filters']['filters'][self.filter.id].update({self.config: new_value})
+                        self.__bot.db.save_data()
+                    else:
+                        roominfo = self.__bot.bridge.get_room(self.room)
+
+                        if not self.filter.id in roominfo['meta']['filters'].keys():
+                            roominfo['meta']['filters'].update({self.filter.id: {}})
+
+                        roominfo['meta']['filters'][self.filter.id].update({self.config: new_value})
+                        self.__bot.bridge.update_room(self.room, roominfo)
 
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server."""
@@ -1312,7 +1328,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not self.bot.bridge.can_manage_room(room, ctx.user):
             raise restrictions.NoRoomManagement()
 
-        dialog = FilterDialog(self.bot, ctx, room, query=query)
+        dialog = FilterDialog(self.bot, ctx, room=room, query=query)
         await dialog.run()
 
 def setup(bot):

@@ -242,7 +242,7 @@ class AutoSaveDict(dict):
                      'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
                      'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
                      'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
-                     'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}}
+                     'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}}
                     )
         self.threads = []
 
