@@ -284,7 +284,7 @@ class UnifierBridge:
         self.alert = UnifierAlert
         self.filters = {}
         self.filter_data = {}
-        self.global_filters = []
+        self.global_filter_data = {}
 
     @property
     def can_multicore(self):
@@ -1627,45 +1627,58 @@ class UnifierBridge:
             else:
                 raise self.BridgeBannedError()
 
-        # Run filters
+        # Run Filters check
         for bridge_filter in self.filters:
-            if not bridge_filter in roomdata['meta']['filters']:
+            if not (
+                    bridge_filter in roomdata['meta']['filters'] or
+                    bridge_filter in self.__bot.db['filters']
+            ):
                 continue
 
             if (
                     roomdata['meta']['filters'][bridge_filter]['enabled'] or
-                    bridge_filter in self.global_filters
+                    self.__bot.db['filters'][bridge_filter]['enabled']
             ):
-                if bridge_filter in self.global_filters:
-                    data = {
+                scans_data = []
+                if self.__bot.db['filters'][bridge_filter]['enabled']:
+                    scans_data.append({
                         'config': self.__bot.db['filters'][bridge_filter],
-                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {})
-                    }
-                else:
-                    data = {
+                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
+                        'global': True
+                    })
+                if roomdata['meta']['filters'][bridge_filter]['enabled']:
+                    scans_data.append({
                         'config': roomdata['meta']['filters'][bridge_filter],
-                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {})
-                    }
+                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
+                        'global': False
+                    })
 
-                if str(author) in data['config'].get('whitelist', []):
-                    continue
+                for data in scans_data:
+                    if str(author) in data['config'].get('whitelist', []):
+                        continue
 
-                filter_obj = self.filters[bridge_filter]
+                    filter_obj = self.filters[bridge_filter]
 
-                try:
-                    result = await self.__bot.loop.run_in_executor(
-                        None, lambda: filter_obj.check(str(author), is_bot, content, files, data)
-                    )
-                except base_filter.MissingFilter:
-                    continue
+                    try:
+                        result = await self.__bot.loop.run_in_executor(
+                            None, lambda: filter_obj.check(str(author), is_bot, content, files, data)
+                        )
+                    except base_filter.MissingFilter:
+                        continue
 
-                if not bridge_filter in self.filter_data.keys():
-                    self.filter_data.update({bridge_filter:{}})
+                    if data['global']:
+                        if not bridge_filter in self.global_filter_data.keys():
+                            self.global_filter_data.update({bridge_filter: {}})
 
-                self.filter_data[bridge_filter].update({str(server): result.data['data']})
+                        self.global_filter_data[bridge_filter].update({str(server): result.data['data']})
+                    else:
+                        if not bridge_filter in self.filter_data.keys():
+                            self.filter_data.update({bridge_filter:{}})
 
-                if not result.allowed:
-                    raise self.ContentBlocked(result.message)
+                        self.filter_data[bridge_filter].update({str(server): result.data['data']})
+
+                    if not result.allowed:
+                        raise self.ContentBlocked(result.message)
 
         return True
 
