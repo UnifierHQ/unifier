@@ -2687,7 +2687,7 @@ class UnifierBridge:
                             ))
 
                         async def start():
-                            for thread in threads:
+                            for thread in reversed(threads):
                                 try:
                                     thread.start()
                                 except AssertionError:
