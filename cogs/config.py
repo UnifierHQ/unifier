@@ -83,6 +83,10 @@ class FilterDialog:
         self.match_name = True
         self.match_desc = True
         self.global_filters = not room
+        self.title = self.__bot.ui_emojis.rooms + ' ' + (
+            self.selector.get('title_global') if self.global_filters else
+            self.selector.fget('title',values={'room':self.room})
+        )
 
     @property
     def author(self):
@@ -97,37 +101,41 @@ class FilterDialog:
         self.embed.remove_footer()
         self.selection = None
 
-    async def menu(self, search: Optional[str] = None, page: int = 0, match_name: bool = True, match_desc: bool = True,
-                   match_both: bool = False):
+    async def menu(self, search: Optional[str] = None, page: int = 0):
         await self.sanitize()
 
         if search:
             filters = dict(self.__bot.bridge.filters)
-            for bridge_filter in filters.keys():
+            keys = list(filters.keys())
+            for bridge_filter in keys:
                 # noinspection PyTypeChecker
                 filter_obj: base_filter.BaseFilter = filters[bridge_filter]
-                if match_both:
+                if self.match_both:
                     if not (
                             (
-                                    (search.lower() in bridge_filter.lower() if match_name else True) or
-                                    (search.lower() in filter_obj.name.lower() if match_name else True)
+                                    (search.lower() in bridge_filter.lower() if self.match_name else True) or
+                                    (search.lower() in filter_obj.name.lower() if self.match_name else True)
                             ) and (
-                                    search.lower() in filter_obj.description.lower() if match_desc else True
+                                    search.lower() in filter_obj.description.lower() if self.match_desc else True
                             )
                     ):
                         filters.pop(bridge_filter)
                 else:
                     if not (
                             (
-                                    (search.lower() in bridge_filter.lower() if match_name else True) or
-                                    (search.lower() in filter_obj.name.lower() if match_name else True)
+                                    (search.lower() in bridge_filter.lower() if self.match_name else True) or
+                                    (search.lower() in filter_obj.name.lower() if self.match_name else True)
                             ) or (
-                                    search.lower() in filter_obj.description.lower() if match_desc else True
+                                    search.lower() in filter_obj.description.lower() if self.match_desc else True
                             )
                     ):
                         filters.pop(bridge_filter)
+            self.embed.description = self.selector.rawfget(
+                "search_results", "commons.search", values={"query": search, "results": len(filters)}
+            )
         else:
             filters = dict(self.__bot.bridge.filters)
+            self.embed.description = self.selector.get('choose_filter')
 
         limit = 20
         maxpage = math.ceil(len(filters)/limit)-1
@@ -140,15 +148,14 @@ class FilterDialog:
 
         offset = page * limit
 
-        self.embed.title = self.selector.get('title')
-        self.embed.description = self.selector.get('choose_filter')
+        self.embed.title = self.title
 
         self.selection = nextcord.ui.StringSelect(
             max_values=1, min_values=1, custom_id='selection', placeholder=self.selector.get("selection")
         )
 
         for index in range(limit):
-            if index + offset >= len(filters):
+            if index + offset >= len(filters) or len(filters) == 0:
                 break
 
             # noinspection PyTypeChecker
@@ -183,9 +190,9 @@ class FilterDialog:
     async def display(self, bridge_filter: base_filter.BaseFilter, searched: bool = False):
         await self.sanitize()
 
-        self.embed.title = self.selector.get('title') + f' / {bridge_filter.id}'
+        self.embed.title = self.title + f' / {bridge_filter.id}'
         if searched:
-            self.embed.title = self.selector.get('title') + f' / {self.selector.get("search")} / {bridge_filter.id}'
+            self.embed.title = self.title + f' / {self.selector.get("search")} / {bridge_filter.id}'
 
         roomdata = self.__bot.bridge.get_room(self.room)
 
@@ -224,14 +231,34 @@ class FilterDialog:
         roomdata = self.__bot.bridge.get_room(self.room)
 
         config = bridge_filter.configs[option]
-        value = roomdata['meta']['filters'].get(bridge_filter.id, {}).get('config', {}).get(option, config.default)
+        value = roomdata['meta']['filters'].get(bridge_filter.id, {}).get(option, config.default)
 
-        self.embed.title = self.selector.get('title') + f' / {bridge_filter.id} / {option}'
+        self.embed.title = self.title + f' / {bridge_filter.id} / {option}'
         if searched:
-            self.embed.title = self.selector.get('title') + f' / {self.selector.get("search")} / {bridge_filter.id} / {option}'
+            self.embed.title = self.title + f' / {self.selector.get("search")} / {bridge_filter.id} / {option}'
+
+        additional = ''
+        if config.limits:
+            if config.type == 'string':
+                additional = f'\n\n{self.selector.fget("limit_str",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+            elif config.type == 'number' or config.type == 'integer' or config.type == 'float':
+                additional = f'\n\n{self.selector.fget("limit_num",values={"lower":config.limits[0],"upper":config.limits[1]})}'
 
         self.embed.description = f'# {config.name} (`{option}`)\n{config.description}'
-        self.embed.add_field(name=self.selector.get('current'), value=str(value))
+        self.embed.add_field(name=self.selector.get('current'), value='`'+str(value)+'`'+additional)
+
+        self.modal = nextcord.ui.Modal(
+            title=self.selector.get('form_title'),
+            auto_defer=False
+        )
+        self.modal.add_item(
+            nextcord.ui.TextInput(
+                label=self.selector.get('value'),
+                style=nextcord.TextInputStyle.short,
+                placeholder=self.selector.get("value_prompt"),
+                default_value=str(value)
+            )
+        )
 
     async def run(self):
         page = 0
@@ -264,10 +291,58 @@ class FilterDialog:
                         )
                     ]
                 ]
-                await self.menu(search=self.query, page=page)
+                await self.menu(page=page)
             elif panel == 1:
-                await self.display(self.filter, searched=bool(self.query))
                 buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('prev', 'commons.navigation'),
+                            custom_id='prev',
+                            disabled=page <= 0,
+                            emoji=self.__bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('next', 'commons.navigation'),
+                            custom_id='next',
+                            disabled=page >= self.maxpage,
+                            emoji=self.__bot.ui_emojis.next
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label=self.selector.rawget('search', 'commons.search'),
+                            custom_id='search',
+                            emoji=self.__bot.ui_emojis.search
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            custom_id='match',
+                            label=(
+                                self.selector.rawget('match_any', 'commons.search') if not self.match_both else
+                                self.selector.rawget('match_both', 'commons.search')
+                            ),
+                            style=(
+                                nextcord.ButtonStyle.green if not self.match_both else
+                                nextcord.ButtonStyle.blurple
+                            ),
+                            emoji=(
+                                '\U00002194' if not self.match_both else
+                                '\U000023FA'
+                            )
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='name',
+                            label=self.selector.get("filter_name"),
+                            style=nextcord.ButtonStyle.green if self.match_name else nextcord.ButtonStyle.gray
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='desc',
+                            label=self.selector.get("filter_desc"),
+                            style=nextcord.ButtonStyle.green if self.match_desc else nextcord.ButtonStyle.gray
+                        )
+                    ],
                     [
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.gray,
@@ -277,21 +352,56 @@ class FilterDialog:
                         )
                     ]
                 ]
+                await self.menu(search=self.query, page=page)
             elif panel == 2:
+                await self.display(self.filter, searched=bool(self.query))
+
+                if self.global_filters:
+                    enabled = self.__bot.db['filters'].get(self.filter.id, {}).get('enabled', False)
+                else:
+                    roominfo = self.__bot.bridge.get_room(self.room)
+                    enabled = roominfo['meta']['filters'].get(self.filter.id, {}).get('enabled', False)
+
+                buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.red if enabled else nextcord.ButtonStyle.green,
+                            label=self.selector.get('disable') if enabled else self.selector.get('enable'),
+                            custom_id='toggle'
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label=self.selector.rawget('back', 'commons.navigation'),
+                            custom_id='back',
+                            emoji=self.__bot.ui_emojis.back
+                        )
+                    ]
+                ]
+            elif panel == 3:
                 await self.display_config(self.filter, self.config, searched=bool(self.query))
                 buttons = [
                     [
                         nextcord.ui.Button(
                             style=nextcord.ButtonStyle.blurple,
-                            label=self.selector.rawget('change'),
+                            label=self.selector.get('change'),
                             custom_id='change'
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label=self.selector.rawget('back', 'commons.navigation'),
+                            custom_id='back',
+                            emoji=self.__bot.ui_emojis.back
                         )
                     ]
                 ]
 
             components = ui.MessageComponents()
 
-            if self.selection:
+            if self.selection and len(self.selection.options) > 0:
                 components.add_row(ui.ActionRow(self.selection))
 
             components.add_rows(
@@ -325,14 +435,15 @@ class FilterDialog:
                     page -= 1
                 elif custom_id == 'back':
                     panel -= 1
-                    if panel < 0:
+                    if panel == 1 and not self.query or panel < 0:
                         panel = 0
                 elif custom_id == 'selection':
                     page = 0
 
-                    if panel == 0:
+                    if panel == 0 or panel == 1:
                         self.filter = self.__bot.bridge.filters[interaction.data['values'][0]]
-                    elif panel == 1:
+                        panel = 1
+                    elif panel == 2:
                         self.config = interaction.data['values'][0]
 
                     panel += 1
@@ -346,6 +457,25 @@ class FilterDialog:
                         )
                     )
                     await interaction.response.send_modal(self.modal)
+                elif custom_id == 'toggle':
+                    if self.global_filters:
+                        current = self.__bot.db['filters'].get(self.filter.id, {}).get('enabled', False)
+
+                        if not self.filter.id in self.__bot.db['filters'].keys():
+                            self.__bot.db['filters'].update({self.filter.id: {}})
+
+                        self.__bot.db['filters'][self.filter.id].update({'enabled': not current})
+                        self.__bot.db.save_data()
+                    else:
+                        roominfo = self.__bot.bridge.get_room(self.room)
+
+                        current = roominfo['meta']['filters'].get(self.filter.id, {}).get('enabled', False)
+
+                        if not self.filter.id in roominfo['meta']['filters'].keys():
+                            roominfo['meta']['filters'].update({self.filter.id: {}})
+
+                        roominfo['meta']['filters'][self.filter.id].update({'enabled': not current})
+                        self.__bot.bridge.update_room(self.room, roominfo)
                 elif custom_id == 'change':
                     if not self.filter.configs[self.config].type == 'bool':
                         await interaction.response.send_modal(self.modal)
@@ -354,10 +484,10 @@ class FilterDialog:
                     if self.global_filters:
                         current = self.__bot.db['filters'].get(self.filter.id, {}).get(self.config, self.filter.configs[self.config].default)
 
-                        if not self.filter.id in self.__bot.db['filters']['meta']['filters'].keys():
-                            self.__bot.db['filters']['filters'].update({self.filter.id: {}})
+                        if not self.filter.id in self.__bot.db['filters'].keys():
+                            self.__bot.db['filters'].update({self.filter.id: {}})
 
-                        self.__bot.db['filters']['filters'][self.filter.id].update({self.config: not current})
+                        self.__bot.db['filters'][self.filter.id].update({self.config: not current})
                         self.__bot.db.save_data()
                     else:
                         roominfo = self.__bot.bridge.get_room(self.room)
@@ -369,14 +499,21 @@ class FilterDialog:
 
                         roominfo['meta']['filters'][self.filter.id].update({self.config: not current})
                         self.__bot.bridge.update_room(self.room, roominfo)
+                elif custom_id == 'match':
+                    self.match_both = not self.match_both
+                elif custom_id == 'name':
+                    self.match_name = not self.match_name
+                elif custom_id == 'desc':
+                    self.match_desc = not self.match_desc
             elif interaction.type == nextcord.InteractionType.modal_submit:
-                if panel == 0:
+                if panel == 0 or panel == 1:
+                    if panel == 0:
+                        self.match_both = False
+                        self.match_name = True
+                        self.match_desc = True
                     panel = 1
                     page = 0
                     self.query = interaction.data['components'][0]['components'][0]['value']
-                    self.match_both = False
-                    self.match_name = True
-                    self.match_desc = True
                 elif panel == 2:
                     new_value = interaction.data['components'][0]['components'][0]['value']
                     if (
@@ -393,11 +530,27 @@ class FilterDialog:
                         except ValueError:
                             continue
 
-                    if self.global_filters:
-                        if not self.filter.id in self.__bot.db['filters']['meta']['filters'].keys():
-                            self.__bot.db['filters']['filters'].update({self.filter.id: {}})
+                    if self.filter.configs[self.config].limits:
+                        if self.filter.configs[self.config].type == 'string' and not (
+                                self.filter.configs[self.config].limits[0]
+                                <= len(new_value) <=
+                                self.filter.configs[self.config].limits[1]
+                        ) or (
+                                self.filter.configs[self.config].type == 'number' or
+                                self.filter.configs[self.config].type == 'integer' or
+                                self.filter.configs[self.config].type == 'float'
+                        ) and not (
+                                self.filter.configs[self.config].limits[0]
+                                <= new_value <=
+                                self.filter.configs[self.config].limits[1]
+                        ):
+                            continue
 
-                        self.__bot.db['filters']['filters'][self.filter.id].update({self.config: new_value})
+                    if self.global_filters:
+                        if not self.filter.id in self.__bot.db['filters'].keys():
+                            self.__bot.db['filters'].update({self.filter.id: {}})
+
+                        self.__bot.db['filters'][self.filter.id].update({self.config: new_value})
                         self.__bot.db.save_data()
                     else:
                         roominfo = self.__bot.bridge.get_room(self.room)
@@ -531,7 +684,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             userid = int(userid)
         except:
             discord_hint = False
-        
+
         username = None
         discriminator = None
         is_bot = False
@@ -550,7 +703,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 username = support.user_name(user)
                 is_bot = support.is_bot(user)
                 break
-                    
+
         if not username:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}')
         if userid in self.bot.db['moderators']:

@@ -513,8 +513,13 @@ class UnifierBridge:
         for bridge_filter in os.listdir(path):
             if not bridge_filter.endswith('.py'):
                 continue
-
-            filter_obj = importlib.import_module(path + '.' + bridge_filter[:-3]).Filter()
+            try:
+                filter_obj = importlib.import_module(path + '.' + bridge_filter[:-3]).Filter()
+            except:
+                if self.__bot.config['debug']:
+                    self.logger.exception('An error occurred!')
+                self.logger.warning(f'Could not load filter {bridge_filter[:-3]}, skipping.')
+                continue
             self.filters.update({filter_obj.id: filter_obj})
 
     def add_modlog(self, action_type, user, reason, moderator):
@@ -1582,6 +1587,8 @@ class UnifierBridge:
             is_bot = message.author.bot and not message.author.id == self.__bot.user.id
             author = message.author.id
             server = message.guild.id
+            name = message.author.name
+            avatar = message.author.avatar.url if message.author.avatar else None
             nsfw = message.channel.nsfw or (
                 message.guild.nsfw_level == nextcord.NSFWLevel.explicit or
                 message.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
@@ -1592,6 +1599,8 @@ class UnifierBridge:
             ) and not support.get_id(support.author(message)) == support.bot_id()
             author = support.get_id(support.author(message))
             server = support.get_id(support.server(message))
+            name = support.name(support.author(message))
+            avatar = support.avatar(support.author(message))
 
             nsfw = False
             try:
@@ -1630,23 +1639,23 @@ class UnifierBridge:
         # Run Filters check
         for bridge_filter in self.filters:
             if not (
-                    bridge_filter in roomdata['meta']['filters'] or
-                    bridge_filter in self.__bot.db['filters']
+                    bridge_filter in roomdata['meta']['filters'].keys() or
+                    bridge_filter in self.__bot.db['filters'].keys()
             ):
                 continue
 
             if (
-                    roomdata['meta']['filters'][bridge_filter]['enabled'] or
-                    self.__bot.db['filters'][bridge_filter]['enabled']
+                    roomdata['meta']['filters'].get(bridge_filter, {}).get('enabled', False) or
+                    self.__bot.db['filters'].get(bridge_filter, {}).get('enabled', False)
             ):
                 scans_data = []
-                if self.__bot.db['filters'][bridge_filter]['enabled']:
+                if self.__bot.db['filters'].get(bridge_filter, {}).get('enabled', False):
                     scans_data.append({
                         'config': self.__bot.db['filters'][bridge_filter],
                         'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
                         'global': True
                     })
-                if roomdata['meta']['filters'][bridge_filter]['enabled']:
+                if roomdata['meta']['filters'].get(bridge_filter, {}).get('enabled', False):
                     scans_data.append({
                         'config': roomdata['meta']['filters'][bridge_filter],
                         'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
@@ -1670,14 +1679,44 @@ class UnifierBridge:
                         if not bridge_filter in self.global_filter_data.keys():
                             self.global_filter_data.update({bridge_filter: {}})
 
-                        self.global_filter_data[bridge_filter].update({str(server): result.data['data']})
+                        if 'data' in result.data.keys():
+                            self.global_filter_data[bridge_filter].update({str(server): result.data['data']})
                     else:
                         if not bridge_filter in self.filter_data.keys():
                             self.filter_data.update({bridge_filter:{}})
 
-                        self.filter_data[bridge_filter].update({str(server): result.data['data']})
+                        if 'data' in result.data.keys():
+                            self.filter_data[bridge_filter].update({str(server): result.data['data']})
 
                     if not result.allowed:
+                        if result.should_log and not roomdata['meta']['private']:
+                            embed = nextcord.Embed(
+                                title=f'{self.__bot.ui_emojis.warning} {language.get("room","bridge.bridge", language=language.language_set)}',
+                                description=f'||{content}||',
+                                color=self.__bot.colors.warning
+                            )
+
+                            embed.add_field(
+                                name=language.get("reason", "commons.moderation", language=language.language_set),
+                                value=result.message or '[unknown]'
+                            )
+
+                            embed.add_field(
+                                name=language.get("sender_id","commons.moderation", language=language.language_set),
+                                value=str(author)
+                            )
+
+                            embed.set_author(name=f'@{name}', icon_url=avatar)
+
+                            if len(embed.description) > 4096:
+                                embed.description = embed.description[:-5] + '...||'
+
+                            try:
+                                ch = self.__bot.get_channel(self.__bot.config['reports_channel'])
+                                await ch.send(embed=embed)
+                            except:
+                                pass
+
                         raise self.ContentBlocked(result.message)
 
         return True
@@ -2919,26 +2958,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         language = self.bot.langmgr
         restrictions.attach_bot(self.bot)
         restrictions_legacy.attach_bot(self.bot)
-        if not hasattr(self.bot, 'bridged'):
-            self.bot.bridged = []
-        if not hasattr(self.bot, 'bridged_external'):
-            self.bot.bridged_external = {}
-        if not hasattr(self.bot, 'bridged_obe'):
-            # OBE = Owned By External
-            # Message wasn't sent from Discord.
-            self.bot.bridged_obe = {}
-        if not hasattr(self.bot, 'bridged_urls'):
-            self.bot.bridged_urls = {}
-        if not hasattr(self.bot, 'bridged_urls_external'):
-            self.bot.bridged_urls_external = {}
-        if not hasattr(self.bot, 'owners'):
-            self.bot.owners = {}
-        if not hasattr(self.bot, 'origin'):
-            self.bot.origin = {}
-        if not hasattr(self.bot, 'prs'):
-            self.bot.prs = {}
-        if not hasattr(self.bot, 'notified'):
-            self.bot.notified = []
         if not hasattr(self.bot, 'reports'):
             self.bot.reports = {}
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
@@ -2968,6 +2987,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.restored = restored
         self.bot.bridge.msg_stats = msg_stats
         self.bot.bridge.msg_stats_reset = msg_stats_reset
+        self.bot.bridge.load_filters()
         if webhook_cache:
             self.bot.bridge.webhook_cache = webhook_cache
     
@@ -6111,6 +6131,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         ids = []
         try:
             ids = await asyncio.gather(*tasks)
+        except UnifierBridge.ContentBlocked as e:
+            if message.author.bot:
+                # avoid spam
+                return
+
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.error} {selector.get("blocked_title")}',
+                description=str(e),
+                color=self.bot.colors.error
+            )
+            embed.set_footer(text=selector.get('blocked_disclaimer'))
+            return await message.channel.send(embed=embed,reference=message)
         except:
             self.logger.exception('Something went wrong!')
             experiments = []

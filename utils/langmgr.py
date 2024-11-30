@@ -49,6 +49,10 @@ class LanguageManager:
             raise RuntimeError('language not loaded, run LanguageManager.load()')
         return ['english']+list(self.__language_custom.keys())
 
+    @property
+    def language_set(self):
+        return self.__language_set
+
     def load(self):
         try:
             with open('languages/english.json', 'r') as file:

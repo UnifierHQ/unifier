@@ -607,7 +607,7 @@
             "description": "The filter to search for."
           }
         },
-        "title": "Room Filters",
+        "title": "`{room}` Filters",
         "title_global": "Global Filters",
         "choose_filter": "Choose a filter to view its info!",
         "selection": "Filter...",
@@ -617,11 +617,20 @@
         "noresults_body_search": "There are no filters matching your search query.",
         "noresults_body_filter": "There are no filters here!",
         "search": "search",
-        "enabled": "This filter is active.",
-        "disabled": "This filter is inactive.",
+        "filter_name": "Filter name",
+        "filter_desc": "Filter description",
+        "enabled": "This filter is **enabled**.",
+        "disabled": "This filter is **disabled**.",
         "current": "Current value",
         "search_prompt": "Type a filter...",
-        "change": "Change value"
+        "change": "Change value",
+        "enable": "Enable filter",
+        "disable": "Disable filter",
+        "form_title": "Change config value...",
+        "value": "New value",
+        "value_prompt": "Type something...",
+        "limit_num": "Value must be between {lower} and {upper}.",
+        "limit_str": "Value must be between {lower} and {upper} characters long."
       }
     },
     "bridge": {
@@ -955,6 +964,7 @@
       "bridge": {
         "blocked_title": "Content blocked",
         "blocked_body": "Your message was blocked. Moderators may be able to see the blocked content.",
+        "blocked_disclaimer": "If the message was sent in a Public Room, instance moderators may be able to see the blocked content.",
         "blocked_report_title": "Content blocked - content is as follows",
         "punished": "Punished user IDs",
         "involved": "{count} users involved",

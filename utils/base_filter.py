@@ -39,7 +39,7 @@ class FilterConfig:
         'boolean': bool,
     }
 
-    def __init__(self, name, description, config_type, limits: Optional[set] = None, default=None):
+    def __init__(self, name, description, config_type, limits: Optional[tuple] = None, default=None):
         self.__name = name
         self.__description = description
         self.__type = config_type

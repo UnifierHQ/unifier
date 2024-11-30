@@ -10,7 +10,8 @@ class Filter(BaseFilter):
         self.add_config(
             'limit',
             FilterConfig(
-                'Limit', 'Sets the character limit.', 'integer', default=2000
+                'Limit', 'Sets the character limit.', 'integer', default=2000,
+                limits=(0, 2000)
             )
         )
 

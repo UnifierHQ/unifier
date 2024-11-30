@@ -9,4 +9,4 @@ class Filter(BaseFilter):
         )
 
     def check(self, _user, is_bot, content, _files, _data) -> FilterResult:
-        return FilterResult(not is_bot, None)
+        return FilterResult(not is_bot, None, message='Bots may not talk in this Room.')

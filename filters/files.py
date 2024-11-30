@@ -9,4 +9,4 @@ class Filter(BaseFilter):
         )
 
     def check(self, _user, _is_bot, _content, files, _data) -> FilterResult:
-        return FilterResult(files == 0, None)
+        return FilterResult(files == 0, None, message='Attachments are not allowed here.')

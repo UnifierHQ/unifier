@@ -15,4 +15,4 @@ class Filter(BaseFilter):
         return [x[0] for x in url]
 
     def check(self, _user, _is_bot, content, _files, _data) -> FilterResult:
-        return FilterResult(len(self.find_urls(content)) == 0, None)
+        return FilterResult(len(self.find_urls(content)) == 0, None, message='URLs are not allowed here.')

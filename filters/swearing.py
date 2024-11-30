@@ -10,4 +10,4 @@ class Filter(BaseFilter):
         )
 
     def check(self, _user, _is_bot, content, _files, _data) -> FilterResult:
-        return FilterResult(not profanity.contains_profanity(content), None)
+        return FilterResult(not profanity.contains_profanity(content), None, message='No swearing allowed!')
