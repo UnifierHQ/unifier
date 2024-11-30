@@ -514,7 +514,7 @@ class FilterDialog:
                     panel = 1
                     page = 0
                     self.query = interaction.data['components'][0]['components'][0]['value']
-                elif panel == 2:
+                elif panel == 3:
                     new_value = interaction.data['components'][0]['components'][0]['value']
                     if (
                             self.filter.configs[self.config].type == 'integer' or
