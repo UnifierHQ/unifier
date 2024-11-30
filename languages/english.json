@@ -619,8 +619,8 @@
         "search": "search",
         "filter_name": "Filter name",
         "filter_desc": "Filter description",
-        "enabled": "This filter is **enabled**.",
-        "disabled": "This filter is **disabled**.",
+        "enabled": "This filter is {emoji} **enabled**.",
+        "disabled": "This filter is {emoji} **disabled**.",
         "current": "Current value",
         "search_prompt": "Type a filter...",
         "change": "Change value",
@@ -629,6 +629,7 @@
         "form_title": "Change config value...",
         "value": "New value",
         "value_prompt": "Type something...",
+        "limits": "Limits",
         "limit_num": "Value must be between {lower} and {upper}.",
         "limit_str": "Value must be between {lower} and {upper} characters long."
       }

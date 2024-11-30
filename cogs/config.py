@@ -187,6 +187,10 @@ class FilterDialog:
                 inline=False
             )
 
+        self.embed.set_footer(text=self.selector.rawfget("page", "commons.search", values={
+            "page": page + 1, "maxpage": maxpage + 1
+        }))
+
     async def display(self, bridge_filter: base_filter.BaseFilter, searched: bool = False):
         await self.sanitize()
 
@@ -199,9 +203,9 @@ class FilterDialog:
         self.embed.description = (
             f'{bridge_filter.description or self.selector.get("no_desc")}\n\n' +
             (
-                self.selector.get("enabled")
+                self.selector.fget("enabled", values={"emoji": self.__bot.ui_emojis.success})
                 if roomdata['meta']['filters'].get(bridge_filter.id, {}).get('enabled', False)
-                else self.selector.get("disabled")
+                else self.selector.fget("disabled", values={"emoji": self.__bot.ui_emojis.error})
             )
         )
 
@@ -237,32 +241,47 @@ class FilterDialog:
         if searched:
             self.embed.title = self.title + f' / {self.selector.get("search")} / {bridge_filter.id} / {option}'
 
-        additional = ''
+        textinput = nextcord.ui.TextInput(
+            label=self.selector.get('value'),
+            style=nextcord.TextInputStyle.short,
+            placeholder=self.selector.get("value_prompt"),
+            default_value=str(value)
+        )
+
+        limittext = None
         if config.limits:
             if config.type == 'string':
-                additional = f'\n\n{self.selector.fget("limit_str",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+                limittext = f'{self.selector.fget("limit_str",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+                textinput.min_length = config.limits[0]
+                textinput.max_length = config.limits[1]
             elif config.type == 'number' or config.type == 'integer' or config.type == 'float':
-                additional = f'\n\n{self.selector.fget("limit_num",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+                limittext = f'{self.selector.fget("limit_num",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+
+        valuetext = '`'+str(value)+'`'
+        if len(valuetext) > 1024:
+            valuetext = valuetext[:1020] + '...`'
 
         self.embed.description = f'# {config.name} (`{option}`)\n{config.description}'
-        self.embed.add_field(name=self.selector.get('current'), value='`'+str(value)+'`'+additional)
+        self.embed.add_field(name=self.selector.get('current'), value=valuetext, inline=False)
+
+        if limittext:
+            self.embed.add_field(name=self.selector.get('limits'), value=limittext, inline=False)
 
         self.modal = nextcord.ui.Modal(
             title=self.selector.get('form_title'),
             auto_defer=False
         )
+
         self.modal.add_item(
-            nextcord.ui.TextInput(
-                label=self.selector.get('value'),
-                style=nextcord.TextInputStyle.short,
-                placeholder=self.selector.get("value_prompt"),
-                default_value=str(value)
-            )
+            textinput
         )
 
     async def run(self):
         page = 0
         panel = 0
+        if self.query:
+            panel = 1
+
         interaction = None
         while True:
             buttons = []
@@ -1483,6 +1502,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         dialog = FilterDialog(self.bot, ctx, room=room, query=query)
         await dialog.run()
+
+    @filters.on_autocomplete("query")
+    async def filters_autocomplete(self, ctx: nextcord.Interaction, query: str):
+        possible = []
+        for bridge_filter in self.bot.bridge.filters.keys():
+            if query.lower() in bridge_filter.lower():
+                possible.append(bridge_filter)
+        return await ctx.response.send_autocomplete(possible[:25])
 
 def setup(bot):
     bot.add_cog(Config(bot))
