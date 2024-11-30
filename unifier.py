@@ -167,6 +167,11 @@ for key in data:
 
 data = newdata
 
+if not os.path.isdir('filters'):
+    os.mkdir('filters')
+    for file in os.listdir('update/filters'):
+        shutil.copy2(f'update/filters/{file}', f'filters/{file}')
+
 encrypted_env = {}
 ivs = {}
 
