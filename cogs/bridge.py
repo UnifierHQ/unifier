@@ -2699,16 +2699,9 @@ class UnifierBridge:
                                     pass
 
                             for thread in reversed(threads):
-                                if thread.is_alive():
-                                    continue
-                                try:
-                                    thread.start()
-                                except AssertionError:
-                                    pass
-                                # tasks.append(self.__bot.loop.create_task(start_task(thread)))
+                                tasks.append(self.__bot.loop.create_task(start_task(thread)))
 
-
-                            # await asyncio.gather(*tasks)
+                            await asyncio.gather(*tasks)
 
                         multi_threads.append(self.__bot.loop.create_task(start()))
                     else:
