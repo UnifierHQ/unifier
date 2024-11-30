@@ -211,54 +211,6 @@ class UnifierAlert:
         }
     }
 
-class UnifierRaidBan:
-    def __init__(self, debug=True, frequency=1):
-        self.frequency = frequency # Frequency of content
-        self.time = round(time.time()) # Time when ban occurred
-        self.duration = 600 # Duration of ban in seconds. Base is 600
-        self.expire = round(time.time()) + self.duration # Expire time
-        self.debug = debug # Debug raidban
-        self.banned = False
-
-    def is_banned(self):
-        if self.expire < time.time():
-            return False or self.banned
-        return True
-
-    def increment(self,count=1):
-        if self.banned:
-            raise RuntimeError()
-        self.frequency += count
-        t = math.ceil((round(time.time())-self.time)/60)
-        i = self.frequency
-        threshold = round(9600*t/i) # Base is 160 minutes
-        prevd = self.duration
-        self.duration = self.duration * 2
-        diff = self.duration - prevd
-        self.expire += diff
-        self.banned = self.duration > threshold
-        return self.duration > threshold
-
-class UnifierMessageRaidBan(UnifierRaidBan):
-    def __init__(self, content_hash, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.content_hash = content_hash
-
-class UnifierPossibleRaidEvent:
-    def __init__(self,userid,content, frequency=1):
-        self.userid = userid # User ID of possible raider
-        self.hash = encrypt_string(content) # Hash of raid message string
-        self.time = round(time.time())  # Time when ban occurred
-        self.frequency = frequency
-        self.impact_score = 100*frequency
-
-    def increment(self,count=1):
-        self.frequency += count
-        t = math.ceil((round(time.time()) - self.time) / 60)
-        i = self.frequency
-        self.impact_score = round(100*i/t)
-        return self.impact_score > 300
-
 class UnifierBridge:
     # In case of the infamous Room Robbery bug, (room ownership gets stolen from a server),
     # convert some variables to private variables (e.g. room ==> __room). Should help.
@@ -271,8 +223,6 @@ class UnifierBridge:
         self.prs = {}
         self.webhook_cache = webhook_cache or wcache.WebhookCacheStore(self.__bot)
         self.restored = False
-        self.raidbans = {}
-        self.possible_raid = {}
         self.logger = logger
         self.secbans = {}
         self.restricted = {}
@@ -449,6 +399,39 @@ class UnifierBridge:
         def redact(self):
             self.__redacted = True
 
+    class UnifierRoom(dict):
+        def __init__(self, name, bridge, data, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.__name = name
+            self.__bridge = bridge
+            self.update(self.__bridge.room_template)
+            self.update(data)
+
+        @property
+        def name(self):
+            return self.__name
+
+        @property
+        def meta(self):
+            return self['meta']
+
+        @property
+        def rules(self):
+            return self.meta['rules']
+
+        def get_servers(self, platform='discord'):
+            return list(self.get(platform, {}).keys())
+
+        def edit(self, **kwargs):
+            for key in kwargs.keys():
+                if key == 'private_meta' or key == 'private':
+                    # prevent overwrite as these are managed by Bridge
+                    continue
+
+                self['meta'].update({key: kwargs[key]})
+
+            self.__bridge.update_room(self, self)
+
     class BridgeError(Exception):
         """Generic Unifier Bridge exception."""
         pass
@@ -507,6 +490,10 @@ class UnifierBridge:
 
     class AgeGateMismatch(BridgeError):
         """Server tried to join an NSFW room using a non-NSFW channel or vice versa."""
+        pass
+
+    class AgeGateUnsupported(BridgeError):
+        """Platform does not support age gate."""
         pass
 
     def load_filters(self, path='filters'):
@@ -626,7 +613,7 @@ class UnifierBridge:
                 else:
                     base.update({key: __roominfo[key]})
 
-            return dict(base)
+            return self.UnifierRoom(room, self, dict(base))
         except:
             return None
 
@@ -721,7 +708,7 @@ class UnifierBridge:
         if not room in self.__bot.db['rooms'].keys():
             raise self.RoomNotFoundError('invalid room')
 
-        self.__bot.db['rooms'][room] = roominfo
+        self.__bot.db['rooms'][room] = dict(roominfo)
         self.__bot.db.save_data()
 
     def create_room(self, room, private=True, platform='discord', origin=None, dry_run=False) -> dict:
@@ -916,9 +903,12 @@ class UnifierBridge:
 
             nsfw = False
             try:
+                if not support.supports_agegate:
+                    raise platform_base.MissingImplementation()
                 nsfw = support.is_nsfw(channel) or support.is_nsfw(support.server(user))
             except platform_base.MissingImplementation:
-                pass
+                if roominfo['meta']['nsfw']:
+                    raise self.AgeGateUnsupported('platform does not support age gate')
         else:
             channel_id = channel.id
             user_id = user.id
@@ -1088,16 +1078,6 @@ class UnifierBridge:
         # maybe delete the key entirely? or keep it in case conversion went wrong?
 
         self.__bot.db.save_data()
-
-    def is_raidban(self,userid):
-        try:
-            ban: UnifierRaidBan = self.raidbans[f'{userid}']
-        except:
-            return False
-        return ban.is_banned()
-
-    def raidban(self,userid):
-        self.raidbans.update({f'{userid}':UnifierRaidBan()})
 
     # noinspection PyTypeChecker
     async def backup(self,filename='bridge.json',limit=None):
@@ -1409,7 +1389,7 @@ class UnifierBridge:
                     continue
 
                 try:
-                    threads.append(asyncio.create_task(
+                    threads.append(self.__bot.loop.create_task(
                         webhook.delete_message(int(msgs[key][1]))
                     ))
                     count += 1
@@ -1433,7 +1413,7 @@ class UnifierBridge:
                 channel = support.get_channel(msgs[key][0])
                 todelete = await support.fetch_message(channel, msgs[key][1])
                 try:
-                    threads.append(asyncio.create_task(
+                    threads.append(self.__bot.loop.create_task(
                         support.delete(todelete)
                     ))
                     count += 1
@@ -1446,21 +1426,21 @@ class UnifierBridge:
             return count
 
         if msg.source=='discord':
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 delete_discord(msg.copies)
             ))
         else:
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 delete_others(msg.copies,msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     delete_discord(msg.external_copies['discord'])
                 ))
             else:
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     delete_others(msg.external_copies[platform],platform)
                 ))
 
@@ -1766,7 +1746,7 @@ class UnifierBridge:
                     continue
 
                 try:
-                    threads.append(asyncio.create_task(
+                    threads.append(self.__bot.loop.create_task(
                         webhook.edit_message(int(msgs[key][1]),content=text,allowed_mentions=mentions)
                     ))
                 except:
@@ -1805,21 +1785,21 @@ class UnifierBridge:
                     continue
 
         if msg.source=='discord':
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 edit_discord(msg.copies)
             ))
         else:
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 edit_others(msg.copies, msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     edit_discord(msg.external_copies['discord'],friendly=True)
                 ))
             else:
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     edit_others(msg.external_copies[platform],platform,friendly=True)
                 ))
 
@@ -2105,6 +2085,7 @@ class UnifierBridge:
         # Threading
         thread_urls = {}
         threads = []
+        multi_threads = []
         size_total = 0
         max_files = 0
         if platform == 'discord':
@@ -2704,9 +2685,17 @@ class UnifierBridge:
                                     'alert_additional': alert_pings
                                 }
                             ))
-                        threads[len(threads) - 1].start()
+
+                        async def start():
+                            for thread in threads:
+                                try:
+                                    thread.start()
+                                except AssertionError:
+                                    pass
+
+                        multi_threads.append(self.__bot.loop.create_task(start()))
                     else:
-                        threads.append(asyncio.create_task(tbsend(
+                        threads.append(self.__bot.loop.create_task(tbsend(
                             webhook, msg_author_dc, embeds, message, touse_mentions, components, sameguild, destguild
                         )))
                 else:
@@ -2827,7 +2816,7 @@ class UnifierBridge:
 
                 # Use threaded TBsend where possible, otherwise default to regular async.
                 if dest_support.enable_tb:
-                    threads.append(asyncio.create_task(tbsend(
+                    threads.append(self.__bot.loop.create_task(tbsend(
                         unifier_user.unifier_name,unifier_user.unifier_avatar,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
                 else:
@@ -2853,6 +2842,10 @@ class UnifierBridge:
         # Update cache
         tbv2_results = []
         if tb_v2:
+            # wait for all threads start runs to finish
+            await asyncio.gather(*multi_threads)
+
+            # gather results
             tbv2_results = await asyncio.gather(*threads)
 
         urls = urls | thread_urls
@@ -3842,6 +3835,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("too_many")}'
             elif type(e) is self.bot.bridge.AlreadyJoined:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("already_linked_server")}'
+            elif type(e) is self.bot.bridge.AgeGateMismatch:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("agegate")}'
             else:
                 should_raise = True
 
