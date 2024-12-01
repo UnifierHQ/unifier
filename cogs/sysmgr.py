@@ -1901,6 +1901,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return await msg.edit(embed=embed)
             selected = 0
             interaction = None
+
+            with open('boot/internal.json') as file:
+                bootdata = json.load(file)
+
             while True:
                 release = available[selected][2]
                 version = available[selected][0]
@@ -1911,6 +1915,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = selector.fget('available_body',values={
                     'current_ver':current['version'],'current_rel':current['release'],'new_ver':version,'new_rel':release
                 })
+
+                if not bootdata['stable_branch'] == self.bot.config['branch']:
+                    embed.description += '\n\n' + self.bot.ui_emojis.warning + ' ' + selector.get('unstable')
+
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:

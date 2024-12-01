@@ -255,6 +255,7 @@
         "noupdates_body": "Unifier is up-to-date.",
         "available_title": "Update available",
         "available_body": "An update is available for Unifier!\n\nCurrent version: {current_ver} (`{current_rel}`)\nNew version: {new_ver} (`{new_rel}`)",
+        "unstable":  "You are on the `{branch}` branch, which is not considered stable. Upgrade at your own risk.",
         "latest": "Latest version",
         "legacy": "Legacy version",
         "reboot_required": "The bot will need to reboot to apply the new update.",
