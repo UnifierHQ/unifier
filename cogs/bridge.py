@@ -399,39 +399,6 @@ class UnifierBridge:
         def redact(self):
             self.__redacted = True
 
-    class UnifierRoom(dict):
-        def __init__(self, name, bridge, data, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.__name = name
-            self.__bridge = bridge
-            self.update(self.__bridge.room_template)
-            self.update(data)
-
-        @property
-        def name(self):
-            return self.__name
-
-        @property
-        def meta(self):
-            return self['meta']
-
-        @property
-        def rules(self):
-            return self.meta['rules']
-
-        def get_servers(self, platform='discord'):
-            return list(self.get(platform, {}).keys())
-
-        def edit(self, **kwargs):
-            for key in kwargs.keys():
-                if key == 'private_meta' or key == 'private':
-                    # prevent overwrite as these are managed by Bridge
-                    continue
-
-                self['meta'].update({key: kwargs[key]})
-
-            self.__bridge.update_room(self, self)
-
     class BridgeError(Exception):
         """Generic Unifier Bridge exception."""
         pass
@@ -613,7 +580,7 @@ class UnifierBridge:
                 else:
                     base.update({key: __roominfo[key]})
 
-            return self.UnifierRoom(room, self, dict(base))
+            return dict(base)
         except:
             return None
 
@@ -2624,7 +2591,10 @@ class UnifierBridge:
                         if sys.platform == 'win32':
                             __files = await get_files(message.attachments)
                         else:
-                            __files = files
+                            try:
+                                __files = files
+                            except NameError:
+                                __files = await get_files(message.attachments)
 
                         __content = content_override if can_override else tosend_content
                         if alert_additional:
@@ -2703,7 +2673,10 @@ class UnifierBridge:
 
                             await asyncio.gather(*tasks)
 
-                        multi_threads.append(self.__bot.loop.create_task(start()))
+                        if 'faster-multicore' in self.__bot.config['experiments']:
+                            multi_threads.append(self.__bot.loop.create_task(start()))
+                        else:
+                            threads[len(threads)-1].start()
                     else:
                         threads.append(self.__bot.loop.create_task(tbsend(
                             webhook, msg_author_dc, embeds, message, touse_mentions, components, sameguild, destguild
@@ -2761,7 +2734,10 @@ class UnifierBridge:
                     if sys.platform == 'win32':
                         __files = await get_files(message.attachments)
                     else:
-                        __files = files
+                        try:
+                            __files = files
+                        except NameError:
+                            __files = await get_files(message.attachments)
 
                     special = {
                         'bridge': {
