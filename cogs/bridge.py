@@ -39,6 +39,7 @@ import importlib
 import emoji as pymoji
 import aiomultiprocess
 import aiohttp
+import aiosonic
 from aiomultiprocess import Worker
 
 # import ujson if installed
@@ -47,6 +48,7 @@ try:
 except:
     pass
 
+# import uvloop if installed
 try:
     import uvloop  # pylint: disable=import-error
 except:
@@ -112,6 +114,29 @@ def bypass_killer(string):
         return string[:-1]
     else:
         raise RuntimeError()
+
+class UnifierClientSession(aiohttp.ClientSession):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sonic_client = aiosonic.HTTPClient()
+
+    async def request(self, *args, **kwargs):
+        return await self.sonic_client.request(*args, **kwargs, json_serializer=self.json_serialize)
+
+    async def get(self, *args, **kwargs):
+        return await self.sonic_client.get(*args, **kwargs)
+
+    async def post(self, *args, **kwargs):
+        return await self.sonic_client.post(*args, **kwargs, json_serializer=self.json_serialize)
+
+    async def put(self, *args, **kwargs):
+        return await self.sonic_client.put(*args, **kwargs, json_serializer=self.json_serialize)
+
+    async def patch(self, *args, **kwargs):
+        return await self.sonic_client.patch(*args, **kwargs, json_serializer=self.json_serialize)
+
+    async def delete(self, *args, **kwargs):
+        return await self.sonic_client.delete(*args, **kwargs, json_serializer=self.json_serialize)
 
 class ExternalReference:
     def __init__(self, guild_id, channel_id, message_id):
@@ -2602,7 +2627,7 @@ class UnifierBridge:
                             __content = alert_additional + __content
 
                         if self.__bot.config['use_multicore']:
-                            async with aiohttp.ClientSession(json_serialize=jsontools.dumps) as session:
+                            async with UnifierClientSession(json_serialize=jsontools.dumps) as session:
                                 webhook.session = session
                                 msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
                                                          content=__content, files=__files, allowed_mentions=mentions, view=(
