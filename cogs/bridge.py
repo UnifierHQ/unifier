@@ -33,7 +33,8 @@ import ast
 import math
 import os
 import sys
-from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper, base_filter
+from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r,\
+                  restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools
 import importlib
 import emoji as pymoji
 import aiomultiprocess
@@ -2601,7 +2602,7 @@ class UnifierBridge:
                             __content = alert_additional + __content
 
                         if self.__bot.config['use_multicore']:
-                            async with aiohttp.ClientSession() as session:
+                            async with aiohttp.ClientSession(json_serialize=jsontools.dumps) as session:
                                 webhook.session = session
                                 msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
                                                          content=__content, files=__files, allowed_mentions=mentions, view=(
