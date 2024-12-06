@@ -283,15 +283,18 @@ class AutoSaveDict(dict):
             pass  # If the file is not found, initialize an empty dictionary
 
     def save(self):
+        tosave = {}
+        for key in self.keys():
+            tosave.update({key: self[key]})
         if self.__save_lock:
             return
         if self.__encrypted:
-            data = jsontools.dumps_bytes(self)
+            data = jsontools.dumps_bytes(tosave)
             self.__secure_storage.save(data, self.file_path)
         else:
             with open(self.file_path, 'w') as file:
                 # noinspection PyTypeChecker
-                json.dump(self, file, indent=4)
+                json.dump(tosave, file, indent=4)
 
         return
 
