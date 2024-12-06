@@ -17,7 +17,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
-import ujson
 from nextcord import Interaction, ApplicationError
 from nextcord.ext import commands
 import aiohttp
