@@ -1118,6 +1118,8 @@ class UnifierBridge:
                     data = self.__bot.secure_storage.load(filename+'.zst')
                 except json.JSONDecodeError:
                     secure_load_success = False
+                except UnicodeDecodeError:
+                    secure_load_success = False
                 except FileNotFoundError:
                     secure_load_success = False
                 else:
@@ -1135,6 +1137,8 @@ class UnifierBridge:
                 try:
                     data = self.__bot.secure_storage.load(filename+'.zst')
                 except json.JSONDecodeError:
+                    secure_load_success = False
+                except UnicodeDecodeError:
                     secure_load_success = False
                 except FileNotFoundError:
                     secure_load_success = False
