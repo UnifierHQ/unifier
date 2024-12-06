@@ -286,7 +286,7 @@ class AutoSaveDict(dict):
         if self.__save_lock:
             return
         if self.__encrypted:
-            data = jsontools.dumps_bytes(self, indent=4)
+            data = jsontools.dumps_bytes(self)
             self.__secure_storage.save(data, self.file_path)
         else:
             with open(self.file_path, 'w') as file:
