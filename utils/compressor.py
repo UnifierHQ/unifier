@@ -36,10 +36,13 @@ def compress(data: bytes, filename: Optional[str], chunk_size: int, level: int =
     with compressor.stream_writer(target) as f:
         for i in range(0, len(data), chunk_size):
             f.write(data[i:i + chunk_size])
+        f.flush()
+        target.seek(0)
+        result = target.read()
 
     # return bytes if filename is None
     if not filename:
-        return target.getvalue()
+        return result
 
 def decompress(file: Union[bytes, str], chunk_size: int) -> bytes:
     """Decompresses a file compressed using Zstandard."""

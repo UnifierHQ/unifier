@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
+import ujson
 from nextcord import Interaction, ApplicationError
 from nextcord.ext import commands
 import aiohttp
@@ -245,16 +246,21 @@ class AutoSaveDict(dict):
         self.__encrypted = kwargs.get('encrypt', False)
 
         # Ensure necessary keys exist
-        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
-                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
-                     'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
-                     'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
-                     'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}}
-                    )
+        self.update(self.base)
         self.threads = []
 
         # Load data
         self.load_data()
+
+    @property
+    def base(self):
+        return {
+            'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
+            'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
+            'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
+            'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
+            'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}
+        }
 
     @property
     def save_lock(self):
@@ -281,20 +287,24 @@ class AutoSaveDict(dict):
             self.update(data)
         except FileNotFoundError:
             pass  # If the file is not found, initialize an empty dictionary
+        except json.JSONDecodeError:
+            pass  # If the file is corrupted, initialize an empty dictionary
 
     def save(self):
         tosave = {}
         for key in self.keys():
+            if not key in self.base.keys():
+                continue
             tosave.update({key: self[key]})
         if self.__save_lock:
             return
         if self.__encrypted:
-            data = jsontools.dumps_bytes(tosave)
+            data = jsontools.dumps_bytes(dict(tosave))
             self.__secure_storage.save(data, self.file_path)
         else:
             with open(self.file_path, 'w') as file:
                 # noinspection PyTypeChecker
-                json.dump(tosave, file, indent=4)
+                json.dump(dict(tosave), file, indent=4)
 
         return
 

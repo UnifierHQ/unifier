@@ -95,7 +95,7 @@ class RawEncryptor:
     def encrypt(self, data):
         data, tag, nonce, salt = self.__encryptor.encrypt(data, self.__password)
         return {
-            'data': data,
+            'data': base64.b64encode(data).decode('ascii'),
             'tag': tag,
             'nonce': nonce,
             'salt': salt
@@ -469,4 +469,4 @@ class SecureStorage:
         with open(filename, 'r') as file:
             data = json.load(file)
 
-        return self.__rawencryptor.decrypt(data['data'], data['tag'], data['nonce'], data['salt'])
+        return self.__rawencryptor.decrypt(base64.b64decode(data['data']), data['tag'], data['nonce'], data['salt'])
