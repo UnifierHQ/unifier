@@ -28,6 +28,9 @@ custom_slogan = ""
 [backups]
 compress_cache = true
 cache_backup_limit = 10000
+zstd_level = 1
+zstd_chunk_size = 4194304 # 4MB chunk size
+zstd_threads = -1 # use all available threads
 periodic_backup = 0
 periodic_backup_cloud = 0
 cloud_backup_endpoint = ""

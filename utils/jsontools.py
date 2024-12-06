@@ -21,14 +21,33 @@ import json
 try:
     # noinspection PyUnresolvedReferences
     import orjson as json  # pylint: disable=import-error
+    orjson_imported = True
 except ImportError:
-    pass
+    orjson_imported = False
 
-def dumps(*args, **kwargs):
+def dumps(*args, **kwargs) -> str:
     """Quick method to dump JSON data using orjson if available used for optimizing aiohttp performance.
     If orjson is not available, it will default to using the built-in json module."""
     result = json.dumps(*args, **kwargs)
     if not type(result) is str:
         result = result.decode()
+
+    return result
+
+def dumps_bytes(*args, **kwargs) -> bytes:
+    """Like dumps, but returns bytes instead. Used for data backups."""
+    result = json.dumps(*args, **kwargs)
+    if type(result) is str:
+        result = result.encode()
+
+    return result
+
+def loads_bytes(data, *args, **kwargs):
+    """Loads bytes into a Python dictionary."""
+    if orjson_imported:
+        result = json.loads(data, *args, **kwargs)
+    else:
+        data = data.decode('utf-8')
+        result = json.dumps(data, *args, **kwargs)
 
     return result

@@ -34,7 +34,7 @@ import math
 import os
 import sys
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r,\
-                  restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools
+                  restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools, compressor
 import importlib
 import emoji as pymoji
 import aiomultiprocess
@@ -1083,7 +1083,10 @@ class UnifierBridge:
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
         if self.__bot.config['compress_cache']:
-            await self.__bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
+            await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
+                jsontools.dumps_bytes(data), filename+'.zst', self.__bot.config['zstd_chunk_size'],
+                self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
+            ))
         else:
             with open(filename, "w+") as file:
                 await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
@@ -1095,7 +1098,12 @@ class UnifierBridge:
         if self.restored:
             raise RuntimeError('Already restored from backup')
         if self.__bot.config['compress_cache']:
-            data = compress_json.load(filename+'.lzma')
+            if filename+'.zst' in os.listdir():
+                data = jsontools.loads_bytes(compressor.decompress(
+                    filename+'.zst', self.__bot.config['zstd_chunk_size']
+                ))
+            else:
+                data = compress_json.load(filename+'.lzma')
         else:
             with open(filename, "r") as file:
                 data = json.load(file)
