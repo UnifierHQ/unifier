@@ -33,7 +33,8 @@ import ast
 import math
 import os
 import sys
-from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r, restrictions_legacy as r_legacy, slash as slash_helper
+from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r,\
+                  restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools, compressor
 import importlib
 import emoji as pymoji
 import aiomultiprocess
@@ -51,11 +52,7 @@ try:
 except:
     pass
 
-if not sys.platform == 'win32':
-    force_disable_multicore = False # disables multicore regardless of config
-    aiomultiprocess.set_start_method("fork")
-else:
-    force_disable_multicore = True
+aiomultiprocess.set_start_method("fork")
 
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=True)
@@ -215,54 +212,6 @@ class UnifierAlert:
         }
     }
 
-class UnifierRaidBan:
-    def __init__(self, debug=True, frequency=1):
-        self.frequency = frequency # Frequency of content
-        self.time = round(time.time()) # Time when ban occurred
-        self.duration = 600 # Duration of ban in seconds. Base is 600
-        self.expire = round(time.time()) + self.duration # Expire time
-        self.debug = debug # Debug raidban
-        self.banned = False
-
-    def is_banned(self):
-        if self.expire < time.time():
-            return False or self.banned
-        return True
-
-    def increment(self,count=1):
-        if self.banned:
-            raise RuntimeError()
-        self.frequency += count
-        t = math.ceil((round(time.time())-self.time)/60)
-        i = self.frequency
-        threshold = round(9600*t/i) # Base is 160 minutes
-        prevd = self.duration
-        self.duration = self.duration * 2
-        diff = self.duration - prevd
-        self.expire += diff
-        self.banned = self.duration > threshold
-        return self.duration > threshold
-
-class UnifierMessageRaidBan(UnifierRaidBan):
-    def __init__(self, content_hash, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.content_hash = content_hash
-
-class UnifierPossibleRaidEvent:
-    def __init__(self,userid,content, frequency=1):
-        self.userid = userid # User ID of possible raider
-        self.hash = encrypt_string(content) # Hash of raid message string
-        self.time = round(time.time())  # Time when ban occurred
-        self.frequency = frequency
-        self.impact_score = 100*frequency
-
-    def increment(self,count=1):
-        self.frequency += count
-        t = math.ceil((round(time.time()) - self.time) / 60)
-        i = self.frequency
-        self.impact_score = round(100*i/t)
-        return self.impact_score > 300
-
 class UnifierBridge:
     # In case of the infamous Room Robbery bug, (room ownership gets stolen from a server),
     # convert some variables to private variables (e.g. room ==> __room). Should help.
@@ -275,8 +224,6 @@ class UnifierBridge:
         self.prs = {}
         self.webhook_cache = webhook_cache or wcache.WebhookCacheStore(self.__bot)
         self.restored = False
-        self.raidbans = {}
-        self.possible_raid = {}
         self.logger = logger
         self.secbans = {}
         self.restricted = {}
@@ -286,18 +233,26 @@ class UnifierBridge:
         self.msg_stats_reset = datetime.datetime.now().day
         self.dedupe = {}
         self.alert = UnifierAlert
+        self.filters = {}
+        self.filter_data = {}
+        self.global_filter_data = {}
+
+    @property
+    def can_multicore(self):
+        """Returns if the host system supports multicore bridging."""
+
+        return sys.platform != 'win32' and os.cpu_count() > 1
 
     @property
     def room_template(self):
         return {
-            'rules': [], 'restricted': False, 'locked': False, 'private': False,
-            'private_meta': {
+            'rules': [], 'restricted': False, 'locked': False, 'private': False, 'private_meta': {
                 'server': None,
                 'allowed': [],
                 'invites': [],
                 'platform': 'discord'
-            },
-            'emoji': None, 'description': None, 'display_name': None, 'banned': []
+            }, 'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'filters': {}, 'nsfw': False,
+            'relay_deletes': True, 'relay_edits': True
         }
 
     @property
@@ -445,45 +400,82 @@ class UnifierBridge:
         def redact(self):
             self.__redacted = True
 
-    class RoomForbiddenError(Exception):
+    class BridgeError(Exception):
+        """Generic Unifier Bridge exception."""
         pass
 
-    class TooManyRooms(Exception):
+    class RoomForbiddenError(BridgeError):
+        """Generic missing permissions exception."""
+        pass
+
+    class TooManyRooms(BridgeError):
         """Server has reached maximum Private Room creations."""
         pass
 
-    class TooManyConnections(Exception):
+    class TooManyConnections(BridgeError):
         """Server has reached maximum Private Room connections."""
         pass
 
-    class RoomBannedError(Exception):
+    class RoomBannedError(RoomForbiddenError):
+        """User or server is banned from this room."""
         pass
 
-    class RoomNotFoundError(Exception):
+    class BridgeBannedError(BridgeError):
+        """User or server is global banned."""
         pass
 
-    class RoomExistsError(Exception):
+    class RoomNotFoundError(BridgeError):
+        """Room does not exist."""
         pass
 
-    class AlreadyJoined(Exception):
+    class RoomExistsError(BridgeError):
+        """Room already exists."""
         pass
 
-    class InviteNotFoundError(Exception):
+    class AlreadyJoined(BridgeError):
+        """Server is already in the room."""
         pass
 
-    class InviteExistsError(Exception):
+    class InviteNotFoundError(BridgeError):
+        """Invite does not exist."""
         pass
 
-    def get_reply_style(self, guild_id):
-        if str(guild_id) in self.__bot.db['settings'].keys():
-            return self.__bot.db['settings'][f'{guild_id}'].get('reply_layout',0)
-        return 0
+    class InviteExistsError(BridgeError):
+        """Invite already exists."""
+        pass
 
-    def set_reply_style(self, guild_id, reply_type):
-        if not str(guild_id) in self.__bot.db['settings'].keys():
-            self.__bot.db['settings'].update({f'{guild_id}': {}})
+    class ContentBlocked(BridgeError):
+        """Content was blocked by a filter or security Modifier."""
+        pass
 
-        self.__bot.db['settings'][f'{guild_id}'].update({'reply_layout': reply_type})
+    class FeatureDisabled(BridgeError):
+        """Feature is unavailable or disabled."""
+        pass
+
+    class UnderAttackMode(BridgeError):
+        """Server has UAM enabled."""
+        pass
+
+    class AgeGateMismatch(BridgeError):
+        """Server tried to join an NSFW room using a non-NSFW channel or vice versa."""
+        pass
+
+    class AgeGateUnsupported(BridgeError):
+        """Platform does not support age gate."""
+        pass
+
+    def load_filters(self, path='filters'):
+        for bridge_filter in os.listdir(path):
+            if not bridge_filter.endswith('.py'):
+                continue
+            try:
+                filter_obj = importlib.import_module(path + '.' + bridge_filter[:-3]).Filter()
+            except:
+                if self.__bot.config['debug']:
+                    self.logger.exception('An error occurred!')
+                self.logger.warning(f'Could not load filter {bridge_filter[:-3]}, skipping.')
+                continue
+            self.filters.update({filter_obj.id: filter_obj})
 
     def add_modlog(self, action_type, user, reason, moderator):
         t = time.time()
@@ -684,7 +676,7 @@ class UnifierBridge:
         if not room in self.__bot.db['rooms'].keys():
             raise self.RoomNotFoundError('invalid room')
 
-        self.__bot.db['rooms'][room] = roominfo
+        self.__bot.db['rooms'][room] = dict(roominfo)
         self.__bot.db.save_data()
 
     def create_room(self, room, private=True, platform='discord', origin=None, dry_run=False) -> dict:
@@ -876,10 +868,28 @@ class UnifierBridge:
             channel_id = support.get_id(channel)
             user_id = support.get_id(user)
             guild_id = support.get_id(support.server(user))
+
+            nsfw = False
+            try:
+                if not support.supports_agegate:
+                    raise platform_base.MissingImplementation()
+                nsfw = support.is_nsfw(channel) or support.is_nsfw(support.server(user))
+            except platform_base.MissingImplementation:
+                if roominfo['meta']['nsfw']:
+                    raise self.AgeGateUnsupported('platform does not support age gate')
         else:
             channel_id = channel.id
             user_id = user.id
             guild_id = user.guild.id
+            nsfw = channel.nsfw or (
+                user.guild.nsfw_level == nextcord.NSFWLevel.explicit or
+                user.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
+            )
+
+        if not nsfw and roominfo['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is NSFW but channel is not NSFW')
+        elif nsfw and not roominfo['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is not NSFW but channel is NSFW')
 
         limit = self.get_connections_limit(guild_id)
 
@@ -1037,16 +1047,6 @@ class UnifierBridge:
 
         self.__bot.db.save_data()
 
-    def is_raidban(self,userid):
-        try:
-            ban: UnifierRaidBan = self.raidbans[f'{userid}']
-        except:
-            return False
-        return ban.is_banned()
-
-    def raidban(self,userid):
-        self.raidbans.update({f'{userid}':UnifierRaidBan()})
-
     # noinspection PyTypeChecker
     async def backup(self,filename='bridge.json',limit=None):
         if self.backup_lock:
@@ -1083,10 +1083,24 @@ class UnifierBridge:
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
         if self.__bot.config['compress_cache']:
-            await self.__bot.loop.run_in_executor(None, lambda: compress_json.dump(data,filename+'.lzma'))
+            if self.__bot.config['encrypt_backups']:
+                data = await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
+                    jsontools.dumps_bytes(data), None, self.__bot.config['zstd_chunk_size'],
+                    self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
+                ))
+                self.__bot.secure_storage.save(data, filename+'.zst')
+            else:
+                await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
+                    jsontools.dumps_bytes(data), filename+'.zst', self.__bot.config['zstd_chunk_size'],
+                    self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
+                ))
         else:
-            with open(filename, "w+") as file:
-                await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
+            if self.__bot.config['encrypt_backups']:
+                data = jsontools.dumps_bytes(data)
+                self.__bot.secure_storage.save(data, filename)
+            else:
+                with open(filename, "w+") as file:
+                    await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
         del data
         self.backup_running = False
         return
@@ -1094,11 +1108,45 @@ class UnifierBridge:
     async def restore(self,filename='bridge.json'):
         if self.restored:
             raise RuntimeError('Already restored from backup')
+
+        data = {}
+
         if self.__bot.config['compress_cache']:
-            data = compress_json.load(filename+'.lzma')
+            secure_load_success = True
+            if self.__bot.config['encrypt_backups']:
+                try:
+                    data = self.__bot.secure_storage.load(filename+'.zst')
+                except json.JSONDecodeError:
+                    secure_load_success = False
+                except UnicodeDecodeError:
+                    secure_load_success = False
+                except FileNotFoundError:
+                    secure_load_success = False
+                else:
+                    data = jsontools.loads_bytes(compressor.decompress(data, self.__bot.config['zstd_chunk_size']))
+            if not self.__bot.config['encrypt_backups'] or not secure_load_success:
+                if filename+'.zst' in os.listdir():
+                    data = jsontools.loads_bytes(compressor.decompress(
+                        filename+'.zst', self.__bot.config['zstd_chunk_size']
+                    ))
+                else:
+                    data = compress_json.load(filename+'.lzma')
         else:
-            with open(filename, "r") as file:
-                data = json.load(file)
+            secure_load_success = True
+            if self.__bot.config['encrypt_backups']:
+                try:
+                    data = self.__bot.secure_storage.load(filename+'.zst')
+                except json.JSONDecodeError:
+                    secure_load_success = False
+                except UnicodeDecodeError:
+                    secure_load_success = False
+                except FileNotFoundError:
+                    secure_load_success = False
+                else:
+                    data = jsontools.loads_bytes(data)
+            if not self.__bot.config['encrypt_backups'] or not secure_load_success:
+                with open(filename, "r") as file:
+                    data = json.load(file)
 
         for x in range(len(data['messages'])):
             msg = UnifierBridge.UnifierMessage(
@@ -1299,6 +1347,7 @@ class UnifierBridge:
 
     async def delete_parent(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
+
         if msg.source=='discord':
             ch = self.__bot.get_channel(int(msg.channel_id))
             todelete = await ch.fetch_message(int(msg.id))
@@ -1319,6 +1368,15 @@ class UnifierBridge:
 
     async def delete_copies(self, message):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
+
+        if not msg.room in self.rooms:
+            return 0
+
+        roomdata = self.get_room(msg.room)
+
+        if not roomdata['meta']['settings'].get('relay_delete'):
+            return 0
+
         threads = []
 
         async def delete_discord(msgs):
@@ -1347,7 +1405,7 @@ class UnifierBridge:
                     continue
 
                 try:
-                    threads.append(asyncio.create_task(
+                    threads.append(self.__bot.loop.create_task(
                         webhook.delete_message(int(msgs[key][1]))
                     ))
                     count += 1
@@ -1371,7 +1429,7 @@ class UnifierBridge:
                 channel = support.get_channel(msgs[key][0])
                 todelete = await support.fetch_message(channel, msgs[key][1])
                 try:
-                    threads.append(asyncio.create_task(
+                    threads.append(self.__bot.loop.create_task(
                         support.delete(todelete)
                     ))
                     count += 1
@@ -1384,21 +1442,21 @@ class UnifierBridge:
             return count
 
         if msg.source=='discord':
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 delete_discord(msg.copies)
             ))
         else:
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 delete_others(msg.copies,msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     delete_discord(msg.external_copies['discord'])
                 ))
             else:
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     delete_others(msg.external_copies[platform],platform)
                 ))
 
@@ -1513,6 +1571,152 @@ class UnifierBridge:
 
         return text
 
+    async def can_send(self, room, message, content, files, source='discord'):
+        support = self.__bot.platforms[source] if source != 'discord' else None
+
+        if not room in self.rooms:
+            raise self.RoomNotFoundError('invalid room')
+
+        roomdata = self.get_room(room)
+
+        if source == 'discord':
+            is_bot = message.author.bot and not message.author.id == self.__bot.user.id
+            author = message.author.id
+            server = message.guild.id
+            name = message.author.name
+            avatar = message.author.avatar.url if message.author.avatar else None
+            nsfw = message.channel.nsfw or (
+                message.guild.nsfw_level == nextcord.NSFWLevel.explicit or
+                message.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
+            )
+        else:
+            is_bot = support.is_bot(
+                support.author(message)
+            ) and not support.get_id(support.author(message)) == support.bot_id()
+            author = support.get_id(support.author(message))
+            server = support.get_id(support.server(message))
+            name = support.name(support.author(message))
+            avatar = support.avatar(support.author(message))
+
+            nsfw = False
+            try:
+                nsfw = support.is_nsfw(support.channel(message)) or support.is_nsfw(support.server(message))
+            except platform_base.MissingImplementation:
+                pass
+
+        # Check if SFW/NSFW statuses of room and channel match
+        if not nsfw and roomdata['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is NSFW but channel is not NSFW')
+        elif nsfw and not roomdata['meta']['nsfw']:
+            raise self.AgeGateMismatch('room is not NSFW but channel is NSFW')
+
+        # Check if server is banned from the room
+        if str(server) in roomdata['meta']['banned']:
+            raise self.RoomBannedError('server is banned from room')
+
+        # Check if server is under attack
+        if str(server) in self.__bot.db['underattack']:
+            raise self.UnderAttackMode('server enabled UAM')
+
+        # Check if server is global banned
+        if str(server) in self.__bot.db['banned']:
+            if self.__bot.db['banned'][str(server)] < time.time() and not self.__bot.db['banned'][str(server)] == 0:
+                self.__bot.db['banned'].pop(str(server))
+            else:
+                raise self.BridgeBannedError()
+
+        # Check if user is global banned
+        if str(author) in self.__bot.db['banned']:
+            if self.__bot.db['banned'][str(author)] < time.time() and not self.__bot.db['banned'][str(author)] == 0:
+                self.__bot.db['banned'].pop(str(author))
+            else:
+                raise self.BridgeBannedError()
+
+        # Run Filters check
+        for bridge_filter in self.filters:
+            if not (
+                    bridge_filter in roomdata['meta']['filters'].keys() or
+                    bridge_filter in self.__bot.db['filters'].keys()
+            ):
+                continue
+
+            if (
+                    roomdata['meta']['filters'].get(bridge_filter, {}).get('enabled', False) or
+                    self.__bot.db['filters'].get(bridge_filter, {}).get('enabled', False)
+            ):
+                scans_data = []
+                if self.__bot.db['filters'].get(bridge_filter, {}).get('enabled', False):
+                    scans_data.append({
+                        'config': self.__bot.db['filters'][bridge_filter],
+                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
+                        'global': True
+                    })
+                if roomdata['meta']['filters'].get(bridge_filter, {}).get('enabled', False):
+                    scans_data.append({
+                        'config': roomdata['meta']['filters'][bridge_filter],
+                        'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
+                        'global': False
+                    })
+
+                for data in scans_data:
+                    if str(author) in data['config'].get('whitelist', []):
+                        continue
+
+                    filter_obj = self.filters[bridge_filter]
+
+                    try:
+                        result = await self.__bot.loop.run_in_executor(
+                            None, lambda: filter_obj.check(str(author), is_bot, content, files, data)
+                        )
+                    except base_filter.MissingFilter:
+                        continue
+
+                    if data['global']:
+                        if not bridge_filter in self.global_filter_data.keys():
+                            self.global_filter_data.update({bridge_filter: {}})
+
+                        if 'data' in result.data.keys():
+                            self.global_filter_data[bridge_filter].update({str(server): result.data['data']})
+                    else:
+                        if not bridge_filter in self.filter_data.keys():
+                            self.filter_data.update({bridge_filter:{}})
+
+                        if 'data' in result.data.keys():
+                            self.filter_data[bridge_filter].update({str(server): result.data['data']})
+
+                    if not result.allowed:
+                        if result.should_log and not roomdata['meta']['private']:
+                            embed = nextcord.Embed(
+                                title=f'{self.__bot.ui_emojis.warning} {language.get("room","bridge.bridge", language=language.language_set)}',
+                                description=f'||{content}||',
+                                color=self.__bot.colors.warning
+                            )
+
+                            embed.add_field(
+                                name=language.get("reason", "commons.moderation", language=language.language_set),
+                                value=result.message or '[unknown]'
+                            )
+
+                            embed.add_field(
+                                name=language.get("sender_id","commons.moderation", language=language.language_set),
+                                value=str(author)
+                            )
+
+                            embed.set_author(name=f'@{name}', icon_url=avatar)
+
+                            if len(embed.description) > 4096:
+                                embed.description = embed.description[:-5] + '...||'
+
+                            try:
+                                ch = self.__bot.get_channel(self.__bot.config['reports_channel'])
+                                await ch.send(embed=embed)
+                            except:
+                                pass
+
+                        raise self.ContentBlocked(result.message)
+
+        return True
+
     async def edit(self, message, content):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
 
@@ -1524,6 +1728,14 @@ class UnifierBridge:
             server = self.__bot.get_guild(int(msg.guild_id))
         else:
             server = source_support.get_server(msg.guild_id)
+
+        if not msg.room in self.rooms:
+            return
+
+        roomdata = self.get_room(msg.room)
+
+        if not roomdata['meta']['settings'].get('relay_edit'):
+            return
 
         async def edit_discord(msgs,friendly=False):
             threads = []
@@ -1550,7 +1762,7 @@ class UnifierBridge:
                     continue
 
                 try:
-                    threads.append(asyncio.create_task(
+                    threads.append(self.__bot.loop.create_task(
                         webhook.edit_message(int(msgs[key][1]),content=text,allowed_mentions=mentions)
                     ))
                 except:
@@ -1589,21 +1801,21 @@ class UnifierBridge:
                     continue
 
         if msg.source=='discord':
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 edit_discord(msg.copies)
             ))
         else:
-            threads.append(asyncio.create_task(
+            threads.append(self.__bot.loop.create_task(
                 edit_others(msg.copies, msg.source)
             ))
 
         for platform in list(msg.external_copies.keys()):
             if platform=='discord':
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     edit_discord(msg.external_copies['discord'],friendly=True)
                 ))
             else:
-                threads.append(asyncio.create_task(
+                threads.append(self.__bot.loop.create_task(
                     edit_others(msg.external_copies[platform],platform,friendly=True)
                 ))
 
@@ -1695,24 +1907,15 @@ class UnifierBridge:
         if not platform in self.__bot.platforms.keys() and not platform=='discord':
             raise ValueError('invalid platform')
 
-        # redundant check in case on_message or plugin does not respect ban status, and also
-        # for under attack mode
+        # check if content can be sent by the user
+        # if using multisend, messages can be checked by running this again
         if source == 'discord':
-            if (
-                    f'{message.author.id}' in self.__bot.db['banned'].keys() or
-                    f'{message.guild.id}' in self.__bot.db['banned'].keys() or
-                    f'{message.guild.id}' in self.__bot.db['rooms'][room]['meta']['banned'] or
-                    f'{message.guild.id}' in self.__bot.db['underattack']
-            ):
-                return
+            scan_content = message.content
+            scan_files = len(message.attachments)
         else:
-            if (
-                    f'{source_support.get_id(source_support.author(message))}' in self.__bot.db['banned'].keys() or
-                    f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['banned'].keys() or
-                    f'{source_support.get_id(source_support.author(message))}' in self.__bot.db['rooms'][room]['meta']['banned'] or
-                    f'{source_support.get_id(source_support.server(message))}' in self.__bot.db['underattack']
-            ):
-                return
+            scan_content = source_support.content(message)
+            scan_files = len(source_support.attachments(message))
+        await self.can_send(room, message, scan_content, scan_files, source=source)
 
         if not platform in self.__bot.db['rooms'][room].keys():
             return
@@ -1898,6 +2101,7 @@ class UnifierBridge:
         # Threading
         thread_urls = {}
         threads = []
+        multi_threads = []
         size_total = 0
         max_files = 0
         if platform == 'discord':
@@ -2345,6 +2549,24 @@ class UnifierBridge:
                             content_btn
                         )
                     )
+                elif source == 'discord' and (
+                        message.type == nextcord.MessageType.chat_input_command or
+                        message.type == nextcord.MessageType.context_menu_command
+                ):
+                    cmd_meta = message.interaction_metadata
+                    components.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                style=nextcord.ButtonStyle.blurple,
+                                label=selector.fget('command', values={
+                                    'user': cmd_meta.user.global_name or cmd_meta.user.name,
+                                    'command': cmd_meta.name or '[unknown command]'
+                                }),
+                                emoji=self.__bot.ui_emojis.command,
+                                disabled=True
+                            )
+                        )
+                    )
 
             # Send message
             embeds = message.embeds
@@ -2400,7 +2622,8 @@ class UnifierBridge:
                 # as "turbo send", because it sounds cooler and tbsend is what lets
                 # unifier bridge using webhooks with ultra low latency.
                 async def tbsend(webhook,msg_author_dc,embeds,message,mentions,components,sameguild,
-                                 destguild):
+                                 destguild, alert_additional=None):
+                    """Send method for TBsend"""
                     try:
                         tosend_content = (friendly_content if friendlified else msg_content) + stickertext
                         if len(tosend_content) > 2000:
@@ -2417,17 +2640,25 @@ class UnifierBridge:
                         if sys.platform == 'win32':
                             __files = await get_files(message.attachments)
                         else:
-                            __files = files
+                            try:
+                                __files = files
+                            except NameError:
+                                __files = await get_files(message.attachments)
+
+                        __content = content_override if can_override else tosend_content
+                        if alert_additional:
+                            __content = alert_additional + __content
+
                         if self.__bot.config['use_multicore']:
-                            async with aiohttp.ClientSession() as session:
+                            async with aiohttp.ClientSession(json_serialize=jsontools.dumps) as session:
                                 webhook.session = session
                                 msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
-                                                         content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions, view=(
+                                                         content=__content, files=__files, allowed_mentions=mentions, view=(
                                                              components if components and not system else ui.MessageComponents()
                                                          ), wait=True)
                         else:
                             msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
-                                                     content=content_override if can_override else tosend_content, files=__files, allowed_mentions=mentions,
+                                                     content=__content, files=__files, allowed_mentions=mentions,
                                                      view=(
                                                          components if components and not system else ui.MessageComponents()
                                                      ), wait=True)
@@ -2442,69 +2673,77 @@ class UnifierBridge:
                     ]
                     return tbresult
 
+                # Use threaded TBsend where possible, otherwise default to regular async.
+                # Safety alerts will default to async for better reliability.
                 if tb_v2 and not alert:
-                    if self.__bot.config['use_multicore'] and not force_disable_multicore:
+                    # Use multicore if enabled and possible.
+                    if self.__bot.config['use_multicore'] and self.can_multicore:
+                        # Attempt to use uvloop for performance optimization
                         try:
                             # noinspection PyTypeChecker
-                            threads.append(
-                                Worker(
-                                    target=tbsend,
-                                    args=(
-                                        webhook, msg_author_dc, embeds, message,
-                                        touse_mentions, components, sameguild,
-                                        destguild
-                                    ),
-                                    loop_initializer=uvloop.new_event_loop
-                                )
-                            )
+                            threads.append(Worker(
+                                target=tbsend,
+                                args=(
+                                    webhook, msg_author_dc, embeds, message,
+                                    touse_mentions, components, sameguild,
+                                    destguild
+                                ),
+                                loop_initializer=uvloop.new_event_loop
+                            ))
                         except NameError:
-                            # uvloop wasn't imported
+                            # uvloop wasn't imported, so don't set it as loop initializer
                             # noinspection PyTypeChecker
-                            threads.append(
-                                Worker(
-                                    target=tbsend,
-                                    args=(
-                                        webhook, msg_author_dc, embeds, message,
-                                        touse_mentions, components, sameguild,
-                                        destguild
-                                    )
-                                )
-                            )
-                        threads[len(threads) - 1].start()
+                            threads.append(Worker(
+                                target=tbsend,
+                                args=(
+                                    webhook, msg_author_dc, embeds, message,
+                                    touse_mentions, components, sameguild,
+                                    destguild
+                                ),
+                                kwargs={
+                                    'alert_additional': alert_pings
+                                }
+                            ))
+
+                        async def start():
+                            tasks = []
+
+                            async def start_task(task_thread):
+                                if task_thread.is_alive():
+                                    return
+
+                                try:
+                                    task_thread.start()
+                                except AssertionError:
+                                    pass
+
+                            for thread in reversed(threads):
+                                tasks.append(self.__bot.loop.create_task(start_task(thread)))
+
+                            await asyncio.gather(*tasks)
+
+                        if 'faster-multicore' in self.__bot.config['experiments']:
+                            multi_threads.append(self.__bot.loop.create_task(start()))
+                        else:
+                            threads[len(threads)-1].start()
                     else:
-                        threads.append(asyncio.create_task(tbsend(webhook, msg_author_dc, embeds, message,
-                                                                  touse_mentions, components, sameguild,
-                                                                  destguild)))
+                        threads.append(self.__bot.loop.create_task(tbsend(
+                            webhook, msg_author_dc, embeds, message, touse_mentions, components, sameguild, destguild
+                        )))
                 else:
                     try:
-                        tosend_content = alert_pings + (friendly_content if friendlified else msg_content) + stickertext
+                        result = await tbsend(
+                            webhook, msg_author_dc, embeds, message, touse_mentions, components, sameguild, destguild
+                        )
+                    except Exception as e:
+                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
+                            continue
+                        raise
 
-                        if content_override:
-                            tosend_content = content_override
+                    if result[1]:
+                        urls.update(result[1])
 
-                        if len(tosend_content) > 2000:
-                            tosend_content = tosend_content[:-(len(tosend_content) - 2000)]
-                            if not components:
-                                components = ui.MessageComponents()
-                            components.add_row(
-                                ui.ActionRow(
-                                    nextcord.ui.Button(
-                                        style=nextcord.ButtonStyle.gray, label='[Message truncated]', disabled=True
-                                    )
-                                )
-                            )
-                        files = await get_files(message.attachments)
-                        msg = await webhook.send(avatar_url=unifier_user.unifier_avatar, username=msg_author_dc, embeds=embeds,
-                                                 content=content_override if can_override else tosend_content,
-                                                 files=files, allowed_mentions=touse_mentions, view=(
-                                                     components if components and not system else ui.MessageComponents()
-                                                 ), wait=True)
-                    except:
-                        if self.__bot.config['debug']:
-                            raise
-                        continue
-                    message_ids.update({f'{destguild.id}':[webhook.channel.id,msg.id]})
-                    urls.update({f'{destguild.id}':f'https://discord.com/channels/{destguild.id}/{webhook.channel.id}/{msg.id}'})
+                    message_ids.update(result[0])
             else:
                 ch_id = self.__bot.db['rooms'][room][platform][guild][0]
                 if len(self.__bot.db['rooms'][room][platform][guild]) > 1:
@@ -2538,12 +2777,16 @@ class UnifierBridge:
                     friendly_content = msg_content = alert_text
 
                 async def tbsend(msg_author,url,color,useremoji,reply,content, files, destguild):
+                    """Send method for TBsend."""
                     guild_id = dest_support.get_id(destguild)
 
                     if sys.platform == 'win32':
                         __files = await get_files(message.attachments)
                     else:
-                        __files = files
+                        try:
+                            __files = files
+                        except NameError:
+                            __files = await get_files(message.attachments)
 
                     special = {
                         'bridge': {
@@ -2606,71 +2849,38 @@ class UnifierBridge:
                     friendly_content = content_override
                     msg_content = content_override
 
+                # Use threaded TBsend where possible, otherwise default to regular async.
                 if dest_support.enable_tb:
-                    threads.append(asyncio.create_task(tbsend(
+                    threads.append(self.__bot.loop.create_task(tbsend(
                         unifier_user.unifier_name,unifier_user.unifier_avatar,color,useremoji,reply,content_override if can_override else (friendly_content if friendlified else msg_content), files, destguild
                     )))
                 else:
                     try:
-                        special = {
-                            'bridge': {
-                                'name': unifier_user.unifier_name,
-                                'avatar': unifier_user.unifier_avatar,
-                                'color': color,
-                                'emoji': useremoji
-                            },
-                            'files': await get_files(message.attachments) if dest_support.files_per_guild else (files if not alert else None),
-                            'embeds': (
-                                dest_support.convert_embeds(message.embeds) if source=='discord'
-                                else dest_support.convert_embeds(
-                                    source_support.convert_embeds_discord(
-                                        source_support.embeds(message)
-                                    )
-                                )
-                            ) if not alert else None,
-                            'reply': None
-                        }
-
-                        if source == 'discord':
-                            if not message.author.bot:
-                                special['embeds'] = []
-                        else:
-                            try:
-                                if not dest_support.is_bot(dest_support.author(message)):
-                                    special['embeds'] = []
-                            except platform_base.MissingImplementation:
-                                # assume user is not a bot
-                                special['embeds'] = []
-
-                        if reply and not alert:
-                            special.update({'reply': reply})
-                        if trimmed:
-                            special.update({'reply_content': trimmed})
-                        msg = await dest_support.send(
-                            ch,
-                            content_override if can_override else ((friendly_content + stickertext) if friendlified else (msg_content + stickertext)), special=special
+                        result = await tbsend(
+                            unifier_user.unifier_name, unifier_user.unifier_avatar, color, useremoji, reply,
+                            content_override if can_override else (friendly_content if friendlified else msg_content),
+                            files, destguild
                         )
                     except Exception as e:
                         if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
                             continue
                         raise
 
-                    message_ids.update({
-                        str(dest_support.get_id(destguild)): [
-                            dest_support.get_id(ch),dest_support.get_id(msg)
-                        ]
-                    })
-                    try:
-                        urls.update({str(dest_support.get_id(destguild)): dest_support.url(msg)})
-                    except platform_base.MissingImplementation:
-                        pass
+                    if result[1]:
+                        urls.update(result[1])
 
-        # Free up memory
+                    message_ids.update(result[0])
+
+        # Free up memory (hopefully)
         del files
 
         # Update cache
         tbv2_results = []
         if tb_v2:
+            # wait for all threads start runs to finish
+            await asyncio.gather(*multi_threads)
+
+            # gather results
             tbv2_results = await asyncio.gather(*threads)
 
         urls = urls | thread_urls
@@ -2776,26 +2986,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         language = self.bot.langmgr
         restrictions.attach_bot(self.bot)
         restrictions_legacy.attach_bot(self.bot)
-        if not hasattr(self.bot, 'bridged'):
-            self.bot.bridged = []
-        if not hasattr(self.bot, 'bridged_external'):
-            self.bot.bridged_external = {}
-        if not hasattr(self.bot, 'bridged_obe'):
-            # OBE = Owned By External
-            # Message wasn't sent from Discord.
-            self.bot.bridged_obe = {}
-        if not hasattr(self.bot, 'bridged_urls'):
-            self.bot.bridged_urls = {}
-        if not hasattr(self.bot, 'bridged_urls_external'):
-            self.bot.bridged_urls_external = {}
-        if not hasattr(self.bot, 'owners'):
-            self.bot.owners = {}
-        if not hasattr(self.bot, 'origin'):
-            self.bot.origin = {}
-        if not hasattr(self.bot, 'prs'):
-            self.bot.prs = {}
-        if not hasattr(self.bot, 'notified'):
-            self.bot.notified = []
         if not hasattr(self.bot, 'reports'):
             self.bot.reports = {}
         self.logger = log.buildlogger(self.bot.package, 'bridge', self.bot.loglevel)
@@ -2825,6 +3015,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.restored = restored
         self.bot.bridge.msg_stats = msg_stats
         self.bot.bridge.msg_stats_reset = msg_stats_reset
+        self.bot.bridge.load_filters()
         if webhook_cache:
             self.bot.bridge.webhook_cache = webhook_cache
     
@@ -3679,6 +3870,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("too_many")}'
             elif type(e) is self.bot.bridge.AlreadyJoined:
                 embed.title = f'{self.bot.ui_emojis.error} {selector.get("already_linked_server")}'
+            elif type(e) is self.bot.bridge.AgeGateMismatch:
+                embed.title = f'{self.bot.ui_emojis.error} {selector.get("agegate")}'
             else:
                 should_raise = True
 
@@ -5652,7 +5845,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             message.content = message.content.replace('--match ','',1)
             idmatch = True
 
-        if not message.webhook_id == None:
+        if message.webhook_id and (
+                not message.type == nextcord.MessageType.chat_input_command and
+                not message.type == nextcord.MessageType.context_menu_command
+        ):
             # webhook msg
             try:
                 hook = await self.bot.fetch_webhook(message.webhook_id)
@@ -5965,6 +6161,18 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         ids = []
         try:
             ids = await asyncio.gather(*tasks)
+        except UnifierBridge.ContentBlocked as e:
+            if message.author.bot:
+                # avoid spam
+                return
+
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.error} {selector.get("blocked_title")}',
+                description=str(e),
+                color=self.bot.colors.error
+            )
+            embed.set_footer(text=selector.get('blocked_disclaimer'))
+            return await message.channel.send(embed=embed,reference=message)
         except:
             self.logger.exception('Something went wrong!')
             experiments = []
@@ -6067,6 +6275,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
+            if not roomdata['meta']['relay_edits']:
+                return
+
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_edit'] or roomdata['meta']['private']:
                 # do not log
                 raise RuntimeError()
@@ -6158,6 +6369,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             if is_room_locked(roomname, self.bot.db) and not message.author.id in self.bot.admins:
                 return
 
+            roomdata = self.bot.bridge.get_room(roomname)
+            if not roomdata['meta']['relay_edits']:
+                return
+
             try:
                 msg: UnifierBridge.UnifierMessage = await self.bot.bridge.fetch_message(message.id)
                 if not str(msg.id) == str(message.id):
@@ -6171,6 +6386,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def on_message_delete(self, message):
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
         gbans = self.bot.db['banned']
+
+        if not message.guild:
+            return
 
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
             return
@@ -6204,6 +6422,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
+            if not roomdata['meta']['relay_deletes']:
+                return
+
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_delete'] or roomdata['meta']['private']:
                 # do not log
                 raise RuntimeError()
