@@ -87,6 +87,23 @@ class CBCEncryptor:
         del __cipher
         return result
 
+class RawEncryptor:
+    def __init__(self, password):
+        self.__password = password
+        self.__encryptor = GCMEncryptor()
+
+    def encrypt(self, data):
+        data, tag, nonce, salt = self.__encryptor.encrypt(data, self.__password)
+        return {
+            'data': data,
+            'tag': tag,
+            'nonce': nonce,
+            'salt': salt
+        }
+
+    def decrypt(self, data, tag, nonce, salt):
+        return self.__encryptor.decrypt(data, self.__password, tag, salt, nonce)
+
 class TokenStore:
     def __init__(self, encrypted, password=None, debug=False, content_override=None, onetime=None):
         self.__is_encrypted = encrypted
@@ -433,3 +450,23 @@ class RestrictiveTokenStore:
         if not identifier in self.allowed_tokens:
             raise ValueError('token not allowed')
         return self.__tokenstore.retrieve(identifier)
+
+class SecureStorage:
+    """A class used to securely store files."""
+
+    def __init__(self, rawencryptor):
+        self.__rawencryptor = rawencryptor
+
+    def save(self, data, filename):
+        """Saves an encrypted file."""
+        with open(filename, 'w+') as file:
+            encrypted = self.__rawencryptor.encrypt(data)
+            # noinspection PyTypeChecker
+            json.dump(encrypted, file)
+
+    def load(self, filename):
+        """Loads an encrypted file."""
+        with open(filename, 'r') as file:
+            data = json.load(file)
+
+        return self.__rawencryptor.decrypt(data['data'], data['tag'], data['nonce'], data['salt'])

@@ -34,7 +34,7 @@ import shutil
 import filecmp
 import datetime
 from typing_extensions import Self
-from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr
+from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr, jsontools
 from pathlib import Path
 
 # import ujson if installed
@@ -241,6 +241,8 @@ class AutoSaveDict(dict):
         super().__init__(*args, **kwargs)
         self.file_path = 'data.json'
         self.__save_lock = False
+        self.__secure_storage = kwargs.get('secure_storage')
+        self.__encrypted = kwargs.get('encrypt', False)
 
         # Ensure necessary keys exist
         self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
@@ -265,6 +267,14 @@ class AutoSaveDict(dict):
         self.__save_lock = save_lock
 
     def load_data(self):
+        if self.__encrypted:
+            try:
+                data = self.__secure_storage.load(self.file_path)
+                data = jsontools.loads_bytes(data)
+                self.update(data)
+                return
+            except:
+                pass
         try:
             with open(self.file_path, 'r') as file:
                 data = json.load(file)
@@ -275,9 +285,14 @@ class AutoSaveDict(dict):
     def save(self):
         if self.__save_lock:
             return
-        with open(self.file_path, 'w') as file:
-            # noinspection PyTypeChecker
-            json.dump(self, file, indent=4)
+        if self.__encrypted:
+            data = jsontools.dumps_bytes(self, indent=4)
+            self.__secure_storage.save(data, self.file_path)
+        else:
+            with open(self.file_path, 'w') as file:
+                # noinspection PyTypeChecker
+                json.dump(self, file, indent=4)
+
         return
 
     def cleanup(self):
@@ -310,7 +325,6 @@ class DiscordBot(commands.Bot):
         self.__setup_lock = False
         self.bridge = None
         self.pyversion = sys.version_info
-        self.db = AutoSaveDict({})
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
         self.__tokenstore = secrets.TokenStore(
             not should_encrypt,
@@ -318,6 +332,8 @@ class DiscordBot(commands.Bot):
             debug=data['debug'],
             onetime=['TOKEN']
         )
+        self.__secure_storage = secrets.SecureStorage(secrets.RawEncryptor(os.environ['UNIFIER_ENCPASS']))
+        self.db = AutoSaveDict({}, secure_storage=self.__secure_storage, encrypt=data['encrypt_backups'])
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
 
@@ -459,6 +475,11 @@ class DiscordBot(commands.Bot):
     @property
     def moderators(self):
         return [self.owner, *self.other_owners, *self.admins, *self.db['moderators']]
+
+    @property
+    def secure_storage(self):
+        # this can be exposed safely
+        return self.__secure_storage
 
     async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
         # suppress exception traceback as they're already logged

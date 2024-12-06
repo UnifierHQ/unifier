@@ -1083,13 +1083,24 @@ class UnifierBridge:
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
         if self.__bot.config['compress_cache']:
-            await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
-                jsontools.dumps_bytes(data), filename+'.zst', self.__bot.config['zstd_chunk_size'],
-                self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
-            ))
+            if self.__bot.config['encrypt_backups']:
+                data = await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
+                    jsontools.dumps_bytes(data), None, self.__bot.config['zstd_chunk_size'],
+                    self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
+                ))
+                self.__bot.secure_storage.save(data, filename+'.zst')
+            else:
+                await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
+                    jsontools.dumps_bytes(data), filename+'.zst', self.__bot.config['zstd_chunk_size'],
+                    self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
+                ))
         else:
-            with open(filename, "w+") as file:
-                await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
+            if self.__bot.config['encrypt_backups']:
+                data = jsontools.dumps_bytes(data)
+                self.__bot.secure_storage.save(data, filename)
+            else:
+                with open(filename, "w+") as file:
+                    await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
         del data
         self.backup_running = False
         return
@@ -1097,16 +1108,41 @@ class UnifierBridge:
     async def restore(self,filename='bridge.json'):
         if self.restored:
             raise RuntimeError('Already restored from backup')
+
+        data = {}
+
         if self.__bot.config['compress_cache']:
-            if filename+'.zst' in os.listdir():
-                data = jsontools.loads_bytes(compressor.decompress(
-                    filename+'.zst', self.__bot.config['zstd_chunk_size']
-                ))
-            else:
-                data = compress_json.load(filename+'.lzma')
+            secure_load_success = True
+            if self.__bot.config['encrypt_backups']:
+                try:
+                    data = self.__bot.secure_storage.load(filename+'.zst')
+                except json.JSONDecodeError:
+                    secure_load_success = False
+                except FileNotFoundError:
+                    secure_load_success = False
+                else:
+                    data = jsontools.loads_bytes(compressor.decompress(data, self.__bot.config['zstd_chunk_size']))
+            if not self.__bot.config['encrypt_backups'] or not secure_load_success:
+                if filename+'.zst' in os.listdir():
+                    data = jsontools.loads_bytes(compressor.decompress(
+                        filename+'.zst', self.__bot.config['zstd_chunk_size']
+                    ))
+                else:
+                    data = compress_json.load(filename+'.lzma')
         else:
-            with open(filename, "r") as file:
-                data = json.load(file)
+            secure_load_success = True
+            if self.__bot.config['encrypt_backups']:
+                try:
+                    data = self.__bot.secure_storage.load(filename+'.zst')
+                except json.JSONDecodeError:
+                    secure_load_success = False
+                except FileNotFoundError:
+                    secure_load_success = False
+                else:
+                    data = jsontools.loads_bytes(data)
+            if not self.__bot.config['encrypt_backups'] or not secure_load_success:
+                with open(filename, "r") as file:
+                    data = json.load(file)
 
         for x in range(len(data['messages'])):
             msg = UnifierBridge.UnifierMessage(

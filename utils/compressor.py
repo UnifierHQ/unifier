@@ -17,19 +17,31 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import zstandard
+from io import BytesIO
+from typing import Optional, Union
 
-def compress(data: bytes, filename: str, chunk_size: int, level: int = 1, threads: int = -1):
+def compress(data: bytes, filename: Optional[str], chunk_size: int, level: int = 1, threads: int = -1) -> None or bytes:
     """Compresses bytes using Zstandard then writes it to disk."""
 
     # instantiate compressor
     compressor = zstandard.ZstdCompressor(threads=threads, level=level)
 
+    # get appropriate BytesIO object
+    if filename:
+        target = open(filename, 'wb')
+    else:
+        target = BytesIO()
+
     # compress to Zstandard
-    with compressor.stream_writer(open(filename, 'wb')) as f:
+    with compressor.stream_writer(target) as f:
         for i in range(0, len(data), chunk_size):
             f.write(data[i:i + chunk_size])
 
-def decompress(file: str, chunk_size: int) -> bytes:
+    # return bytes if filename is None
+    if not filename:
+        return target.getvalue()
+
+def decompress(file: Union[bytes, str], chunk_size: int) -> bytes:
     """Decompresses a file compressed using Zstandard."""
 
     # instantiate decompressor
@@ -38,8 +50,14 @@ def decompress(file: str, chunk_size: int) -> bytes:
     # prepare bytearray
     data = bytearray()
 
+    # get appropriate BytesIO object
+    if type(file) is bytes:
+        target = BytesIO(file)
+    else:
+        target = open(file, 'rb')
+
     # decompress from LZMA
-    with decompressor.stream_reader(open(file, 'rb')) as f:
+    with decompressor.stream_reader(target) as f:
         for chunk in iter(lambda: f.read(chunk_size), b""):
             data.extend(chunk)
 
