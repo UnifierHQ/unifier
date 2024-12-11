@@ -4,15 +4,13 @@ on: workflow_dispatch
 jobs:
   release:
     name: "Create alpha release"
-    runs-on: ubuntu-latest
-    environment: "Alpha release"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/workflows/release.yml
-        with:
-          type: alpha
-          staging: false
-          branch: ${{ vars.BRANCH }}
-          branch_version: ${{ vars.BRANCH_VERSION }}
-          deploy_key: ${{ secrets.DEPLOY_KEY }}
-          pre_release: true
+    uses: .github/workflows/release.yml
+    with:
+      environment: Alpha release
+      type: alpha
+      staging: false
+      branch: ${{ vars.BRANCH }}
+      branch_version: ${{ vars.BRANCH_VERSION }}
+      pre_release: true
+    secrets:
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
