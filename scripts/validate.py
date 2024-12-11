@@ -17,7 +17,7 @@ validation = {
     'staging': {
         'require_all': True,
         'strategy': {
-            'explicit': [True, False]
+            'explicit': ['true', 'false']
         }
     }
 }
