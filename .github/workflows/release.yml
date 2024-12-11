@@ -65,13 +65,13 @@ jobs:
       with:
         title: ${{ env.RAW_VERSION }}
         tag: ${{ env.VERSION }}
-        prerelease: ${{ vars.PRE_RELEASE || inputs.staging }}
+        prerelease: ${{ vars.PRE_RELEASE == 'true' || inputs.staging == 'true' }}
   publish-release:
     name: "Publish release"
     runs-on: ubuntu-latest
     needs: [create-release]
     environment: ${{ inputs.environment }}
-    if: ${{ !inputs.staging }}
+    if: ${{ inputs.staging == 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
