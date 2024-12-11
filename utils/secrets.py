@@ -167,6 +167,13 @@ class TokenStore:
         return tokens
 
     @property
+    def tokens_raw(self):
+        if not self.__is_encrypted:
+            raise ValueError('cannot retrieve keys when tokens are unencrypted')
+
+        return list(self.__data.keys())
+
+    @property
     def accessed(self):
         return self.__accessed
 
@@ -255,6 +262,11 @@ class TokenStore:
             nonce
         )
         return decrypted.decode('utf-8')
+
+    def retrieve_raw(self, identifier):
+        """Retrieves the ciphertext for a token.
+        This is useless on its own, as the salt, nonce, tag, and password are needed to decrypt the ciphertext."""
+        return self.__data[identifier]['ciphertext']
 
     def add_token(self, identifier, token):
         if identifier in self.__data.keys():
@@ -454,8 +466,9 @@ class RestrictiveTokenStore:
 class SecureStorage:
     """A class used to securely store files."""
 
-    def __init__(self, rawencryptor):
+    def __init__(self, rawencryptor, tokenstore):
         self.__rawencryptor = rawencryptor
+        self.__tokenstore = tokenstore
 
     def save(self, data, filename):
         """Saves an encrypted file."""
@@ -468,5 +481,10 @@ class SecureStorage:
         """Loads an encrypted file."""
         with open(filename, 'r') as file:
             data = json.load(file)
+
+        for token in self.__tokenstore.tokens_raw:
+            ciphertext = self.__tokenstore.retrieve_raw(token)
+            if ciphertext in data.values():
+                raise ValueError('file contains an encrypted token in tokenstore')
 
         return self.__rawencryptor.decrypt(base64.b64decode(data['data']), data['tag'], data['nonce'], data['salt'])

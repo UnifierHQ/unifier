@@ -23,5 +23,12 @@
     "slash.py",
     "ui.py",
     "webhook_cache.py"
+  ],
+  "secure_storage_files": [
+    "bridge.json.zst",
+    "bridge.json.lzma"
+  ],
+  "needs_secure_storage": [
+    "bridge.py"
   ]
 }
