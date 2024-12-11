@@ -8,7 +8,7 @@ jobs:
     with:
       environment: Alpha release
       type: alpha
-      staging: false
+      staging: true
       branch: dev
       branch_version: dev
       pre_release: true
