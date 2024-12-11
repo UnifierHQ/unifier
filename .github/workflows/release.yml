@@ -38,9 +38,9 @@ jobs:
     needs: [validate-input]
     environment: ${{ inputs.environment }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ env.BRANCH }}
+    - name: Download Unifier
+      run: |
+        git clone --branch ${{ env.BRANCH }} https://github.com/UnifierHQ/unifier
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
