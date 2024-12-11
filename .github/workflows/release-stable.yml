@@ -1,0 +1,16 @@
+name: Release (Stable)
+on: workflow_dispatch
+
+jobs:
+  release:
+    name: "Create release"
+    uses: ./.github/workflows/release.yml
+    with:
+      environment: Stable release
+      type: stable
+      staging: false
+      branch: main
+      branch_version: main
+      pre_release: false
+    secrets:
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}

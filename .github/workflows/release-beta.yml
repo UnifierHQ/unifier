@@ -1,0 +1,16 @@
+name: Release (Beta)
+on: workflow_dispatch
+
+jobs:
+  release:
+    name: "Create beta release"
+    uses: ./.github/workflows/release.yml
+    with:
+      environment: Beta release
+      type: beta
+      staging: false
+      branch: dev
+      branch_version: beta
+      pre_release: true
+    secrets:
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
