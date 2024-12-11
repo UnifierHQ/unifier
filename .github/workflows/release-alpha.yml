@@ -1,14 +1,14 @@
-name: Release (Staging, no release)
+name: Release (Alpha)
 on: workflow_dispatch
 
 jobs:
   release:
-    name: "Create simulated alpha release"
+    name: "Create alpha release"
     uses: ./.github/workflows/release.yml
     with:
       environment: Alpha release
       type: alpha
-      staging: true
+      staging: false
       branch: dev
       branch_version: dev
       pre_release: true
