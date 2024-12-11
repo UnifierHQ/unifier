@@ -9,8 +9,8 @@ jobs:
       environment: Alpha release
       type: alpha
       staging: false
-      branch: ${{ vars.BRANCH }}
-      branch_version: ${{ vars.BRANCH_VERSION }}
+      branch: dev
+      branch_version: dev
       pre_release: true
     secrets:
       DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
