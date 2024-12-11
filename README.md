@@ -1,3 +1,8 @@
+> [!CAUTION]
+> v1.1.x is discontinued. We will not provide any further feature updates, bug fixes, or security patches for this series.
+>
+> Please use a [supported version](https://github.com/UnifierHQ/unifier/security/policy#supported-versions) instead.
+
 <h1 align=center>
   <img width=64 src=https://github.com/UnifierHQ/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae><br>
 Unifier</h1>
