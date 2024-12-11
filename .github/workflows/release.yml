@@ -73,13 +73,15 @@ jobs:
           echo EOF
         } >> $GITHUB_ENV
     - name: Create GitHub release
-      uses: elgohr/Github-Release-Action@v5
+      uses: ncipollo/release-action@v1.14.0
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        title: ${{ env.RAW_VERSION }}
+        name: ${{ env.RAW_VERSION }}
         tag: ${{ env.VERSION }}
         prerelease: ${{ inputs.pre_release }}
+        body: ${{ env.NOTES }}
+        commit: ${{ inputs.branch }}
   publish-release:
     name: "Publish release"
     runs-on: ubuntu-latest
