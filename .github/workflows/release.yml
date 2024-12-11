@@ -105,7 +105,7 @@ jobs:
           python-version: "3.12"
       - name: Bump version
         run: |
-          python3 ./scripts/bump.py
+          python3 ./scripts/bump.py "${{ env.VERSION }}" ${{ env.RELEASE }}
       - name: Push to repository
         run: |
           git add .
