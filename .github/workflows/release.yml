@@ -23,17 +23,14 @@ jobs:
   validate-input:
     name: "Validate inputs"
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.BRANCH }}
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Validate inputs
-        run: "python3 ./scripts/validate.py \"${{ toJSON(github.event.inputs) }}\""
+        run: "python3 ./scripts/validate.py ${{ inputs.type }} ${{ inputs.staging }}"
   pylint:
     name: "Run Pylint"
     uses: ./.github/workflows/pylint.yml

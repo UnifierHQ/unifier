@@ -1,8 +1,10 @@
 import sys
-import json
 import os
 
-data = json.loads(sys.argv[1])
+data = {
+    'type': sys.argv[1],
+    'staging': sys.argv[2]
+}
 
 # arguments to validate
 validation = {
@@ -11,10 +13,6 @@ validation = {
         'strategy': {
             'explicit': ['alpha', 'beta', 'stable']
         }
-    },
-    'environment': {
-        'require_all': True,
-        'strategy': {}
     },
     'staging': {
         'require_all': True,
