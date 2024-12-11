@@ -83,6 +83,7 @@ jobs:
         body: ${{ env.NOTES }}
         commit: ${{ inputs.branch }}
         draft: ${{ inputs.staging }}
+        skipIfReleaseExists: true
   publish-release:
     name: "Publish release"
     runs-on: ubuntu-latest
