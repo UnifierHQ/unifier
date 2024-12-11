@@ -82,6 +82,7 @@ jobs:
         prerelease: ${{ inputs.pre_release }}
         body: ${{ env.NOTES }}
         commit: ${{ inputs.branch }}
+        draft: ${{ inputs.staging }}
   publish-release:
     name: "Publish release"
     runs-on: ubuntu-latest
