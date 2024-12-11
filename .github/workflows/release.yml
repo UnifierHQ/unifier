@@ -99,6 +99,9 @@ jobs:
           repository: 'UnifierHQ/unifier-version'
           ref: ${{ inputs.branch_version }}
           token: ${{ secrets.DEPLOY_KEY }}
+      - name: Download Unifier
+        run: |
+          git clone --branch ${{ inputs.branch }} https://github.com/UnifierHQ/unifier
       - name: Set up Git config
         run: |
           git config --global user.name "GitHub Actions"
@@ -109,7 +112,10 @@ jobs:
           python-version: "3.12"
       - name: Bump version
         run: |
-          python3 ./scripts/bump.py "${{ env.VERSION }}" ${{ env.RELEASE }}
+          python3 ./scripts/bump.py
+      - name: Delete Unifier
+        run: |
+          rm -rf ./unifier
       - name: Push to repository
         run: |
           git add .
@@ -122,6 +128,9 @@ jobs:
     environment: ${{ inputs.environment }}
     if: ${{ inputs.staging == true }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_version }}
       - uses: actions/checkout@v4
         with:
           repository: 'UnifierHQ/unifier-version'
