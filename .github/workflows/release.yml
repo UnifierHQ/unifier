@@ -53,7 +53,11 @@ jobs:
         python3 ./scripts/get_version.py
     - name: Get release notes
       run: |
-        echo "NOTES=$(python3 ./scripts/get_notes.py '${{ env.VERSION }}')" >> $GITHUB_ENV
+        {
+          echo 'NOTES<<EOF'
+          (python3 ./scripts/get_notes.py '${{ env.VERSION }}'
+          echo EOF
+        } >> $GITHUB_ENV
     - name: Create GitHub release
       uses: elgohr/Github-Release-Action@v5
       env:
