@@ -24,7 +24,6 @@ jobs:
   validate-input:
     name: "Validate inputs"
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.12
