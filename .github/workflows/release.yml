@@ -34,6 +34,10 @@ on:
 permissions:
   contents: write
 
+env:
+  VERSION: "v0.0.0"
+  RELEASE: 0
+
 jobs:
   validate-input:
     name: "Validate inputs"
@@ -111,3 +115,29 @@ jobs:
           git add .
           git commit -m "Version bump to ${{ env.VERSION }}"
           git push
+  publish-release-staging:
+    name: "Simulate release"
+    runs-on: ubuntu-latest
+    needs: [ create-release ]
+    environment: ${{ inputs.environment }}
+    if: ${{ inputs.staging == true }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 'UnifierHQ/unifier-version'
+          ref: ${{ inputs.branch_version }}
+      - name: Set up Git config
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "<>"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Debug version
+        run: |
+          echo "Version: ${{ env.VERSION }}"
+          echo "Release: ${{ env.RELEASE }}"
+      - name: Bump version
+        run: |
+          python3 ./scripts/bump.py "${{ env.VERSION }}" ${{ env.RELEASE }}
