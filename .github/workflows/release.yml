@@ -55,7 +55,7 @@ jobs:
       run: |
         {
           echo 'NOTES<<EOF'
-          (python3 ./scripts/get_notes.py '${{ env.VERSION }}'
+          python3 ./scripts/get_notes.py '${{ env.VERSION }}'
           echo EOF
         } >> $GITHUB_ENV
     - name: Create GitHub release
