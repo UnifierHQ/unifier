@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: "Alpha release"
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.BRANCH }}
       - uses: ./.github/workflows/release.yml
         with:
           type: alpha
