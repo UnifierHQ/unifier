@@ -15,8 +15,7 @@ All EoL dates are in dd/mm/yyyy format.
 | ------------------------------ | -------- | ---------------------------- | ---------- |
 | 3.x (`elegant-elderberry`)     | release  | :white_check_mark: Supported | Not legacy |
 | 2.x LTS (`daring-dragonfruit`) | legacy   | :white_check_mark: Supported | 17/07/2025 |
-| 1.2.x (`cheerful-cranberry`)   | legacy   | :warning: Nearing EoL        | 05/12/2024 |
-| < 1.2                          | eol      | :x: Unsupported              | EoL        |
+| < 2.0                          | eol      | :x: Unsupported              | EoL        |
 
 ### What do the types mean?
 - `release`: This is the newest series and is in active development.
