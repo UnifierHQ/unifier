@@ -31,13 +31,11 @@ jobs:
           python-version: "3.12"
       - name: Validate inputs
         run: "python3 ./scripts/validate.py ${{ inputs.type }} ${{ inputs.staging }}"
-  pylint:
-    name: "Run Pylint"
-    uses: ./.github/workflows/pylint.yml
+
   create-release:
     name: "Create release"
     runs-on: ubuntu-latest
-    needs: [validate-input, pylint]
+    needs: [validate-input]
     environment: ${{ inputs.environment }}
     steps:
     - uses: actions/checkout@v4
