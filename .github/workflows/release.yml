@@ -7,13 +7,25 @@ on:
         type: string
         description: "The release type, must be stable, beta, or alpha."
         default: "alpha"
-      environment:
-        type: string
-        description: "The environment to use."
-        default: "Alpha release"
       staging:
         type: boolean
         description: "Whether the release should be simulated or not."
+        default: false
+      branch:
+        type: string
+        description: "The branch to release from."
+        default: "main"
+      branch_version:
+        type: string
+        description: "The branch on unifier-version to bump."
+        default: "main"
+      deploy_key:
+        type: string
+        description: "The deploy key to use for pushing to unifier-version."
+        default: ""
+      pre_release:
+        type: boolean
+        description: "Whether the release should be a pre-release or not."
         default: false
 
 permissions:
@@ -36,11 +48,10 @@ jobs:
     name: "Create release"
     runs-on: ubuntu-latest
     needs: [validate-input]
-    environment: ${{ inputs.environment }}
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: ${{ vars.BRANCH }}
+        ref: ${{ inputs.branch }}
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
@@ -65,19 +76,18 @@ jobs:
       with:
         title: ${{ env.RAW_VERSION }}
         tag: ${{ env.VERSION }}
-        prerelease: ${{ vars.PRE_RELEASE == 'true' || inputs.staging == 'true' }}
+        prerelease: ${{ inputs.pre_release }}
   publish-release:
     name: "Publish release"
     runs-on: ubuntu-latest
     needs: [create-release]
-    environment: ${{ inputs.environment }}
     if: ${{ inputs.staging == 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: 'UnifierHQ/unifier-version'
-          ref: ${{ vars.BRANCH_VERSION }}
-          token: ${{ secrets.DEPLOY_KEY }}
+          ref: ${{ inputs.branch_version }}
+          token: ${{ inputs.deploy_key }}
       - name: Set up Git config
         run: |
           git config --global user.name "GitHub Actions"
