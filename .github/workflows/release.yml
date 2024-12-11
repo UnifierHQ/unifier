@@ -17,15 +17,17 @@ on:
         default: false
 
 permissions:
-  packages: write
   contents: write
 
 jobs:
   validate-input:
     name: "Validate inputs"
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
