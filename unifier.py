@@ -344,7 +344,7 @@ class DiscordBot(commands.Bot):
             debug=data['debug'],
             onetime=['TOKEN']
         )
-        self.__secure_storage = secrets.SecureStorage(secrets.RawEncryptor(os.environ['UNIFIER_ENCPASS']))
+        self.__secure_storage = secrets.SecureStorage(secrets.RawEncryptor(os.environ['UNIFIER_ENCPASS']), tokenstore=self.__tokenstore)
         self.db = AutoSaveDict({}, secure_storage=self.__secure_storage, encrypt=data['encrypt_backups'])
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
