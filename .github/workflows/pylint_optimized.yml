@@ -7,6 +7,10 @@ on:
         type: string
         description: "The operating system to run the workflow on."
         default: ubuntu-latest
+      branch:
+        type: string
+        description: "The branch to run the workflow on."
+        default: ${{ github.ref }}
 
 jobs:
   build:
@@ -14,9 +18,11 @@ jobs:
     runs-on: ${{ inputs.os }}
     strategy:
       matrix:
-        python-version: [ "3.12" ]
+        python-version: ["3.12"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
