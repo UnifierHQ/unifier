@@ -46,6 +46,7 @@ class PlatformBase:
         self.files_per_guild = False # change this to True if the platform library wipes file objects' data after send
         self.uses_image_markdown = False # change this to True if the platform uses media markdown (i.e. ![](image url))
         self.filesize_limit = 25000000 # change this to the maximum total file size allowed by the platform
+        self.supports_agegate = False # change this to True if the platform supports age-gated content
 
     @property
     def attachment_size_limit(self):
@@ -92,6 +93,11 @@ class PlatformBase:
 
     def channel(self, message):
         """Returns the channel object from a message."""
+        raise MissingImplementation()
+
+    def is_nsfw(self, obj):
+        """Returns if an object (usually a server or channel) is marked as NSFW.
+        Make sure to set self.supports_agegate to True once you've implemented this."""
         raise MissingImplementation()
 
     def channel_id(self, obj):

@@ -1,6 +1,12 @@
-name: Pylint
+name: Pylint (for release workflow)
 
-on: [push, pull_request]
+on:
+  workflow_call:
+    inputs:
+      branch:
+        type: string
+        description: "The branch to lint."
+        default: "main"
 
 jobs:
   linux-optimized:
@@ -8,33 +14,39 @@ jobs:
     uses: ./.github/workflows/pylint_optimized.yml
     with:
       os: ubuntu-latest
+      branch: ${{ inputs.branch }}
 
   linux-balanced:
     name: "Linux (Balanced)"
     uses: ./.github/workflows/pylint_balanced.yml
     with:
       os: ubuntu-latest
+      branch: ${{ inputs.branch }}
 
   linux-stable:
     name: "Linux (Stable)"
     uses: ./.github/workflows/pylint_stable.yml
     with:
       os: ubuntu-latest
+      branch: ${{ inputs.branch }}
 
   windows-optimized:
     name: "Windows (Optimized)"
     uses: ./.github/workflows/pylint_optimized.yml
     with:
       os: windows-latest
+      branch: ${{ inputs.branch }}
 
   windows-balanced:
     name: "Windows (Balanced)"
     uses: ./.github/workflows/pylint_balanced.yml
     with:
       os: windows-latest
+      branch: ${{ inputs.branch }}
 
   windows-stable:
     name: "Windows (Stable)"
     uses: ./.github/workflows/pylint_stable.yml
     with:
       os: windows-latest
+      branch: ${{ inputs.branch }}
