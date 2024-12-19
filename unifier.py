@@ -34,7 +34,7 @@ import shutil
 import filecmp
 import datetime
 from typing_extensions import Self
-from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr
+from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr, jsontools
 from pathlib import Path
 
 # import ujson if installed
@@ -167,6 +167,11 @@ for key in data:
 
 data = newdata
 
+if not os.path.isdir('filters'):
+    os.mkdir('filters')
+    for file in os.listdir('update/filters'):
+        shutil.copy2(f'update/filters/{file}', f'filters/{file}')
+
 encrypted_env = {}
 ivs = {}
 
@@ -236,18 +241,25 @@ class AutoSaveDict(dict):
         super().__init__(*args, **kwargs)
         self.file_path = 'data.json'
         self.__save_lock = False
+        self.__secure_storage = kwargs.get('secure_storage')
+        self.__encrypted = kwargs.get('encrypt', False)
 
         # Ensure necessary keys exist
-        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
-                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
-                     'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
-                     'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
-                     'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}}
-                    )
+        self.update(self.base)
         self.threads = []
 
         # Load data
         self.load_data()
+
+    @property
+    def base(self):
+        return {
+            'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
+            'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
+            'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
+            'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
+            'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}
+        }
 
     @property
     def save_lock(self):
@@ -260,19 +272,39 @@ class AutoSaveDict(dict):
         self.__save_lock = save_lock
 
     def load_data(self):
+        if self.__encrypted:
+            try:
+                data = self.__secure_storage.load(self.file_path)
+                data = jsontools.loads_bytes(data)
+                self.update(data)
+                return
+            except:
+                pass
         try:
             with open(self.file_path, 'r') as file:
                 data = json.load(file)
             self.update(data)
         except FileNotFoundError:
             pass  # If the file is not found, initialize an empty dictionary
+        except json.JSONDecodeError:
+            pass  # If the file is corrupted, initialize an empty dictionary
 
     def save(self):
+        tosave = {}
+        for key in self.keys():
+            if not key in self.base.keys():
+                continue
+            tosave.update({key: self[key]})
         if self.__save_lock:
             return
-        with open(self.file_path, 'w') as file:
-            # noinspection PyTypeChecker
-            json.dump(self, file, indent=4)
+        if self.__encrypted:
+            data = jsontools.dumps_bytes(dict(tosave))
+            self.__secure_storage.save(data, self.file_path)
+        else:
+            with open(self.file_path, 'w') as file:
+                # noinspection PyTypeChecker
+                json.dump(dict(tosave), file, indent=4)
+
         return
 
     def cleanup(self):
@@ -305,21 +337,33 @@ class DiscordBot(commands.Bot):
         self.__setup_lock = False
         self.bridge = None
         self.pyversion = sys.version_info
-        self.db = AutoSaveDict({})
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
         self.__tokenstore = secrets.TokenStore(
             not should_encrypt,
             password=os.environ['UNIFIER_ENCPASS'],
-            salt=data['encrypted_env_salt'],
             debug=data['debug'],
             onetime=['TOKEN']
         )
+        self.__secure_storage = secrets.SecureStorage(secrets.RawEncryptor(os.environ['UNIFIER_ENCPASS']), tokenstore=self.__tokenstore)
+        self.db = AutoSaveDict({}, secure_storage=self.__secure_storage, encrypt=data['encrypt_backups'])
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
 
         if should_encrypt:
-            self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
+            self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'])
             os.remove('.env')
+
+        if not self.__tokenstore.test_decrypt() and '.ivs' in os.listdir():
+            logger.info('AES-256-CBC encryption detected, converting to GCM mode...')
+            converter = secrets.ToGCMTokenStore(
+                password=os.environ['UNIFIER_ENCPASS'],
+                salt=data['encrypted_env_salt'],
+                debug=data['debug'],
+                onetime=['TOKEN']
+            )
+
+            if converter.test_decrypt():
+                self.__tokenstore = converter.to_gcm()
 
     @property
     def package(self):
@@ -437,10 +481,6 @@ class DiscordBot(commands.Bot):
         return self.__uses_v3
 
     @property
-    def tokenstore(self):
-        return self.__tokenstore
-
-    @property
     def admins(self):
         return [self.owner, *self.other_owners, *self.config['admin_ids']]
 
@@ -448,9 +488,32 @@ class DiscordBot(commands.Bot):
     def moderators(self):
         return [self.owner, *self.other_owners, *self.admins, *self.db['moderators']]
 
+    @property
+    def secure_storage(self):
+        # this can be exposed safely
+        return self.__secure_storage
+
     async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
         # suppress exception traceback as they're already logged
         pass
+
+    def test_decrypt(self):
+        return self.__tokenstore.test_decrypt()
+
+    def retrieve_token(self):
+        return self.__tokenstore.retrieve('TOKEN')
+
+    def get_restrictive_tokenstore(self, plugin):
+        try:
+            with open(f'plugins/{plugin}.json') as file:
+                plugin_data = json.load(file)
+        except FileNotFoundError:
+            return None
+
+        if not plugin_data.get('required_tokens', False):
+            return None
+
+        return secrets.RestrictiveTokenStore(self.__tokenstore, plugin_data['required_tokens'])
 
 class Intents(nextcord.Intents):
     def __init__(self, **kwargs):
@@ -474,7 +537,7 @@ bot.safemode = 'safemode' in sys.argv and not bot.coreboot
 bot.devmode = 'devmode' in sys.argv
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
-if not bot.tokenstore.test_decrypt():
+if not bot.test_decrypt():
     del os.environ['UNIFIER_ENCPASS']
     print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
     print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
@@ -594,12 +657,12 @@ async def on_ready():
             logger.debug(f'Periodic backups disabled')
     logger.info("Registering application commands...")
     try:
-        await bot.sync_all_application_commands()
+        await bot.discover_application_commands()
     except:
         # If sync fails, all commands are removed from Discord then re-registered.
         logger.warning('Register failed, trying alternate method...')
         await bot.delete_application_commands()
-        await bot.register_new_application_commands()
+    await bot.register_new_application_commands()
     logger.info('Unifier is ready!')
     if not bot.ready:
         bot.ready = True
@@ -651,7 +714,7 @@ async def on_message(message):
 os.environ.pop('UNIFIER_ENCPASS')
 
 try:
-    bot.run(bot.tokenstore.retrieve('TOKEN'))
+    bot.run(bot.retrieve_token())
 except SystemExit as e:
     try:
         code = int(f'{e}')
