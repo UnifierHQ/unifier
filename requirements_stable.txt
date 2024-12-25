@@ -1,4 +1,4 @@
-git+https://github.com/nextcord/nextcord.git@9f7e4bf0e7d8f740cb418d1105146cf583cbc677
+nextcord>=3.0.0
 aiofiles
 py-cpuinfo
 compress_json
@@ -12,3 +12,5 @@ tomli
 tomli-w
 setuptools
 aiomultiprocess
+better_profanity
+zstandard

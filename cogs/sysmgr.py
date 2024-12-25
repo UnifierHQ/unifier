@@ -78,7 +78,7 @@ slash = slash_helper.SlashHelper(language)
 attribution = {
     'unifier': {
         'author': 'UnifierHQ',
-        'description': 'A fast and versatile Discord bot connecting servers and platforms',
+        'description': 'A cross-server and cross-platform bridge bot that works just as fast as you can type \U0001F680',
         'repo': 'https://github.com/UnifierHQ/unifier',
         'license': 'AGPLv3',
         'license_url': 'https://github.com/UnifierHQ/unifier/blob/main/LICENSE.txt'
@@ -89,20 +89,6 @@ attribution = {
         'repo': 'https://github.com/nextcord/nextcord',
         'license': 'MIT',
         'license_url': 'https://github.com/nextcord/nextcord/blob/master/LICENSE'
-    },
-    'revolt.py': {
-        'author': 'Revolt',
-        'description': 'Python wrapper for https://revolt.chat',
-        'repo': 'https://github.com/revoltchat/revolt.py',
-        'license': 'MIT',
-        'license_url': 'https://github.com/revoltchat/revolt.py/blob/master/LICENSE'
-    },
-    'guilded.py': {
-        'author': 'shay',
-        'description': 'Asynchronous Guilded API wrapper for Python',
-        'repo': 'https://github.com/shayypy/guilded.py',
-        'license': 'MIT',
-        'license_url': 'https://github.com/shayypy/guilded.py/blob/master/LICENSE'
     },
     'aiofiles': {
         'author': 'Tin Tvrtković',
@@ -589,7 +575,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         extinfo = json.load(file)
                     for extension in extinfo['modules']:
                         try:
-                            self.bot.load_extension('cogs.' + extension[:-3])
+                            if extinfo.get('required_tokens') and extension[:-3] in extinfo.get('uses_tokenstore', []):
+                                self.bot.load_extension(
+                                    'cogs.' + extension[:-3],
+                                    extras={'tokenstore': self.bot.get_restrictive_tokenstore(plugin[:-5])}
+                                )
+                            else:
+                                self.bot.load_extension('cogs.' + extension[:-3])
                             self.logger.debug('Loaded plugin ' + extension)
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
@@ -626,6 +618,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if not self.bot.backup_cloud_task.is_running() and round(self.bot.config['periodic_backup_cloud']) > 0:
                 self.bot.backup_cloud_task.start()
                 self.logger.debug(f'Backing up data to cloud every {round(self.bot.config["ping"])} seconds')
+
+        try:
+            with open('boot_config.json') as file:
+                boot_config = json.load(file)
+        except:
+            pass
+        else:
+            self.pip_user_arg = ' --user' if not boot_config['bootloader'].get('global_dep_install', False) else ''
 
     def get_all_commands(self, cog=None):
         def extract_subcommands(__command):
@@ -932,6 +932,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         toload = []
         skip = []
         success = []
+        tokenstores = {}
         failed = {}
 
         async def run_check(plugin_name, plugin):
@@ -946,19 +947,43 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             plugin_exists = f'{cog}.json' in os.listdir('plugins')
 
             plugin_data = {}
+            __tokenstore = None
 
             if plugin_exists:
                 with open(f'plugins/{cog}.json') as file:
                     plugin_data = json.load(file)
+                if plugin_data.get('required_tokens'):
+                    __tokenstore = self.bot.get_restrictive_tokenstore(cog)
 
             if plugin_exists and cog_exists:
                 if self.bot.config['plugin_priority']:
                     toload.extend(plugin_data['modules'])
-                    await run_check(cog, plugin_data)
+
+                    for ext in plugin_data['modules']:
+                        if not __tokenstore:
+                            break
+
+                        if ext in plugin_data.get('uses_tokenstore', []):
+                            tokenstores.update({ext: __tokenstore})
+
+                    if not action == CogAction.load:
+                        try:
+                            await run_check(cog, plugin_data)
+                        except:
+                            skip.extend([f'cogs.{module}' for module in plugin_data['modules']])
+                            for child_cog in [f'cogs.{module}' for module in plugin_data['modules']]:
+                                failed.update({child_cog: 'Could not run pre-unload script.'})
                 else:
                     toload.append(f'cogs.{cog}')
             elif plugin_exists:
                 toload.extend([f'cogs.{module[:-3]}' for module in plugin_data['modules']])
+
+                for ext in plugin_data['modules']:
+                    if not __tokenstore:
+                        break
+
+                    if ext in plugin_data.get('uses_tokenstore', []):
+                        tokenstores.update({ext: __tokenstore})
 
                 if not action == CogAction.load:
                     try:
@@ -978,9 +1003,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 continue
             try:
                 if action == CogAction.load:
-                    self.bot.load_extension(toload_cog)
+                    if toload_cog in tokenstores.keys():
+                        self.bot.load_extension(toload_cog, extras={'tokenstore': tokenstores[toload_cog]})
+                    else:
+                        self.bot.load_extension(toload_cog)
                 elif action == CogAction.reload:
-                    self.bot.reload_extension(toload_cog)
+                    if toload_cog in tokenstores.keys():
+                        self.bot.reload_extension(toload_cog, extras={'tokenstore': tokenstores[toload_cog]})
+                    else:
+                        self.bot.reload_extension(toload_cog)
                 elif action == CogAction.unload:
                     self.bot.unload_extension(toload_cog)
                 success.append(toload_cog)
@@ -1617,12 +1648,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if sys.platform == 'win32':
                             binary = bootloader_config.get('binary', 'py -3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
                         else:
                             binary = bootloader_config.get('binary', 'python3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
             except:
                 self.logger.exception('Dependency installation failed')
@@ -1870,6 +1901,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return await msg.edit(embed=embed)
             selected = 0
             interaction = None
+
+            with open('boot/internal.json') as file:
+                bootdata = json.load(file)
+
             while True:
                 release = available[selected][2]
                 version = available[selected][0]
@@ -1880,6 +1915,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = selector.fget('available_body',values={
                     'current_ver':current['version'],'current_rel':current['release'],'new_ver':version,'new_rel':release
                 })
+
+                if not bootdata['stable_branch'] == self.bot.config['branch']:
+                    embed.description += '\n\n' + self.bot.ui_emojis.warning + ' ' + selector.get('unstable')
+
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
@@ -2126,12 +2165,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if sys.platform == 'win32':
                         binary = bootloader_config.get('binary', 'py -3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                            os.system(f'{binary} -m pip install{self.pip_user_arg} -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
                     else:
                         binary = bootloader_config.get('binary', 'python3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                            os.system(f'{binary} -m pip install{self.pip_user_arg} -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
@@ -2376,12 +2415,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             if sys.platform == 'win32':
                                 binary = bootloader_config.get('binary', 'py -3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                    os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                             else:
                                 binary = bootloader_config.get('binary', 'python3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                    os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                 except:
                     self.logger.exception('Dependency installation failed')

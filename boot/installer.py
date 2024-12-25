@@ -167,20 +167,6 @@ if ptero_support:
 token = getpass.getpass('Token: ')
 
 encryption_password = ''
-salt = ''
-
-print('\x1b[33;1mWe will now ask for the token encryption salt. This must be an integer.\x1b[0m')
-print('\x1b[33;1mAs of Unifier v3.2.0, all tokens must be stored encrypted, even if it\'s stored as an environment variable.\x1b[0m')
-
-while True:
-    try:
-        salt = int(input())
-        break
-    except KeyboardInterrupt:
-        print('\x1b[31;49mAborted.\x1b[0m')
-        sys.exit(1)
-    except:
-        print('\x1b[31;49mThis isn\'t an integer, try again.\x1b[0m')
 
 print('\x1b[33;1mWe will now ask for the token encryption password. This is NOT your bot token.\x1b[0m')
 print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS TOKEN, NOT EVEN WITH {internal["maintainer"].upper()}.\x1b[0m')
@@ -202,16 +188,15 @@ except:
     print('\x1b[31;49mMake sure Server Members and Message Content intents are enabled for the bot.\x1b[0m')
     sys.exit(1)
 
-tokenstore = secrets.TokenStore(True, password=encryption_password, salt=salt, content_override={'TOKEN': token})
+tokenstore = secrets.TokenStore(True, password=encryption_password, content_override={'TOKEN': token})
 tokenstore.add_token('TOKEN', token)
-tokenstore.save('.encryptedenv', '.ivs')
+tokenstore.save('.encryptedenv')
 print('\x1b[36;1mYour tokens have been stored securely.\x1b[0m')
 
 with open('config.toml', 'rb') as file:
     config = tomli.load(file)
 
 config['roles']['owner'] = user_id
-config['system']['encrypted_env_salt'] = salt
 
 if not internal['skip_server']:
     config['moderation']['home_guild'] = server_id
