@@ -1,4 +1,4 @@
-nextcord[speed]
+nextcord[speed]==2.*
 guilded.py
 https://github.com/revoltchat/revolt.py/archive/master.zip
 aiofiles
