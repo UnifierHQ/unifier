@@ -6,7 +6,7 @@
   "base_bootfile": "unifier.py",
   "repo": "https://github.com/UnifierHQ/unifier",
   "stable_branch": "main",
-  "required_py_version": 9,
+  "required_py_version": 12,
   "skip_server": false,
   "options": [
     {
@@ -33,7 +33,7 @@
         "description": "Uses no performance optimizations. May be slower, but has best stability.",
         "default": false,
         "prefix": "stable",
-        "required_py_version": 9,
+        "required_py_version": 12,
         "color": "32"
     }
   ]
