@@ -134,5 +134,11 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
 # Happy new 2025, leaving this as an easteregg, with love, ItsAsheer, green., summer., Lezetho, Arhan, Saphire, and arandomguy
 
+# note from green to itsasheer:
+# out of ALL FILES you couldve added the comment to, you chose badge.py...
+# this is downright unacceptable. expect to see me in my totally real office next week
+#
+# (jokes aside happy new year)
+
 def setup(bot):
     bot.add_cog(Badge(bot))
