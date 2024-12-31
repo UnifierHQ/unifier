@@ -132,5 +132,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
 
+# Happy new 2025, leaving this as an easteregg, with love, ItsAsheer, green., summer., Lezetho, Arhan, Saphire, and arandomguy
+
 def setup(bot):
     bot.add_cog(Badge(bot))
