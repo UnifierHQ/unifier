@@ -1,26 +1,10 @@
-"""
-Unifier - A sophisticated Discord bot uniting servers and platforms
-Copyright (C) 2023-present  UnifierHQ
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
-
 import nextcord
-from nextcord.ext import commands
+from nextcord.ext import commands, tasks
 from typing import Optional
 from utils import log, langmgr, restrictions_legacy as r_legacy, slash as slash_handler
 from enum import Enum
+import aiohttp
+import asyncio
 
 restrictions_legacy = r_legacy.Restrictions()
 language = langmgr.partial()
@@ -28,13 +12,12 @@ language.load()
 slash = slash_handler.SlashHelper(language)
 
 class UserRole(Enum):
-    # let values be None until set by langmgr
-    OWNER = language.get('owner','badge.roles')
-    ADMIN = language.get('admin','badge.roles')
-    MODERATOR = language.get('moderator','badge.roles')
-    TRUSTED = language.get('trusted','badge.roles')
-    BANNED = language.get('banned','badge.roles')
-    USER = language.get('user','badge.roles')
+    OWNER = language.get('owner', 'badge.roles')
+    ADMIN = language.get('admin', 'badge.roles')
+    MODERATOR = language.get('moderator', 'badge.roles')
+    TRUSTED = language.get('trusted', 'badge.roles')
+    BANNED = language.get('banned', 'badge.roles')
+    USER = language.get('user', 'badge.roles')
 
 class Badge(commands.Cog, name=':medal: Badge'):
     """Badge contains commands that show you your role in Unifier."""
@@ -46,7 +29,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         language = self.bot.langmgr
         self.embed_colors = {
             UserRole.OWNER: (
-                self.bot.colors.greens_hair if self.bot.user.id==1187093090415149056 else self.bot.colors.unifier
+                self.bot.colors.greens_hair if self.bot.user.id == 1187093090415149056 else self.bot.colors.unifier
             ),
             UserRole.ADMIN: nextcord.Color.green(),
             UserRole.MODERATOR: nextcord.Color.purple(),
@@ -55,6 +38,18 @@ class Badge(commands.Cog, name=':medal: Badge'):
             UserRole.USER: nextcord.Color.blurple()
         }
         restrictions_legacy.attach_bot(self.bot)
+        self.unifier_team_data = {}
+        self.check_unifier_team.start()
+
+    @tasks.loop(minutes=30)
+    async def check_unifier_team(self):
+        url = "https://colab.unifierhq.org/data.json"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    self.unifier_team_data = await response.json()
+                else:
+                    self.logger.warning(f"Failed to fetch Unifier team data: {response.status}")
 
     @nextcord.slash_command(
         description=language.desc('badge.badge'),
@@ -72,7 +67,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
         user_role = self.get_user_role(user.id)
         embed = nextcord.Embed(
             description=selector.fget("body", values={
-                'mention':f"<@{user.id}>",'role': user_role.value
+                'mention': f"<@{user.id}>", 'role': user_role.value
             }),
             color=self.embed_colors[user_role]
         )
@@ -80,25 +75,34 @@ class Badge(commands.Cog, name=':medal: Badge'):
             name=f'@{user.name}',
             icon_url=user.avatar.url if user.avatar else None
         )
-        if user_role==UserRole.BANNED:
+        if user_role == UserRole.BANNED:
             embed.set_footer(text=selector.get("easter_egg"))
+
+
+        if str(user.id) in self.unifier_team_data:
+            team_member = self.unifier_team_data[str(user.id)]
+            embed.add_field(
+                name="Unifier Team",
+                value=f"{team_member['icon']} - **{team_member['displayname']}** is a **{team_member['role']}** in the Unifier team.",
+                inline=False
+            )
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,aliases=['trust'],description=language.desc('badge.verify'))
+    @commands.command(hidden=True, aliases=['trust'], description=language.desc('badge.verify'))
     @restrictions_legacy.admin()
     async def verify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)
 
         if user.id in self.bot.trusted_group:
-            return await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+            return await ctx.send(f'{self.bot.ui_emojis.error} ' + selector.fget("failed", values={'user': user.name}))
 
         self.bot.trusted_group.append(user.id)
 
         self.bot.db['trusted'] = self.bot.trusted_group
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-        await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
+        await ctx.send(f'{self.bot.ui_emojis.success} ' + selector.fget("success", values={'user': user.name}))
 
     @commands.command(hidden=True, aliases=['untrust'], description=language.desc('badge.unverify'))
     @restrictions_legacy.admin()
@@ -106,14 +110,14 @@ class Badge(commands.Cog, name=':medal: Badge'):
         selector = language.get_selector(ctx)
 
         if not user.id in self.bot.trusted_group:
-            return await ctx.send(f'{self.bot.ui_emojis.error} '+selector.fget("failed", values={'user': user.name}))
+            return await ctx.send(f'{self.bot.ui_emojis.error} ' + selector.fget("failed", values={'user': user.name}))
 
         self.bot.trusted_group.remove(user.id)
 
         self.bot.db['trusted'] = self.bot.trusted_group
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-        await ctx.send(f'{self.bot.ui_emojis.success} '+selector.fget("success", values={'user': user.name}))
+        await ctx.send(f'{self.bot.ui_emojis.success} ' + selector.fget("success", values={'user': user.name}))
 
     def get_user_role(self, user_id):
         if user_id == self.bot.owner or user_id in self.bot.other_owners:
@@ -132,6 +136,9 @@ class Badge(commands.Cog, name=':medal: Badge'):
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
 
+def setup(bot):
+    bot.add_cog(Badge(bot))
+
 # Happy new 2025, leaving this as an easteregg, with love, ItsAsheer, green., summer., Lezetho, Arhan, Saphire, and arandomguy
 
 # note from green to itsasheer:
@@ -141,5 +148,3 @@ class Badge(commands.Cog, name=':medal: Badge'):
 # (jokes aside happy new year)
 
 # ItsAsheer --> green. : Its bc new update to badge.py soon :eyes:, and bc its not a critical feature (imagine i broke bridge.py. We could create an easter egg file where we leave comments :)
-def setup(bot):
-    bot.add_cog(Badge(bot))
