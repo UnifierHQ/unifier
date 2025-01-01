@@ -147,4 +147,4 @@ def setup(bot):
 #
 # (jokes aside happy new year)
 
-# ItsAsheer --> green. : Its bc new update to badge.py soon :eyes:, and bc its not a critical feature (imagine i broke bridge.py. We could create an easter egg file where we leave comments :)
+# ItsAsheer --> green. : Its bc new update to badge.py soon :eyes:, and bc its not a critical feature (imagine i broke bridge.py. We could create an easter egg file where we leave comments
