@@ -61,7 +61,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
     @tasks.loop(minutes=30)
     async def check_unifier_team(self):
-        url = "https://colab.unifierhq.org/data.json"
+        url = "https://collab.unifierhq.org/data.json"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status == 200:
