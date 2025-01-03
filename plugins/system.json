@@ -2,8 +2,8 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v3.7.1",
-  "release": 138,
+  "version": "v3.8.0-a.5",
+  "release": 139,
   "minimum": 0,
   "shutdown": false,
   "modules": [
@@ -23,5 +23,12 @@
     "slash.py",
     "ui.py",
     "webhook_cache.py"
+  ],
+  "secure_storage_files": [
+    "bridge.json.zst",
+    "bridge.json.lzma"
+  ],
+  "needs_secure_storage": [
+    "bridge.py"
   ]
 }
