@@ -96,9 +96,13 @@ class Badge(commands.Cog, name=':medal: Badge'):
         if user_role == UserRole.BANNED:
             embed.set_footer(text=selector.get("easter_egg"))
 
+        catchedid = user.id
 
-        if str(user.id) in self.unifier_team_data:
-            team_member = self.unifier_team_data[str(user.id)]
+        if str(catchedid) in self.unifier_team_data["aliases"]: 
+            catchedid = self.unifier_team_data["aliases"][str(catchedid)]
+
+        if str(catchedid) in self.unifier_team_data:
+            team_member = self.unifier_team_data[str(catchedid)]
             embed.add_field(
                 name="Unifier Team",
                 value=f"{team_member['icon']} - **{team_member['displayname']}** is a **{team_member['role']}** in the Unifier team.",
