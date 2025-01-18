@@ -561,6 +561,15 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     sysext = json.load(file)
             for extension in sysext['modules']:
                 try:
+                    extras = {}
+
+                    if extension in sysext.get('uses_tokenstore', []):
+                        # noinspection PyUnresolvedReferences
+                        extras.update({'tokenstore': secrets_issuer.get_secret('system')})
+                    if extension in sysext.get('uses_storage', []):
+                        # noinspection PyUnresolvedReferences
+                        extras.update({'storage': secrets_issuer.get_storage('system')})
+
                     self.bot.load_extension('cogs.' + extension[:-3])
                     self.logger.debug('Loaded system plugin '+extension)
                 except:
@@ -576,14 +585,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         extinfo = json.load(file)
                     for extension in extinfo['modules']:
                         try:
-                            if extinfo.get('required_tokens') and extension[:-3] in extinfo.get('uses_tokenstore', []):
-                                self.bot.load_extension(
-                                    'cogs.' + extension[:-3],
-                                    extras={'tokenstore': self.bot.get_restrictive_tokenstore(plugin[:-5])}
-                                )
-                            else:
-                                self.bot.load_extension('cogs.' + extension[:-3])
-                            self.logger.debug('Loaded plugin ' + extension)
+                            extras = {}
+
+                            if extension in sysext.get('uses_tokenstore', []):
+                                # noinspection PyUnresolvedReferences
+                                extras.update({'tokenstore': secrets_issuer.get_secret(plugin[:-5])})
+                            if extension in sysext.get('uses_storage', []):
+                                # noinspection PyUnresolvedReferences
+                                extras.update({'storage': secrets_issuer.get_storage(plugin[:-5])})
+
+                            self.logger.debug('Loaded plugin ' + extension, extras=extras)
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
 
