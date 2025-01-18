@@ -72,6 +72,7 @@ restrictions_legacy = r_legacy.Restrictions()
 language = langmgr.partial()
 language.load()
 slash = slash_helper.SlashHelper(language)
+secrets_issuer = None
 
 # Below are attributions to the works we used to build Unifier (including our own).
 # If you've modified Unifier to use more works, please add it here.
@@ -932,8 +933,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         toload = []
         skip = []
         success = []
-        tokenstores = {}
         failed = {}
+        requires_tokens = {}
+        requires_storage = {}
 
         async def run_check(plugin_name, plugin):
             if not plugin['shutdown']:
@@ -942,29 +944,33 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             script = importlib.import_module('utils.' + plugin_name + '_check')
             await script.check(self.bot)
 
+        def allow_tokenstore(plugin, cog):
+            if not plugin in requires_tokens.keys():
+                requires_tokens.update({plugin: []})
+
+            requires_tokens[plugin].append(cog)
+
+        def allow_storage(plugin, cog):
+            if not plugin in requires_storage.keys():
+                requires_storage.update({plugin: []})
+
+            requires_storage[plugin].append(cog)
+
         for cog in cogs:
             cog_exists = f'{cog}.py' in os.listdir('cogs')
             plugin_exists = f'{cog}.json' in os.listdir('plugins')
 
             plugin_data = {}
-            __tokenstore = None
-
-            if plugin_exists:
-                with open(f'plugins/{cog}.json') as file:
-                    plugin_data = json.load(file)
-                if plugin_data.get('required_tokens'):
-                    __tokenstore = self.bot.get_restrictive_tokenstore(cog)
 
             if plugin_exists and cog_exists:
                 if self.bot.config['plugin_priority']:
                     toload.extend(plugin_data['modules'])
 
                     for ext in plugin_data['modules']:
-                        if not __tokenstore:
-                            break
-
                         if ext in plugin_data.get('uses_tokenstore', []):
-                            tokenstores.update({ext: __tokenstore})
+                            allow_tokenstore(plugin_data['id'], ext)
+                        if ext in plugin_data.get('uses_storage', []):
+                            allow_storage(plugin_data['id'], ext)
 
                     if not action == CogAction.load:
                         try:
@@ -979,11 +985,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 toload.extend([f'cogs.{module[:-3]}' for module in plugin_data['modules']])
 
                 for ext in plugin_data['modules']:
-                    if not __tokenstore:
-                        break
-
                     if ext in plugin_data.get('uses_tokenstore', []):
-                        tokenstores.update({ext: __tokenstore})
+                        allow_tokenstore(plugin_data['id'], ext)
+                    if ext in plugin_data.get('uses_storage', []):
+                        allow_storage(plugin_data['id'], ext)
 
                 if not action == CogAction.load:
                     try:
@@ -998,20 +1003,47 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 toload.append(f'cogs.{cog}')
                 skip.append(f'cogs.{cog}')
                 failed.update({cog: 'The cog or plugin does not exist.'})
+
         for toload_cog in toload:
             if toload_cog in skip:
                 continue
             try:
                 if action == CogAction.load:
-                    if toload_cog in tokenstores.keys():
-                        self.bot.load_extension(toload_cog, extras={'tokenstore': tokenstores[toload_cog]})
-                    else:
-                        self.bot.load_extension(toload_cog)
+                    extras = {}
+
+                    # Generate TokenStoreWrapper if needed
+                    for plugin in requires_tokens.keys():
+                        if toload_cog in requires_tokens[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'tokenstore': secrets_issuer.get_secret(plugin)})
+                            break
+
+                    # Generate SecureStorageWrapper if needed
+                    for plugin in requires_storage.keys():
+                        if toload_cog in requires_storage[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'storage': secrets_issuer.get_storage(plugin)})
+                            break
+
+                    self.bot.load_extension(toload_cog, extras=extras)
                 elif action == CogAction.reload:
-                    if toload_cog in tokenstores.keys():
-                        self.bot.reload_extension(toload_cog, extras={'tokenstore': tokenstores[toload_cog]})
-                    else:
-                        self.bot.reload_extension(toload_cog)
+                    extras = {}
+
+                    # Generate TokenStoreWrapper if needed
+                    for plugin in requires_tokens.keys():
+                        if toload_cog in requires_tokens[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'tokenstore': secrets_issuer.get_secret(plugin)})
+                            break
+
+                    # Generate SecureStorageWrapper if needed
+                    for plugin in requires_storage.keys():
+                        if toload_cog in requires_storage[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'storage': secrets_issuer.get_secret(plugin)})
+                            break
+
+                    self.bot.reload_extension(toload_cog, extras=extras)
                 elif action == CogAction.unload:
                     self.bot.unload_extension(toload_cog)
                 success.append(toload_cog)
@@ -3417,5 +3449,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     ) -> None:
         await self.bot.exhandler.handle(interaction, exception)
 
-def setup(bot):
+def setup(bot, issuer):
+    global secrets_issuer
     bot.add_cog(SysManager(bot))
+    secrets_issuer = issuer

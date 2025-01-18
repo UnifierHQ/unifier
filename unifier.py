@@ -16,6 +16,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+# import modules
 import nextcord
 from nextcord import Interaction, ApplicationError
 from nextcord.ext import commands
@@ -107,6 +108,8 @@ for directory in directories:
             if directory == 'boot':
                 replaced_boot = True
 
+# import uvloop/winloop if installed
+# this makes asyncio faster
 try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
@@ -167,6 +170,7 @@ for key in data:
 
 data = newdata
 
+# copy filters from update
 if not os.path.isdir('filters'):
     os.mkdir('filters')
     for file in os.listdir('update/filters'):
@@ -236,20 +240,46 @@ except:
     with open('update.json', 'r') as file:
         vinfo = json.load(file)
 
+# TokenStore and SecureStorage initialization
+tokenstore = secrets.TokenStore(
+    not should_encrypt,
+    password=os.environ['UNIFIER_ENCPASS'],
+    debug=data['debug'],
+    onetime=['TOKEN']
+)
+
+if should_encrypt:
+    tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'])
+    os.remove('.env')
+
+if not tokenstore.test_decrypt() and '.ivs' in os.listdir():
+    logger.info('AES-256-CBC encryption detected, converting to GCM mode...')
+    converter = secrets.ToGCMTokenStore(
+        password=os.environ['UNIFIER_ENCPASS'],
+        salt=data['encrypted_env_salt'],
+        debug=data['debug'],
+        onetime=['TOKEN']
+    )
+
+    if converter.test_decrypt():
+        tokenstore = converter.to_gcm()
+
+secure_storage = secrets.SecureStorage(secrets.RawEncryptor(os.environ['UNIFIER_ENCPASS']), tokenstore=tokenstore)
+
+# Plugin secret entitlements
+issued_tokens = {} # tokenstore entitlements issued
+issued_storage = {} # secure storage entitlements issued
+
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.file_path = 'data.json'
         self.__save_lock = False
-        self.__secure_storage = kwargs.get('secure_storage')
         self.__encrypted = kwargs.get('encrypt', False)
 
         # Ensure necessary keys exist
         self.update(self.base)
         self.threads = []
-
-        # Load data
-        self.load_data()
 
     @property
     def base(self):
@@ -271,10 +301,10 @@ class AutoSaveDict(dict):
             raise RuntimeError('already locked')
         self.__save_lock = save_lock
 
-    def load_data(self):
+    def load_data(self, secure_storage):
         if self.__encrypted:
             try:
-                data = self.__secure_storage.load(self.file_path)
+                data = secure_storage.load(self.file_path)
                 data = jsontools.loads_bytes(data)
                 self.update(data)
                 return
@@ -289,7 +319,7 @@ class AutoSaveDict(dict):
         except json.JSONDecodeError:
             pass  # If the file is corrupted, initialize an empty dictionary
 
-    def save(self):
+    def save(self, secure_storage):
         tosave = {}
         for key in self.keys():
             if not key in self.base.keys():
@@ -299,7 +329,7 @@ class AutoSaveDict(dict):
             return
         if self.__encrypted:
             data = jsontools.dumps_bytes(dict(tosave))
-            self.__secure_storage.save(data, self.file_path)
+            secure_storage.save(data, self.file_path)
         else:
             with open(self.file_path, 'w') as file:
                 # noinspection PyTypeChecker
@@ -321,6 +351,106 @@ class AutoSaveDict(dict):
         thread.start()
         self.threads.append(thread)
 
+class TokenStoreWrapper:
+    """Wrapper for secrets.TokenStore methods with some security restrictions."""
+
+    def __init__(self, entitled):
+        # TokenStoreWrapper allows multiple plugins to share the same token unless protection is requested by the plugin
+        self.__entitled = entitled
+
+    def retrieve(self, identifier):
+        if not identifier in self.__entitled:
+            return None
+
+        return tokenstore.retrieve(identifier)
+
+class SecureStorageWrapper:
+    """Wrapper for secrets.SecureStorage methods wuth some security restrictions."""
+
+    def __init__(self, entitled):
+        self.__entitled = entitled
+        self.__protected = [
+            '.encryptedenv', 'data.json', 'config.toml', 'unifier.py', 'run.sh', 'run.bat', 'requirements.txt',
+            'requirements_balanced.txt', 'requirements_stable.txt', 'boot_config.json'
+        ]
+        self.__protected_folders = [
+            'boot', 'cogs', 'emojis', 'filters', 'languages', 'plugins', 'utils'
+        ]
+
+        for entitlement in self.__entitled:
+            if entitlement in self.__protected:
+                raise ValueError(f'file {entitlement} is protected')
+            for folder in self.__protected_folders:
+                if entitlement.startswith(folder):
+                    raise ValueError(f'folder {entitlement} is protected')
+
+    def save(self, data, filename):
+        """Wrapper method for secrets.SecureStorage.save"""
+        if not filename in self.__entitled:
+            raise ValueError(f'plugin cannot access {filename}')
+
+        return secure_storage.save(data, filename)
+
+    def load(self, filename):
+        """Wrapper method for secrets.SecureStorage.load"""
+        if not filename in self.__entitled:
+            return None
+
+        return secure_storage.load(filename)
+
+class SecretsIssuer:
+    def __init__(self):
+        pass
+
+    def get_secret(self, plugin):
+        try:
+            with open(f'plugins/{plugin}.json') as file:
+                plugin_data = json.load(file)
+        except FileNotFoundError:
+            return None
+
+        available = plugin_data.get('required_tokens', [])
+        available_protect = plugin_data.get('required_tokens_protected', [])
+
+        if not available:
+            raise ValueError('plugin does not use tokens')
+
+        for issued_plugin in issued_tokens.keys():
+            if issued_plugin == plugin:
+                continue
+            used = issued_tokens[issued_plugin]
+            for identifier in available:
+                if identifier in used:
+                    raise ValueError(f'token {identifier} is already used, cannot re-issue access')
+
+        issued_tokens.update({plugin: available_protect})
+
+        return TokenStoreWrapper(available)
+
+    def get_storage(self, plugin):
+        try:
+            with open(f'plugins/{plugin}.json') as file:
+                plugin_data = json.load(file)
+        except FileNotFoundError:
+            return None
+
+        available = plugin_data.get('secure_files', [])
+
+        if not available:
+            raise ValueError('plugin does not use secure storage')
+
+        for issued_plugin in issued_storage.keys():
+            if issued_plugin == plugin:
+                continue
+            used = issued_storage[issued_plugin]
+            for file in available:
+                if file in used:
+                    raise ValueError(f'file {file} is already used, cannot re-issue access')
+
+        issued_storage.update({plugin: available})
+
+        return SecureStorageWrapper(available)
+
 class DiscordBot(commands.Bot):
     """Extension of discord.ext.commands.Bot for bot configuration"""
 
@@ -338,32 +468,10 @@ class DiscordBot(commands.Bot):
         self.bridge = None
         self.pyversion = sys.version_info
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
-        self.__tokenstore = secrets.TokenStore(
-            not should_encrypt,
-            password=os.environ['UNIFIER_ENCPASS'],
-            debug=data['debug'],
-            onetime=['TOKEN']
-        )
-        self.__secure_storage = secrets.SecureStorage(secrets.RawEncryptor(os.environ['UNIFIER_ENCPASS']), tokenstore=self.__tokenstore)
-        self.db = AutoSaveDict({}, secure_storage=self.__secure_storage, encrypt=data['encrypt_backups'])
+        self.db = AutoSaveDict({}, encrypt=data['encrypt_backups'])
+        self.db.load_data(secure_storage)
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
-
-        if should_encrypt:
-            self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'])
-            os.remove('.env')
-
-        if not self.__tokenstore.test_decrypt() and '.ivs' in os.listdir():
-            logger.info('AES-256-CBC encryption detected, converting to GCM mode...')
-            converter = secrets.ToGCMTokenStore(
-                password=os.environ['UNIFIER_ENCPASS'],
-                salt=data['encrypted_env_salt'],
-                debug=data['debug'],
-                onetime=['TOKEN']
-            )
-
-            if converter.test_decrypt():
-                self.__tokenstore = converter.to_gcm()
 
     @property
     def package(self):
@@ -488,32 +596,34 @@ class DiscordBot(commands.Bot):
     def moderators(self):
         return [self.owner, *self.other_owners, *self.admins, *self.db['moderators']]
 
-    @property
-    def secure_storage(self):
-        # this can be exposed safely
-        return self.__secure_storage
-
     async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
         # suppress exception traceback as they're already logged
         pass
 
     def test_decrypt(self):
-        return self.__tokenstore.test_decrypt()
+        return tokenstore.test_decrypt()
 
     def retrieve_token(self):
-        return self.__tokenstore.retrieve('TOKEN')
+        return tokenstore.retrieve('TOKEN')
 
-    def get_restrictive_tokenstore(self, plugin):
-        try:
-            with open(f'plugins/{plugin}.json') as file:
-                plugin_data = json.load(file)
-        except FileNotFoundError:
-            return None
+    def load_extension(self, *args, **kwargs):
+        # Give secrets issuer to sysmgr
+        if args[0] == 'cogs.sysmgr':
+            issuer = SecretsIssuer()
+            kwargs.update({'extras': {'issuer': issuer}})
 
-        if not plugin_data.get('required_tokens', False):
-            return None
+        super().load_extension(*args, **kwargs)
 
-        return secrets.RestrictiveTokenStore(self.__tokenstore, plugin_data['required_tokens'])
+    def reload_extension(self, *args, **kwargs):
+        # Give secrets issuer to sysmgr
+        if args[0] == 'cogs.sysmgr':
+            issuer = SecretsIssuer()
+            kwargs.update({'extras': {'issuer': issuer}})
+
+        super().reload_extension(*args, **kwargs)
+
+    def unload_extension(self, *args, **kwargs):
+        super().unload_extension(*args, **kwargs)
 
 class Intents(nextcord.Intents):
     def __init__(self, **kwargs):
