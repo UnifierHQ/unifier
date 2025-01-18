@@ -24,11 +24,11 @@
     "ui.py",
     "webhook_cache.py"
   ],
-  "secure_storage_files": [
+  "secure_files": [
     "bridge.json.zst",
     "bridge.json.lzma"
   ],
-  "needs_secure_storage": [
+  "uses_storage": [
     "bridge.py"
   ]
 }
