@@ -1,6 +1,7 @@
 name: Bug report
 description: Found a bug? Report it here!
 title: '[Bug] '
+type: Bug
 assignees:
   - greeeen-dev
 labels:
