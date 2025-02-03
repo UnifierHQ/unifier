@@ -3462,5 +3462,5 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
 def setup(bot, issuer):
     global secrets_issuer
-    bot.add_cog(SysManager(bot))
     secrets_issuer = issuer
+    bot.add_cog(SysManager(bot))
