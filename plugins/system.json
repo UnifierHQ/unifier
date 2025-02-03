@@ -25,8 +25,8 @@
     "webhook_cache.py"
   ],
   "secure_files": [
-    "bridge.json.zst",
-    "bridge.json.lzma"
+    "bridge.json",
+    "bridge.json"
   ],
   "uses_storage": [
     "bridge.py"

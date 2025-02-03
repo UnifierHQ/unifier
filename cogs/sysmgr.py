@@ -560,17 +560,28 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('plugins/system.json') as file:
                     sysext = json.load(file)
             for extension in sysext['modules']:
+                extension_clean = extension
+                if extension_clean.startswith('cogs.') or extension_clean.startswith('cogs/'):
+                    extension_clean = extension[5:]
+
                 try:
                     extras = {}
 
-                    if extension in sysext.get('uses_tokenstore', []):
+                    if extension_clean in sysext.get('uses_tokenstore', []):
                         # noinspection PyUnresolvedReferences
                         extras.update({'tokenstore': secrets_issuer.get_secret('system')})
-                    if extension in sysext.get('uses_storage', []):
+                        self.logger.debug(f'Issued TokenStore to {extension}')
+                    if extension_clean in sysext.get('uses_storage', []):
                         # noinspection PyUnresolvedReferences
                         extras.update({'storage': secrets_issuer.get_storage('system')})
+                        self.logger.debug(f'Issued SecureStorage to {extension}')
 
-                    self.bot.load_extension('cogs.' + extension[:-3])
+                    try:
+                        self.bot.load_extension('cogs.' + extension[:-3], extras=extras)
+                    except nextcord.ext.commands.errors.InvalidSetupArguments:
+                        # assume cog does not use extras kwargs
+                        self.bot.load_extension('cogs.' + extension[:-3])
+
                     self.logger.debug('Loaded system plugin '+extension)
                 except:
                     self.logger.critical('System plugin load failed! (' + extension + ')')
@@ -590,11 +601,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             if extension in sysext.get('uses_tokenstore', []):
                                 # noinspection PyUnresolvedReferences
                                 extras.update({'tokenstore': secrets_issuer.get_secret(plugin[:-5])})
+                                self.logger.debug(f'Issued TokenStore to {extension}')
                             if extension in sysext.get('uses_storage', []):
                                 # noinspection PyUnresolvedReferences
                                 extras.update({'storage': secrets_issuer.get_storage(plugin[:-5])})
+                                self.logger.debug(f'Issued SecureStorage to {extension}')
 
-                            self.logger.debug('Loaded plugin ' + extension, extras=extras)
+                            try:
+                                self.bot.load_extension('cogs.' + extension[:-3], extras=extras)
+                            except nextcord.ext.commands.errors.InvalidSetupArguments:
+                                # assume cog does not use extras kwargs
+                                self.bot.load_extension('cogs.' + extension[:-3])
+
+                            self.logger.debug('Loaded plugin ' + extension)
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
 
@@ -978,9 +997,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     toload.extend(plugin_data['modules'])
 
                     for ext in plugin_data['modules']:
-                        if ext in plugin_data.get('uses_tokenstore', []):
+                        extension_clean = ext
+                        if extension_clean.startswith('cogs.') or extension_clean.startswith('cogs/'):
+                            extension_clean = ext[5:]
+
+                        if extension_clean in plugin_data.get('uses_tokenstore', []):
                             allow_tokenstore(plugin_data['id'], ext)
-                        if ext in plugin_data.get('uses_storage', []):
+                        if extension_clean in plugin_data.get('uses_storage', []):
                             allow_storage(plugin_data['id'], ext)
 
                     if not action == CogAction.load:
@@ -1027,6 +1050,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if toload_cog in requires_tokens[plugin]:
                             # noinspection PyUnresolvedReferences
                             extras.update({'tokenstore': secrets_issuer.get_secret(plugin)})
+                            self.logger.debug(f'Issued TokenStore to {toload_cog}')
                             break
 
                     # Generate SecureStorageWrapper if needed
@@ -1034,9 +1058,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if toload_cog in requires_storage[plugin]:
                             # noinspection PyUnresolvedReferences
                             extras.update({'storage': secrets_issuer.get_storage(plugin)})
+                            self.logger.debug(f'Issued SecureStorage to {toload_cog}')
                             break
 
-                    self.bot.load_extension(toload_cog, extras=extras)
+                    try:
+                        self.bot.load_extension(toload_cog, extras=extras)
+                    except nextcord.ext.commands.errors.InvalidSetupArguments:
+                        # assume cog does not use extras kwargs
+                        self.bot.load_extension(toload_cog)
                 elif action == CogAction.reload:
                     extras = {}
 
@@ -1054,7 +1083,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             extras.update({'storage': secrets_issuer.get_secret(plugin)})
                             break
 
-                    self.bot.reload_extension(toload_cog, extras=extras)
+                    try:
+                        self.bot.reload_extension(toload_cog, extras=extras)
+                    except nextcord.ext.commands.errors.InvalidSetupArguments:
+                        # assume cog does not use extras kwargs
+                        self.bot.reload_extension(toload_cog)
                 elif action == CogAction.unload:
                     self.bot.unload_extension(toload_cog)
                 success.append(toload_cog)

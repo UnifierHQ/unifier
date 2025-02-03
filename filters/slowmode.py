@@ -21,9 +21,10 @@ class Filter(BaseFilter):
             if time.time() < data['data'][message['author']]:
                 return FilterResult(
                     False, data,
-                    message=f'Slowmode is enabled. Try again in {round(
-                        data["data"][message['author']] - time.time()
-                    )} seconds.'
+                    message=(
+                        f'Slowmode is enabled. Try again in {round(data["data"][message["author"]] - time.time())} '+
+                        'seconds.'
+                    )
                 )
             else:
                 data['data'].update({message['author']: time.time() + data['config']['slowdown']})

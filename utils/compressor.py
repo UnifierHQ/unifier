@@ -59,7 +59,7 @@ def decompress(file: Union[bytes, str], chunk_size: int) -> bytes:
     else:
         target = open(file, 'rb')
 
-    # decompress from LZMA
+    # decompress from Zstandard
     with decompressor.stream_reader(target) as f:
         for chunk in iter(lambda: f.read(chunk_size), b""):
             data.extend(chunk)

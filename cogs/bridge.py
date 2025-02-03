@@ -1084,8 +1084,14 @@ class UnifierBridge:
             code = self.prs[pr_ids[limit - index - 1]]
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
+        if self.__bot.config['compress_cache']:
+            # noinspection PyUnresolvedReferences
+            data = await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
+                jsontools.dumps_bytes(data), None, self.__bot.config['zstd_chunk_size']
+            ))
+
         # noinspection PyUnresolvedReferences
-        await self.__bot.run_in_executor(None, lambda: cog_storage.save(data, filename))
+        await self.__bot.loop.run_in_executor(None, lambda: cog_storage.save(data, filename))
 
         del data
         self.backup_running = False
@@ -1101,7 +1107,7 @@ class UnifierBridge:
             secure_load_success = True
             try:
                 # noinspection PyUnresolvedReferences
-                data = cog_storage.load(filename+'.zst')
+                data = cog_storage.load(filename)
             except json.JSONDecodeError:
                 secure_load_success = False
             except UnicodeDecodeError:
@@ -1110,18 +1116,13 @@ class UnifierBridge:
                 secure_load_success = False
             else:
                 data = jsontools.loads_bytes(compressor.decompress(data, self.__bot.config['zstd_chunk_size']))
-            if not self.__bot.config['encrypt_backups'] or not secure_load_success:
-                if filename+'.zst' in os.listdir():
-                    data = jsontools.loads_bytes(compressor.decompress(
-                        filename+'.zst', self.__bot.config['zstd_chunk_size']
-                    ))
-                else:
-                    data = compress_json.load(filename+'.lzma')
+            if not secure_load_success:
+                data = compress_json.load(filename+'.lzma')
         else:
             secure_load_success = True
             try:
                 # noinspection PyUnresolvedReferences
-                data = cog_storage.load(filename+'.zst')
+                data = cog_storage.load(filename)
             except json.JSONDecodeError:
                 secure_load_success = False
             except UnicodeDecodeError:

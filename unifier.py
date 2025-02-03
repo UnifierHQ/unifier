@@ -301,7 +301,7 @@ class AutoSaveDict(dict):
             raise RuntimeError('already locked')
         self.__save_lock = save_lock
 
-    def load_data(self, secure_storage):
+    def load_data(self):
         if self.__encrypted:
             try:
                 data = secure_storage.load(self.file_path)
@@ -319,7 +319,7 @@ class AutoSaveDict(dict):
         except json.JSONDecodeError:
             pass  # If the file is corrupted, initialize an empty dictionary
 
-    def save(self, secure_storage):
+    def save(self):
         tosave = {}
         for key in self.keys():
             if not key in self.base.keys():
@@ -469,7 +469,7 @@ class DiscordBot(commands.Bot):
         self.pyversion = sys.version_info
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
         self.db = AutoSaveDict({}, encrypt=data['encrypt_backups'])
-        self.db.load_data(secure_storage)
+        self.db.load_data()
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
 
