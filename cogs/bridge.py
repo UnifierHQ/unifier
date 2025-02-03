@@ -1121,7 +1121,7 @@ class UnifierBridge:
             secure_load_success = True
             try:
                 # noinspection PyUnresolvedReferences
-                data = cog.load(filename+'.zst')
+                data = cog_storage.load(filename+'.zst')
             except json.JSONDecodeError:
                 secure_load_success = False
             except UnicodeDecodeError:
