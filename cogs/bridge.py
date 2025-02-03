@@ -55,6 +55,7 @@ except:
 
 aiomultiprocess.set_start_method("fork")
 
+cog_storage = None
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
 emergency_mentions = nextcord.AllowedMentions(everyone=False, roles=True, users=True)
 restrictions = r.Restrictions()
@@ -1064,7 +1065,7 @@ class UnifierBridge:
         data = {'messages':{},'posts':{}}
         og_limit = limit
 
-        if limit<=0:
+        if limit <= 0:
             raise ValueError('limit must be a positive integer')
         if len(self.bridged) < limit:
             limit = len(self.bridged)
@@ -1083,25 +1084,9 @@ class UnifierBridge:
             code = self.prs[pr_ids[limit - index - 1]]
             data['posts'].update({pr_ids[limit - index - 1]: code})
 
-        if self.__bot.config['compress_cache']:
-            if self.__bot.config['encrypt_backups']:
-                data = await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
-                    jsontools.dumps_bytes(data), None, self.__bot.config['zstd_chunk_size'],
-                    self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
-                ))
-                self.__bot.secure_storage.save(data, filename+'.zst')
-            else:
-                await self.__bot.loop.run_in_executor(None, lambda: compressor.compress(
-                    jsontools.dumps_bytes(data), filename+'.zst', self.__bot.config['zstd_chunk_size'],
-                    self.__bot.config['zstd_level'], self.__bot.config['zstd_threads']
-                ))
-        else:
-            if self.__bot.config['encrypt_backups']:
-                data = jsontools.dumps_bytes(data)
-                self.__bot.secure_storage.save(data, filename)
-            else:
-                with open(filename, "w+") as file:
-                    await self.__bot.loop.run_in_executor(None, lambda: json.dump(data, file))
+        # noinspection PyUnresolvedReferences
+        await self.__bot.run_in_executor(None, lambda: cog_storage.save(data, filename))
+
         del data
         self.backup_running = False
         return
@@ -1114,17 +1099,17 @@ class UnifierBridge:
 
         if self.__bot.config['compress_cache']:
             secure_load_success = True
-            if self.__bot.config['encrypt_backups']:
-                try:
-                    data = self.__bot.secure_storage.load(filename+'.zst')
-                except json.JSONDecodeError:
-                    secure_load_success = False
-                except UnicodeDecodeError:
-                    secure_load_success = False
-                except FileNotFoundError:
-                    secure_load_success = False
-                else:
-                    data = jsontools.loads_bytes(compressor.decompress(data, self.__bot.config['zstd_chunk_size']))
+            try:
+                # noinspection PyUnresolvedReferences
+                data = cog_storage.load(filename+'.zst')
+            except json.JSONDecodeError:
+                secure_load_success = False
+            except UnicodeDecodeError:
+                secure_load_success = False
+            except FileNotFoundError:
+                secure_load_success = False
+            else:
+                data = jsontools.loads_bytes(compressor.decompress(data, self.__bot.config['zstd_chunk_size']))
             if not self.__bot.config['encrypt_backups'] or not secure_load_success:
                 if filename+'.zst' in os.listdir():
                     data = jsontools.loads_bytes(compressor.decompress(
@@ -1134,17 +1119,17 @@ class UnifierBridge:
                     data = compress_json.load(filename+'.lzma')
         else:
             secure_load_success = True
-            if self.__bot.config['encrypt_backups']:
-                try:
-                    data = self.__bot.secure_storage.load(filename+'.zst')
-                except json.JSONDecodeError:
-                    secure_load_success = False
-                except UnicodeDecodeError:
-                    secure_load_success = False
-                except FileNotFoundError:
-                    secure_load_success = False
-                else:
-                    data = jsontools.loads_bytes(data)
+            try:
+                # noinspection PyUnresolvedReferences
+                data = cog.load(filename+'.zst')
+            except json.JSONDecodeError:
+                secure_load_success = False
+            except UnicodeDecodeError:
+                secure_load_success = False
+            except FileNotFoundError:
+                secure_load_success = False
+            else:
+                data = jsontools.loads_bytes(data)
             if not self.__bot.config['encrypt_backups'] or not secure_load_success:
                 with open(filename, "r") as file:
                     data = json.load(file)
@@ -6520,5 +6505,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def cog_command_error(self, ctx: nextcord.Interaction, error):
         await self.bot.exhandler.handle(ctx, error)
 
-def setup(bot):
+def setup(bot, storage=None):
+    global cog_storage
+    cog_storage = storage
     bot.add_cog(Bridge(bot))
