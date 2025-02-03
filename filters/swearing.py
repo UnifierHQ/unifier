@@ -9,5 +9,7 @@ class Filter(BaseFilter):
             'Keep your chat family-friendly!'
         )
 
-    def check(self, _user, _is_bot, content, _files, _data) -> FilterResult:
-        return FilterResult(not profanity.contains_profanity(content), None, message='No swearing allowed!')
+    def check(self, message, data) -> FilterResult:
+        return FilterResult(
+            not profanity.contains_profanity(message['content']), None, message='No swearing allowed!'
+        )

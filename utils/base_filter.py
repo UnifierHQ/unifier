@@ -95,6 +95,6 @@ class BaseFilter:
 
         self.__configs.update({config_id: config})
 
-    def check(self, user, is_bot, content, files, data) -> FilterResult:
+    def check(self, message, data) -> FilterResult:
         """Checks if a content is allowed or not allowed by the filter."""
         raise MissingFilter()

@@ -41,12 +41,13 @@ import aiomultiprocess
 import aiohttp
 from aiomultiprocess import Worker
 
-# import ujson if installed
+# Import ujson if installed for json speedup
 try:
     import ujson as json  # pylint: disable=import-error
 except:
     pass
 
+# Import uvloop if installed for asyncio speedup
 try:
     import uvloop  # pylint: disable=import-error
 except:
@@ -1392,9 +1393,9 @@ class UnifierBridge:
 
                 try:
                     try:
-                        webhook = self.__bot.bridge.webhook_cache.get_webhook([
+                        webhook = self.__bot.bridge.webhook_cache.get_webhook(
                             f'{self.__bot.db["rooms"][msg.room]["discord"][f"{guild.id}"][0]}'
-                        ])
+                        )
                     except:
                         try:
                             webhook = await self.__bot.fetch_webhook(self.__bot.db['rooms'][msg.room]['discord'][key][0])
@@ -1581,6 +1582,7 @@ class UnifierBridge:
 
         if source == 'discord':
             is_bot = message.author.bot and not message.author.id == self.__bot.user.id
+            webhook_id = message.webhook_id
             author = message.author.id
             server = message.guild.id
             name = message.author.name
@@ -1593,10 +1595,16 @@ class UnifierBridge:
             is_bot = support.is_bot(
                 support.author(message)
             ) and not support.get_id(support.author(message)) == support.bot_id()
+            webhook_id = None
             author = support.get_id(support.author(message))
             server = support.get_id(support.server(message))
             name = support.name(support.author(message))
             avatar = support.avatar(support.author(message))
+
+            try:
+                webhook_id = support.webhook_id(message)
+            except platform_base.MissingImplementation:
+                pass
 
             nsfw = False
             try:
@@ -1664,9 +1672,18 @@ class UnifierBridge:
 
                     filter_obj = self.filters[bridge_filter]
 
+                    message_data = {
+                        'author': str(author),
+                        'bot': is_bot,
+                        'webhook_id': webhook_id,
+                        'content': content,
+                        'files': files,
+                        'data': data
+                    }
+
                     try:
                         result = await self.__bot.loop.run_in_executor(
-                            None, lambda: filter_obj.check(str(author), is_bot, content, files, data)
+                            None, lambda: filter_obj.check(message_data, data)
                         )
                     except base_filter.MissingFilter:
                         continue
@@ -2966,8 +2983,7 @@ class UnifierBridge:
                 webhook=should_resend or system or extbridge,
                 prehook=message.id,
                 room=room,
-                reply=replying,
-                external_bridged=extbridge,
+                reply=replying
             ))
             if datetime.datetime.now().day != self.msg_stats_reset:
                 self.msg_stats = {}
@@ -5851,9 +5867,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         ):
             # webhook msg
             try:
-                hook = await self.bot.fetch_webhook(message.webhook_id)
+                try:
+                    hook = self.bot.bridge.webhook_cache.get_webhook(f'{message.webhook_id}')
+                except:
+                    hook = await self.bot.fetch_webhook(message.webhook_id)
+
                 extbridge = True
-                if not hook.user.id in self.bot.db['external_bridge'] or hook.user.id==self.bot.user.id:
+                if hook.user.id==self.bot.user.id:
                     raise ValueError()
             except:
                 return

@@ -16,16 +16,18 @@ class Filter(BaseFilter):
             )
         )
 
-    def check(self, user, _is_bot, content, _files, data) -> FilterResult:
-        if user in data['data']:
-            if time.time() < data['data'][user]:
+    def check(self, message, data) -> FilterResult:
+        if message['author'] in data['data']:
+            if time.time() < data['data'][message['author']]:
                 return FilterResult(
                     False, data,
-                    message=f'Slowmode is enabled. Try again in {round(data["data"][user] - time.time())} seconds.'
+                    message=f'Slowmode is enabled. Try again in {round(
+                        data["data"][message['author']] - time.time()
+                    )} seconds.'
                 )
             else:
-                data['data'].update({user: time.time() + data['config']['slowdown']})
+                data['data'].update({message['author']: time.time() + data['config']['slowdown']})
                 return FilterResult(True, data)
         else:
-            data['data'].update({user: time.time() + data['config']['slowdown']})
+            data['data'].update({message['author']: time.time() + data['config']['slowdown']})
             return FilterResult(True, data)

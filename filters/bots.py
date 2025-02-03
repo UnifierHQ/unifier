@@ -8,5 +8,5 @@ class Filter(BaseFilter):
             'A filter that blocks bot messages (excluding system messages).'
         )
 
-    def check(self, _user, is_bot, content, _files, _data) -> FilterResult:
-        return FilterResult(not is_bot, None, message='Bots may not talk in this Room.')
+    def check(self, message, data) -> FilterResult:
+        return FilterResult(not message['bot'], None, message='Bots may not talk in this Room.')

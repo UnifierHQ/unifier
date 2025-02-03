@@ -8,10 +8,10 @@ class Filter(BaseFilter):
             'A filter that blocks server invites.'
         )
 
-    def check(self, _user, _is_bot, content, _files, _data) -> FilterResult:
+    def check(self, message, data) -> FilterResult:
         keywords = [
             'discord.gg/', 'discord.com/invite/', 'discordapp.com/invite/'
         ]
 
-        contains = [keyword for keyword in keywords if keyword in content]
+        contains = [keyword for keyword in keywords if keyword in message['content']]
         return FilterResult(len(contains) == 0, None, message='Server invites are not allowed here.')
