@@ -5537,6 +5537,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except asyncio.TimeoutError:
             return await msg.edit(view=None)
 
+        if interaction.data['custom_id']=='cancel':
+            return await interaction.response.edit_message(view=None)
+
         if not paused:
             self.bot.db['paused'].append(f'{ctx.user.id}')
             self.bot.db.save_data()

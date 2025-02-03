@@ -952,7 +952,7 @@
         "title": "Pause your messages from bridging?",
         "title_disable": "Continue bridging your messages?",
         "body": "This will stop your messages from being bridged on all {botname} rooms.",
-        "body_2": "This can be helpful if you use proxies to chat, such as Tupperbox and PluralKit.",
+        "body_2": "This can be helpful if you use proxies to chat, like Tupperbox and PluralKit.",
         "body_3": "You can unpause your messages at any time using the same command.",
         "body_disable": "This will allow {botname} to bridge your messages again.",
         "pause": "Pause",
