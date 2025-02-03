@@ -348,7 +348,7 @@ class UnifierBridge:
                                      self.external_copies[platform][str(guild_id)][1])
 
     class UnifierUser:
-        def __init__(self, bot, user_id, name, global_name=None, platform='discord', system=False):
+        def __init__(self, bot, user_id, name, global_name=None, platform='discord', system=False, message=None):
             self.__bot = bot
             self.__id = user_id
             self.__name = name
@@ -356,6 +356,7 @@ class UnifierBridge:
             self.__platform = platform
             self.__system = system
             self.__redacted = False
+            self.__message = message
 
         @property
         def id(self):
@@ -397,7 +398,7 @@ class UnifierBridge:
                 return self.__bot.get_user(self.id).avatar.url
 
             source_support = self.__bot.platforms[self.platform]
-            return source_support.avatar(source_support.get_user(self.id))
+            return source_support.avatar(source_support.get_user(self.id), message=self.__message)
 
         def redact(self):
             self.__redacted = True
@@ -1588,8 +1589,8 @@ class UnifierBridge:
             webhook_id = None
             author = support.get_id(support.author(message))
             server = support.get_id(support.server(message))
-            name = support.name(support.author(message))
-            avatar = support.avatar(support.author(message))
+            name = support.name(support.author(message), message=message)
+            avatar = support.avatar(support.author(message), message=message)
 
             try:
                 webhook_id = support.webhook_id(message)
@@ -1907,8 +1908,8 @@ class UnifierBridge:
         else:
             unifier_user: UnifierBridge.UnifierUser = UnifierBridge.UnifierUser(
                 self.__bot, source_support.get_id(source_support.author(message)),
-                source_support.name(source_support.author(message)),
-                global_name=source_support.display_name(source_support.author(message)),
+                source_support.name(source_support.author(message), message=message),
+                global_name=source_support.display_name(source_support.author(message), message=message),
                 platform=source, system=system
             )
 
@@ -2400,7 +2401,7 @@ class UnifierBridge:
                             if not user:
                                 global_name = 'unknown-user'
                             else:
-                                global_name = source_support.display_name(user)
+                                global_name = source_support.display_name(user, message=message)
                         if user:
                             clean_content = clean_content.replace(f'<@{userid}>',
                                                                   f'@{global_name}').replace(
@@ -2506,7 +2507,7 @@ class UnifierBridge:
                         else:
                             reply_support = self.__bot.platforms[reply_msg.source]
                             user = reply_support.get_user(reply_msg.author_id)
-                            author_text = f'@{reply_support.display_name(user)}'
+                            author_text = f'@{reply_support.display_name(user, message=message)}'
                         if f'{reply_msg.author_id}' in list(self.__bot.db['nicknames'].keys()):
                             author_text = '@'+self.__bot.db['nicknames'][f'{reply_msg.author_id}']
                     except:

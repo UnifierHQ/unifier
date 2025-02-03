@@ -147,11 +147,11 @@ class PlatformBase:
         """Returns the ID from any object."""
         raise MissingImplementation()
 
-    def display_name(self, user):
+    def display_name(self, user, message=None):
         """Returns the display name of a user object, username if no display name is set."""
         raise MissingImplementation()
 
-    def user_name(self, user):
+    def user_name(self, user, message=None):
         """Returns the username of a user object."""
         raise MissingImplementation()
 
@@ -160,7 +160,7 @@ class PlatformBase:
         Override this if needed."""
         return self.user_name(obj)
 
-    def avatar(self, user):
+    def avatar(self, user, message=None):
         """Returns the avatar URL of a user object."""
         raise MissingImplementation()
 
