@@ -1,6 +1,7 @@
 name: Feature request
 description: Got a suggestion for Unifier? Let us know!
 title: '[Feat] '
+type: Feature
 assignees:
   - greeeen-dev
 labels:
