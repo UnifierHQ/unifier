@@ -947,6 +947,21 @@
         "description": "Shows EXP leaderboard.",
         "title": "{botname} leaderboard"
       },
+      "pause": {
+        "description": "Pauses or unpauses your messages from bridging.",
+        "title": "Pause your messages from bridging?",
+        "title_disable": "Continue bridging your messages?",
+        "body": "This will stop your messages from being bridged on all {botname} rooms.",
+        "body_2": "This can be helpful if you use proxies to chat, such as Tupperbox and PluralKit.",
+        "body_3": "You can unpause your messages at any time using the same command.",
+        "body_disable": "This will allow {botname} to bridge your messages again.",
+        "pause": "Pause",
+        "unpause": "Resume",
+        "title_success": "Bridging paused",
+        "title_disable_success": "Bridging resumed",
+        "body_success": "Your messages will no longer be bridged.",
+        "body_disable_success": "Your messages will now be bridged again."
+      },
       "initbridge": {
         "description": "Initializes new UnifierBridge object.",
         "success": "Bridge initialized"

@@ -426,6 +426,10 @@ class UnifierBridge:
         """User or server is global banned."""
         pass
 
+    class BridgePausedError(BridgeError):
+        """User has paused bridging their messages."""
+        pass
+
     class RoomNotFoundError(BridgeError):
         """Room does not exist."""
         pass
@@ -1625,6 +1629,10 @@ class UnifierBridge:
                 self.__bot.db['banned'].pop(str(author))
             else:
                 raise self.BridgeBannedError()
+
+        # Check if user has paused bridging
+        if str(author) in self.__bot.db['paused']:
+            raise self.BridgePausedError()
 
         # Run Filters check
         for bridge_filter in self.filters:
@@ -5324,7 +5332,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.colour = self.bot.colors.warning
         await ctx.send(embed=embed)
 
-    @bridge.subcommand(description=language.desc('bridge.level'))
+    @bridge.subcommand(
+        description=language.desc('bridge.level'),
+        description_localizations=language.slash_desc('bridge.level')
+    )
     async def level(
             self, ctx: nextcord.Interaction,
             user: Optional[nextcord.User] = slash.option('bridge.level.user', required=False)
@@ -5358,7 +5369,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         await ctx.send(embed=embed)
 
-    @bridge.subcommand(description=language.desc('bridge.leaderboard'))
+    @bridge.subcommand(
+        description=language.desc('bridge.leaderboard'),
+        description_localizations=language.slash_desc('bridge.leaderboard')
+    )
     async def leaderboard(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
@@ -5468,6 +5482,73 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 page += 1
             elif interaction.data['custom_id']=='last':
                 page = max_page
+
+    @bridge.subcommand(
+        description=language.desc('bridge.pause'),
+        description_localizations=language.slash_desc('bridge.pause')
+    )
+    @restrictions.not_banned()
+    async def pause(self, ctx: nextcord.Interaction):
+        selector = language.get_selector(ctx)
+        paused = f'{ctx.user.id}' in self.bot.db['paused']
+
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} {selector.get("title")}',
+            description=(
+                selector.fget("body", values={"botname": self.bot.user.global_name or self.bot.user.name}) + ' ' +
+                selector.get("body_2") + '\n' + selector.get("body_3")
+            ),
+            color=self.bot.colors.warning
+        )
+
+        if paused:
+            embed.title = f'{self.bot.ui_emojis.warning} {selector.get("title_disable")}'
+            embed.description = selector.fget("body_disable", values={
+                "botname": self.bot.user.global_name or self.bot.user.name
+            })
+
+        components = ui.MessageComponents()
+        components.add_rows(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.green,
+                    label=selector.get("unpause") if paused else selector.get("pause"),
+                    custom_id='toggle'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label=selector.rawget("nevermind", "commons.navigation"),
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+        msg = await msg.fetch()
+
+        def check(interaction):
+            if not interaction.message:
+                return False
+            return interaction.user.id==ctx.user.id and interaction.message.id==msg.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except asyncio.TimeoutError:
+            return await msg.edit(view=None)
+
+        if not paused:
+            self.bot.db['paused'].append(f'{ctx.user.id}')
+            self.bot.db.save_data()
+            embed.title = f'{self.bot.ui_emojis.success} {selector.get("title_success")}'
+            embed.description = selector.get("body_success")
+        else:
+            self.bot.db['paused'].remove(f'{ctx.user.id}')
+            self.bot.db.save_data()
+            embed.title = f'{self.bot.ui_emojis.success} {selector.get("title_disable_success")}'
+            embed.description = selector.get("body_disable_success")
+
+        embed.colour = self.bot.colors.success
+        await interaction.response.edit_message(embed=embed, view=None)
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction):
