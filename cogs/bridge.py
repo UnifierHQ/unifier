@@ -254,7 +254,7 @@ class UnifierBridge:
                 'invites': [],
                 'platform': 'discord'
             }, 'emoji': None, 'description': None, 'display_name': None, 'banned': [], 'filters': {}, 'nsfw': False,
-            'relay_deletes': True, 'relay_edits': True
+            'settings': {}
         }
 
     @property
@@ -1767,7 +1767,7 @@ class UnifierBridge:
 
         roomdata = self.get_room(msg.room)
 
-        if not roomdata['meta']['settings'].get('relay_edit'):
+        if not roomdata['meta']['settings'].get('relay_edit', True):
             return
 
         async def edit_discord(msgs,friendly=False):
@@ -6545,7 +6545,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
-            if not roomdata['meta']['relay_deletes']:
+            if not roomdata['meta']['settings'].get('relay_delete', True):
                 return
 
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_delete'] or roomdata['meta']['private']:
