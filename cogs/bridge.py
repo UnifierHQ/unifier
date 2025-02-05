@@ -5512,7 +5512,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         components.add_rows(
             ui.ActionRow(
                 nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.green,
+                    style=nextcord.ButtonStyle.blurple,
                     label=selector.get("unpause") if paused else selector.get("pause"),
                     custom_id='toggle'
                 ),
