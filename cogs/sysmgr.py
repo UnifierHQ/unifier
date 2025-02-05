@@ -1033,6 +1033,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             failed.update({child_cog: 'Could not run pre-unload script.'})
             elif cog_exists:
                 toload.append(f'cogs.{cog}')
+                cog_clean = cog+'.py' if not cog.endswith('.py') else cog
+
+                for plugin in os.listdir('plugins'):
+                    if not plugin.endswith('.json'):
+                        continue
+
+                    with open('plugins/' + plugin) as file:
+                        pluginfo = json.load(file)
+
+                    if cog_clean in pluginfo['modules']:
+                        if cog_clean in pluginfo.get('uses_tokenstore', []):
+                            allow_tokenstore(plugin[:-5], f'cogs.{cog}')
+                        if cog_clean in pluginfo.get('uses_storage', []):
+                            allow_storage(plugin[:-5], f'cogs.{cog}')
             else:
                 toload.append(f'cogs.{cog}')
                 skip.append(f'cogs.{cog}')
@@ -1080,7 +1094,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     for plugin in requires_storage.keys():
                         if toload_cog in requires_storage[plugin]:
                             # noinspection PyUnresolvedReferences
-                            extras.update({'storage': secrets_issuer.get_secret(plugin)})
+                            extras.update({'storage': secrets_issuer.get_storage(plugin)})
                             break
 
                     try:
