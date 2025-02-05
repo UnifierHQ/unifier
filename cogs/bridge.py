@@ -1959,7 +1959,11 @@ class UnifierBridge:
         else:
             scan_content = source_support.content(message)
             scan_files = len(source_support.attachments(message))
-        await self.can_send(room, message, scan_content, scan_files, source=source)
+
+        try:
+            await self.can_send(room, message, scan_content, scan_files, source=source)
+        except self.BridgeError:
+            return
 
         if not platform in self.__bot.db['rooms'][room].keys():
             return
