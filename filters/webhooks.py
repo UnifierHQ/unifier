@@ -3,7 +3,7 @@ from utils.base_filter import FilterResult, BaseFilter
 class Filter(BaseFilter):
     def __init__(self):
         super().__init__(
-            'bots',
+            'webhooks',
             'Webhooks Filter',
             (
                 'A filter that blocks webhook messages. Webhooks created by Unifier will always be blocked regardless '+

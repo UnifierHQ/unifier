@@ -348,7 +348,10 @@ class UnifierBridge:
                                      self.external_copies[platform][str(guild_id)][1])
 
     class UnifierUser:
-        def __init__(self, bot, user_id, name, global_name=None, platform='discord', system=False, message=None):
+        def __init__(
+                self, bot, user_id, name, global_name=None, platform='discord', system=False, message=None,
+                webhook=False, custom_avatar=None
+        ):
             self.__bot = bot
             self.__id = user_id
             self.__name = name
@@ -357,6 +360,8 @@ class UnifierBridge:
             self.__system = system
             self.__redacted = False
             self.__message = message
+            self.__webhook = webhook
+            self.__custom_avatar = custom_avatar
 
         @property
         def id(self):
@@ -394,11 +399,27 @@ class UnifierBridge:
 
         @property
         def avatar_url(self):
+            if self.__custom_avatar:
+                return self.__custom_avatar
+
             if self.platform == 'discord':
-                return self.__bot.get_user(self.id).avatar.url
+                try:
+                    return self.__bot.get_user(self.id).avatar.url
+                except:
+                    # assume user is a webhook
+                    return self.__custom_avatar
 
             source_support = self.__bot.platforms[self.platform]
-            return source_support.avatar(source_support.get_user(self.id), message=self.__message)
+
+            try:
+                return source_support.avatar(source_support.get_user(self.id), message=self.__message)
+            except:
+                # assume user is a webhook or similar
+                return self.__custom_avatar
+
+        @property
+        def webhook(self):
+            return self.__webhook
 
         def redact(self):
             self.__redacted = True
@@ -1901,16 +1922,27 @@ class UnifierBridge:
         dest_support = self.__bot.platforms[platform] if platform != 'discord' else None
 
         if source == 'discord':
+            msg_custom_avatar = message.author.avatar.url if message.author.avatar else None
             unifier_user: UnifierBridge.UnifierUser = UnifierBridge.UnifierUser(
                 self.__bot, message.author.id, message.author.name, global_name=message.author.global_name,
-                system=system
+                system=system, webhook=not message.webhook_id==None, custom_avatar=msg_custom_avatar
             )
         else:
+            try:
+                msg_is_webhook = not source_support.webhook_id(message)==None
+            except platform_base.MissingImplementation:
+                msg_is_webhook = False
+
+            try:
+                msg_custom_avatar = source_support.avatar(source_support.author(message), message=message)
+            except platform_base.MissingImplementation:
+                msg_custom_avatar = None
+
             unifier_user: UnifierBridge.UnifierUser = UnifierBridge.UnifierUser(
                 self.__bot, source_support.get_id(source_support.author(message)),
                 source_support.name(source_support.author(message), message=message),
                 global_name=source_support.display_name(source_support.author(message), message=message),
-                platform=source, system=system
+                platform=source, system=system, webhook=msg_is_webhook, custom_avatar=msg_custom_avatar
             )
 
         if not source in self.__bot.platforms.keys() and not source=='discord':

@@ -166,9 +166,14 @@ class FilterDialog:
                 inline=False
             )
 
+            trimmed = filter_obj.description or self.selector.get("no_desc")
+            if len(trimmed) > 100:
+                trimmed = trimmed[:97] + '...'
+
+
             self.selection.add_option(
                 label=filter_obj.name,
-                description=filter_obj.description or self.selector.get("no_desc"),
+                description=trimmed,
                 value=filter_obj.id
             )
 
@@ -593,8 +598,16 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             self.bot.bridged_emojis = self.bot.db['emojis']
         if not hasattr(self.bot, 'trusted_group'):
             self.bot.trusted_group = self.bot.db['trusted']
-        restrictions.attach_bot(self.bot)
-        restrictions_legacy.attach_bot(self.bot)
+        try:
+            restrictions.attach_bot(self.bot)
+        except ValueError:
+            # assume already attached
+            pass
+        try:
+            restrictions_legacy.attach_bot(self.bot)
+        except ValueError:
+            # assume already attached
+            pass
         self.logger = log.buildlogger(self.bot.package, 'upgrader', self.bot.loglevel)
         language = self.bot.langmgr
 
