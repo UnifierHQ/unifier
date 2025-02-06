@@ -4,6 +4,7 @@
   "description": "Unifier system extensions",
   "version": "v3.8.0-b.1",
   "release": 139,
+  "restart": 138,
   "minimum": 0,
   "shutdown": false,
   "modules": [
