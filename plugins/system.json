@@ -2,7 +2,7 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v3.8.0-b.1",
+  "version": "v3.8.0-b.2",
   "release": 139,
   "reboot": 138,
   "minimum": 0,
