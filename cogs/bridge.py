@@ -1610,7 +1610,7 @@ class UnifierBridge:
             webhook_id = None
             author = support.get_id(support.author(message))
             server = support.get_id(support.server(message))
-            name = support.name(support.author(message), message=message)
+            name = support.user_name(support.author(message), message=message)
             avatar = support.avatar(support.author(message), message=message)
 
             try:
@@ -1940,7 +1940,7 @@ class UnifierBridge:
 
             unifier_user: UnifierBridge.UnifierUser = UnifierBridge.UnifierUser(
                 self.__bot, source_support.get_id(source_support.author(message)),
-                source_support.name(source_support.author(message), message=message),
+                source_support.user_name(source_support.author(message), message=message),
                 global_name=source_support.display_name(source_support.author(message), message=message),
                 platform=source, system=system, webhook=msg_is_webhook, custom_avatar=msg_custom_avatar
             )
