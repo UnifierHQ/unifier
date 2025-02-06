@@ -1157,7 +1157,7 @@ class UnifierBridge:
                 secure_load_success = False
             else:
                 data = jsontools.loads_bytes(data)
-            if not self.__bot.config['encrypt_backups'] or not secure_load_success:
+            if not secure_load_success:
                 with open(filename, "r") as file:
                     data = json.load(file)
 

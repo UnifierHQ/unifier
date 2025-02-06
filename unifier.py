@@ -468,7 +468,7 @@ class DiscordBot(commands.Bot):
         self.bridge = None
         self.pyversion = sys.version_info
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
-        self.db = AutoSaveDict({}, encrypt=data['encrypt_backups'])
+        self.db = AutoSaveDict({}, encrypt=True)
         self.db.load_data()
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
