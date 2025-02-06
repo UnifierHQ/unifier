@@ -2376,8 +2376,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     for cog in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + cog)
                         try:
-                            await self.preunload(cog)
-                            self.bot.reload_extension(cog)
+                            await self.manage_cog(cog, CogAction.reload)
                         except:
                             self.logger.warning(cog+' could not be reloaded.')
                             embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
@@ -2647,8 +2646,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if modname in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + modname)
                         try:
-                            await self.preunload(modname)
-                            self.bot.reload_extension(modname)
+                            await self.manage_cog(modname, CogAction.reload)
                         except:
                             self.logger.warning(modname+' could not be reloaded.')
                             embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
