@@ -598,11 +598,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         try:
                             extras = {}
 
-                            if extension in sysext.get('uses_tokenstore', []):
+                            if extension in extinfo.get('uses_tokenstore', []):
                                 # noinspection PyUnresolvedReferences
                                 extras.update({'tokenstore': secrets_issuer.get_secret(plugin[:-5])})
                                 self.logger.debug(f'Issued TokenStore to {extension}')
-                            if extension in sysext.get('uses_storage', []):
+                            if extension in extinfo.get('uses_storage', []):
                                 # noinspection PyUnresolvedReferences
                                 extras.update({'storage': secrets_issuer.get_storage(plugin[:-5])})
                                 self.logger.debug(f'Issued SecureStorage to {extension}')
@@ -992,6 +992,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
             plugin_data = {}
 
+            if plugin_exists:
+                with open('plugins/' + cog + '.json') as file:
+                    plugin_data = json.load(file)
+
             if plugin_exists and cog_exists:
                 if self.bot.config['plugin_priority']:
                     toload.extend(plugin_data['modules'])
@@ -1000,6 +1004,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         extension_clean = ext
                         if extension_clean.startswith('cogs.') or extension_clean.startswith('cogs/'):
                             extension_clean = ext[5:]
+
+                        if not ext.startswith('cogs.'):
+                            ext = 'cogs.' + ext
+                        if ext.endswith('.py'):
+                            ext = ext[:-3]
 
                         if extension_clean in plugin_data.get('uses_tokenstore', []):
                             allow_tokenstore(plugin_data['id'], ext)
@@ -1019,9 +1028,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 toload.extend([f'cogs.{module[:-3]}' for module in plugin_data['modules']])
 
                 for ext in plugin_data['modules']:
-                    if ext in plugin_data.get('uses_tokenstore', []):
+                    extension_clean = ext
+                    if extension_clean.startswith('cogs.') or extension_clean.startswith('cogs/'):
+                        extension_clean = ext[5:]
+
+                    if not ext.startswith('cogs.'):
+                        ext = 'cogs.' + ext
+                    if ext.endswith('.py'):
+                        ext = ext[:-3]
+
+                    if extension_clean in plugin_data.get('uses_tokenstore', []):
                         allow_tokenstore(plugin_data['id'], ext)
-                    if ext in plugin_data.get('uses_storage', []):
+                    if extension_clean in plugin_data.get('uses_storage', []):
                         allow_storage(plugin_data['id'], ext)
 
                 if not action == CogAction.load:
@@ -1088,6 +1106,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if toload_cog in requires_tokens[plugin]:
                             # noinspection PyUnresolvedReferences
                             extras.update({'tokenstore': secrets_issuer.get_secret(plugin)})
+                            self.logger.debug(f'Issued TokenStore to {toload_cog}')
                             break
 
                     # Generate SecureStorageWrapper if needed
@@ -1095,6 +1114,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if toload_cog in requires_storage[plugin]:
                             # noinspection PyUnresolvedReferences
                             extras.update({'storage': secrets_issuer.get_storage(plugin)})
+                            self.logger.debug(f'Issued SecureStorage to {toload_cog}')
                             break
 
                     try:
