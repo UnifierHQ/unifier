@@ -30,18 +30,26 @@ except:
     print('\x1b[31;1mSomething went wrong.\x1b[0m')
     sys.exit(1)
 
-
-with open('config.toml', 'rb') as file:
-    # noinspection PyTypeChecker
-    config = tomli.load(file)
-
-salt = config['system']['encrypted_env_salt']
-
 try:
-    tokenmgr = secrets.TokenStore(True, password=os.environ.get('UNIFIER_ENCPASS'), salt=salt)
+    tokenmgr = secrets.TokenStore(True, password=os.environ.get('UNIFIER_ENCPASS'))
 except ValueError:
     print('\x1b[31;1mYou must provide a password.\x1b[0m')
     sys.exit(1)
+
+if not tokenmgr.test_decrypt() and '.ivs' in os.listdir():
+    print('\x1b[33;1mAES-256-CBC encryption detected, converting to GCM mode...\x1b[0m')
+
+    with open('config.toml', 'rb') as file:
+        # noinspection PyTypeChecker
+        config = tomli.load(file)
+
+    converter = secrets.ToGCMTokenStore(
+        password=os.environ.get('UNIFIER_ENCPASS'),
+        salt=config['system']['encrypted_env_salt']
+    )
+
+    if converter.test_decrypt():
+        tokenmgr = converter.to_gcm()
 
 if not tokenmgr.test_decrypt():
     print('\x1b[31;1mInvalid password. Your encryption password is needed to manage tokens.\x1b[0m')
@@ -170,7 +178,7 @@ def reencrypt_tokens():
         return
 
     try:
-        tokenmgr.reencrypt(current_password, password, salt)
+        tokenmgr.reencrypt(current_password, password)
     except ValueError:
         print('\x1b[31;1mInvalid password. Your current encryption password is needed to re-encrypt tokens.\x1b[0m')
         return

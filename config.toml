@@ -7,6 +7,7 @@ language = "english"
 skip_status_check = false
 encrypted_env_salt = 10 # change this to whatever you want, as long as the bot doesn't crash
 plugin_priority = true # set this to false if you want to load cogs instead of modifiers with the same name
+experiments = [] # https://wiki.unifierhq.org/guides/system/experiments
 
 [roles]
 owner = -1
@@ -27,6 +28,10 @@ custom_slogan = ""
 [backups]
 compress_cache = true
 cache_backup_limit = 10000
+encrypted_backups = true # enables encryption for local backups (cloud backups are always encrypted)
+zstd_level = 1 # compression level, -7 (best performance) - 22 (best compression). 1 is recommended.
+zstd_chunk_size = 4194304 # 4MB chunk size (4 * 1024 * 1024)
+zstd_threads = -1 # thread count, -1 (auto) or 1+ (manual thread count)
 periodic_backup = 0
 periodic_backup_cloud = 0
 cloud_backup_endpoint = ""

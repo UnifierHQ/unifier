@@ -255,6 +255,7 @@
         "noupdates_body": "Unifier is up-to-date.",
         "available_title": "Update available",
         "available_body": "An update is available for Unifier!\n\nCurrent version: {current_ver} (`{current_rel}`)\nNew version: {new_ver} (`{new_rel}`)",
+        "unstable":  "You are on the `{branch}` branch, which is not considered stable. Upgrade at your own risk.",
         "latest": "Latest version",
         "legacy": "Legacy version",
         "reboot_required": "The bot will need to reboot to apply the new update.",
@@ -594,6 +595,44 @@
         "description": "Enables or disables usage of server emojis as Global Emojis.",
         "success_set": "All members can now use your emojis!",
         "success_unset": "All members can now no longer use your emojis!"
+      },
+      "filters": {
+        "description": "Manages Filters for a room.",
+        "options": {
+          "room": {
+            "name": "room",
+            "description": "The room you want to manage Filters for. Leave empty to autodetect."
+          },
+          "query": {
+            "name": "query",
+            "description": "The filter to search for."
+          }
+        },
+        "title": "`{room}` Filters",
+        "title_global": "Global Filters",
+        "choose_filter": "Choose a filter to view its info!",
+        "selection": "Filter...",
+        "selection_config": "Configuration...",
+        "no_desc": "No description provided",
+        "noresults_title": "No filters",
+        "noresults_body_search": "There are no filters matching your search query.",
+        "noresults_body_filter": "There are no filters here!",
+        "search": "search",
+        "filter_name": "Filter name",
+        "filter_desc": "Filter description",
+        "enabled": "This filter is {emoji} **enabled**.",
+        "disabled": "This filter is {emoji} **disabled**.",
+        "current": "Current value",
+        "search_prompt": "Type a filter...",
+        "change": "Change value",
+        "enable": "Enable filter",
+        "disable": "Disable filter",
+        "form_title": "Change config value...",
+        "value": "New value",
+        "value_prompt": "Type something...",
+        "limits": "Limits",
+        "limit_num": "Value must be between {lower} and {upper}.",
+        "limit_str": "Value must be between {lower} and {upper} characters long."
       }
     },
     "bridge": {
@@ -908,6 +947,21 @@
         "description": "Shows EXP leaderboard.",
         "title": "{botname} leaderboard"
       },
+      "pause": {
+        "description": "Pauses or unpauses your messages from bridging.",
+        "title": "Pause your messages from bridging?",
+        "title_disable": "Continue bridging your messages?",
+        "body": "This will stop your messages from being bridged on all {botname} rooms.",
+        "body_2": "This can be helpful if you use proxies to chat, like Tupperbox and PluralKit.",
+        "body_3": "You can unpause your messages at any time using the same command.",
+        "body_disable": "This will allow {botname} to bridge your messages again.",
+        "pause": "Pause",
+        "unpause": "Resume",
+        "title_success": "Bridging paused",
+        "title_disable_success": "Bridging resumed",
+        "body_success": "Your messages will no longer be bridged.",
+        "body_disable_success": "Your messages will now be bridged again."
+      },
       "initbridge": {
         "description": "Initializes new UnifierBridge object.",
         "success": "Bridge initialized"
@@ -927,6 +981,7 @@
       "bridge": {
         "blocked_title": "Content blocked",
         "blocked_body": "Your message was blocked. Moderators may be able to see the blocked content.",
+        "blocked_disclaimer": "If the message was sent in a Public Room, instance moderators may be able to see the blocked content.",
         "blocked_report_title": "Content blocked - content is as follows",
         "punished": "Punished user IDs",
         "involved": "{count} users involved",
@@ -949,6 +1004,7 @@
         "moderated": "Moderated username",
         "filesize_limit": "Your files passed the {limit}MB limit. Some files will not be sent.",
         "replying": "Replying to {user}",
+        "command": "@{user} ran {command}",
         "deleted": "Message deleted from `{roomname}`",
         "edited": "Message edited in `{roomname}`",
         "original": "Original",

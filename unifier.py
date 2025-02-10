@@ -16,6 +16,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+# import modules
 import nextcord
 from nextcord import Interaction, ApplicationError
 from nextcord.ext import commands
@@ -34,7 +35,7 @@ import shutil
 import filecmp
 import datetime
 from typing_extensions import Self
-from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr
+from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr, jsontools
 from pathlib import Path
 
 # import ujson if installed
@@ -107,6 +108,8 @@ for directory in directories:
             if directory == 'boot':
                 replaced_boot = True
 
+# import uvloop/winloop if installed
+# this makes asyncio faster
 try:
     # as only winloop or uvloop will be installed depending on the system,
     # we will ask pylint to ignore importerrors for both
@@ -166,6 +169,12 @@ for key in data:
         newdata.update({newkey: data[key][newkey]})
 
 data = newdata
+
+# copy filters from update
+if not os.path.isdir('filters'):
+    os.mkdir('filters')
+    for file in os.listdir('update/filters'):
+        shutil.copy2(f'update/filters/{file}', f'filters/{file}')
 
 encrypted_env = {}
 ivs = {}
@@ -231,23 +240,56 @@ except:
     with open('update.json', 'r') as file:
         vinfo = json.load(file)
 
+# TokenStore and SecureStorage initialization
+tokenstore = secrets.TokenStore(
+    not should_encrypt,
+    password=os.environ['UNIFIER_ENCPASS'],
+    debug=data['debug'],
+    onetime=['TOKEN']
+)
+
+if should_encrypt:
+    tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'])
+    os.remove('.env')
+
+if not tokenstore.test_decrypt() and '.ivs' in os.listdir():
+    logger.info('AES-256-CBC encryption detected, converting to GCM mode...')
+    converter = secrets.ToGCMTokenStore(
+        password=os.environ['UNIFIER_ENCPASS'],
+        salt=data['encrypted_env_salt'],
+        debug=data['debug'],
+        onetime=['TOKEN']
+    )
+
+    if converter.test_decrypt():
+        tokenstore = converter.to_gcm()
+
+secure_storage = secrets.SecureStorage(secrets.RawEncryptor(os.environ['UNIFIER_ENCPASS']), tokenstore=tokenstore)
+
+# Plugin secret entitlements
+issued_tokens = {} # tokenstore entitlements issued
+issued_storage = {} # secure storage entitlements issued
+
 class AutoSaveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.file_path = 'data.json'
         self.__save_lock = False
+        self.__encrypted = kwargs.get('encrypt', False)
 
         # Ensure necessary keys exist
-        self.update({'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
-                     'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
-                     'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
-                     'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
-                     'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}}
-                    )
+        self.update(self.base)
         self.threads = []
 
-        # Load data
-        self.load_data()
+    @property
+    def base(self):
+        return {
+            'rooms': {}, 'emojis': [], 'nicknames': {}, 'blocked': {}, 'banned': {},
+            'moderators': [], 'avatars': {}, 'experiments': {}, 'experiments_info': {}, 'colors': {},
+            'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
+            'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
+            'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}, 'paused': []
+        }
 
     @property
     def save_lock(self):
@@ -260,19 +302,39 @@ class AutoSaveDict(dict):
         self.__save_lock = save_lock
 
     def load_data(self):
+        if self.__encrypted:
+            try:
+                data = secure_storage.load(self.file_path)
+                data = jsontools.loads_bytes(data)
+                self.update(data)
+                return
+            except:
+                pass
         try:
             with open(self.file_path, 'r') as file:
                 data = json.load(file)
             self.update(data)
         except FileNotFoundError:
             pass  # If the file is not found, initialize an empty dictionary
+        except json.JSONDecodeError:
+            pass  # If the file is corrupted, initialize an empty dictionary
 
     def save(self):
+        tosave = {}
+        for key in self.keys():
+            if not key in self.base.keys():
+                continue
+            tosave.update({key: self[key]})
         if self.__save_lock:
             return
-        with open(self.file_path, 'w') as file:
-            # noinspection PyTypeChecker
-            json.dump(self, file, indent=4)
+        if self.__encrypted:
+            data = jsontools.dumps_bytes(dict(tosave))
+            secure_storage.save(data, self.file_path)
+        else:
+            with open(self.file_path, 'w') as file:
+                # noinspection PyTypeChecker
+                json.dump(dict(tosave), file, indent=4)
+
         return
 
     def cleanup(self):
@@ -288,6 +350,106 @@ class AutoSaveDict(dict):
         thread = threading.Thread(target=self.save)
         thread.start()
         self.threads.append(thread)
+
+class TokenStoreWrapper:
+    """Wrapper for secrets.TokenStore methods with some security restrictions."""
+
+    def __init__(self, entitled):
+        # TokenStoreWrapper allows multiple plugins to share the same token unless protection is requested by the plugin
+        self.__entitled = entitled
+
+    def retrieve(self, identifier):
+        if not identifier in self.__entitled:
+            return None
+
+        return tokenstore.retrieve(identifier)
+
+class SecureStorageWrapper:
+    """Wrapper for secrets.SecureStorage methods wuth some security restrictions."""
+
+    def __init__(self, entitled):
+        self.__entitled = entitled
+        self.__protected = [
+            '.encryptedenv', 'data.json', 'config.toml', 'unifier.py', 'run.sh', 'run.bat', 'requirements.txt',
+            'requirements_balanced.txt', 'requirements_stable.txt', 'boot_config.json'
+        ]
+        self.__protected_folders = [
+            'boot', 'cogs', 'emojis', 'filters', 'languages', 'plugins', 'utils'
+        ]
+
+        for entitlement in self.__entitled:
+            if entitlement in self.__protected:
+                raise ValueError(f'file {entitlement} is protected')
+            for folder in self.__protected_folders:
+                if entitlement.startswith(folder):
+                    raise ValueError(f'folder {entitlement} is protected')
+
+    def save(self, data, filename):
+        """Wrapper method for secrets.SecureStorage.save"""
+        if not filename in self.__entitled:
+            raise ValueError(f'plugin cannot access {filename}')
+
+        return secure_storage.save(data, filename)
+
+    def load(self, filename):
+        """Wrapper method for secrets.SecureStorage.load"""
+        if not filename in self.__entitled:
+            return None
+
+        return secure_storage.load(filename)
+
+class SecretsIssuer:
+    def __init__(self):
+        pass
+
+    def get_secret(self, plugin):
+        try:
+            with open(f'plugins/{plugin}.json') as file:
+                plugin_data = json.load(file)
+        except FileNotFoundError:
+            return None
+
+        available = plugin_data.get('required_tokens', [])
+        available_protect = plugin_data.get('required_tokens_protected', [])
+
+        if not available:
+            raise ValueError('plugin does not use tokens')
+
+        for issued_plugin in issued_tokens.keys():
+            if issued_plugin == plugin:
+                continue
+            used = issued_tokens[issued_plugin]
+            for identifier in available:
+                if identifier in used:
+                    raise ValueError(f'token {identifier} is already used, cannot re-issue access')
+
+        issued_tokens.update({plugin: available_protect})
+
+        return TokenStoreWrapper(available)
+
+    def get_storage(self, plugin):
+        try:
+            with open(f'plugins/{plugin}.json') as file:
+                plugin_data = json.load(file)
+        except FileNotFoundError:
+            return None
+
+        available = plugin_data.get('secure_files', [])
+
+        if not available:
+            raise ValueError('plugin does not use secure storage')
+
+        for issued_plugin in issued_storage.keys():
+            if issued_plugin == plugin:
+                continue
+            used = issued_storage[issued_plugin]
+            for file in available:
+                if file in used:
+                    raise ValueError(f'file {file} is already used, cannot re-issue access')
+
+        issued_storage.update({plugin: available})
+
+        return SecureStorageWrapper(available)
 
 class DiscordBot(commands.Bot):
     """Extension of discord.ext.commands.Bot for bot configuration"""
@@ -305,21 +467,11 @@ class DiscordBot(commands.Bot):
         self.__setup_lock = False
         self.bridge = None
         self.pyversion = sys.version_info
-        self.db = AutoSaveDict({})
         self.__uses_v3 = int(nextcord.__version__.split('.',1)[0]) == 3
-        self.__tokenstore = secrets.TokenStore(
-            not should_encrypt,
-            password=os.environ['UNIFIER_ENCPASS'],
-            salt=data['encrypted_env_salt'],
-            debug=data['debug'],
-            onetime=['TOKEN']
-        )
+        self.db = AutoSaveDict({}, encrypt=True)
+        self.db.load_data()
         self.__langmgr = langmgr.LanguageManager(self)
         self.cooldowns = {}
-
-        if should_encrypt:
-            self.__tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'], data['encrypted_env_salt'])
-            os.remove('.env')
 
     @property
     def package(self):
@@ -437,10 +589,6 @@ class DiscordBot(commands.Bot):
         return self.__uses_v3
 
     @property
-    def tokenstore(self):
-        return self.__tokenstore
-
-    @property
     def admins(self):
         return [self.owner, *self.other_owners, *self.config['admin_ids']]
 
@@ -451,6 +599,31 @@ class DiscordBot(commands.Bot):
     async def on_application_command_error(self, interaction: Interaction, exception: ApplicationError):
         # suppress exception traceback as they're already logged
         pass
+
+    def test_decrypt(self):
+        return tokenstore.test_decrypt()
+
+    def retrieve_token(self):
+        return tokenstore.retrieve('TOKEN')
+
+    def load_extension(self, *args, **kwargs):
+        # Give secrets issuer to sysmgr
+        if args[0] == 'cogs.sysmgr':
+            issuer = SecretsIssuer()
+            kwargs.update({'extras': {'issuer': issuer}})
+
+        super().load_extension(*args, **kwargs)
+
+    def reload_extension(self, *args, **kwargs):
+        # Give secrets issuer to sysmgr
+        if args[0] == 'cogs.sysmgr':
+            issuer = SecretsIssuer()
+            kwargs.update({'extras': {'issuer': issuer}})
+
+        super().reload_extension(*args, **kwargs)
+
+    def unload_extension(self, *args, **kwargs):
+        super().unload_extension(*args, **kwargs)
 
 class Intents(nextcord.Intents):
     def __init__(self, **kwargs):
@@ -474,7 +647,7 @@ bot.safemode = 'safemode' in sys.argv and not bot.coreboot
 bot.devmode = 'devmode' in sys.argv
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
-if not bot.tokenstore.test_decrypt():
+if not bot.test_decrypt():
     del os.environ['UNIFIER_ENCPASS']
     print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
     print('\x1b[31;1mIf you\'ve forgot your password, run the bootscript again with --clear-tokens\x1b[0m')
@@ -594,12 +767,12 @@ async def on_ready():
             logger.debug(f'Periodic backups disabled')
     logger.info("Registering application commands...")
     try:
-        await bot.sync_all_application_commands()
+        await bot.discover_application_commands()
     except:
         # If sync fails, all commands are removed from Discord then re-registered.
         logger.warning('Register failed, trying alternate method...')
         await bot.delete_application_commands()
-        await bot.register_new_application_commands()
+    await bot.register_new_application_commands()
     logger.info('Unifier is ready!')
     if not bot.ready:
         bot.ready = True
@@ -651,7 +824,7 @@ async def on_message(message):
 os.environ.pop('UNIFIER_ENCPASS')
 
 try:
-    bot.run(bot.tokenstore.retrieve('TOKEN'))
+    bot.run(bot.retrieve_token())
 except SystemExit as e:
     try:
         code = int(f'{e}')

@@ -72,13 +72,14 @@ restrictions_legacy = r_legacy.Restrictions()
 language = langmgr.partial()
 language.load()
 slash = slash_helper.SlashHelper(language)
+secrets_issuer = None
 
 # Below are attributions to the works we used to build Unifier (including our own).
 # If you've modified Unifier to use more works, please add it here.
 attribution = {
     'unifier': {
         'author': 'UnifierHQ',
-        'description': 'A fast and versatile Discord bot connecting servers and platforms',
+        'description': 'A cross-server and cross-platform bridge bot that works just as fast as you can type \U0001F680',
         'repo': 'https://github.com/UnifierHQ/unifier',
         'license': 'AGPLv3',
         'license_url': 'https://github.com/UnifierHQ/unifier/blob/main/LICENSE.txt'
@@ -89,20 +90,6 @@ attribution = {
         'repo': 'https://github.com/nextcord/nextcord',
         'license': 'MIT',
         'license_url': 'https://github.com/nextcord/nextcord/blob/master/LICENSE'
-    },
-    'revolt.py': {
-        'author': 'Revolt',
-        'description': 'Python wrapper for https://revolt.chat',
-        'repo': 'https://github.com/revoltchat/revolt.py',
-        'license': 'MIT',
-        'license_url': 'https://github.com/revoltchat/revolt.py/blob/master/LICENSE'
-    },
-    'guilded.py': {
-        'author': 'shay',
-        'description': 'Asynchronous Guilded API wrapper for Python',
-        'repo': 'https://github.com/shayypy/guilded.py',
-        'license': 'MIT',
-        'license_url': 'https://github.com/shayypy/guilded.py/blob/master/LICENSE'
     },
     'aiofiles': {
         'author': 'Tin Tvrtković',
@@ -573,8 +560,28 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 with open('plugins/system.json') as file:
                     sysext = json.load(file)
             for extension in sysext['modules']:
+                extension_clean = extension
+                if extension_clean.startswith('cogs.') or extension_clean.startswith('cogs/'):
+                    extension_clean = extension[5:]
+
                 try:
-                    self.bot.load_extension('cogs.' + extension[:-3])
+                    extras = {}
+
+                    if extension_clean in sysext.get('uses_tokenstore', []):
+                        # noinspection PyUnresolvedReferences
+                        extras.update({'tokenstore': secrets_issuer.get_secret('system')})
+                        self.logger.debug(f'Issued TokenStore to {extension}')
+                    if extension_clean in sysext.get('uses_storage', []):
+                        # noinspection PyUnresolvedReferences
+                        extras.update({'storage': secrets_issuer.get_storage('system')})
+                        self.logger.debug(f'Issued SecureStorage to {extension}')
+
+                    try:
+                        self.bot.load_extension('cogs.' + extension[:-3], extras=extras)
+                    except nextcord.ext.commands.errors.InvalidSetupArguments:
+                        # assume cog does not use extras kwargs
+                        self.bot.load_extension('cogs.' + extension[:-3])
+
                     self.logger.debug('Loaded system plugin '+extension)
                 except:
                     self.logger.critical('System plugin load failed! (' + extension + ')')
@@ -589,7 +596,23 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         extinfo = json.load(file)
                     for extension in extinfo['modules']:
                         try:
-                            self.bot.load_extension('cogs.' + extension[:-3])
+                            extras = {}
+
+                            if extension in extinfo.get('uses_tokenstore', []):
+                                # noinspection PyUnresolvedReferences
+                                extras.update({'tokenstore': secrets_issuer.get_secret(plugin[:-5])})
+                                self.logger.debug(f'Issued TokenStore to {extension}')
+                            if extension in extinfo.get('uses_storage', []):
+                                # noinspection PyUnresolvedReferences
+                                extras.update({'storage': secrets_issuer.get_storage(plugin[:-5])})
+                                self.logger.debug(f'Issued SecureStorage to {extension}')
+
+                            try:
+                                self.bot.load_extension('cogs.' + extension[:-3], extras=extras)
+                            except nextcord.ext.commands.errors.InvalidSetupArguments:
+                                # assume cog does not use extras kwargs
+                                self.bot.load_extension('cogs.' + extension[:-3])
+
                             self.logger.debug('Loaded plugin ' + extension)
                         except:
                             self.logger.warning('Plugin load failed! (' + extension + ')')
@@ -626,6 +649,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if not self.bot.backup_cloud_task.is_running() and round(self.bot.config['periodic_backup_cloud']) > 0:
                 self.bot.backup_cloud_task.start()
                 self.logger.debug(f'Backing up data to cloud every {round(self.bot.config["ping"])} seconds')
+
+        try:
+            with open('boot_config.json') as file:
+                boot_config = json.load(file)
+        except:
+            pass
+        else:
+            self.pip_user_arg = ' --user' if not boot_config['bootloader'].get('global_dep_install', False) else ''
 
     def get_all_commands(self, cog=None):
         def extract_subcommands(__command):
@@ -933,6 +964,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         skip = []
         success = []
         failed = {}
+        requires_tokens = {}
+        requires_storage = {}
 
         async def run_check(plugin_name, plugin):
             if not plugin['shutdown']:
@@ -941,6 +974,18 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             script = importlib.import_module('utils.' + plugin_name + '_check')
             await script.check(self.bot)
 
+        def allow_tokenstore(plugin, cog):
+            if not plugin in requires_tokens.keys():
+                requires_tokens.update({plugin: []})
+
+            requires_tokens[plugin].append(cog)
+
+        def allow_storage(plugin, cog):
+            if not plugin in requires_storage.keys():
+                requires_storage.update({plugin: []})
+
+            requires_storage[plugin].append(cog)
+
         for cog in cogs:
             cog_exists = f'{cog}.py' in os.listdir('cogs')
             plugin_exists = f'{cog}.json' in os.listdir('plugins')
@@ -948,17 +993,54 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             plugin_data = {}
 
             if plugin_exists:
-                with open(f'plugins/{cog}.json') as file:
+                with open('plugins/' + cog + '.json') as file:
                     plugin_data = json.load(file)
 
             if plugin_exists and cog_exists:
                 if self.bot.config['plugin_priority']:
                     toload.extend(plugin_data['modules'])
-                    await run_check(cog, plugin_data)
+
+                    for ext in plugin_data['modules']:
+                        extension_clean = ext
+                        if extension_clean.startswith('cogs.') or extension_clean.startswith('cogs/'):
+                            extension_clean = ext[5:]
+
+                        if not ext.startswith('cogs.'):
+                            ext = 'cogs.' + ext
+                        if ext.endswith('.py'):
+                            ext = ext[:-3]
+
+                        if extension_clean in plugin_data.get('uses_tokenstore', []):
+                            allow_tokenstore(plugin_data['id'], ext)
+                        if extension_clean in plugin_data.get('uses_storage', []):
+                            allow_storage(plugin_data['id'], ext)
+
+                    if not action == CogAction.load:
+                        try:
+                            await run_check(cog, plugin_data)
+                        except:
+                            skip.extend([f'cogs.{module}' for module in plugin_data['modules']])
+                            for child_cog in [f'cogs.{module}' for module in plugin_data['modules']]:
+                                failed.update({child_cog: 'Could not run pre-unload script.'})
                 else:
                     toload.append(f'cogs.{cog}')
             elif plugin_exists:
                 toload.extend([f'cogs.{module[:-3]}' for module in plugin_data['modules']])
+
+                for ext in plugin_data['modules']:
+                    extension_clean = ext
+                    if extension_clean.startswith('cogs.') or extension_clean.startswith('cogs/'):
+                        extension_clean = ext[5:]
+
+                    if not ext.startswith('cogs.'):
+                        ext = 'cogs.' + ext
+                    if ext.endswith('.py'):
+                        ext = ext[:-3]
+
+                    if extension_clean in plugin_data.get('uses_tokenstore', []):
+                        allow_tokenstore(plugin_data['id'], ext)
+                    if extension_clean in plugin_data.get('uses_storage', []):
+                        allow_storage(plugin_data['id'], ext)
 
                 if not action == CogAction.load:
                     try:
@@ -969,18 +1051,77 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             failed.update({child_cog: 'Could not run pre-unload script.'})
             elif cog_exists:
                 toload.append(f'cogs.{cog}')
+                cog_clean = cog+'.py' if not cog.endswith('.py') else cog
+
+                for plugin in os.listdir('plugins'):
+                    if not plugin.endswith('.json'):
+                        continue
+
+                    with open('plugins/' + plugin) as file:
+                        pluginfo = json.load(file)
+
+                    if cog_clean in pluginfo['modules']:
+                        if cog_clean in pluginfo.get('uses_tokenstore', []):
+                            allow_tokenstore(plugin[:-5], f'cogs.{cog}')
+                        if cog_clean in pluginfo.get('uses_storage', []):
+                            allow_storage(plugin[:-5], f'cogs.{cog}')
             else:
                 toload.append(f'cogs.{cog}')
                 skip.append(f'cogs.{cog}')
                 failed.update({cog: 'The cog or plugin does not exist.'})
+
         for toload_cog in toload:
             if toload_cog in skip:
                 continue
             try:
                 if action == CogAction.load:
-                    self.bot.load_extension(toload_cog)
+                    extras = {}
+
+                    # Generate TokenStoreWrapper if needed
+                    for plugin in requires_tokens.keys():
+                        if toload_cog in requires_tokens[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'tokenstore': secrets_issuer.get_secret(plugin)})
+                            self.logger.debug(f'Issued TokenStore to {toload_cog}')
+                            break
+
+                    # Generate SecureStorageWrapper if needed
+                    for plugin in requires_storage.keys():
+                        if toload_cog in requires_storage[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'storage': secrets_issuer.get_storage(plugin)})
+                            self.logger.debug(f'Issued SecureStorage to {toload_cog}')
+                            break
+
+                    try:
+                        self.bot.load_extension(toload_cog, extras=extras)
+                    except nextcord.ext.commands.errors.InvalidSetupArguments:
+                        # assume cog does not use extras kwargs
+                        self.bot.load_extension(toload_cog)
                 elif action == CogAction.reload:
-                    self.bot.reload_extension(toload_cog)
+                    extras = {}
+
+                    # Generate TokenStoreWrapper if needed
+                    for plugin in requires_tokens.keys():
+                        if toload_cog in requires_tokens[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'tokenstore': secrets_issuer.get_secret(plugin)})
+                            self.logger.debug(f'Issued TokenStore to {toload_cog}')
+                            break
+
+                    # Generate SecureStorageWrapper if needed
+                    for plugin in requires_storage.keys():
+                        if toload_cog in requires_storage[plugin]:
+                            # noinspection PyUnresolvedReferences
+                            extras.update({'storage': secrets_issuer.get_storage(plugin)})
+                            self.logger.debug(f'Issued SecureStorage to {toload_cog}')
+                            break
+
+                    try:
+                        self.bot.reload_extension(toload_cog, extras=extras)
+                    except nextcord.ext.commands.errors.InvalidSetupArguments:
+                        # assume cog does not use extras kwargs
+                        self.bot.reload_extension(toload_cog)
                 elif action == CogAction.unload:
                     self.bot.unload_extension(toload_cog)
                 success.append(toload_cog)
@@ -1617,12 +1758,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         if sys.platform == 'win32':
                             binary = bootloader_config.get('binary', 'py -3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
                         else:
                             binary = bootloader_config.get('binary', 'python3')
                             await self.bot.loop.run_in_executor(None, lambda: status(
-                                os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                             ))
             except:
                 self.logger.exception('Dependency installation failed')
@@ -1870,6 +2011,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 return await msg.edit(embed=embed)
             selected = 0
             interaction = None
+
+            with open('boot/internal.json') as file:
+                bootdata = json.load(file)
+
             while True:
                 release = available[selected][2]
                 version = available[selected][0]
@@ -1880,6 +2025,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.description = selector.fget('available_body',values={
                     'current_ver':current['version'],'current_rel':current['release'],'new_ver':version,'new_rel':release
                 })
+
+                if not bootdata['stable_branch'] == self.bot.config['branch']:
+                    embed.description += '\n\n' + self.bot.ui_emojis.warning + ' ' + selector.get('unstable')
+
                 embed.remove_footer()
                 embed.colour = 0xffcc00
                 if legacy:
@@ -2126,12 +2275,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if sys.platform == 'win32':
                         binary = bootloader_config.get('binary', 'py -3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                            os.system(f'{binary} -m pip install{self.pip_user_arg} -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
                     else:
                         binary = bootloader_config.get('binary', 'python3')
                         await self.bot.loop.run_in_executor(None, lambda: status(
-                            os.system(f'{binary} -m pip install -U ' + '"' + '" "'.join(newdeps) + '"')
+                            os.system(f'{binary} -m pip install{self.pip_user_arg} -U ' + '"' + '" "'.join(newdeps) + '"')
                         ))
             except:
                 self.logger.exception('Dependency installation failed, no rollback required')
@@ -2227,8 +2376,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     for cog in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + cog)
                         try:
-                            await self.preunload(cog)
-                            self.bot.reload_extension(cog)
+                            await self.manage_cog(cog, CogAction.reload)
                         except:
                             self.logger.warning(cog+' could not be reloaded.')
                             embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
@@ -2376,12 +2524,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             if sys.platform == 'win32':
                                 binary = bootloader_config.get('binary', 'py -3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                    os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                             else:
                                 binary = bootloader_config.get('binary', 'python3')
                                 await self.bot.loop.run_in_executor(None, lambda: status(
-                                    os.system(f'{binary} -m pip install --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
+                                    os.system(f'{binary} -m pip install{self.pip_user_arg} --no-dependencies -U ' + '"' + '" "'.join(newdeps) + '"')
                                 ))
                 except:
                     self.logger.exception('Dependency installation failed')
@@ -2498,8 +2646,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if modname in list(self.bot.extensions):
                         self.logger.debug('Reloading extension: ' + modname)
                         try:
-                            await self.preunload(modname)
-                            self.bot.reload_extension(modname)
+                            await self.manage_cog(modname, CogAction.reload)
                         except:
                             self.logger.warning(modname+' could not be reloaded.')
                             embed.set_footer(text=f':warning: {selector.get("reload_warning")}')
@@ -3378,5 +3525,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     ) -> None:
         await self.bot.exhandler.handle(interaction, exception)
 
-def setup(bot):
+def setup(bot, issuer):
+    global secrets_issuer
+    secrets_issuer = issuer
     bot.add_cog(SysManager(bot))
