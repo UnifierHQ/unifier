@@ -2027,7 +2027,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 })
 
                 if not bootdata['stable_branch'] == self.bot.config['branch']:
-                    embed.description += '\n\n' + self.bot.ui_emojis.warning + ' ' + selector.get('unstable')
+                    embed.description += '\n\n' + self.bot.ui_emojis.warning + ' ' + selector.fget(
+                        'unstable', values={'branch': self.bot.config['branch']}
+                    )
 
                 embed.remove_footer()
                 embed.colour = 0xffcc00
