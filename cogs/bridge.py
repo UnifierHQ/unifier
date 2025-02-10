@@ -1135,10 +1135,13 @@ class UnifierBridge:
                 # noinspection PyUnresolvedReferences
                 data = cog_storage.load(filename)
             except json.JSONDecodeError:
+                # i could write the exceptions cleaner but i'm not bothered to
                 secure_load_success = False
             except UnicodeDecodeError:
                 secure_load_success = False
             except FileNotFoundError:
+                secure_load_success = False
+            except KeyError:
                 secure_load_success = False
             else:
                 data = jsontools.loads_bytes(compressor.decompress(data, self.__bot.config['zstd_chunk_size']))
@@ -1154,6 +1157,8 @@ class UnifierBridge:
             except UnicodeDecodeError:
                 secure_load_success = False
             except FileNotFoundError:
+                secure_load_success = False
+            except KeyError:
                 secure_load_success = False
             else:
                 data = jsontools.loads_bytes(data)
