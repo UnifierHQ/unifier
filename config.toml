@@ -27,11 +27,11 @@ custom_slogan = ""
 
 [backups]
 compress_cache = true
-cache_backup_limit = 200000
+cache_backup_limit = 200000 # number of messages to cache
 encrypted_backups = true # enables encryption for local backups (cloud backups are always encrypted)
 zstd_level = 1 # compression level, -7 (best performance) - 22 (best compression). 1 is recommended.
-zstd_chunk_size = 4194304 # 4MB chunk size (4 * 1024 * 1024)
-zstd_threads = -1 # thread count, -1 (auto) or 1+ (manual thread count)
+zstd_chunk_size = 4194304 # chunk size in bytes. default is 4MB (4 * 1024 * 1024).
+zstd_threads = -1 # thread count, -1 (auto) or 1+ (manual thread count). -1 is recommended.
 periodic_backup = 0
 periodic_backup_cloud = 0
 cloud_backup_endpoint = ""
