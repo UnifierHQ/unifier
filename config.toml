@@ -27,7 +27,7 @@ custom_slogan = ""
 
 [backups]
 compress_cache = true
-cache_backup_limit = 10000
+cache_backup_limit = 200000
 encrypted_backups = true # enables encryption for local backups (cloud backups are always encrypted)
 zstd_level = 1 # compression level, -7 (best performance) - 22 (best compression). 1 is recommended.
 zstd_chunk_size = 4194304 # 4MB chunk size (4 * 1024 * 1024)
