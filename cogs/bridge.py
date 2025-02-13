@@ -2838,6 +2838,8 @@ class UnifierBridge:
                     else:
                         try:
                             __files = files
+                            if dest_support.files_per_guild and not __files:
+                                raise NameError()
                         except NameError:
                             __files = await get_files(message.attachments)
 
