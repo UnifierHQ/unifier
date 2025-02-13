@@ -1392,7 +1392,7 @@ class UnifierBridge:
 
         roomdata = self.get_room(msg.room)
 
-        if not roomdata['meta']['settings'].get('relay_delete'):
+        if not roomdata['meta']['settings'].get('relay_delete', True):
             return 0
 
         threads = []
@@ -1772,7 +1772,7 @@ class UnifierBridge:
 
         roomdata = self.get_room(msg.room)
 
-        if not roomdata['meta']['settings'].get('relay_edit', True):
+        if not roomdata['meta']['settings'].get('relay_edits', True):
             return
 
         async def edit_discord(msgs,friendly=False):
@@ -2919,7 +2919,7 @@ class UnifierBridge:
                             continue
                         raise
 
-                    if result[1]:
+                    if len(result) > 2 and result[1]:
                         urls.update(result[1])
 
                     message_ids.update(result[0])
@@ -6407,7 +6407,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
-            if not roomdata['meta']['relay_edits']:
+            if not roomdata['meta']['settings'].get('relay_edits', True):
                 return
 
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_edit'] or roomdata['meta']['private']:
@@ -6502,7 +6502,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return
 
             roomdata = self.bot.bridge.get_room(roomname)
-            if not roomdata['meta']['relay_edits']:
+            if not roomdata['meta']['settings'].get('relay_edits', True):
                 return
 
             try:
