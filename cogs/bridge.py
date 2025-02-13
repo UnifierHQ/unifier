@@ -2919,7 +2919,7 @@ class UnifierBridge:
                             continue
                         raise
 
-                    if result[1]:
+                    if len(result) > 2 and result[1]:
                         urls.update(result[1])
 
                     message_ids.update(result[0])
