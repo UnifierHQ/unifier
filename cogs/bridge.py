@@ -1392,7 +1392,7 @@ class UnifierBridge:
 
         roomdata = self.get_room(msg.room)
 
-        if not roomdata['meta']['settings'].get('relay_delete'):
+        if not roomdata['meta']['settings'].get('relay_delete', True):
             return 0
 
         threads = []
