@@ -6385,9 +6385,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 else:
                     return
 
-        if not message.webhook_id == None:
-            # webhook msg, dont bother
-            return
+        if message.webhook_id and (
+                not message.type == nextcord.MessageType.chat_input_command and
+                not message.type == nextcord.MessageType.context_menu_command
+        ):
+            # webhook msg
+            try:
+                try:
+                    hook = self.bot.bridge.webhook_cache.get_webhook(f'{message.webhook_id}')
+                except:
+                    hook = await self.bot.fetch_webhook(message.webhook_id)
+
+                if hook.user.id == self.bot.user.id:
+                    raise ValueError()
+            except:
+                return
 
         if message.author.id == self.bot.user.id:
             return
@@ -6488,9 +6500,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     else:
                         return
 
-            if not message.webhook_id == None:
-                # webhook msg, dont bother
-                return
+            if message.webhook_id and (
+                    not message.type == nextcord.MessageType.chat_input_command and
+                    not message.type == nextcord.MessageType.context_menu_command
+            ):
+                # webhook msg
+                try:
+                    try:
+                        hook = self.bot.bridge.webhook_cache.get_webhook(f'{message.webhook_id}')
+                    except:
+                        hook = await self.bot.fetch_webhook(message.webhook_id)
+
+                    if hook.user.id == self.bot.user.id:
+                        raise ValueError()
+                except:
+                    return
 
             if message.author.id == self.bot.user.id:
                 return
@@ -6527,9 +6551,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
             return
 
-        if not message.webhook_id == None:
-            # webhook msg, dont bother
-            return
+        if message.webhook_id and (
+                not message.type == nextcord.MessageType.chat_input_command and
+                not message.type == nextcord.MessageType.context_menu_command
+        ):
+            # webhook msg
+            try:
+                try:
+                    hook = self.bot.bridge.webhook_cache.get_webhook(f'{message.webhook_id}')
+                except:
+                    hook = await self.bot.fetch_webhook(message.webhook_id)
+
+                if hook.user.id == self.bot.user.id:
+                    raise ValueError()
+            except:
+                return
 
         if message.author.id == self.bot.user.id:
             return
