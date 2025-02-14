@@ -966,7 +966,7 @@
         "description": "Manages prefixes and suffixes that Unifier should ignore.",
         "title": "Ignored prefixes and suffixes",
         "body": "Messages starting with a prefix and ending with a suffix in this list will be ignored.",
-        "body_2": "You can always add, edit, and remove a prefix and suffix at any time..",
+        "body_2": "You can always add, edit, and remove a prefix and suffix at any time.",
         "empty_title": "No entries",
         "empty_body": "There are no prefixes or suffixes here.",
         "entry_title": "Entry #{index}",
