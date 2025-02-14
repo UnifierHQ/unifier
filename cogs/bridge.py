@@ -268,7 +268,7 @@ class UnifierBridge:
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                      external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
-                     reactions=None, thread=None):
+                     reactions=None, thread=None, custom_name=None):
             self.author_id = author_id
             self.guild_id = guild_id
             self.channel_id = channel_id
@@ -284,6 +284,8 @@ class UnifierBridge:
             self.reply = reply
             self.external_bridged = external_bridged,
             self.thread = thread
+            self.custom_name = custom_name
+
             if not reactions or not type(reactions) is dict:
                 self.reactions = {}
             else:
@@ -2545,6 +2547,9 @@ class UnifierBridge:
                         if reply_msg.source=='discord':
                             user = self.__bot.get_user(int(reply_msg.author_id))
                             author_text = f'@{user.global_name or user.name}'
+
+                            if reply_msg.custom_name:
+                                author_text = reply_msg.custom_name
                         else:
                             reply_support = self.__bot.platforms[reply_msg.source]
                             user = reply_support.get_user(reply_msg.author_id)
@@ -3003,12 +3008,17 @@ class UnifierBridge:
                 server_id = message.guild.id
             else:
                 server_id = source_support.get_id(source_support.server(message))
+
+            custom_name = None
+
             if extbridge:
                 try:
                     hook = await self.__bot.fetch_webhook(message.webhook_id)
                     msg_author = hook.user.id
+                    custom_name = unifier_user.unifier_name
                 except:
                     pass
+
             self.bridged.append(UnifierBridge.UnifierMessage(
                 author_id=msg_author,
                 guild_id=server_id,
@@ -3021,7 +3031,8 @@ class UnifierBridge:
                 webhook=should_resend or system or extbridge,
                 prehook=message.id,
                 room=room,
-                reply=replying
+                reply=replying,
+                custom_name=custom_name
             ))
             if datetime.datetime.now().day != self.msg_stats_reset:
                 self.msg_stats = {}
