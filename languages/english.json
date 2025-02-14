@@ -962,6 +962,26 @@
         "body_success": "Your messages will no longer be bridged.",
         "body_disable_success": "Your messages will now be bridged again."
       },
+      "prefixes": {
+        "description": "Manages prefixes and suffixes that Unifier should ignore.",
+        "title": "Ignored prefixes and suffixes",
+        "body": "Messages starting with a prefix and ending with a suffix in this list will be ignored.",
+        "body_2": "You can always add, edit, and remove a prefix and suffix at any time..",
+        "empty_title": "No entries",
+        "empty_body": "There are no prefixes or suffixes here.",
+        "entry_title": "Entry #{index}",
+        "entry_edit": "Edit #{index}",
+        "entry_delete": "Delete #{index}",
+        "entry_prefix": "Prefix: `{prefix}`",
+        "entry_suffix": "Suffix: `{suffix}`",
+        "selection_edit": "Select entry to edit...",
+        "selection_delete": "Select entry to delete...",
+        "new": "Add new entry",
+        "edit": "Edit entry",
+        "delete": "Delete entry",
+        "prefix": "Prefix",
+        "suffix": "Suffix"
+      },
       "initbridge": {
         "description": "Initializes new UnifierBridge object.",
         "success": "Bridge initialized"

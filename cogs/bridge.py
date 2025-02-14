@@ -268,7 +268,7 @@ class UnifierBridge:
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                      external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
-                     reactions=None, thread=None):
+                     reactions=None, thread=None, custom_name=None):
             self.author_id = author_id
             self.guild_id = guild_id
             self.channel_id = channel_id
@@ -284,6 +284,8 @@ class UnifierBridge:
             self.reply = reply
             self.external_bridged = external_bridged,
             self.thread = thread
+            self.custom_name = custom_name
+
             if not reactions or not type(reactions) is dict:
                 self.reactions = {}
             else:
@@ -1661,6 +1663,14 @@ class UnifierBridge:
         if str(author) in self.__bot.db['paused']:
             raise self.BridgePausedError()
 
+        # Check if prefix should be ignored
+        if str(author) in self.__bot.db['prefixes'].keys():
+            prefix_data = self.__bot.db['prefixes'][str(author)]
+
+            for entry in prefix_data:
+                if content.startswith(entry['prefix'] or '') and content.endswith(entry['suffix'] or ''):
+                    raise self.BridgePausedError()
+
         # Run Filters check
         for bridge_filter in self.filters:
             if not (
@@ -2545,6 +2555,9 @@ class UnifierBridge:
                         if reply_msg.source=='discord':
                             user = self.__bot.get_user(int(reply_msg.author_id))
                             author_text = f'@{user.global_name or user.name}'
+
+                            if reply_msg.custom_name:
+                                author_text = f'@{reply_msg.custom_name}'
                         else:
                             reply_support = self.__bot.platforms[reply_msg.source]
                             user = reply_support.get_user(reply_msg.author_id)
@@ -2992,6 +3005,9 @@ class UnifierBridge:
                 except:
                     self.bridged[index].external_copies.update({platform: message_ids})
             self.bridged[index].urls = self.bridged[index].urls | urls
+
+            if not self.bridged[index].custom_name and extbridge:
+                self.bridged[index].custom_name = unifier_user.unifier_name
         except:
             copies = {}
             external_copies = {}
@@ -3003,12 +3019,17 @@ class UnifierBridge:
                 server_id = message.guild.id
             else:
                 server_id = source_support.get_id(source_support.server(message))
+
+            custom_name = None
+
             if extbridge:
                 try:
                     hook = await self.__bot.fetch_webhook(message.webhook_id)
                     msg_author = hook.user.id
+                    custom_name = unifier_user.unifier_name
                 except:
                     pass
+
             self.bridged.append(UnifierBridge.UnifierMessage(
                 author_id=msg_author,
                 guild_id=server_id,
@@ -3021,7 +3042,8 @@ class UnifierBridge:
                 webhook=should_resend or system or extbridge,
                 prehook=message.id,
                 room=room,
-                reply=replying
+                reply=replying,
+                custom_name=custom_name
             ))
             if datetime.datetime.now().day != self.msg_stats_reset:
                 self.msg_stats = {}
@@ -5597,6 +5619,220 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.colour = self.bot.colors.success
         await interaction.response.edit_message(embed=embed, view=None)
 
+    @bridge.subcommand(
+        description=language.desc('bridge.prefixes'),
+        description_localizations=language.slash_desc('bridge.prefixes')
+    )
+    @restrictions.not_banned()
+    async def prefixes(self, ctx: nextcord.Interaction):
+        selector = language.get_selector(ctx)
+        interaction: Optional[nextcord.Interaction] = None
+        msg: Optional[nextcord.Message] = None
+        entries = self.bot.db['prefixes'].get(str(ctx.user.id), [])
+        limit = 10
+        page = 0
+        maxpage = round(len(entries) / limit) - 1
+        focus = -1
+        edit = False
+        delete = False
+
+        if maxpage < 0:
+            maxpage = 0
+
+        while True:
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.rooms} {selector.get("title")}',
+                description=selector.get('body') + '\n' + selector.get('body_2'),
+                color=self.bot.colors.unifier
+            )
+
+            components = ui.MessageComponents()
+            selection_edit = nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id='selection_edit', placeholder=selector.get("selection_edit")
+            )
+            selection_delete = nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id='selection_delete', placeholder=selector.get("selection_delete")
+            )
+
+            if len(entries) == 0:
+                edit = False
+                delete = False
+                embed.add_field(name=selector.get('empty_title'), value=selector.get('empty_body'), inline=False)
+            else:
+                start = page * limit
+                end = (page + 1) * limit
+
+                if end > len(entries):
+                    end = len(entries)
+
+                for index in range(start, end):
+                    entry = entries[index]
+                    embed.add_field(
+                        name=selector.fget('entry_title', values={'index': index+1}),
+                        value=selector.fget(
+                            'entry_prefix', values={'prefix': entry['prefix'] or '[empty]'}
+                        ) + '\n' + selector.fget(
+                            'entry_suffix', values={'suffix': entry['suffix'] or '[empty]'}
+                        ),
+                        inline=False
+                    )
+                    selection_edit.add_option(
+                        label=selector.fget('entry_edit', values={'index': index+1}),
+                        value=str(index)
+                    )
+                    selection_delete.add_option(
+                        label=selector.fget('entry_delete', values={'index': index+1}),
+                        value=str(index)
+                    )
+
+                embed.set_footer(
+                    text=selector.rawfget('page', 'commons.search', values={'page': page+1, 'maxpage': maxpage+1})
+                )
+
+            if edit:
+                components.add_row(
+                    ui.ActionRow(
+                        selection_edit
+                    )
+                )
+
+            if delete:
+                components.add_row(
+                    ui.ActionRow(
+                        selection_delete
+                    )
+                )
+
+            components.add_row(
+                ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        custom_id='prev',
+                        label=selector.rawget('prev', 'commons.navigation'),
+                        emoji=self.bot.ui_emojis.prev,
+                        disabled=page <= 0
+                    ),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.blurple,
+                        custom_id='next',
+                        label=selector.rawget('next', 'commons.navigation'),
+                        emoji=self.bot.ui_emojis.next,
+                        disabled=page >= maxpage
+                    )
+                )
+            )
+
+            if edit or delete:
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            custom_id='back',
+                            label=selector.rawget('back', 'commons.navigation'),
+                            emoji=self.bot.ui_emojis.back
+                        )
+                    )
+                )
+            else:
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            custom_id='create',
+                            label=selector.get('new')
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            custom_id='edit',
+                            label=selector.get('edit'),
+                            disabled=len(entries) == 0
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.red,
+                            custom_id='delete',
+                            label=selector.get('delete'),
+                            disabled=len(entries) == 0
+                        )
+                    )
+                )
+
+            if not msg:
+                msg_temp = await ctx.send(embed=embed, view=components)
+                msg = await msg_temp.fetch()
+            else:
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed, view=components)
+
+            def check(interaction):
+                if not interaction.message:
+                    return False
+                return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+            try:
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+            except asyncio.TimeoutError:
+                return await msg.edit(view=None)
+
+            modal = nextcord.ui.Modal(title='', auto_defer=False)
+            modal.add_item(
+                nextcord.ui.TextInput(
+                    label=selector.get('prefix'),
+                    style=nextcord.TextInputStyle.short,
+                    required=False
+                )
+            )
+            modal.add_item(
+                nextcord.ui.TextInput(
+                    label=selector.get('suffix'),
+                    style=nextcord.TextInputStyle.short,
+                    required=False
+                )
+            )
+
+            if interaction.data['custom_id'] == 'create':
+                modal.title = selector.get('new')
+                await interaction.response.send_modal(modal)
+            elif interaction.data['custom_id'] == 'edit':
+                edit = True
+            elif interaction.data['custom_id'] == 'delete':
+                delete = True
+            elif interaction.data['custom_id'] == 'back':
+                edit = False
+                delete = False
+            elif interaction.data['custom_id'] == 'prev':
+                page -= 1
+                if page < 0:
+                    page = 0
+            elif interaction.data['custom_id'] == 'next':
+                page += 1
+                if page > maxpage:
+                    page = maxpage
+            elif interaction.data['custom_id'] == 'selection_edit':
+                focus = int(interaction.data['values'][0])
+                modal.title = selector.get('edit')
+                await interaction.response.send_modal(modal)
+            elif interaction.data['custom_id'] == 'selection_delete':
+                focus = int(interaction.data['values'][0])
+                entries.pop(focus)
+                self.bot.db['prefixes'][str(ctx.user.id)] = entries
+                self.bot.db.save_data()
+            elif interaction.type == nextcord.InteractionType.modal_submit:
+                # noinspection PyTypeChecker
+                prefix = interaction.data['components'][0]['components'][0]['value']
+                # noinspection PyTypeChecker
+                suffix = interaction.data['components'][1]['components'][0]['value']
+
+                if not prefix and not suffix:
+                    continue
+
+                if focus >= 0:
+                    entries[focus] = {'prefix': prefix, 'suffix': suffix}
+                else:
+                    entries.append({'prefix': prefix, 'suffix': suffix})
+
+                self.bot.db['prefixes'][str(ctx.user.id)] = entries
+                self.bot.db.save_data()
+
     @commands.Cog.listener()
     async def on_interaction(self, interaction):
         if interaction.type==nextcord.InteractionType.component:
@@ -6385,9 +6621,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 else:
                     return
 
-        if not message.webhook_id == None:
-            # webhook msg, dont bother
-            return
+        if message.webhook_id and (
+                not message.type == nextcord.MessageType.chat_input_command and
+                not message.type == nextcord.MessageType.context_menu_command
+        ):
+            # webhook msg
+            try:
+                try:
+                    hook = self.bot.bridge.webhook_cache.get_webhook(f'{message.webhook_id}')
+                except:
+                    hook = await self.bot.fetch_webhook(message.webhook_id)
+
+                if hook.user.id == self.bot.user.id:
+                    raise ValueError()
+            except:
+                return
 
         if message.author.id == self.bot.user.id:
             return
@@ -6488,9 +6736,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     else:
                         return
 
-            if not message.webhook_id == None:
-                # webhook msg, dont bother
-                return
+            if message.webhook_id and (
+                    not message.type == nextcord.MessageType.chat_input_command and
+                    not message.type == nextcord.MessageType.context_menu_command
+            ):
+                # webhook msg
+                try:
+                    try:
+                        hook = self.bot.bridge.webhook_cache.get_webhook(f'{message.webhook_id}')
+                    except:
+                        hook = await self.bot.fetch_webhook(message.webhook_id)
+
+                    if hook.user.id == self.bot.user.id:
+                        raise ValueError()
+                except:
+                    return
 
             if message.author.id == self.bot.user.id:
                 return
@@ -6527,9 +6787,21 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if f'{message.author.id}' in gbans or f'{message.guild.id}' in gbans:
             return
 
-        if not message.webhook_id == None:
-            # webhook msg, dont bother
-            return
+        if message.webhook_id and (
+                not message.type == nextcord.MessageType.chat_input_command and
+                not message.type == nextcord.MessageType.context_menu_command
+        ):
+            # webhook msg
+            try:
+                try:
+                    hook = self.bot.bridge.webhook_cache.get_webhook(f'{message.webhook_id}')
+                except:
+                    hook = await self.bot.fetch_webhook(message.webhook_id)
+
+                if hook.user.id == self.bot.user.id:
+                    raise ValueError()
+            except:
+                return
 
         if message.author.id == self.bot.user.id:
             return

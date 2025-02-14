@@ -945,7 +945,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
     @invites.on_autocomplete("room")
     async def unbind_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_manage_private_autocomplete(room, ctx.guild))
+        return await ctx.response.send_autocomplete(await self.room_manage_private_autocomplete(room, ctx.user))
 
     @commands.command(description=language.desc('config.rename'))
     @restrictions_legacy.admin()
