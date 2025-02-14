@@ -1663,6 +1663,14 @@ class UnifierBridge:
         if str(author) in self.__bot.db['paused']:
             raise self.BridgePausedError()
 
+        # Check if prefix should be ignored
+        if str(author) in self.__bot.db['prefixes'].keys():
+            prefix_data = self.__bot.db['prefixes'][str(author)]
+
+            for entry in prefix_data:
+                if content.startswith(entry['prefix']) and content.endswith(entry['suffix']):
+                    raise self.BridgePausedError()
+
         # Run Filters check
         for bridge_filter in self.filters:
             if not (
