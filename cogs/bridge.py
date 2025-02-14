@@ -2549,7 +2549,7 @@ class UnifierBridge:
                             author_text = f'@{user.global_name or user.name}'
 
                             if reply_msg.custom_name:
-                                author_text = reply_msg.custom_name
+                                author_text = f'@{reply_msg.custom_name}'
                         else:
                             reply_support = self.__bot.platforms[reply_msg.source]
                             user = reply_support.get_user(reply_msg.author_id)
@@ -2997,6 +2997,9 @@ class UnifierBridge:
                 except:
                     self.bridged[index].external_copies.update({platform: message_ids})
             self.bridged[index].urls = self.bridged[index].urls | urls
+
+            if not self.bridged[index].custom_name and extbridge:
+                self.bridged[index].custom_name = unifier_user.unifier_name
         except:
             copies = {}
             external_copies = {}
