@@ -3425,9 +3425,13 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             if not self.bot.config["privacy_url"]:
                 privacy_hyperlink = selector.get("privacy") + ' (' + selector.get("missing") + ')'
 
+            guidelines_hyperlink = f'[{selector.get("guidelines")}]({self.bot.config["guidelines_url"]})'
+            if not self.bot.config["guidelines_url"]:
+                guidelines_hyperlink = selector.get("guidelines") + ' (' + selector.get("missing") + ')'
+
             if not show_attr:
                 embed.add_field(name=selector.get("source_code"), value=self.bot.config['repo'], inline=False)
-                embed.add_field(name=selector.get("legal"), value=f'{terms_hyperlink}\n{privacy_hyperlink}',inline=False)
+                embed.add_field(name=selector.get("legal"), value=f'{terms_hyperlink}\n{privacy_hyperlink}\n{guidelines_hyperlink}',inline=False)
                 view = ui.MessageComponents()
                 view.add_row(
                     ui.ActionRow(

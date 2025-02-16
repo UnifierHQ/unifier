@@ -82,3 +82,4 @@ posts_ref_room = "post-comments"
 [legal]
 terms_url = "" # Add a link to your Terms of Service document here
 privacy_url = "" # Add a link to your Privacy Policy document here
+guidelines_url = "" # Add a link to your guidelines/rules document here
