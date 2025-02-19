@@ -226,6 +226,20 @@ attribution = {
         'repo': 'https://github.com/python-hyper/brotlicffi',
         'license': 'MIT',
         'license_url': 'https://github.com/python-hyper/brotlicffi/blob/main/LICENSE'
+    },
+    'jellyfish': {
+        'author': 'James Turk',
+        'description': '🪼 a python library for doing approximate and phonetic matching of strings. ',
+        'repo': 'https://github.com/jamesturk/jellyfish',
+        'license': 'MIT',
+        'license_url': 'https://github.com/jamesturk/jellyfish/blob/main/LICENSE'
+    },
+    'tld': {
+        'author': 'Artur Barseghyan',
+        'description': 'Extracts the top level domain (TLD) from the URL given.',
+        'repo': 'https://github.com/barseghyanartur/tld',
+        'license': 'Multiple (GPL-2.0/LGPL-2.1/MPL-1.1)',
+        'license_url': 'https://github.com/barseghyanartur/tld/blob/master/LICENSE.rst'
     }
 }
 
