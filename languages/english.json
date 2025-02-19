@@ -1357,7 +1357,8 @@
         "title": "Filter trigger threshold",
         "body": "Current threshold: `{threshold}`\nUAM will activate if the threshold is reached within a minute.",
         "disable_error": "Auto Under Attack mode is disabled. Enable it first.",
-        "success": "Threshold has been set to `{threshold}`."
+        "success": "Threshold has been set to `{threshold}`.",
+        "negative_error": "Threshold must be 0 or higher."
       },
       "alert": {
         "description": "Sends a safety-related alert.",

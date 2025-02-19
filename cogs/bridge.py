@@ -1814,6 +1814,13 @@ class UnifierBridge:
                                 if source == 'discord':
                                     await message.channel.send(embed=embed, reference=message)
                                 else:
+                                    # Remove emojis that are incompatible
+                                    embed.title = embed.title.replace(
+                                        f'{self.__bot.ui_emojis.warning} ', '', 1
+                                    ).replace(
+                                        f'{self.__bot.ui_emojis.error} ', '', 1
+                                    )
+
                                     try:
                                         embeds = support.convert_embeds([embed])
                                     except platform_base.MissingImplementation:
@@ -1822,7 +1829,7 @@ class UnifierBridge:
                                     await support.send(
                                         support.channel(message),
                                         '',
-                                        special={'embeds': embeds}
+                                        special={'embeds': embeds, 'reply': support.get_id(message)}
                                     )
 
                         raise self.ContentBlocked(result.message)

@@ -1525,9 +1525,9 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 color=self.bot.colors.unifier
             )
 
-        if threshold and not f'{ctx.guild.id}' in self.bot.db['automatic_uam']:
+        if threshold is not None and not f'{ctx.guild.id}' in self.bot.db['automatic_uam']:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("disable_error")}')
-        elif threshold:
+        elif threshold is not None:
             if threshold < 0:
                 return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("negative_error")}')
 

@@ -412,6 +412,8 @@ class CommandExceptionHandler:
             elif check_instance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
                 await respond(f'{self.bot.ui_emojis.error} {selector.fget("cooldown",values={"min":t//60,"sec":t % 60})}')
+            elif check_instance(error, nextcord.errors.NotFound):
+                return
             else:
                 if isinstance(ctx, commands.Context):
                     error_tb = traceback.format_exc()
