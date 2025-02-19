@@ -1774,7 +1774,7 @@ class UnifierBridge:
                                 if not room in self.filter_triggers[server_id].keys():
                                     self.filter_triggers[server_id].update({room: [0, time.time()+60]})
 
-                                if time.time() > self.filter_triggers[server_id][1]:
+                                if time.time() > self.filter_triggers[server_id][room][1]:
                                     self.filter_triggers[server_id][room] = [0, time.time()+60]
 
                                 if result.should_contribute:
@@ -1786,7 +1786,7 @@ class UnifierBridge:
                                 ) and server_id in self.__bot.db['automatic_uam']:
                                     # Enable automatic UAM
                                     self.__bot.db['underattack'].append(server_id)
-                                    self.filter_triggers[server_id].pop(room)
+                                    self.filter_triggers.pop(server_id)
 
                                     embed = nextcord.Embed(
                                         title=f'{self.__bot.ui_emojis.warning} ' + language.get(
