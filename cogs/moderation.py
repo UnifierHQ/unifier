@@ -1423,6 +1423,122 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         await msg.edit(embed=embed)
 
     @moderation.subcommand(
+        name='auto-under-attack',
+        description=language.desc('moderation.auto-under-attack'),
+        description_localizations=language.slash_desc('moderation.auto-under-attack')
+    )
+    @application_checks.guild_only()
+    @restrictions.server_admin()
+    async def auto_under_attack(self, ctx: nextcord.Interaction):
+        selector = language.get_selector(ctx)
+
+        if f'{ctx.guild.id}' in self.bot.db['automatic_uam']:
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.warning} {selector.get("disable_title")}',
+                description=selector.get("disable_body")
+            )
+        else:
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.warning} {selector.get("enable_title")}',
+                description=selector.get("enable_body") + '\n\n' + selector.get("disclaimer")
+            )
+        embed.colour = self.bot.colors.warning
+
+        components = ui.MessageComponents()
+        components.add_row(
+            ui.ActionRow(
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.red,
+                    label=(
+                        selector.rawget("deactivate", "commons.navigation")
+                        if f'{ctx.guild.id}' in self.bot.db['underattack'] else
+                        selector.rawget("activate", "commons.navigation")
+                    ),
+                    custom_id='accept'
+                ),
+                nextcord.ui.Button(
+                    style=nextcord.ButtonStyle.gray,
+                    label=selector.rawget("cancel", "commons.navigation"),
+                    custom_id='cancel'
+                )
+            )
+        )
+
+        msg = await ctx.send(embed=embed, view=components)
+        msg = await msg.fetch()
+
+        def check(interaction):
+            if not interaction.message:
+                return False
+            return interaction.message.id == msg.id and interaction.user.id == ctx.user.id
+
+        try:
+            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+        except:
+            return await msg.edit(view=None)
+
+        if interaction.data['custom_id'] == 'cancel':
+            return await interaction.response.edit_message(view=None)
+
+        await msg.edit(view=None)
+
+        was_attack = f'{ctx.guild.id}' in self.bot.db['automatic_uam']
+
+        if was_attack:
+            self.bot.db['automatic_uam'].remove(f'{ctx.guild.id}')
+        else:
+            self.bot.db['automatic_uam'].append(f'{ctx.guild.id}')
+
+        embed.title = f'{self.bot.ui_emojis.success} ' + (
+            selector.get("disabled_title") if was_attack else selector.get("enabled_title")
+        )
+        embed.description = selector.get("disabled_body") if was_attack else selector.get("enabled_body")
+        embed.colour = self.bot.colors.success
+
+        await msg.edit(embed=embed)
+
+    @moderation.subcommand(
+        name='filter-threshold',
+        description=language.desc('moderation.filter-threshold'),
+        description_localizations=language.slash_desc('moderation.filter-threshold')
+    )
+    @application_checks.guild_only()
+    @restrictions.server_admin()
+    async def filter_threshold(
+            self, ctx: nextcord.Interaction,
+            threshold: Optional[int] = slash.option('moderation.filter-threshold.threshold', required=False)
+    ):
+        selector = language.get_selector(ctx)
+
+        if not f'{ctx.guild.id}' in self.bot.db['automatic_uam']:
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.warning} {selector.get("disable_title")}',
+                description=selector.get("disable_body"),
+                color=self.bot.colors.warning
+            )
+        else:
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.rooms} {selector.get("title")}',
+                description=selector.fget("body", values={
+                    'threshold': self.bot.db['filter_threshold'].get(str(ctx.guild.id), 10)
+                }),
+                color=self.bot.colors.unifier
+            )
+
+        if threshold and not f'{ctx.guild.id}' in self.bot.db['automatic_uam']:
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("disable_error")}')
+        elif threshold:
+            if threshold < 0:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("negative_error")}')
+
+            self.bot.db['filter_threshold'].update({str(ctx.guild.id): threshold})
+            return await ctx.send(
+                f'{self.bot.ui_emojis.success} {selector.fget("success", values={"threshold": threshold})}'
+            )
+        else:
+            await ctx.send(embed=embed)
+
+    @moderation.subcommand(
         description=language.desc('moderation.alert'),
         description_localizations=language.slash_desc('moderation.alert')
     )

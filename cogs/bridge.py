@@ -176,7 +176,7 @@ class UnifierAlert:
             'emergency': [
                 '- Notify members of a likely imminent raid in Unifier rooms.',
                 '- Prepare to run `u!restrict` on servers being raided.',
-                '- If your server is being raided, run `u!under-attack` to temporarily block messages from ' +
+                '- If your server is being raided, run `/moderation under-attack` to temporarily block messages from ' +
                 'being sent from your server to Unifier rooms.'
             ],
             'warning': [
@@ -190,7 +190,7 @@ class UnifierAlert:
             ],
             'clear': [
                 '- Run `u!unrestrict` on affected servers to unblock them from your server.',
-                '- If your server was being raided, run `u!under-attack` to disable Under Attack mode.'
+                '- If your server was being raided, run `/moderation under-attack` to disable Under Attack mode.'
             ]
         },
         'general': {
@@ -238,6 +238,7 @@ class UnifierBridge:
         self.filters = {}
         self.filter_data = {}
         self.global_filter_data = {}
+        self.filter_triggers = {}
 
     @property
     def can_multicore(self):
@@ -1591,7 +1592,7 @@ class UnifierBridge:
 
         return text
 
-    async def can_send(self, room, message, content, files, source='discord'):
+    async def can_send(self, room, message, content, files, source='discord', is_first=False):
         support = self.__bot.platforms[source] if source != 'discord' else None
 
         if not room in self.rooms:
@@ -1733,39 +1734,95 @@ class UnifierBridge:
                             self.filter_data[bridge_filter].update({str(server): result.data['data']})
 
                     if not result.allowed:
-                        if result.should_log and not roomdata['meta']['private']:
-                            embed = nextcord.Embed(
-                                title=f'{self.__bot.ui_emojis.warning} {language.get("room","bridge.bridge", language=language.language_set)}',
-                                description=f'||{content}||',
-                                color=self.__bot.colors.warning
-                            )
+                        if is_first:
+                            # Alert Unifier moderators if room is public
+                            if result.should_log and not roomdata['meta']['private']:
+                                embed = nextcord.Embed(
+                                    title=f'{self.__bot.ui_emojis.warning} {language.get("room","bridge.bridge", language=language.language_set)}',
+                                    description=f'||{content}||',
+                                    color=self.__bot.colors.warning
+                                )
 
-                            embed.add_field(
-                                name=language.get("reason", "commons.moderation", language=language.language_set),
-                                value=result.message or '[unknown]'
-                            )
+                                embed.add_field(
+                                    name=language.get("reason", "commons.moderation", language=language.language_set),
+                                    value=result.message or '[unknown]'
+                                )
 
-                            embed.add_field(
-                                name=language.get("sender_id","commons.moderation", language=language.language_set),
-                                value=str(author)
-                            )
+                                embed.add_field(
+                                    name=language.get("sender_id","commons.moderation", language=language.language_set),
+                                    value=str(author)
+                                )
 
-                            embed.set_author(name=f'@{name}', icon_url=avatar)
+                                embed.set_author(name=f'@{name}', icon_url=avatar)
 
-                            if len(embed.description) > 4096:
-                                embed.description = embed.description[:-5] + '...||'
+                                if len(embed.description) > 4096:
+                                    embed.description = embed.description[:-5] + '...||'
 
-                            try:
-                                ch = self.__bot.get_channel(self.__bot.config['reports_channel'])
-                                await ch.send(embed=embed)
-                            except:
-                                pass
+                                try:
+                                    ch = self.__bot.get_channel(self.__bot.config['reports_channel'])
+                                    await ch.send(embed=embed)
+                                except:
+                                    pass
+
+                            # Alert server
+                            if result.should_log:
+                                server_id = str(server)
+                                if not server_id in self.filter_triggers.keys():
+                                    self.filter_triggers.update({server_id: 0})
+
+                                self.filter_triggers[server_id] += 1
+
+                                if (
+                                        self.filter_triggers[server_id] > self.__bot.db['filter_threshold'].get(server_id,
+                                                                                                                10)
+                                ) and server_id in self.__bot.db['automatic_uam']:
+                                    # Enable automatic UAM
+                                    self.__bot.db['underattack'].append(server_id)
+
+                                    embed = nextcord.Embed(
+                                        title=f'{self.__bot.ui_emojis.warning} ' + language.get(
+                                            "too_many_filtered_title", "bridge.bridge", language=language.language_set
+                                        ),
+                                        description=language.get(
+                                            "too_many_filtered_body", "bridge.bridge", language=language.language_set
+                                        ) + '\n' + language.get(
+                                            "too_many_filtered_body_2", "bridge.bridge", language=language.language_set
+                                        ),
+                                        color=self.__bot.colors.error
+                                    )
+                                    embed.set_footer(text=language.get(
+                                        "too_many_filtered_disclaimer", "bridge.bridge", language=language.language_set
+                                    ))
+                                else:
+                                    embed = nextcord.Embed(
+                                        title=f'{self.__bot.ui_emojis.error} ' + language.get(
+                                            "blocked_title", "bridge.bridge", language=language.language_set
+                                        ),
+                                        description=result.message
+                                    )
+                                    embed.set_footer(text=language.get(
+                                        "blocked_disclaimer", "bridge.bridge", language=language.language_set
+                                    ))
+
+                                if source == 'discord':
+                                    await message.channel.send(embed=embed, reference=message)
+                                else:
+                                    try:
+                                        embeds = support.convert_embeds([embed])
+                                    except platform_base.MissingImplementation:
+                                        embeds = []
+
+                                    await support.send(
+                                        support.channel(message),
+                                        '',
+                                        special={'embeds': embeds}
+                                    )
 
                         raise self.ContentBlocked(result.message)
 
         return True
 
-    async def edit(self, message, content):
+    async def edit(self, message, content, source='discord'):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
 
         threads = []
@@ -1783,6 +1840,13 @@ class UnifierBridge:
         roomdata = self.get_room(msg.room)
 
         if not roomdata['meta']['settings'].get('relay_edits', True):
+            return
+
+        # Check is message can be sent
+        try:
+            # File count is 0 as this can't be edited for most platforms
+            await self.can_send(msg.room, message, content, 0, source=source, is_first=True)
+        except self.BridgeError:
             return
 
         async def edit_discord(msgs,friendly=False):
@@ -1872,7 +1936,7 @@ class UnifierBridge:
     async def send(self, room: str, message,
                    platform: str = 'discord', system: bool = False,
                    extbridge=False, id_override=None, ignore=None, source='discord',
-                   content_override=None, alert=None):
+                   content_override=None, alert=None, is_first=False):
         if is_room_locked(room,self.__bot.db) and not message.author.id in self.__bot.admins:
             return
         if ignore is None:
@@ -1976,7 +2040,7 @@ class UnifierBridge:
             scan_files = len(source_support.attachments(message))
 
         try:
-            await self.can_send(room, message, scan_content, scan_files, source=source)
+            await self.can_send(room, message, scan_content, scan_files, source=source, is_first=is_first)
         except self.BridgeError:
             return
 
@@ -6487,9 +6551,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await message.channel.send(selector.get('is_unifier_down'),reference=message)
 
         if multisend:
-            # Multisend
-            # Sends Discord message along with other platforms to minimize
-            # latency on external platforms.
+            # Multisend: Sends Discord message along with other platforms to minimize latency on external platforms.
             self.bot.bridge.bridged.append(
                 UnifierBridge.UnifierMessage(
                     author_id=message.author.id if not extbridge else hook.user.id,
@@ -6513,10 +6575,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 self.bot.bridge.msg_stats.update({roomname: 1})
             tasks.append(self.bot.loop.create_task(
-                self.bot.bridge.send(room=roomname,message=message,platform='discord', extbridge=extbridge))
+                self.bot.bridge.send(
+                    room=roomname, message=message, platform='discord', extbridge=extbridge, is_first=True
+                ))
             )
         else:
-            parent_id = await self.bot.bridge.send(room=roomname, message=message, platform='discord', extbridge=extbridge)
+            parent_id = await self.bot.bridge.send(
+                room=roomname, message=message, platform='discord', extbridge=extbridge, is_first=True
+            )
 
         for platform in self.bot.platforms.keys():
             if should_resend and parent_id==message.id:

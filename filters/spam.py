@@ -4,6 +4,7 @@ from tld import get_tld
 from utils.base_filter import FilterResult, BaseFilter
 from utils import rapidphish
 
+# Common spam/phishing content
 suspected = [
     ['nsfw', 'discord.gg'], # Fake NSFW server
     ['leak', 'discord.gg'], # Fake NSFW/game hacks server
@@ -111,16 +112,13 @@ class Filter(BaseFilter):
         super().__init__(
             'spam',
             'Suspected Spam Filter',
-            'A multi-stage filter that detects and blocks spam and some phishing attacks.'
+            'Multi-stage filter that detects and blocks spam and some phishing attacks.'
         )
 
     def check(self, message, data) -> FilterResult:
-        content = message['content'].lower()
+        content = unicodedata.normalize('NFKD', message['content']).lower()
 
-        # Normalize content (stops Unicode abuse)
-        content = unicodedata.normalize('NFKD', content)
-
-        # Detection logic
+        # Detect spam from common patterns
         is_spam = False
         for entry in suspected:
             match = True
@@ -132,7 +130,7 @@ class Filter(BaseFilter):
                 is_spam = True
                 break
 
-        # Use RapidPhish
+        # Use RapidPhish to detect possible phishing URLs
         if not is_spam:
             urls = get_urls(content)
             if len(urls) > 0:

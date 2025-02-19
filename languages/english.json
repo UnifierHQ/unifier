@@ -1008,6 +1008,10 @@
         "involved": "{count} users involved",
         "automated": "This is an automated action performed by a Modifier, always double-check before taking action",
         "owner_immunity": "just as a fyi: this would have banned you",
+        "too_many_filtered_title": "Under Attack Mode activated",
+        "too_many_filtered_body": "Filters were triggered too many times in a short period. We're enabling Under Attack Mode in case this may be a raid.",
+        "too_many_filtered_body_2": "Server admins may disable this mode to resume bridging.",
+        "too_many_filtered_disclaimer": "If this was a mistake, consider disabling automatic UAM or increasing the threshold.",
         "ban_reason": "Automatic action carried out by security Modifiers",
         "cannot_appeal": "Unfortunately, this ban cannot be appealed using `/moderation appeal`. You will need to ask moderators for help.",
         "limited_limit": "Your server is currently limited for security. The maximum character limit for now is **{count} characters**.",
@@ -1327,6 +1331,33 @@
         "disabled_title": "Under Attack mode disabled",
         "enabled_body": "Under Attack mode is now enabled. Your members can no longer chat in Unifier rooms.",
         "disabled_body": "Under Attack mode is now disabled. Your members can now chat in Unifier rooms again."
+      },
+      "auto-under-attack": {
+        "description": "Toggles Automatic Under Attack mode.",
+        "enable_title": "Enable Automatic Under Attack mode?",
+        "enable_body": "If too many Filters are triggered at a time, Under Attack mode will be enabled automatically.",
+        "disable_title": "Disable Automatic Under Attack mode?",
+        "disable_body": "Under Attack mode will not be enabled automatically.",
+        "disclaimer": "Please note that only Filters that log positive results will contribute to the trigger count",
+        "enabled_title": "Automatic Under Attack mode enabled",
+        "disabled_title": "Automatic Under Attack mode disabled",
+        "enabled_body": "Automatic Under Attack mode is now enabled.",
+        "disabled_body": "Automatic Under Attack mode is now disabled."
+      },
+      "filter-threshold": {
+        "description": "Configures the Filter trigger threshold at which auto UAM activates.",
+        "options": {
+          "threshold": {
+            "name": "threshold",
+            "description": "The new threshold value. Leave empty to view the current threshold."
+          }
+        },
+        "disable_title": "Auto Under Attack mode is disabled",
+        "disable_body": "You need to enable this first to view and edit the threshold.",
+        "title": "Filter trigger threshold",
+        "body": "Current threshold: `{threshold}`\nUAM will activate once this threshold is reached.",
+        "disable_error": "Auto Under Attack mode is disabled. Enable it first.",
+        "success": "Threshold has been set to `{threshold}`."
       },
       "alert": {
         "description": "Sends a safety-related alert.",

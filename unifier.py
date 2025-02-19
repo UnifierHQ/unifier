@@ -289,7 +289,7 @@ class AutoSaveDict(dict):
             'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
             'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
             'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}, 'paused': [],
-            'prefixes': {}
+            'prefixes': {}, 'automatic_uam': [], 'filter_threshold': {}
         }
 
     @property
