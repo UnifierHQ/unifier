@@ -153,9 +153,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
             self, ctx: nextcord.Interaction,
             target: str = slash.option('moderation.ban.target'),
             duration: str = slash.option('moderation.ban.duration'),
-            reason: Optional[str] = slash.option('moderation.ban.reason', required=False),
-            discreet: Optional[bool] = slash.option('moderation.ban.discreet', required=False),
-            disclose: Optional[bool] = slash.option('moderation.ban.reveal-user', required=False),
+            reason: Optional[str] = slash.option('moderation.ban.reason', required=False)
     ):
         selector = language.get_selector(ctx)
         if not ctx.user.id in self.bot.moderators:
@@ -229,39 +227,6 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
                 await user.send(embed=embed)
             except:
                 pass
-
-        original_msg = await ctx.original_message()
-
-        content = original_msg.content
-        embed = nextcord.Embed(description=language.get("recently_banned","moderation.ban"),color=self.bot.colors.error)
-        if disclose:
-            if not user:
-                embed.set_author(name='@unknown')
-            else:
-                try:
-                    embed.set_author(name=f'@{user.name}',icon_url=user.avatar.url)
-                except:
-                    embed.set_author(name=f'@{user.name}')
-        else:
-            embed.set_author(name='@hidden')
-
-        original_msg.embeds = [embed]
-
-        if not discreet:
-            try:
-                await self.bot.bridge.send(self.bot.config['main_room'], original_msg, 'discord', system=True, content_override='')
-            except:
-                # ignore fail so ban can be processed anyways
-                pass
-        for platform in self.bot.platforms.keys():
-            try:
-                await self.bot.bridge.send(self.bot.config['main_room'], original_msg, platform, system=True, content_override='')
-            except:
-                # ignore send fails so ban can be processed anyways
-                pass
-
-        original_msg.embeds = []
-        original_msg.content = content
 
         try:
             userid = int(userid)
