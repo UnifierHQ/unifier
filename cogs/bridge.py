@@ -3701,34 +3701,34 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 match = 0
                 page = 0
 
-    async def report(self, interaction, msg: Union[nextcord.Message, str]):
-        selector = language.get_selector('bridge.report',userid=interaction.user.id)
-        if interaction.user.id in self.bot.db['fullbanned']:
+    async def report(self, ctx, msg: Union[nextcord.Message, str]):
+        selector = language.get_selector('bridge.report',userid=ctx.user.id)
+        if ctx.user.id in self.bot.db['fullbanned']:
             return
         gbans = self.bot.db['banned']
         ct = time.time()
-        if f'{interaction.user.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{interaction.user.id}']
+        if f'{ctx.user.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.user.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{interaction.user.id}')
+                self.bot.db['banned'].pop(f'{ctx.user.id}')
                 await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{interaction.guild.id}' in list(gbans.keys()):
-            banuntil = gbans[f'{interaction.guild.id}']
+        if f'{ctx.guild.id}' in list(gbans.keys()):
+            banuntil = gbans[f'{ctx.guild.id}']
             if ct >= banuntil and not banuntil == 0:
-                self.bot.db['banned'].pop(f'{interaction.guild.id}')
+                self.bot.db['banned'].pop(f'{ctx.guild.id}')
                 await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             else:
                 return
-        if f'{interaction.user.id}' in list(gbans.keys()) or f'{interaction.guild.id}' in list(gbans.keys()):
-            return await interaction.response.send_message(
+        if f'{ctx.user.id}' in list(gbans.keys()) or f'{ctx.guild.id}' in list(gbans.keys()):
+            return await ctx.response.send_message(
                 language.get('banned','commons.interaction',language=selector.language_set),
                 ephemeral=True
             )
 
         if not self.bot.config['enable_logging']:
-            return await interaction.response.send_message(selector.get('disabled'), ephemeral=True)
+            return await ctx.send(selector.get('disabled'), ephemeral=True)
 
         try:
             if isinstance(msg, str):
@@ -3736,149 +3736,272 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             else:
                 msgdata = await self.bot.bridge.fetch_message(msg.id)
         except:
-            return await interaction.response.send_message(
-                language.get('not_found','commons.interaction',language=selector.language_set)
+            return await ctx.send(
+                language.get('not_found','commons.interaction',language=selector.language_set), ephemeral=True
             )
 
         roomname = msgdata.room
         userid = msgdata.author_id
+        msgid = msgdata.id
         content = str(msg.content)  # Prevent tampering w/ original content
 
-        btns = ui.ActionRow(
-            nextcord.ui.Button(style=nextcord.ButtonStyle.blurple, label=selector.get('spam'), custom_id=f'spam', disabled=False),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse'), custom_id=f'abuse', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit'), custom_id=f'explicit', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('other'), custom_id=f'other', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('misc'), custom_id=f'misc', disabled=False
-            )
-        )
-        btns_abuse = ui.ActionRow(
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_1'), custom_id=f'abuse_1', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_2'), custom_id=f'abuse_2', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_3'), custom_id=f'abuse_3', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('abuse_4'), custom_id=f'abuse_4', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('category_misc'), custom_id=f'abuse_5', disabled=False
-            )
-        )
-        btns_explicit = ui.ActionRow(
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_1'), custom_id=f'explicit_1', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_2'), custom_id=f'explicit_2', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_3'), custom_id=f'explicit_3', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('explicit_4'), custom_id=f'explicit_4', disabled=False
-            ),
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.blurple, label=selector.get('category_misc'), custom_id=f'explicit_5', disabled=False
-            )
-        )
-        btns2 = ui.ActionRow(
-            nextcord.ui.Button(
-                style=nextcord.ButtonStyle.gray,
-                label=language.get('cancel','commons.navigation',language=selector.language_set),
-                custom_id=f'cancel', disabled=False
-            )
-        )
-        components = ui.MessageComponents()
-        components.add_rows(btns, btns2)
-        msg = await interaction.response.send_message(selector.get('question'), view=components, ephemeral=True)
-        msg = await msg.fetch()
-
-        def check(new_interaction):
-            if not new_interaction.message:
-                return False
-            return new_interaction.user.id == interaction.user.id and new_interaction.message.id == msg.id
-
-        try:
-            interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
-        except:
-            try:
-                return await interaction.edit_original_message(
-                    content=language.get('timeout','commons.interaction',language=selector.language_set),
-                    view=None
+        dropdown = nextcord.ui.StringSelect(
+            max_values=1, min_values=1, custom_id="selection", placeholder=selector.get('placeholder'),
+            options=[
+                nextcord.SelectOption(
+                    value='spam',
+                    label=selector.get('spam'),
+                    description=selector.get("spam_desc"),
+                    emoji='\U00002328\U0000FE0F'
+                ),
+                nextcord.SelectOption(
+                    value='abuse',
+                    label=selector.get('abuse'),
+                    description=selector.get("abuse_desc"),
+                    emoji='\U0001F5E1\U0000FE0F'
+                ),
+                nextcord.SelectOption(
+                    value='explicit',
+                    label=selector.get('explicit'),
+                    description=selector.get("explicit_desc"),
+                    emoji='\U0001FAE3'
+                ),
+                nextcord.SelectOption(
+                    value='underage',
+                    label=selector.get('underage'),
+                    description=selector.fget("underage_desc", values={'botname': self.bot.user.global_name or self.bot.user.name}),
+                    emoji='\U0001F476'
+                ),
+                nextcord.SelectOption(
+                    value='other',
+                    label=selector.get('other'),
+                    description=selector.get("other_desc"),
+                    emoji='\U00002754'
                 )
-            except:
-                return
+            ]
+        )
 
-        buttons = msg.components[0].children
-        cat = None
-        for button in buttons:
-            if button.custom_id==interaction.data["custom_id"]:
-                cat = button.label
-                break
-
-        asked = True
-        components = ui.MessageComponents()
-        if interaction.data["custom_id"] == 'abuse':
-            components.add_rows(btns_abuse, btns2)
-            await interaction.response.edit_message(content=selector.get('question_2'), view=components)
-        elif interaction.data["custom_id"] == 'explicit':
-            components.add_rows(btns_explicit, btns2)
-            await interaction.response.edit_message(content=selector.get('question_2'), view=components)
-        elif interaction.data["custom_id"] == 'cancel':
-            return await interaction.response.edit_message(
-                content=language.get('cancel','commons.interaction',language=selector.language_set),
-                view=None
+        stage_2 = {
+            'abuse': nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id="selection", placeholder=selector.get('placeholder'),
+                options=[
+                    # range: 1-4
+                    nextcord.SelectOption(
+                        value='1',
+                        label=selector.get('abuse_1'),
+                        description=selector.get("abuse_1_desc"),
+                        emoji='\U0001F3AD'
+                    ),
+                    nextcord.SelectOption(
+                        value='2',
+                        label=selector.get('abuse_2'),
+                        description=selector.get("abuse_2_desc"),
+                        emoji='\U0001F47F'
+                    ),
+                    nextcord.SelectOption(
+                        value='3',
+                        label=selector.get('abuse_3'),
+                        description=selector.get("abuse_3_desc"),
+                        emoji='\U0001F4E2'
+                    ),
+                    nextcord.SelectOption(
+                        value='4',
+                        label=selector.get('abuse_4'),
+                        description=selector.get("abuse_4_desc"),
+                        emoji='\U0001F616'
+                    )
+                ]
+            ),
+            'explicit': nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id="selection", placeholder=selector.get('placeholder'),
+                options=[
+                    # range: 1-4
+                    nextcord.SelectOption(
+                        value='1',
+                        label=selector.get('explicit_1'),
+                        description=selector.get("explicit_1_desc"),
+                        emoji='\U0001F633'
+                    ),
+                    nextcord.SelectOption(
+                        value='2',
+                        label=selector.get('explicit_2'),
+                        description=selector.get("explicit_2_desc"),
+                        emoji='\U0001F4A5'
+                    ),
+                    nextcord.SelectOption(
+                        value='3',
+                        label=selector.get('explicit_3'),
+                        description=selector.get("explicit_3_desc"),
+                        emoji='\U0001F4A3'
+                    ),
+                    nextcord.SelectOption(
+                        value='4',
+                        label=selector.get('explicit_4'),
+                        description=selector.get("explicit_4_desc"),
+                        emoji='\U00002696\U0000FE0F'
+                    )
+                ]
             )
-        else:
-            asked = False
-        if asked:
+        }
+
+        back = nextcord.ui.Button(
+            style=nextcord.ButtonStyle.gray,
+            label=language.get('back', 'commons.navigation', language=selector.language_set),
+            custom_id='back', emoji=self.bot.ui_emojis.back
+        )
+        cancel = nextcord.ui.Button(
+            style=nextcord.ButtonStyle.gray,
+            label=language.get('cancel','commons.navigation',language=selector.language_set),
+            custom_id='cancel'
+        )
+
+        msg: Optional[nextcord.Message] = None
+        interaction: Optional[nextcord.Interaction] = None
+
+        category = None
+        subcategory = None
+
+        while True:
+            if not msg:
+                components = ui.MessageComponents()
+                components.add_rows(ui.ActionRow(dropdown), ui.ActionRow(cancel))
+                msg_temp = await ctx.send(selector.get('question'), view=components, ephemeral=True)
+                msg = await msg_temp.fetch()
+
+            def check(new_interaction):
+                if not new_interaction.message:
+                    return False
+                return new_interaction.user.id == ctx.user.id and new_interaction.message.id == msg.id
+
             try:
-                interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+                interaction = await self.bot.wait_for('interaction', check=check, timeout=600)
             except:
                 try:
-                    return await interaction.edit_original_message(
-                        content=language.get('timeout','commons.interaction',language=selector.language_set),
-                        view=None
-                    )
+                    return await interaction.delete_original_message()
                 except:
                     return
-            buttons = msg.components[0].children
-            cat2 = None
-            for button in buttons:
-                if button.custom_id == interaction.data["custom_id"]:
-                    cat2 = button.label
-                    break
-            if interaction.data["custom_id"] == 'cancel':
-                return await interaction.response.edit_message(content=language.get('cancel','commons.interaction',language=selector.language_set), view=None)
-        else:
-            cat2 = 'none'
-        self.bot.reports.update({f'{interaction.user.id}_{userid}_{msg.id}': [cat, cat2, content, roomname, msgdata.id]})
-        reason = nextcord.ui.TextInput(
-            style=nextcord.TextInputStyle.paragraph, label=selector.get('details_title'),
-            placeholder=selector.get('details_prompt'),
-            required=False
-        )
-        signature = nextcord.ui.TextInput(
-            style=nextcord.TextInputStyle.short, label=selector.get('sign_title'),
-            placeholder=selector.get('sign_prompt'),
-            required=True, min_length=len(interaction.user.name), max_length=len(interaction.user.name)
-        )
-        modal = nextcord.ui.Modal(title=selector.get('title'), custom_id=f'{userid}_{msg.id}', auto_defer=False)
-        modal.add_item(reason)
-        modal.add_item(signature)
-        await interaction.response.send_modal(modal)
+
+            if interaction.type == nextcord.InteractionType.modal_submit:
+                # noinspection PyTypeChecker
+                context = interaction.data['components'][0]['components'][0]['value']
+                # noinspection PyTypeChecker
+                if not interaction.data['components'][1]['components'][0]['value'].lower() == interaction.user.name.lower():
+                    continue
+                if context is None or context == '':
+                    context = language.get('no_context', 'bridge.report')
+                author = f'@{interaction.user.name}'
+                if not interaction.user.discriminator == '0':
+                    author = f'{interaction.user.name}#{interaction.user.discriminator}'
+
+                await interaction.response.edit_message(content=f'{self.bot.ui_emojis.loading} {selector.get("sending")}', view=None)
+
+                if len(content) > 4096:
+                    content = content[:-(len(content) - 4096)]
+                embed = nextcord.Embed(
+                    title=selector.get('report_title'),
+                    description=content,
+                    color=self.bot.colors.warning,
+                    timestamp=datetime.datetime.now(datetime.timezone.utc)
+                )
+                embed.add_field(name=language.get('reason', 'commons.moderation', language=selector.language_set),
+                                value=f'{language.get(category,"bridge.report")} => {language.get(category + "_" + subcategory,"bridge.report")}', inline=False)
+                embed.add_field(name=language.get('context', 'commons.moderation', language=selector.language_set),
+                                value=context, inline=False)
+                embed.add_field(name=language.get('sender_id', 'commons.moderation', language=selector.language_set),
+                                value=str(msgdata.author_id), inline=False)
+                embed.add_field(name=language.get('room', 'commons.moderation', language=selector.language_set),
+                                value=roomname, inline=False)
+                embed.add_field(name=language.get('message_id', 'commons.moderation', language=selector.language_set),
+                                value=str(msgid), inline=False)
+                embed.add_field(name=language.get('reporter_id', 'commons.moderation', language=selector.language_set),
+                                value=str(interaction.user.id), inline=False)
+                try:
+                    embed.set_footer(text=selector.fget('submitted_by', values={'username': author}),
+                                     icon_url=interaction.user.avatar.url)
+                except:
+                    embed.set_footer(text=selector.fget('submitted_by', values={'username': author}))
+                try:
+                    user = self.bot.get_user(userid)
+                    if not user:
+                        user = self.bot.revolt_client.get_user(userid)
+                    sender = f'@{user.name}'
+                    if not user.discriminator == '0':
+                        sender = f'{user.name}#{user.discriminator}'
+                    try:
+                        embed.set_author(name=sender, icon_url=user.avatar.url)
+                    except:
+                        embed.set_author(name=sender)
+                except:
+                    embed.set_author(name='[unknown, check sender ID]')
+                guild = self.bot.get_guild(self.bot.config['home_guild'])
+                ch = guild.get_channel(self.bot.config['reports_channel'])
+                btns = ui.ActionRow(
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.red,
+                        label=language.get('delete', 'commons.moderation', language=selector.language_set),
+                        custom_id=f'rpdelete_{msgid}',
+                        disabled=False),
+                    nextcord.ui.Button(
+                        style=nextcord.ButtonStyle.green, label=selector.get('review'), custom_id=f'rpreview_{msgid}',
+                        disabled=False
+                    )
+                )
+                components = ui.MessageComponents()
+                components.add_row(btns)
+                msg: nextcord.Message = await ch.send(
+                    f'<@&{self.bot.config["moderator_role"]}>', embed=embed, view=components
+                )
+                try:
+                    thread = await msg.create_thread(
+                        name=selector.get('discussion', values={'message_id': msgid}),
+                        auto_archive_duration=10080
+                    )
+                    self.bot.db['report_threads'].update({str(msg.id): thread.id})
+                    await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+                except:
+                    pass
+                return await interaction.edit_original_message(
+                    content=f'# {self.bot.ui_emojis.success} {selector.get("success_title")}\n{selector.get("success_body")}',
+                    view=None
+                )
+            else:
+                if interaction.data['custom_id'].startswith('selection'):
+                    if interaction.data['custom_id'] == 'selection' and not interaction.data['values'][0] in stage_2.keys():
+                        if not category:
+                            category = interaction.data['values'][0]
+                            subcategory = 'none'
+                        else:
+                            subcategory = interaction.data['values'][0]
+
+                        reason = nextcord.ui.TextInput(
+                            style=nextcord.TextInputStyle.paragraph, label=selector.get('details_title'),
+                            placeholder=selector.get('details_prompt'),
+                            required=False
+                        )
+                        signature = nextcord.ui.TextInput(
+                            style=nextcord.TextInputStyle.short, label=selector.get('sign_title'),
+                            placeholder=selector.get('sign_prompt'),
+                            required=True, min_length=len(interaction.user.name), max_length=len(interaction.user.name)
+                        )
+                        modal = nextcord.ui.Modal(title=selector.get('title'), custom_id=f'{userid}_{msg.id}',
+                                                  auto_defer=False)
+                        modal.add_item(reason)
+                        modal.add_item(signature)
+                        await interaction.response.send_modal(modal)
+                    else:
+                        category = interaction.data['values'][0]
+                        components = ui.MessageComponents()
+                        components.add_rows(ui.ActionRow(stage_2[category]), ui.ActionRow(back, cancel))
+                        await interaction.response.edit_message(content=selector.get('question_2'), view=components)
+                elif interaction.data['custom_id'] == 'back':
+                    category = None
+                    subcategory = None
+                    components = ui.MessageComponents()
+                    components.add_rows(ui.ActionRow(dropdown), ui.ActionRow(cancel))
+                    await interaction.response.edit_message(content=selector.get('question'), view=components)
+                elif interaction.data['custom_id'] == 'cancel':
+                    await msg.delete()
+                    return
 
     @nextcord.slash_command(
         contexts=[nextcord.InteractionContextType.guild],
@@ -6086,94 +6209,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     await user.send(embed=results_embed)
                 await interaction.message.edit(embed=embed,view=components)
                 await interaction.edit_original_message(content=selector.get('reviewed'))
-        elif interaction.type == nextcord.InteractionType.modal_submit:
-            selector = language.get_selector('bridge.report',userid=interaction.user.id)
-            if not interaction.data['custom_id']==f'{interaction.user.id}_{interaction.message.id}':
-                # not a report
-                return
-            context = interaction.data['components'][0]['components'][0]['value']
-            if not interaction.data['components'][1]['components'][0]['value'].lower() == interaction.user.name.lower():
-                return
-            if context is None or context == '':
-                context = selector.get('no_context')
-            author = f'@{interaction.user.name}'
-            if not interaction.user.discriminator == '0':
-                author = f'{interaction.user.name}#{interaction.user.discriminator}'
-            try:
-                report = self.bot.reports[f'{interaction.user.id}_{interaction.data["custom_id"]}']
-            except:
-                return await interaction.response.send_message(selector.get('failed'), ephemeral=True)
-
-            await interaction.response.send_message(f'{self.bot.ui_emojis.loading} Sending report...', ephemeral=True)
-            cat = report[0]
-            cat2 = report[1]
-            content = report[2]
-            roomname = report[3]
-            msgid = report[4]
-            msgdata = await self.bot.bridge.fetch_message(msgid)
-            userid = int(interaction.data["custom_id"].split('_')[0])
-            if len(content) > 4096:
-                content = content[:-(len(content) - 4096)]
-            embed = nextcord.Embed(
-                title=selector.get('report_title'),
-                description=content,
-                color=self.bot.colors.warning,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-            embed.add_field(name=language.get('reason','commons.moderation',language=selector.language_set), value=f'{cat} => {cat2}', inline=False)
-            embed.add_field(name=language.get('context','commons.moderation',language=selector.language_set), value=context, inline=False)
-            embed.add_field(name=language.get('sender_id','commons.moderation',language=selector.language_set), value=str(msgdata.author_id), inline=False)
-            embed.add_field(name=language.get('room','commons.moderation',language=selector.language_set), value=roomname, inline=False)
-            embed.add_field(name=language.get('message_id','commons.moderation',language=selector.language_set), value=str(msgid), inline=False)
-            embed.add_field(name=language.get('reporter_id','commons.moderation',language=selector.language_set), value=str(interaction.user.id), inline=False)
-            try:
-                embed.set_footer(text=selector.fget('submitted_by',values={'username': author}),
-                                 icon_url=interaction.user.avatar.url)
-            except:
-                embed.set_footer(text=selector.fget('submitted_by',values={'username': author}))
-            try:
-                user = self.bot.get_user(userid)
-                if not user:
-                    user = self.bot.revolt_client.get_user(userid)
-                sender = f'@{user.name}'
-                if not user.discriminator == '0':
-                    sender = f'{user.name}#{user.discriminator}'
-                try:
-                    embed.set_author(name=sender, icon_url=user.avatar.url)
-                except:
-                    embed.set_author(name=sender)
-            except:
-                embed.set_author(name='[unknown, check sender ID]')
-            guild = self.bot.get_guild(self.bot.config['home_guild'])
-            ch = guild.get_channel(self.bot.config['reports_channel'])
-            btns = ui.ActionRow(
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.red, label=language.get('delete','commons.moderation',language=selector.language_set), custom_id=f'rpdelete_{msgid}',
-                    disabled=False),
-                nextcord.ui.Button(
-                    style=nextcord.ButtonStyle.green, label=selector.get('review'), custom_id=f'rpreview_{msgid}',
-                    disabled=False
-                )
-            )
-            components = ui.MessageComponents()
-            components.add_row(btns)
-            msg: nextcord.Message = await ch.send(
-                f'<@&{self.bot.config["moderator_role"]}>', embed=embed, view=components
-            )
-            try:
-                thread = await msg.create_thread(
-                    name=selector.get('discussion',values={'message_id': msgid}),
-                    auto_archive_duration=10080
-                )
-                self.bot.db['report_threads'].update({str(msg.id): thread.id})
-                await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
-            except:
-                pass
-            self.bot.reports.pop(f'{interaction.user.id}_{interaction.data["custom_id"]}')
-            return await interaction.edit_original_message(
-                content=f'# {self.bot.ui_emojis.success} {selector.get("success_title")}\n{selector.get("success_body")}',
-                view=None
-            )
 
     @commands.command(hidden=True,description=language.desc("bridge.initbridge"))
     @restrictions_legacy.owner()
