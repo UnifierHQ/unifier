@@ -118,7 +118,7 @@ def compare_urls(urls, threshold, custom_whitelist=None):
                 pass
 
             for domain in real_urls:
-                similarity = jellyfish.jaro_similarity(t, domain)
+                similarity = jellyfish.jaro_similarity(t, domain) # pylint: disable=E1101
                 if similarity >= threshold and not similarity == 1:
                     verdict = 'unsafe'
                     result.append(
@@ -140,7 +140,7 @@ def compare_urls(urls, threshold, custom_whitelist=None):
                     continue
 
             for domain in real_urls:
-                similarity = jellyfish.jaro_similarity(t, domain)
+                similarity = jellyfish.jaro_similarity(t, domain) # pylint: disable=E1101
                 if similarity >= threshold and not similarity == 1:
                     verdict = 'unsafe'
                     result.append(RapidPhishScan(
@@ -156,7 +156,7 @@ def compare_urls(urls, threshold, custom_whitelist=None):
                 continue
 
             for domain in real_urls:
-                similarity = jellyfish.jaro_similarity(t2, url)
+                similarity = jellyfish.jaro_similarity(t2, url) # pylint: disable=E1101
                 if similarity >= threshold and not similarity == 1:
                     verdict = 'unsafe'
                     result.append(RapidPhishScan(
