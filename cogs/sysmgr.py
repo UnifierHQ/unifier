@@ -1638,16 +1638,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             minimum = new['minimum']
             modules = new['modules']
             utilities = new['utils']
-            try:
-                nups_platform = new['bridge_platform']
-                if nups_platform == '':
-                    nups_platform = None
-            except:
+            filters = new.get('filters', [])
+            services = new.get('services', [])
+            nups_platform = new.get('bridge_platform')
+            if nups_platform == '':
                 nups_platform = None
-            try:
-                services = new['services']
-            except:
-                services = []
 
             with open('plugins/system.json', 'r') as file:
                 vinfo = json.load(file)
@@ -1665,6 +1660,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for util in utilities:
                 if util in os.listdir('utils'):
                     conflicts.append('utils/'+util)
+            for filt in filters:
+                if filt in os.listdir('filters'):
+                    conflicts.append('filters/'+filt)
             if f'{plugin_id}.json' in os.listdir('emojis') and 'emojis' in services:
                 conflicts.append(f'emojis/{plugin_id}.json')
             if len(conflicts) > 1:
@@ -1784,13 +1782,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 self.logger.exception('Dependency installation failed')
                 raise RuntimeError()
-            self.logger.info('Installing Plugin')
+            self.logger.info('Installing Modifier')
             for module in modules:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+module)
                 await self.copy('plugin_install/' + module, 'cogs/' + module)
             for util in utilities:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+util)
                 await self.copy('plugin_install/' + util, 'utils/' + util)
+            for filt in filters:
+                self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+filt)
+                await self.copy('plugin_install/' + filt, 'filters/' + filt)
             if 'emojis' in services:
                 self.logger.info('Installing Emoji Pack')
                 home_guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -1908,6 +1909,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             plugin_id = plugin_info['id']
             modules = plugin_info['modules']
             utilities = plugin_info['utils']
+            filters = plugin_info.get('filters', [])
             self.logger.info('Uninstalling Plugin')
             for module in modules:
                 self.logger.debug('Uninstalling: ' + os.getcwd() + '/cogs/' + module)
@@ -1915,6 +1917,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for util in utilities:
                 self.logger.debug('Uninstalling: ' + os.getcwd() + '/utils/' + util)
                 os.remove('utils/'+util)
+            for filt in filters:
+                self.logger.debug('Uninstalling: ' + os.getcwd() + '/filters/' + filt)
+                os.remove('filters/'+filt)
             self.logger.info('Deleting plugin entry')
             os.remove('plugins/' + plugin_id + '.json')
             self.logger.info('Unloading extensions')
@@ -2332,6 +2337,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for file in os.listdir(os.getcwd() + '/update/utils'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
                     await self.copy('update/utils/' + file, 'utils/' + file)
+                for file in os.listdir(os.getcwd() + '/update/filters'):
+                    self.logger.debug('Installing: ' + os.getcwd() + '/update/filters/' + file)
+                    await self.copy('update/filters/' + file, 'filters/' + file)
                 for file in os.listdir(os.getcwd() + '/update/boot'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/boot/' + file)
                     await self.copy('update/boot/' + file, 'boot/' + file)
@@ -2477,7 +2485,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 version = new['version']
                 modules = new['modules']
                 utilities = new['utils']
-                services = new['services'] if 'services' in new.keys() else []
+                services = new.get('services', [])
+                filters = new.get('filters', [])
             except:
                 try:
                     await self.bot.loop.run_in_executor(None, lambda: status(os.system('git --version')))
@@ -2559,6 +2568,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for util in utilities:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + util)
                     await self.copy('plugin_install/' + util, 'utils/' + util)
+                for filt in filters:
+                    self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + filt)
+                    await self.copy('plugin_install/' + filt, 'filters/' + filt)
                 if 'emojis' in services:
                     self.logger.info('Uninstalling previous Emoji Pack')
                     home_guild = self.bot.get_guild(self.bot.config['home_guild'])

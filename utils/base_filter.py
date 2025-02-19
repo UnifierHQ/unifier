@@ -8,7 +8,7 @@ class MissingCheck(Exception):
 
 class FilterResult:
     def __init__(self, allowed: bool, data: Optional[dict] = None, message: Optional[str] = None,
-                 should_log: bool = False, should_contribute : bool = False):
+                 should_log: bool = False, should_contribute: bool = False):
         self.__allowed = allowed
         self.__data = data or {}
         self.__message = message
