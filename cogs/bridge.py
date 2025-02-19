@@ -1707,10 +1707,9 @@ class UnifierBridge:
                     message_data = {
                         'author': str(author),
                         'bot': is_bot,
-                        'webhook_id': webhook_id,
+                        'webhook_id': str(webhook_id) if webhook_id else None,
                         'content': content,
-                        'files': files,
-                        'data': data
+                        'files': files
                     }
 
                     try:
@@ -1770,20 +1769,24 @@ class UnifierBridge:
                             if result.should_log:
                                 server_id = str(server)
                                 if not server_id in self.filter_triggers.keys():
-                                    self.filter_triggers.update({server_id: [0, time.time()+60]})
+                                    self.filter_triggers.update({server_id: {}})
+
+                                if not room in self.filter_triggers[server_id].keys():
+                                    self.filter_triggers[server_id].update({room: [0, time.time()+60]})
 
                                 if time.time() > self.filter_triggers[server_id][1]:
-                                    self.filter_triggers[server_id] = [0, time.time()+60]
+                                    self.filter_triggers[server_id][room] = [0, time.time()+60]
 
                                 if result.should_contribute:
-                                    self.filter_triggers[server_id][0] += 1
+                                    self.filter_triggers[server_id][room][0] += 1
 
                                 if (
-                                        self.filter_triggers[server_id][0] > self.__bot.db['filter_threshold'].get(server_id,
-                                                                                                                10)
+                                        self.filter_triggers[server_id][room][0] >
+                                        self.__bot.db['filter_threshold'].get(server_id, 10)
                                 ) and server_id in self.__bot.db['automatic_uam']:
                                     # Enable automatic UAM
                                     self.__bot.db['underattack'].append(server_id)
+                                    self.filter_triggers[server_id].pop(room)
 
                                     embed = nextcord.Embed(
                                         title=f'{self.__bot.ui_emojis.warning} ' + language.get(
