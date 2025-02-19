@@ -1338,7 +1338,7 @@
         "enable_body": "If too many Filters are triggered at a time, Under Attack mode will be enabled automatically.",
         "disable_title": "Disable Automatic Under Attack mode?",
         "disable_body": "Under Attack mode will not be enabled automatically.",
-        "disclaimer": "Please note that only Filters that log positive results will contribute to the trigger count",
+        "disclaimer": "Please note that only certain Filters will contribute to the trigger count.",
         "enabled_title": "Automatic Under Attack mode enabled",
         "disabled_title": "Automatic Under Attack mode disabled",
         "enabled_body": "Automatic Under Attack mode is now enabled.",
@@ -1355,7 +1355,7 @@
         "disable_title": "Auto Under Attack mode is disabled",
         "disable_body": "You need to enable this first to view and edit the threshold.",
         "title": "Filter trigger threshold",
-        "body": "Current threshold: `{threshold}`\nUAM will activate once this threshold is reached.",
+        "body": "Current threshold: `{threshold}`\nUAM will activate if the threshold is reached within a minute.",
         "disable_error": "Auto Under Attack mode is disabled. Enable it first.",
         "success": "Threshold has been set to `{threshold}`."
       },

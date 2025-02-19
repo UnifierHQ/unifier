@@ -137,6 +137,7 @@ class FilterDialog:
             filters = dict(self.__bot.bridge.filters)
             self.embed.description = self.selector.get('choose_filter')
 
+        roomdata = self.__bot.bridge.get_room(self.room)
         limit = 20
         maxpage = math.ceil(len(filters)/limit)-1
         self.maxpage = maxpage
@@ -160,16 +161,23 @@ class FilterDialog:
 
             # noinspection PyTypeChecker
             filter_obj = filters[list(filters.keys())[index + offset]]
-            self.embed.add_field(
-                name=f'{filter_obj.name} (`{filter_obj.id}`)',
-                value=filter_obj.description or self.selector.get("no_desc"),
-                inline=False
-            )
+
+            if roomdata['meta']['filters'].get(filter_obj.id, {}).get('enabled', False):
+                self.embed.add_field(
+                    name=f'{self.__bot.ui_emojis.success} **{filter_obj.name} (`{filter_obj.id}`)**',
+                    value=filter_obj.description or self.selector.get("no_desc"),
+                    inline=False
+                )
+            else:
+                self.embed.add_field(
+                    name=f'{filter_obj.name} (`{filter_obj.id}`)',
+                    value=filter_obj.description or self.selector.get("no_desc"),
+                    inline=False
+                )
 
             trimmed = filter_obj.description or self.selector.get("no_desc")
             if len(trimmed) > 100:
                 trimmed = trimmed[:97] + '...'
-
 
             self.selection.add_option(
                 label=filter_obj.name,

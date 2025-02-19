@@ -11,5 +11,5 @@ class Filter(BaseFilter):
     def check(self, message, data) -> FilterResult:
         return FilterResult(
             '@everyone' in message['content'] or '@here' in message['content'], data,
-            message='Mass pings are not allowed.'
+            message='Mass pings are not allowed.', should_log=True
         )

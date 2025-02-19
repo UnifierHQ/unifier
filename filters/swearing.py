@@ -11,5 +11,7 @@ class Filter(BaseFilter):
 
     def check(self, message, data) -> FilterResult:
         return FilterResult(
-            not profanity.contains_profanity(message['content']), None, message='No swearing allowed!'
+            not profanity.contains_profanity(
+                message['content'], None, message='No swearing allowed!', should_log=True
+            )
         )

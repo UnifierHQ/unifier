@@ -56,6 +56,8 @@ def get_urls(content):
                         while True:
                             try:
                                 word3 = bypass_killer(word3)
+                                if word3 is None:
+                                    break
                             except:
                                 break
                         if len(word3.split('.')) == 1:
@@ -80,8 +82,11 @@ def get_urls(content):
         if '.' in word:
             while True:
                 # I forgot how this works, but it works I guess
-                word_filtered = bypass_killer(word)
-                if word_filtered is None:
+                try:
+                    word_filtered = bypass_killer(word)
+                    if word_filtered is None:
+                        break
+                except:
                     break
 
                 word = word_filtered
@@ -122,8 +127,11 @@ class Filter(BaseFilter):
         is_spam = False
         for entry in suspected:
             match = True
+            working_with = str(content)
             for keyword in entry:
-                if not keyword in content:
+                if keyword in working_with:
+                    working_with = working_with.replace(keyword, '', 1)
+                else:
                     match = False
                     break
             if match:
@@ -136,6 +144,8 @@ class Filter(BaseFilter):
             if len(urls) > 0:
                 # Best threshold for this is 0.85
                 results = rapidphish.compare_urls(urls, 0.85)
-                is_spam = results.final_verdict == 'unsafe'
+                is_spam = results.final_verdict == 'unsafe' or is_spam
 
-        return FilterResult(is_spam, None, message='Message is likely spam.')
+        return FilterResult(
+            not is_spam, None, message='Message is likely spam.', should_log=True, should_contribute=True
+        )

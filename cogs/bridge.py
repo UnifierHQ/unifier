@@ -1738,19 +1738,21 @@ class UnifierBridge:
                             # Alert Unifier moderators if room is public
                             if result.should_log and not roomdata['meta']['private']:
                                 embed = nextcord.Embed(
-                                    title=f'{self.__bot.ui_emojis.warning} {language.get("room","bridge.bridge", language=language.language_set)}',
+                                    title=f'{self.__bot.ui_emojis.warning} {language.get("blocked_report_title","bridge.bridge", language=language.language_set)}',
                                     description=f'||{content}||',
                                     color=self.__bot.colors.warning
                                 )
 
                                 embed.add_field(
                                     name=language.get("reason", "commons.moderation", language=language.language_set),
-                                    value=result.message or '[unknown]'
+                                    value=result.message or '[unknown]',
+                                    inline=False
                                 )
 
                                 embed.add_field(
                                     name=language.get("sender_id","commons.moderation", language=language.language_set),
-                                    value=str(author)
+                                    value=str(author),
+                                    inline=False
                                 )
 
                                 embed.set_author(name=f'@{name}', icon_url=avatar)
@@ -1768,12 +1770,16 @@ class UnifierBridge:
                             if result.should_log:
                                 server_id = str(server)
                                 if not server_id in self.filter_triggers.keys():
-                                    self.filter_triggers.update({server_id: 0})
+                                    self.filter_triggers.update({server_id: [0, time.time()+60]})
 
-                                self.filter_triggers[server_id] += 1
+                                if time.time() > self.filter_triggers[server_id][1]:
+                                    self.filter_triggers[server_id] = [0, time.time()+60]
+
+                                if result.should_contribute:
+                                    self.filter_triggers[server_id][0] += 1
 
                                 if (
-                                        self.filter_triggers[server_id] > self.__bot.db['filter_threshold'].get(server_id,
+                                        self.filter_triggers[server_id][0] > self.__bot.db['filter_threshold'].get(server_id,
                                                                                                                 10)
                                 ) and server_id in self.__bot.db['automatic_uam']:
                                     # Enable automatic UAM
@@ -1798,7 +1804,8 @@ class UnifierBridge:
                                         title=f'{self.__bot.ui_emojis.error} ' + language.get(
                                             "blocked_title", "bridge.bridge", language=language.language_set
                                         ),
-                                        description=result.message
+                                        description=result.message,
+                                        color=self.__bot.colors.error
                                     )
                                     embed.set_footer(text=language.get(
                                         "blocked_disclaimer", "bridge.bridge", language=language.language_set
@@ -5235,7 +5242,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         description=language.desc('bridge.modping'),
         description_localizations=language.slash_desc('bridge.modping')
     )
-    @restrictions.cooldown(rate=1, per=1800, type='user')
+    @restrictions.cooldown(rate=1, per=1800, bucket_type='user')
     @restrictions.not_banned()
     async def modping(self,ctx):
         selector = language.get_selector(ctx)
