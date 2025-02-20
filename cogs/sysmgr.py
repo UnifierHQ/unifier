@@ -3475,10 +3475,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             target = ctx.guild.id if change_guild_prefix else ctx.user.id
 
             if prefix.lower() == self.bot.command_prefix:
-                self.bot.db['bot_prefixes'].pop(target, None)
+                self.bot.db['bot_prefixes'].pop(str(target), None)
                 response = selector.get('reset')
             else:
-                self.bot.db['bot_prefixes'].update({target: prefix})
+                self.bot.db['bot_prefixes'].update({str(target): prefix})
                 response = selector.get('success')
 
             response = f'{self.bot.ui_emojis.success} {response}'

@@ -824,8 +824,8 @@ async def on_message(message):
         else:
             return
 
-    custom_prefix_user = bot.db['bot_prefixes'].get(message.author.id, None)
-    custom_prefix_guild = bot.db['bot_prefixes'].get(message.guild.id, None)
+    custom_prefix_user = bot.db['bot_prefixes'].get(str(message.author.id), None)
+    custom_prefix_guild = bot.db['bot_prefixes'].get(str(message.guild.id), None)
 
     if (
             message.content.lower().startswith(bot.command_prefix) or
