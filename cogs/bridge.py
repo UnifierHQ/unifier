@@ -6252,10 +6252,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridge.prs = prs
         await ctx.send(selector.get("success"))
 
-    @commands.command(hidden=True,description=language.desc("bridge.system"))
+    @commands.command(hidden=True,description=language.desc("bridge.sysmsg"))
     @restrictions_legacy.owner()
     @restrictions_legacy.no_admin_perms()
-    async def system(self, ctx, room, *, content):
+    async def sysmsg(self, ctx, room, *, content):
         selector = language.get_selector(ctx)
         await self.bot.bridge.send(room,ctx.message,'discord',system=True,content_override=content)
         for platform in self.bot.platforms.keys():
