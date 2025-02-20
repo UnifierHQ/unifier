@@ -2779,7 +2779,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("error")}')
 
     # Help command
-
     async def help(self, ctx: Union[nextcord.Interaction, commands.Context], query: Optional[str] = None):
         selector = language.get_selector(ctx)
         is_legacy = type(ctx) is commands.Context
@@ -3311,63 +3310,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 descmatch = True
                 match = 0
 
-    @nextcord.slash_command(
-        name='help',
-        description=language.desc('sysmgr.help'),
-        description_localizations=language.slash_desc('sysmgr.help'),
-        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
-        integration_types=[nextcord.IntegrationType.guild_install]
-    )
-    async def help_slash(
-            self, ctx: nextcord.Interaction,
-            query: str = slash.option('sysmgr.help.query', required=False)
-    ):
-        await self.help(ctx, query=query)
-
-    @commands.command(name='help')
-    async def help_legacy(self, ctx: commands.Context, *, query=None):
-        await self.help(ctx, query)
-
-    @help_slash.on_autocomplete("query")
-    async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
-        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
-        overrides = {
-            'admin': [],
-            'mod': [],
-            'user': ['modping']
-        }
-
-        overrides['mod'] += overrides['user']
-        overrides['admin'] += overrides['mod']
-
-        permissions = 'user'
-        if ctx.user.id in self.bot.moderators:
-            permissions = 'mod'
-        elif ctx.user.id in self.bot.admins:
-            permissions = 'admin'
-        elif ctx.user.id == self.bot.config['owner']:
-            permissions = 'owner'
-
-        possible = []
-        for cmd in cmds:
-            if query.lower() in cmd.qualified_name:
-                try:
-                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
-                        canrun = await cmd.can_run(ctx)
-                    else:
-                        canrun = (
-                                ctx.user.id == self.bot.owner or
-                                ctx.user.id in self.bot.other_owners or
-                                ctx.user.id in self.bot.admins
-                        )  # legacy commands can only be used by owners and admins
-                except:
-                    canrun = False or cmd.qualified_name in overrides[permissions]
-                if canrun:
-                    if not cmd.qualified_name in possible:
-                        possible.append(cmd.qualified_name)
-
-        return await ctx.response.send_autocomplete(possible[:25])
-
     @system_legacy.command(name='register-commands', hidden=True, description='Registers commands.')
     @restrictions_legacy.owner()
     async def register_commands(self, ctx, *, args=''):
@@ -3663,10 +3605,67 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if page > maxpage:
                     page = maxpage
 
-    @system_legacy.command(name='raiseerror', description='A command that intentionally fails.')
-    @restrictions_legacy.owner()
-    async def raiseerror_legacy(self, ctx):
-        raise RuntimeError('here\'s your error, anything else?')
+    # Universal commands handlers and autocompletes
+
+    @nextcord.slash_command(
+        name='help',
+        description=language.desc('sysmgr.help'),
+        description_localizations=language.slash_desc('sysmgr.help'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def help_slash(
+            self, ctx: nextcord.Interaction,
+            query: str = slash.option('sysmgr.help.query', required=False)
+    ):
+        await self.help(ctx, query=query)
+
+    @commands.command(name='help')
+    async def help_legacy(self, ctx: commands.Context, *, query=None):
+        await self.help(ctx, query)
+
+    @help_slash.on_autocomplete("query")
+    async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
+        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
+        overrides = {
+            'admin': [],
+            'mod': [],
+            'user': ['modping']
+        }
+
+        overrides['mod'] += overrides['user']
+        overrides['admin'] += overrides['mod']
+
+        permissions = 'user'
+        if ctx.user.id in self.bot.moderators:
+            permissions = 'mod'
+        elif ctx.user.id in self.bot.admins:
+            permissions = 'admin'
+        elif ctx.user.id == self.bot.config['owner']:
+            permissions = 'owner'
+
+        possible = []
+        for cmd in cmds:
+            if query.lower() in cmd.qualified_name:
+                try:
+                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd,
+                                                                                      nextcord.SlashApplicationSubcommand):
+                        canrun = await cmd.can_run(ctx)
+                    else:
+                        canrun = (
+                                ctx.user.id == self.bot.owner or
+                                ctx.user.id in self.bot.other_owners or
+                                ctx.user.id in self.bot.admins
+                        )  # legacy commands can only be used by owners and admins
+                except:
+                    canrun = False or cmd.qualified_name in overrides[permissions]
+                if canrun:
+                    if not cmd.qualified_name in possible:
+                        possible.append(cmd.qualified_name)
+
+        return await ctx.response.send_autocomplete(possible[:25])
+
+    # Error handling
 
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)

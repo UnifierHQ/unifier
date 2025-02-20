@@ -5618,17 +5618,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif interaction_resp.data['custom_id'] == 'prev':
                 page -= 1
 
-    @bridge.subcommand(name='report', description=language.desc('bridge.report'))
-    async def report_slash(
-            self, ctx,
-            message: str = slash.option('bridge.report.message')
-    ):
-        await self.report(ctx, message)
-
-    @nextcord.message_command(name='Report message')
-    async def report_ctx(self, interaction, message: nextcord.Message):
-        await self.report(interaction, message)
-
     @bridge.subcommand(description=language.desc('bridge.serverstatus'))
     @restrictions.not_banned_guild()
     async def serverstatus(self, ctx: nextcord.Interaction):
@@ -5862,20 +5851,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         embed.colour = self.bot.colors.success
         await interaction.response.edit_message(embed=embed, view=None)
-
-    @bridge.subcommand(
-        name='pause',
-        description=language.desc('bridge.pause'),
-        description_localizations=language.slash_desc('bridge.pause')
-    )
-    @restrictions.not_banned()
-    async def pause_slash(self, ctx: nextcord.Interaction):
-        await self.pause(ctx)
-
-    @bridge_legacy.command(name='pause')
-    @restrictions_legacy.not_banned()
-    async def pause_legacy(self, ctx: commands.Context):
-        await self.pause(ctx)
 
     @bridge.subcommand(
         description=language.desc('bridge.prefixes'),
@@ -7074,6 +7049,36 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             emoji = f'<a:{emoji.name}:{emoji.id}>' if emoji.animated else f'<:{emoji.name}:{emoji.id}>'
 
         await msg.remove_reaction(emoji, event.user_id)
+
+    # Universal commands handlers and autocompletes
+
+    @bridge.subcommand(
+        name='pause',
+        description=language.desc('bridge.pause'),
+        description_localizations=language.slash_desc('bridge.pause')
+    )
+    @restrictions.not_banned()
+    async def pause_slash(self, ctx: nextcord.Interaction):
+        await self.pause(ctx)
+
+    @bridge_legacy.command(name='pause')
+    @restrictions_legacy.not_banned()
+    async def pause_legacy(self, ctx: commands.Context):
+        await self.pause(ctx)
+
+    # This one's not necessarily a "Universal command", but it's still here anyways for consistency
+    @bridge.subcommand(name='report', description=language.desc('bridge.report'))
+    async def report_slash(
+            self, ctx,
+            message: str = slash.option('bridge.report.message')
+    ):
+        await self.report(ctx, message)
+
+    @nextcord.message_command(name='Report message')
+    async def report_ctx(self, interaction, message: nextcord.Message):
+        await self.report(interaction, message)
+
+    # Error handling
 
     async def cog_command_error(self, ctx: nextcord.Interaction, error):
         await self.bot.exhandler.handle(ctx, error)
