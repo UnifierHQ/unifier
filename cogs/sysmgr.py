@@ -3192,8 +3192,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.add_field(
                         name=selector.get("usage"),
                         value=(
-                            selector.fget("usage_slash_universal", values={"command": cmdname}) + '\n' +
-                            selector.fget("usage_legacy_universal", values={"signature": (
+                            '- ' + selector.fget("usage_slash_universal", values={"command": cmd.get_mention()}) + '\n' +
+                            '- ' + selector.fget("usage_legacy_universal", values={"signature": (
                                 f'`{self.bot.command_prefix}{cmdname} {legacy_form.signature}`'
                                 if len(legacy_form.signature) > 0 else
                                 f'`{self.bot.command_prefix}{cmdname}`'
