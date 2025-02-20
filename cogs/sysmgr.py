@@ -3521,13 +3521,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         )
         await ctx.send(embed=embed)
 
-    @nextcord.slash_command(
-        description=language.desc('sysmgr.about'),
-        description_localizations=language.slash_desc('sysmgr.about'),
-        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
-        integration_types=[nextcord.IntegrationType.guild_install]
-    )
-    async def about(self, ctx: nextcord.Interaction):
+    # About command
+    async def about(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
 
         all_attribs = dict(attribution)
@@ -3683,6 +3678,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     # Universal commands handlers and autocompletes
 
+    # help
     @nextcord.slash_command(
         name='help',
         description=language.desc('sysmgr.help'),
@@ -3768,6 +3764,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         possible.append(cmd.qualified_name)
 
         return await ctx.response.send_autocomplete(possible[:25])
+
+    # about
+    @nextcord.slash_command(
+        name='about',
+        description=language.desc('sysmgr.about'),
+        description_localizations=language.slash_desc('sysmgr.about'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def about_slash(self, ctx: nextcord.Interaction):
+        await self.about(ctx)
+
+    @commands.command(name='about')
+    async def about_legacy(self, ctx: commands.Context):
+        await self.about(ctx)
 
     # Error handling
 
