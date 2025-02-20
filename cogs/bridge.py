@@ -6738,7 +6738,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         except:
             pass
 
-        await self.bot.bridge.edit(msg.id,message.content)
+        await self.bot.bridge.edit(msg.id, message.content, message)
 
     @commands.Cog.listener()
     async def on_raw_message_edit(self,payload):
