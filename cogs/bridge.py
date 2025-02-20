@@ -1611,6 +1611,7 @@ class UnifierBridge:
                 message.guild.nsfw_level == nextcord.NSFWLevel.explicit or
                 message.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
             )
+            is_spammer = message.author.flags.known_spammer
         else:
             is_bot = support.is_bot(
                 support.author(message)
@@ -1620,6 +1621,7 @@ class UnifierBridge:
             server = support.get_id(support.server(message))
             name = support.user_name(support.author(message), message=message)
             avatar = support.avatar(support.author(message), message=message)
+            is_spammer = False
 
             try:
                 webhook_id = support.webhook_id(message)
@@ -1709,7 +1711,8 @@ class UnifierBridge:
                         'bot': is_bot,
                         'webhook_id': str(webhook_id) if webhook_id else None,
                         'content': content,
-                        'files': files
+                        'files': files,
+                        'suspected_spammer': is_spammer
                     }
 
                     try:
