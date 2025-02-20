@@ -15,5 +15,6 @@ class Filter(BaseFilter):
 
         contains = [keyword for keyword in keywords if keyword in message['content']]
         return FilterResult(
-            len(contains) == 0, None, message='Server invites are not allowed here.', should_log=True
+            len(contains) == 0, None, message='Server invites are not allowed here.', should_log=True,
+            should_contribute=True
         )
