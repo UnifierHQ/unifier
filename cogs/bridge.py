@@ -1839,7 +1839,7 @@ class UnifierBridge:
 
         return True
 
-    async def edit(self, message, content, source='discord'):
+    async def edit(self, message, content, message_object, source='discord'):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
 
         threads = []
@@ -1862,7 +1862,7 @@ class UnifierBridge:
         # Check is message can be sent
         try:
             # File count is 0 as this can't be edited for most platforms
-            await self.can_send(msg.room, message, content, 0, source=source, is_first=True)
+            await self.can_send(msg.room, message_object, content, 0, source=source, is_first=True)
         except self.BridgeError:
             return
 
@@ -6265,8 +6265,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0 and len(bridgeable_stickers) == 0:
             return
 
-        custom_prefix_user = self.bot.db['bot_prefixes'].get(message.author.id, None)
-        custom_prefix_guild = self.bot.db['bot_prefixes'].get(message.guild.id, None)
+        custom_prefix_user = self.bot.db['bot_prefixes'].get(str(message.author.id), None)
+        custom_prefix_guild = self.bot.db['bot_prefixes'].get(str(message.guild.id), None)
 
         if (
                 message.content.lower().startswith(self.bot.command_prefix) or
