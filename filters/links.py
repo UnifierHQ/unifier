@@ -15,4 +15,7 @@ class Filter(BaseFilter):
         return [x[0] for x in url]
 
     def check(self, message, data) -> FilterResult:
-        return FilterResult(len(self.find_urls(message['content'])) == 0, None, message='URLs are not allowed here.')
+        return FilterResult(
+            len(self.find_urls(message['content'])) == 0, None, message='Links are not allowed here.',
+            should_log=True
+        )

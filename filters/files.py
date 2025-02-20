@@ -3,7 +3,7 @@ from utils.base_filter import FilterResult, BaseFilter
 class Filter(BaseFilter):
     def __init__(self):
         super().__init__(
-            'invites',
+            'files',
             'Files Filter',
             'A filter that blocks files from being bridged.'
         )

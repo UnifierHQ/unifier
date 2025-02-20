@@ -8,11 +8,12 @@ class MissingCheck(Exception):
 
 class FilterResult:
     def __init__(self, allowed: bool, data: Optional[dict] = None, message: Optional[str] = None,
-                 should_log: bool = False):
+                 should_log: bool = False, should_contribute: bool = False):
         self.__allowed = allowed
         self.__data = data or {}
         self.__message = message
         self.__should_log = should_log
+        self.__should_contribute = should_contribute
 
     @property
     def allowed(self):
@@ -29,6 +30,10 @@ class FilterResult:
     @property
     def should_log(self):
         return self.__should_log
+
+    @property
+    def should_contribute(self):
+        return self.__should_contribute
 
 class FilterConfig:
     types = {

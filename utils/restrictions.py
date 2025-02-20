@@ -83,6 +83,18 @@ class Restrictions:
 
         return application_checks.check(predicate)
 
+    def server_admin(self):
+        async def predicate(interaction: nextcord.Interaction):
+            return interaction.user.guild_permissions.manage_channels
+
+        return application_checks.check(predicate)
+
+    def server_moderator(self):
+        async def predicate(interaction: nextcord.Interaction):
+            return interaction.user.guild_permissions.ban_members or interaction.user.guild_permissions.manage_channels
+
+        return application_checks.check(predicate)
+
     def can_create(self):
         async def predicate(interaction: nextcord.Interaction):
             return (
@@ -139,12 +151,12 @@ class Restrictions:
 
         return application_checks.check(predicate)
 
-    def cooldown(self, rate: int, per: int, type: str = 'user'):
+    def cooldown(self, rate: int, per: int, bucket_type: str = 'user'):
         async def predicate(interaction: nextcord.Interaction):
-            if type == 'guild':
+            if bucket_type == 'guild':
                 target = interaction.guild.id
                 bucket = commands.BucketType.guild
-            elif type == 'channel':
+            elif bucket_type == 'channel':
                 target = interaction.channel.id
                 bucket = commands.BucketType.channel
             else:
@@ -159,6 +171,7 @@ class Restrictions:
             cooldowns = self.__bot.cooldowns[interaction.application_command.qualified_name]
             if target in cooldowns.keys():
                 if cooldowns[target]['usage'] >= rate and cooldowns[target]['expiry'] > time.time():
+                    # noinspection PyTypeChecker
                     raise commands.CommandOnCooldown(bucket, round(cooldowns[target]['expiry'] - time.time()), commands.CooldownMapping)
                 elif cooldowns[target]['expiry'] > time.time():
                     self.__bot.cooldowns[interaction.application_command.qualified_name][target]['usage'] += 1

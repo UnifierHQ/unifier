@@ -18,5 +18,5 @@ class Filter(BaseFilter):
     def check(self, message, data) -> FilterResult:
         return FilterResult(
             len(message['content']) <= data['config']['limit'], data,
-            message=f'Your message should be {data["config"]["limit"]} characters or less.'
+            message=f'Your message should be {data["config"]["limit"]} characters or less.', should_log=True
         )

@@ -170,11 +170,17 @@ for key in data:
 
 data = newdata
 
-# copy filters from update
+# Copy filters from update
 if not os.path.isdir('filters'):
     os.mkdir('filters')
     for file in os.listdir('update/filters'):
         shutil.copy2(f'update/filters/{file}', f'filters/{file}')
+
+# Filters fix (3.8.4 => 3.9.0)
+if not 'spam.py' in os.listdir('filters') or not 'massping.py' in os.listdir('filters'):
+    shutil.copy2('update/filters/spam.py', 'filters/spam.py')
+    shutil.copy2('update/filters/massping.py', 'filters/massping.py')
+    shutil.copy2('update/filters/files.py', 'filters/files.py')
 
 encrypted_env = {}
 ivs = {}
@@ -289,7 +295,7 @@ class AutoSaveDict(dict):
             'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
             'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
             'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}, 'paused': [],
-            'prefixes': {}
+            'prefixes': {}, 'automatic_uam': [], 'filter_threshold': {}
         }
 
     @property

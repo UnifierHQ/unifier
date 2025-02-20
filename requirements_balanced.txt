@@ -20,3 +20,5 @@ setuptools
 aiomultiprocess
 better_profanity
 zstandard
+jellyfish
+tld
