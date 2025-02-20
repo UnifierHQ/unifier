@@ -3175,17 +3175,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 except:
                     cmddesc = cmd.description or selector.get("no_desc")
 
+                aliases = []
+                if legacy_form:
+                    parent_command = ''
+                    if legacy_form.parent:
+                        parent_command = legacy_form.parent.qualified_name + ' '
+
+                    for alias in legacy_form.aliases:
+                        aliases.append(f'`{self.bot.command_prefix}{parent_command}{alias}`')
+
                 if is_universal:
                     cmddesc = cmddesc + '\n\n' + selector.get("universal")
                     cmdtext = slash_form.get_mention()
 
-                    if len(legacy_form.aliases) > 0:
-                        aliases = []
-                        if isinstance(legacy_form, commands.Command):
-                            for alias in legacy_form.aliases:
-                                aliases.append(f'`{self.bot.command_prefix}{alias}`')
+                    if len(aliases) > 0:
                         embed.add_field(
-                            name=selector.get("aliases_universal"),value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
+                            name=selector.get("aliases_universal"),
+                            value=('- ' + '\n- '.join(aliases)) if len(aliases) > 1 else ('- ' + aliases[0]),
+                            inline=False
                         )
 
                     embed.add_field(
@@ -3209,13 +3216,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     )
                 elif isinstance(cmd, commands.Command):
                     cmdtext = f'**`{self.bot.command_prefix}{cmdname}`**'
-                    if len(cmd.aliases) > 0:
-                        aliases = []
-                        if isinstance(cmd, commands.Command):
-                            for alias in cmd.aliases:
-                                aliases.append(f'`{self.bot.command_prefix}{alias}`')
+                    if len(aliases) > 0:
                         embed.add_field(
-                            name=selector.get("aliases"),value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
+                            name=selector.get("aliases"),
+                            value=('- ' + '\n- '.join(aliases)) if len(aliases) > 1 else ('- ' + aliases[0]),
+                            inline=False
                         )
                     embed.add_field(name=selector.get("usage"), value=(
                         f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else

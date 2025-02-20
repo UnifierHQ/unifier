@@ -3175,7 +3175,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         self.bot.bridge.load_filters()
         if webhook_cache:
             self.bot.bridge.webhook_cache = webhook_cache
-    
+
     def can_moderate(self, user, room):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
@@ -3203,7 +3203,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def cog_before_invoke(self, ctx):
         ctx.user = ctx.author
 
-    async def roomslist(self, ctx: nextcord.Interaction, private):
+    # Rooms command
+    async def rooms(self, ctx: Union[nextcord.Interaction, commands.Context], private):
         selector = language.get_selector('bridge.rooms', userid=ctx.user.id)
 
         show_restricted = False
@@ -3705,6 +3706,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 match = 0
                 page = 0
 
+    # Report command
     async def report(self, ctx, msg: Union[nextcord.Message, str]):
         selector = language.get_selector('bridge.report',userid=ctx.user.id)
         if ctx.user.id in self.bot.db['fullbanned']:
@@ -4045,18 +4047,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def bridge_legacy(self, ctx: commands.Context):
         pass
 
-    @bridge.subcommand(
-        description=language.desc('bridge.bind'),
-        description_localizations=language.slash_desc('bridge.bind')
-    )
-    @application_checks.has_permissions(manage_channels=True)
-    @application_checks.bot_has_permissions(manage_webhooks=True)
-    @restrictions.not_banned()
-    @restrictions.no_admin_perms()
-    async def bind(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('bridge.bind.room')
-    ):
+    # Bind command
+    async def bind(self, ctx: Union[nextcord.Interaction, commands.Context], room: str):
         invite = False
         roominfo = self.bot.bridge.get_room(room.lower())
 
@@ -4207,16 +4199,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 pass
             await interaction.edit_original_message(content=f'{self.bot.ui_emojis.success} {selector.get("say_hi")}')
 
-    @bridge.subcommand(
-        description=language.desc('bridge.unbind'),
-        description_localizations=language.slash_desc('bridge.unbind')
-    )
-    @application_checks.has_permissions(manage_channels=True)
-    @application_checks.bot_has_permissions(manage_webhooks=True)
-    @restrictions.no_admin_perms()
+    # Unbind command
     async def unbind(
-            self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.unbind.room', required=False)
+            self, ctx: Union[nextcord.Interaction, commands.Context],
+            room: Optional[str] = None
     ):
         selector = language.get_selector(ctx)
         if not room:
@@ -4227,7 +4213,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if not data:
             raise restrictions.UnknownRoom()
 
-        await ctx.response.defer(ephemeral=False, with_message=True)
+        msg: Optional[nextcord.Message] = None
+
+        if type(ctx) is nextcord.Interaction:
+            await ctx.response.defer(ephemeral=False, with_message=True)
+        else:
+            msg = await ctx.send(f'{self.bot.ui_emojis.loading} {selector.rawget("loading", "commons.navigation")}')
 
         hook_deleted = True
         try:
@@ -4246,9 +4237,14 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.bridge.leave_room(ctx.guild, room)
 
         if hook_deleted:
-            await ctx.edit_original_message(content=f'{self.bot.ui_emojis.success} {selector.get("success")}')
+            resp = f'{self.bot.ui_emojis.success} {selector.get("success")}'
         else:
-            await ctx.edit_original_message(content=f'{self.bot.ui_emojis.warning} {selector.get("success_semi")}')
+            resp = f'{self.bot.ui_emojis.warning} {selector.get("success_semi")}'
+
+        if type(ctx) is nextcord.Interaction:
+            await ctx.edit_original_message(content=resp)
+        else:
+            await msg.edit(content=resp)
 
     async def room_autocomplete(self, room, server, connected=False):
         possible = []
@@ -4281,37 +4277,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         return possible
 
-    @bind.on_autocomplete("room")
-    async def bind_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild))
-
-    @unbind.on_autocomplete("room")
-    async def unbind_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild, connected=True))
-
-    @bridge.subcommand(
-        description=language.desc('bridge.rooms'),
-        description_localizations=language.slash_desc('bridge.rooms')
-    )
-    async def rooms(self, ctx):
-        await self.roomslist(ctx, False)
-
-    @bridge.subcommand(
-        name='private-rooms',
-        description=language.desc('bridge.private-rooms'),
-        description_localizations=language.slash_desc('bridge.private-rooms')
-    )
-    async def private_rooms(self, ctx):
-        await self.roomslist(ctx, True)
-
-    @bridge.subcommand(
-        description=language.desc('bridge.servers'),
-        description_localizations=language.slash_desc('bridge.servers')
-    )
-    async def servers(
-            self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.servers.room', required=False)
-    ):
+    # Servers command
+    async def servers(self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None):
         if not room:
             room = self.bot.bridge.check_duplicate(ctx.channel)
             if not room:
@@ -4350,18 +4317,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         await ctx.send(embed=embed)
 
-    @servers.on_autocomplete("room")
-    async def servers_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild))
-
-    @bridge.subcommand(
-        description=language.desc('bridge.rules'),
-        description_localizations=language.slash_desc('bridge.rules')
-    )
-    async def rules(
-            self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.rules.room', required=False)
-    ):
+    # Rules command
+    async def rules(self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None):
         if not room:
             room = self.bot.bridge.check_duplicate(ctx.channel) or self.bot.config['main_room']
         room = room.lower()
@@ -4392,19 +4349,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.set_footer(text=selector.rawget("disclaimer", "bridge.bind"))
         await ctx.send(embed=embed)
 
-    @rules.on_autocomplete("room")
-    async def rules_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild))
-
-    @bridge.subcommand(
-        description=language.desc('bridge.avatar'),
-        description_localizations=language.slash_desc('bridge.avatar')
-    )
-    @restrictions.not_banned()
-    async def avatar(
-            self, ctx: nextcord.Interaction,
-            url: Optional[str] = slash.option('bridge.avatar.url', required=False)
-    ):
+    # Avatar command
+    async def avatar(self, ctx: Union[nextcord.Interaction, commands.Context], url: Optional[str] = None):
         if not url:
             url = ''
         selector = language.get_selector(ctx)
@@ -4492,17 +4438,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             return await interaction.response.send_message(
                 f'{self.bot.ui_emojis.success} {selector.get("success_set")}')
 
-    @bridge.subcommand(
-        name='create-room',
-        description=language.desc('bridge.create-room'),
-        description_localizations=language.slash_desc('bridge.create-room')
-    )
-    @restrictions.can_create()
-    @restrictions.not_banned()
-    async def create_room(
-            self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('bridge.create-room.room', required=False)
-    ):
+    # Create room command
+    async def create_room(self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None):
         roomtype = 'private'
         dry_run = False
 
@@ -4648,12 +4585,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed=embed
         )
 
-    @bridge.subcommand(
-        name='allocations',
-        description=language.desc('bridge.allocations'),
-        description_localizations=language.slash_desc('bridge.allocations')
-    )
-    async def allocations(self, ctx: nextcord.Interaction):
+    # Allocations command
+    async def allocations(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
 
         if not self.bot.config['enable_private_rooms']:
@@ -4699,14 +4632,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.set_footer(text=f'{selector.get("disclaimer")}\n{selector.get("disclaimer_2")}')
         await ctx.send(embed=embed)
 
-    @bridge.subcommand(
-        description=language.desc('bridge.disband'),
-        description_localizations=language.slash_desc('bridge.disband')
-    )
-    async def disband(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('bridge.disband.room')
-    ):
+    # Disband command
+    async def disband(self, ctx: Union[nextcord.Interaction, commands.context], room: str):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -4778,16 +4705,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await interaction.response.edit_message(embed=embed, view=None)
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-    @bridge.subcommand(
-        description=language.desc('bridge.roomkick'),
-        description_localizations=language.slash_desc('bridge.roomkick')
-    )
-    @restrictions.not_banned()
-    async def roomkick(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('bridge.roomkick.room'),
-            server: str = slash.option('bridge.roomkick.server')
-    ):
+    # Roomkick command
+    async def roomkick(self, ctx: Union[nextcord.Interaction, commands.Context], room: str, server: str):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -4839,16 +4758,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"server": server_name})}')
 
-    @bridge.subcommand(
-        description=language.desc('bridge.roomban'),
-        description_localizations=language.slash_desc('bridge.roomban')
-    )
-    @restrictions.not_banned()
-    async def roomban(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('bridge.roomban.room'),
-            server: str = slash.option('bridge.roomban.server')
-    ):
+    # Roomban command
+    async def roomban(self, ctx: Union[nextcord.Interaction, commands.Context], room: str, server: str):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -4922,16 +4833,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"server": server_name})}')
 
-    @bridge.subcommand(
-        description=language.desc('bridge.roomunban'),
-        description_localizations=language.slash_desc('bridge.roomunban')
-    )
-    @restrictions.not_banned()
-    async def roomunban(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('bridge.roomunban.room'),
-            server: str = slash.option('bridge.roomunban.server')
-    ):
+    # Roomunban command
+    async def roomunban(self, ctx: Union[nextcord.Interaction, commands.Context], room: str, server: str):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -5005,15 +4908,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"server": server_name})}')
 
-    @bridge.subcommand(
-        description=language.desc('bridge.color'),
-        description_localizations=language.slash_desc('bridge.color')
-    )
-    @restrictions.not_banned_guild()
-    async def color(
-            self, ctx: nextcord.Interaction,
-            color: Optional[str] = slash.option('bridge.color.color', required=False)
-    ):
+    async def color(self, ctx: Union[nextcord.Interaction, commands.Context], color: Optional[str] = None):
         selector = language.get_selector(ctx)
 
         if not color:
@@ -5045,15 +4940,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} '+selector.get('success_custom'))
 
-    @bridge.subcommand(
-        description=language.desc('bridge.nickname'),
-        description_localizations=language.slash_desc('bridge.nickname')
-    )
-    @restrictions.not_banned_guild()
-    async def nickname(
-            self, ctx: nextcord.Interaction,
-            nickname: Optional[str] = slash.option('bridge.nickname.nickname', required=False)
-    ):
+    async def nickname(self, ctx: Union[nextcord.Interaction, commands.Context], nickname: Optional[str] = None):
         selector = language.get_selector(ctx)
         if len(nickname) > 33:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("exceed")}')
@@ -5064,21 +4951,24 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @nextcord.slash_command(
-        description=language.desc('bridge.ping'),
-        description_localizations=language.slash_desc('bridge.ping'),
-        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
-        integration_types=[nextcord.IntegrationType.guild_install]
-    )
-    async def ping(self, ctx: nextcord.Interaction):
+    # Ping command
+    async def ping(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
+        t_legacy = time.time()
         msg = await ctx.send(selector.get('ping'))
         if type(ctx) is nextcord.Interaction:
             msg = await msg.fetch()
         t = time.time()
-        pingmsg = await ctx.send(selector.get('ping'))
-        diff = round((time.time() - t) * 1000, 1)
-        await pingmsg.delete()
+
+        # As an interaction response is sent through webhooks, this increases roundtrip latency.
+        # So a separate message must be sent to accurately measure roundtrip
+        if type(ctx) is nextcord.Interaction:
+            pingmsg = await ctx.send(selector.get('ping'))
+            diff = round((time.time() - t) * 1000, 1)
+            await pingmsg.delete()
+        else:
+            diff = round((t - t_legacy) * 1000, 1)
+
         text = selector.get('pong')+' :ping_pong:'
         if diff <= 300 and self.bot.latency <= 0.2:
             embed = nextcord.Embed(title=selector.get('normal_title'),
@@ -5099,11 +4989,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                    color=self.bot.colors.critical)
         await msg.edit(content=text, embed=embed)
 
-    @bridge.subcommand(
-        description=language.desc('bridge.emojis'),
-        description_localizations=language.slash_desc('bridge.emojis')
-    )
-    async def emojis(self,ctx: nextcord.Interaction):
+    async def emojis(self, ctx: Union[nextcord.Interaction, commands.context]):
         selector = language.get_selector(ctx)
         panel = 0
         limit = 8
@@ -5412,6 +5298,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 query = interaction.data['components'][0]['components'][0]['value']
                 page = 0
 
+    # TODO: implement custom cooldown handler for this before porting to universal
+
     @bridge.subcommand(
         description=language.desc('bridge.modping'),
         description_localizations=language.slash_desc('bridge.modping')
@@ -5618,31 +5506,13 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif interaction_resp.data['custom_id'] == 'prev':
                 page -= 1
 
-    @bridge.subcommand(description=language.desc('bridge.serverstatus'))
-    @restrictions.not_banned_guild()
-    async def serverstatus(self, ctx: nextcord.Interaction):
-        selector = language.get_selector(ctx)
-        embed = nextcord.Embed(
-            title=selector.get('title'),
-            description=selector.get('body_ok'),
-            color=self.bot.colors.success
-        )
-        if f'{ctx.guild.id}' in self.bot.bridge.restricted:
-            embed.description = selector.get('body_restricted')
-            embed.colour = self.bot.colors.warning
-        await ctx.send(embed=embed)
-
-    @bridge.subcommand(
-        description=language.desc('bridge.level'),
-        description_localizations=language.slash_desc('bridge.level')
-    )
-    async def level(
-            self, ctx: nextcord.Interaction,
-            user: Optional[nextcord.User] = slash.option('bridge.level.user', required=False)
-    ):
+    async def level(self, ctx: Union[nextcord.Interaction, commands.context], user: Optional[nextcord.User] = None):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
-            return await ctx.send(selector.get('disabled'), ephemeral=True)
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(selector.get('disabled'), ephemeral=True)
+            else:
+                return await ctx.send(selector.get('disabled'))
         if not user:
             user = ctx.user
         try:
@@ -5669,14 +5539,17 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
         await ctx.send(embed=embed)
 
-    @bridge.subcommand(
-        description=language.desc('bridge.leaderboard'),
-        description_localizations=language.slash_desc('bridge.leaderboard')
-    )
-    async def leaderboard(self, ctx: nextcord.Interaction):
+    # Leaderboard command
+    async def leaderboard(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
-            return await ctx.send(language.get('disabled','bridge.level',language=selector.language_set), ephemeral=True)
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(
+                    language.get('disabled','bridge.level',language=selector.language_set), ephemeral=True
+                )
+            else:
+                return await ctx.send(language.get('disabled', 'bridge.level', language=selector.language_set))
+
         expdata = dict(self.bot.db['exp'])
         lb_data = await self.bot.loop.run_in_executor(None, lambda: sorted(
                 expdata.items(),
@@ -5852,12 +5725,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         embed.colour = self.bot.colors.success
         await interaction.response.edit_message(embed=embed, view=None)
 
-    @bridge.subcommand(
-        description=language.desc('bridge.prefixes'),
-        description_localizations=language.slash_desc('bridge.prefixes')
-    )
-    @restrictions.not_banned()
-    async def prefixes(self, ctx: nextcord.Interaction):
+    # Prefixes command
+    async def prefixes(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         interaction: Optional[nextcord.Interaction] = None
         msg: Optional[nextcord.Message] = None
@@ -7052,6 +6921,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     # Universal commands handlers and autocompletes
 
+    # bridge pause
     @bridge.subcommand(
         name='pause',
         description=language.desc('bridge.pause'),
@@ -7066,6 +6936,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def pause_legacy(self, ctx: commands.Context):
         await self.pause(ctx)
 
+    # bridge report, Report message (message context menu)
     # This one's not necessarily a "Universal command", but it's still here anyways for consistency
     @bridge.subcommand(name='report', description=language.desc('bridge.report'))
     async def report_slash(
@@ -7077,6 +6948,359 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     @nextcord.message_command(name='Report message')
     async def report_ctx(self, interaction, message: nextcord.Message):
         await self.report(interaction, message)
+
+    # bridge bind
+    @bridge.subcommand(
+        name='bind',
+        description=language.desc('bridge.bind'),
+        description_localizations=language.slash_desc('bridge.bind')
+    )
+    @application_checks.has_permissions(manage_channels=True)
+    @application_checks.bot_has_permissions(manage_webhooks=True)
+    @restrictions.not_banned()
+    @restrictions.no_admin_perms()
+    async def bind_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('bridge.bind.room')
+    ):
+        await self.bind(ctx, room)
+
+    @bind_slash.on_autocomplete("room")
+    async def bind_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild))
+
+    @bridge_legacy.command(name='bind', aliases=['connect', 'join'])
+    @commands.guild_only()
+    @commands.has_permissions(manage_channels=True)
+    @commands.bot_has_permissions(manage_webhooks=True)
+    @restrictions_legacy.not_banned()
+    @restrictions_legacy.no_admin_perms()
+    async def bind_legacy(self, ctx: commands.Context, room: str):
+        await self.bind(ctx, room)
+
+    # bridge unbind
+    @bridge.subcommand(
+        name='unbind',
+        description=language.desc('bridge.unbind'),
+        description_localizations=language.slash_desc('bridge.unbind')
+    )
+    @application_checks.has_permissions(manage_channels=True)
+    @application_checks.bot_has_permissions(manage_webhooks=True)
+    @restrictions.no_admin_perms()
+    async def unbind_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('bridge.unbind.room', required=False)
+    ):
+        await self.unbind(ctx, room=room)
+
+    @unbind_slash.on_autocomplete("room")
+    async def unbind_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild, connected=True))
+
+    @bridge_legacy.command(name='unbind', aliases=['disconnect', 'leave'])
+    @commands.has_permissions(manage_channels=True)
+    @commands.bot_has_permissions(manage_webhooks=True)
+    @restrictions_legacy.no_admin_perms()
+    async def unbind_legacy(self, ctx: commands.Context, room: Optional[str] = None):
+        await self.unbind(ctx, room=room)
+
+    # bridge rooms
+    @bridge.subcommand(
+        name='rooms',
+        description=language.desc('bridge.rooms'),
+        description_localizations=language.slash_desc('bridge.rooms')
+    )
+    async def rooms_slash(self, ctx: nextcord.Interaction):
+        await self.rooms(ctx, False)
+
+    @bridge_legacy.command(name='rooms')
+    async def rooms_legacy(self, ctx: commands.context):
+        await self.rooms(ctx, False)
+
+    # bridge private-rooms
+    @bridge.subcommand(
+        name='private-rooms',
+        description=language.desc('bridge.private-rooms'),
+        description_localizations=language.slash_desc('bridge.private-rooms')
+    )
+    async def private_rooms(self, ctx: nextcord.Interaction):
+        await self.rooms(ctx, True)
+
+    @bridge_legacy.command(name='private-rooms')
+    async def private_rooms_legacy(self, ctx: commands.context):
+        await self.rooms(ctx, True)
+
+    # bridge servers
+    @bridge.subcommand(
+        name='servers',
+        description=language.desc('bridge.servers'),
+        description_localizations=language.slash_desc('bridge.servers')
+    )
+    async def servers_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('bridge.servers.room', required=False)
+    ):
+        await self.servers(ctx, room=room)
+
+    @servers_slash.on_autocomplete("room")
+    async def servers_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild))
+
+    @bridge_legacy.command(name='servers')
+    async def servers_legacy(self, ctx: commands.Context, room: Optional[str] = None):
+        await self.servers(ctx, room=room)
+
+    # bridge rules
+    @bridge.subcommand(
+        name='rules',
+        description=language.desc('bridge.rules'),
+        description_localizations=language.slash_desc('bridge.rules')
+    )
+    async def rules_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('bridge.rules.room', required=False)
+    ):
+        await self.rules(ctx, room=room)
+
+    @rules_slash.on_autocomplete("room")
+    async def rules_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_autocomplete(room, ctx.guild))
+
+    @bridge_legacy.command(name='rules')
+    async def rules_legacy(self, ctx: commands.Context, room: Optional[str] = None):
+        await self.rules(ctx, room=room)
+
+    # bridge avatar
+    @bridge.subcommand(
+        name='avatar',
+        description=language.desc('bridge.avatar'),
+        description_localizations=language.slash_desc('bridge.avatar')
+    )
+    @restrictions.not_banned()
+    async def avatar_slash(
+            self, ctx: nextcord.Interaction,
+            url: Optional[str] = slash.option('bridge.avatar.url', required=False)
+    ):
+        await self.avatar(ctx, url=url)
+
+    @bridge_legacy.command(name='avatar', aliases=['pfp', 'profile-picture'])
+    @restrictions_legacy.not_banned()
+    async def avatar_legacy(self, ctx: commands.Context, url: Optional[str] = None):
+        await self.avatar(ctx, url=url)
+
+    # bridge create-room
+    @bridge.subcommand(
+        name='create-room',
+        description=language.desc('bridge.create-room'),
+        description_localizations=language.slash_desc('bridge.create-room')
+    )
+    @restrictions.can_create()
+    @restrictions.not_banned()
+    async def create_room_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('bridge.create-room.room', required=False)
+    ):
+        await self.create_room(ctx, room=room)
+
+    @bridge_legacy.command(name='create-room', aliases=['new-room'])
+    @restrictions_legacy.can_create()
+    @restrictions_legacy.not_banned()
+    async def create_room_legacy(self, ctx: commands.Context, room: Optional[str] = None):
+        await self.create_room(ctx, room=room)
+
+    # bridge allocations
+    @bridge.subcommand(
+        name='allocations',
+        description=language.desc('bridge.allocations'),
+        description_localizations=language.slash_desc('bridge.allocations')
+    )
+    async def allocations_slash(self, ctx: nextcord.Interaction):
+        await self.allocations(ctx)
+
+    @bridge_legacy.command(name='allocations')
+    async def allocations_legacy(self, ctx: commands.context):
+        await self.allocations(ctx)
+
+    # bridge disband
+    @bridge.subcommand(
+        name='disband',
+        description=language.desc('bridge.disband'),
+        description_localizations=language.slash_desc('bridge.disband')
+    )
+    async def disband_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('bridge.disband.room')
+    ):
+        await self.disband(ctx, room)
+
+    @bridge_legacy.command(name='disband')
+    async def disband_legacy(self, ctx: commands.Context, room: str):
+        await self.disband(ctx, room)
+
+    # bridge roomkick
+    @bridge.subcommand(
+        name='roomkick',
+        description=language.desc('bridge.roomkick'),
+        description_localizations=language.slash_desc('bridge.roomkick')
+    )
+    @restrictions.not_banned()
+    async def roomkick_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('bridge.roomkick.room'),
+            server: str = slash.option('bridge.roomkick.server')
+    ):
+        await self.roomkick(ctx, room, server)
+
+    @bridge_legacy.command(name='roomkick')
+    @restrictions_legacy.not_banned()
+    async def roomkick_legacy(self, ctx: commands.Context, room: str, server: str):
+        await self.roomkick(ctx, room, server)
+
+    # bridge roomban
+    @bridge.subcommand(
+        name='roomban',
+        description=language.desc('bridge.roomban'),
+        description_localizations=language.slash_desc('bridge.roomban')
+    )
+    @restrictions.not_banned()
+    async def roomban_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('bridge.roomban.room'),
+            server: str = slash.option('bridge.roomban.server')
+    ):
+        await self.roomban(ctx, room, server)
+
+    @bridge_legacy.command(name='roomban')
+    @restrictions_legacy.not_banned()
+    async def roomban_legacy(self, ctx: commands.Context, room: str, server: str):
+        await self.roomban(ctx, room, server)
+
+    # bridge roomunban
+    @bridge.subcommand(
+        name='roomunban',
+        description=language.desc('bridge.roomunban'),
+        description_localizations=language.slash_desc('bridge.roomunban')
+    )
+    @restrictions.not_banned()
+    async def roomunban_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('bridge.roomunban.room'),
+            server: str = slash.option('bridge.roomunban.server')
+    ):
+        await self.roomunban(ctx, room, server)
+
+    @bridge_legacy.command(name='roomunban')
+    @restrictions_legacy.not_banned()
+    async def roomunban_legacy(self, ctx: commands.Context, room: str, server: str):
+        await self.roomunban(ctx, room, server)
+
+    # bridge color
+    @bridge.subcommand(
+        name='color',
+        description=language.desc('bridge.color'),
+        description_localizations=language.slash_desc('bridge.color')
+    )
+    @restrictions.not_banned_guild()
+    async def color_slash(
+            self, ctx: nextcord.Interaction,
+            color: Optional[str] = slash.option('bridge.color.color', required=False)
+    ):
+        await self.color(ctx, color=color)
+
+    @bridge_legacy.command(name='color', aliases=['colour'])
+    @restrictions_legacy.not_banned_guild()
+    async def color_legacy(self, ctx: commands.Context, color: Optional[str] = None):
+        await self.color(ctx, color=color)
+
+    # bridge nickname
+    @bridge.subcommand(
+        name='nickname',
+        description=language.desc('bridge.nickname'),
+        description_localizations=language.slash_desc('bridge.nickname')
+    )
+    @restrictions.not_banned_guild()
+    async def nickname_slash(
+            self, ctx: nextcord.Interaction,
+            nickname: Optional[str] = slash.option('bridge.nickname.nickname', required=False)
+    ):
+        await self.nickname(ctx, nickname=nickname)
+
+    @bridge_legacy.command(name='nickname')
+    @restrictions_legacy.not_banned_guild()
+    async def nickname_legacy(self, ctx: commands.Context, nickname: Optional[str] = None):
+        await self.nickname(ctx, nickname=nickname)
+
+    # ping
+    @nextcord.slash_command(
+        name='ping',
+        description=language.desc('bridge.ping'),
+        description_localizations=language.slash_desc('bridge.ping'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def ping_slash(self, ctx: nextcord.Interaction):
+        await self.ping(ctx)
+
+    @commands.command(name='ping')
+    async def ping_legacy(self, ctx: commands.Context):
+        await self.ping(ctx)
+
+    # bridge emojis
+    @bridge.subcommand(
+        name='emojis',
+        description=language.desc('bridge.emojis'),
+        description_localizations=language.slash_desc('bridge.emojis')
+    )
+    async def emojis_slash(self, ctx: nextcord.Interaction):
+        await self.emojis(ctx)
+
+    @bridge_legacy.command(name='emojis')
+    async def emojis_legacy(self, ctx: commands.context):
+        await self.emojis(ctx)
+
+    # bridge prefixes
+    @bridge.subcommand(
+        name='prefixes',
+        description=language.desc('bridge.prefixes'),
+        description_localizations=language.slash_desc('bridge.prefixes')
+    )
+    @restrictions.not_banned()
+    async def prefixes_slash(self, ctx: nextcord.Interaction):
+        await self.prefixes(ctx)
+
+    @bridge_legacy.command(name='prefixes')
+    @restrictions_legacy.not_banned()
+    async def prefixes_legacy(self, ctx: commands.Context):
+        await self.prefixes(ctx)
+
+    # bridge level
+    @bridge.subcommand(
+        name='level',
+        description=language.desc('bridge.level'),
+        description_localizations=language.slash_desc('bridge.level')
+    )
+    async def level_slash(
+            self, ctx: nextcord.Interaction,
+            user: Optional[nextcord.User] = slash.option('bridge.level.user', required=False)
+    ):
+        await self.level(ctx, user)
+
+    @bridge_legacy.command(name='level')
+    async def level_legacy(self, ctx: commands.context, user: Optional[nextcord.User] = None):
+        await self.level(ctx, user)
+
+    # bridge leaderboard
+    @bridge.subcommand(
+        name='leaderboard',
+        description=language.desc('bridge.leaderboard'),
+        description_localizations=language.slash_desc('bridge.leaderboard')
+    )
+    async def leaderboard_slash(self, ctx: nextcord.Interaction):
+        await self.leaderboard(ctx)
+
+    @bridge_legacy.command(name='leaderboard')
+    async def leaderboard_legacy(self, ctx: commands.context):
+        await self.leaderboard(ctx)
 
     # Error handling
 

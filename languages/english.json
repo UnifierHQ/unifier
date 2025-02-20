@@ -25,7 +25,8 @@
         "aborted": "Aborted.",
         "timeout": "Timed out.",
         "double_confirm": "I know what I'm doing!",
-        "nextsteps": "Next steps"
+        "nextsteps": "Next steps",
+        "loading": "Working on it..."
       },
       "search": {
         "search": "Search",
