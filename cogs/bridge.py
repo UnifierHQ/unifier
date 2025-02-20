@@ -3782,6 +3782,30 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
 
         stage_2 = {
+            'spam': nextcord.ui.StringSelect(
+                max_values=1, min_values=1, custom_id="selection", placeholder=selector.get('placeholder'),
+                options=[
+                    # range: 1-4
+                    nextcord.SelectOption(
+                        value='1',
+                        label=selector.get('spam_1'),
+                        description=selector.get("spam_1_desc"),
+                        emoji='\U0001F4AC'
+                    ),
+                    nextcord.SelectOption(
+                        value='2',
+                        label=selector.get('spam_2'),
+                        description=selector.get("spam_2_desc"),
+                        emoji='\U0001F4DC'
+                    ),
+                    nextcord.SelectOption(
+                        value='3',
+                        label=selector.get('spam_3'),
+                        description=selector.get("spam_3_desc"),
+                        emoji='\U00002622\U0000FE0F'
+                    )
+                ]
+            ),
             'abuse': nextcord.ui.StringSelect(
                 max_values=1, min_values=1, custom_id="selection", placeholder=selector.get('placeholder'),
                 options=[
@@ -3904,7 +3928,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     timestamp=datetime.datetime.now(datetime.timezone.utc)
                 )
                 embed.add_field(name=language.get('reason', 'commons.moderation', language=selector.language_set),
-                                value=f'{language.get(category,"bridge.report")} => {language.get(category + "_" + subcategory,"bridge.report")}', inline=False)
+                                value=(
+                                    f'{language.get(category,"bridge.report")} => {language.get(category + "_" + subcategory,"bridge.report")}'
+                                ) if subcategory else language.get(category,"bridge.report"), inline=False)
                 embed.add_field(name=language.get('context', 'commons.moderation', language=selector.language_set),
                                 value=context, inline=False)
                 embed.add_field(name=language.get('sender_id', 'commons.moderation', language=selector.language_set),
@@ -3969,7 +3995,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     if interaction.data['custom_id'] == 'selection' and not interaction.data['values'][0] in stage_2.keys():
                         if not category:
                             category = interaction.data['values'][0]
-                            subcategory = 'none'
+                            subcategory = None
                         else:
                             subcategory = interaction.data['values'][0]
 
