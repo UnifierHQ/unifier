@@ -3251,7 +3251,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         else:
                             options_text.append(f'[{option_obj.name}: {option_type}]')
 
-                    slash_signature = f'`/{slash_form.qualified_name} {" ".join(options_text)}`'
+                    options_text_final = ''
+                    if len(options_text) > 0:
+                        options_text_final = ' ' + ' '.join(options_text)
+
+                    slash_signature = f'`/{slash_form.qualified_name}{options_text_final}`'
 
                 if is_universal:
                     cmddesc = cmddesc + '\n\n:sparkles: ' + selector.get("universal")
