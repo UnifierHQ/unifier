@@ -2947,6 +2947,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for cmd in ignore_cmds:
                     cmds.remove(cmd)
 
+                legacy_mapped = {}
+                if not is_legacy:
+                    for cmd in ignore_cmds:
+                        legacy_mapped.update({cmd.qualified_name: cmd})
+
                 offset = 0
 
                 def in_aliases(query, query_cmd):
@@ -2962,16 +2967,38 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             return True
 
                 def search_filter(query, query_cmd):
+                    alias_command = legacy_mapped.get(query_cmd.qualified_name)
+                    command_aliases = []
+
+                    if alias_command:
+                        if alias_command.aliases:
+                            for alias in alias_command.aliases:
+                                parent_name = ''
+                                if alias_command.parent:
+                                    parent_name = alias_command.parent.qualified_name + ' '
+                                command_aliases.append(f'{parent_name}{alias}')
+
+                    has_alias = False
+                    for found_alias in command_aliases:
+                        if query.lower() in found_alias.lower():
+                            has_alias = True
+                            break
+
                     if match==0:
                         return (
-                            (query.lower() in query_cmd.qualified_name.lower() or
-                             in_aliases(query,query_cmd)) and namematch or
-                            query.lower() in query_cmd.description.lower() and descmatch
+                            (
+                                query.lower() in query_cmd.qualified_name.lower() or
+                                in_aliases(query,query_cmd) or
+                                has_alias
+                            ) and namematch or query.lower() in query_cmd.description.lower() and descmatch
                         )
                     elif match==1:
-                        return (
-                            (((query.lower() in query_cmd.qualified_name.lower() or
-                               in_aliases(query,query_cmd)) and namematch) or not namematch) and
+                        return (((
+                            (
+                                query.lower() in query_cmd.qualified_name.lower() or
+                                in_aliases(query,query_cmd) or
+                                has_alias
+                            ) and namematch) or not namematch) and
                             ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
                         )
 
@@ -3632,6 +3659,17 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @help_slash.on_autocomplete("query")
     async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
         cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
+        universal_cmds, ignore_cmds = await self.bot.loop.run_in_executor(
+            None, lambda: self.get_universal_commands(cmds)
+        )
+
+        for cmd in ignore_cmds:
+            cmds.remove(cmd)
+
+        legacy_mapped = {}
+        for cmd in ignore_cmds:
+            legacy_mapped.update({cmd.qualified_name: cmd})
+
         overrides = {
             'admin': [],
             'mod': [],
@@ -3651,7 +3689,24 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
         possible = []
         for cmd in cmds:
-            if query.lower() in cmd.qualified_name:
+            alias_command = legacy_mapped.get(cmd.qualified_name)
+            command_aliases = []
+
+            if alias_command:
+                if alias_command.aliases:
+                    for alias in alias_command.aliases:
+                        parent_name = ''
+                        if alias_command.parent:
+                            parent_name = alias_command.parent.qualified_name + ' '
+                        command_aliases.append(f'{parent_name}{alias}')
+
+            has_alias = False
+            for found_alias in command_aliases:
+                if query.lower() in found_alias.lower():
+                    has_alias = True
+                    break
+
+            if query.lower() in cmd.qualified_name or has_alias:
                 try:
                     if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd,
                                                                                       nextcord.SlashApplicationSubcommand):
