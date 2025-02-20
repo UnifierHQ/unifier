@@ -2,9 +2,9 @@
   "id": "system",
   "name": "System extensions",
   "description": "Unifier system extensions",
-  "version": "v3.9.0",
-  "release": 144,
-  "reboot": 143,
+  "version": "v3.9.1",
+  "release": 145,
+  "reboot": 144,
   "minimum": 0,
   "shutdown": false,
   "modules": [
