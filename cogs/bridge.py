@@ -6265,8 +6265,23 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         if len(message.content)==0 and len(message.embeds)==0 and len(message.attachments)==0 and len(bridgeable_stickers) == 0:
             return
 
-        if message.content.startswith(self.bot.command_prefix) and not message.author.bot:
-            cmd = message.content.replace(self.bot.command_prefix, '', 1).split()[0]
+        custom_prefix_user = self.bot.db['bot_prefixes'].get(message.author.id, None)
+        custom_prefix_guild = self.bot.db['bot_prefixes'].get(message.guild.id, None)
+
+        if (
+                message.content.lower().startswith(self.bot.command_prefix) or
+                (message.content.lower().startswith(custom_prefix_user) if custom_prefix_user else False) or
+                (message.content.lower().startswith(custom_prefix_guild) if custom_prefix_guild else False)
+        ) and not message.author.bot:
+            if message.content.lower().startswith(self.bot.command_prefix):
+                cmd = message.content[len(self.bot.command_prefix):].split()[0]
+            elif message.content.lower().startswith(custom_prefix_user) if custom_prefix_user else False:
+                cmd = message.content[len(custom_prefix_user):].split()[0]
+            elif message.content.lower().startswith(custom_prefix_guild) if custom_prefix_guild else False:
+                cmd = message.content[len(custom_prefix_guild):].split()[0]
+            else:
+                cmd = message.content.split()[0]
+
             if not self.bot.get_command(cmd) == None:
                 return
 
