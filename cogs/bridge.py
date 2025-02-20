@@ -3200,6 +3200,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         else:
             return is_admin or is_owner
 
+    async def cog_before_invoke(self, ctx):
+        ctx.user = ctx.author
+
     async def roomslist(self, ctx: nextcord.Interaction, private):
         selector = language.get_selector('bridge.rooms', userid=ctx.user.id)
 
@@ -3634,7 +3637,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     text=selector.rawfget("page", "commons.search", values={"page": page + 1, "maxpage": maxpage + 1}))
             if not msg:
                 msg = await ctx.send(embed=embed, view=components)
-                msg = await msg.fetch()
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg.fetch()
             else:
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed, view=components)
@@ -4036,6 +4040,11 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def bridge(self, ctx: nextcord.Interaction):
         pass
 
+    @commands.group(name='bridge')
+    @commands.guild_only()
+    async def bridge_legacy(self, ctx: commands.Context):
+        pass
+
     @bridge.subcommand(
         description=language.desc('bridge.bind'),
         description_localizations=language.slash_desc('bridge.bind')
@@ -4090,7 +4099,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             color=self.bot.colors.warning
         )
         msg = await ctx.send(embed=embed)
-        msg = await msg.fetch()
+        if type(ctx) is nextcord.Interaction:
+            msg = await msg.fetch()
 
         duplicate = self.bot.bridge.check_duplicate(ctx.channel)
         if duplicate:
@@ -4449,7 +4459,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             embed.set_footer(text=selector.fget("change", values={"prefix": self.bot.command_prefix}))
             components = ui.MessageComponents()
         msg = await ctx.send(embed=embed, view=components)
-        msg = await msg.fetch()
+        if type(ctx) is nextcord.Interaction:
+            msg = await msg.fetch()
         if not url == '':
             def check(interaction):
                 if not interaction.message:
@@ -4545,7 +4556,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                     )
                 )
                 msg = await ctx.send(f'{self.bot.ui_emojis.warning} {selector.get("select")}', view=components)
-                msg = await msg.fetch()
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg.fetch()
 
                 def check(interaction):
                     if not interaction.message:
@@ -4725,7 +4737,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
         )
         msg = await ctx.send(embed=embed, view=view)
-        msg = await msg.fetch()
+        if type(ctx) is nextcord.Interaction:
+            msg = await msg.fetch()
         view.clear_items()
         view.row_count = 0
         view.add_row(
@@ -5060,7 +5073,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
     async def ping(self, ctx: nextcord.Interaction):
         selector = language.get_selector(ctx)
         msg = await ctx.send(selector.get('ping'))
-        msg = await msg.fetch()
+        if type(ctx) is nextcord.Interaction:
+            msg = await msg.fetch()
         t = time.time()
         pingmsg = await ctx.send(selector.get('ping'))
         diff = round((time.time() - t) * 1000, 1)
@@ -5344,7 +5358,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 ))
             if not msg:
                 msg = await ctx.send(embed=embed, view=components)
-                msg = await msg.fetch()
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg.fetch()
             else:
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed, view=components)
@@ -5750,7 +5765,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             if not msg:
                 msg = await ctx.send(embed=embed,view=components)
-                msg = await msg.fetch()
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg.fetch()
             else:
                 await interaction.response.edit_message(embed=embed,view=components)
 
@@ -5779,12 +5795,9 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif interaction.data['custom_id']=='last':
                 page = max_page
 
-    @bridge.subcommand(
-        description=language.desc('bridge.pause'),
-        description_localizations=language.slash_desc('bridge.pause')
-    )
-    @restrictions.not_banned()
-    async def pause(self, ctx: nextcord.Interaction):
+    # Pause command
+
+    async def pause(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         paused = f'{ctx.user.id}' in self.bot.db['paused']
 
@@ -5820,7 +5833,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         )
 
         msg = await ctx.send(embed=embed, view=components)
-        msg = await msg.fetch()
+        if type(ctx) is nextcord.Interaction:
+            msg = await msg.fetch()
 
         def check(interaction):
             if not interaction.message:
@@ -5848,6 +5862,20 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         embed.colour = self.bot.colors.success
         await interaction.response.edit_message(embed=embed, view=None)
+
+    @bridge.subcommand(
+        name='pause',
+        description=language.desc('bridge.pause'),
+        description_localizations=language.slash_desc('bridge.pause')
+    )
+    @restrictions.not_banned()
+    async def pause_slash(self, ctx: nextcord.Interaction):
+        await self.pause(ctx)
+
+    @bridge_legacy.command(name='pause')
+    @restrictions_legacy.not_banned()
+    async def pause_legacy(self, ctx: commands.Context):
+        await self.pause(ctx)
 
     @bridge.subcommand(
         description=language.desc('bridge.prefixes'),
