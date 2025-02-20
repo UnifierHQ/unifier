@@ -329,9 +329,8 @@
         "cmd_desc": "Command description",
         "aliases": "Aliases",
         "aliases_universal": "Aliases (legacy)",
-        "universal": "This is a universal command. You can use this as a slash or text command.",
+        "universal": "**This is a Universal command!** You can use this as a slash or text command.",
         "usage": "Usage",
-        "usage_slash": "This is a slash command. Type `/{command}` to check its arguments.",
         "usage_slash_universal": "**Slash**: {command}",
         "usage_legacy_universal": "**Text**: {signature}",
         "search_prompt": "Type a command..."

@@ -3896,7 +3896,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 components = ui.MessageComponents()
                 components.add_rows(ui.ActionRow(dropdown), ui.ActionRow(cancel))
                 msg_temp = await ctx.send(selector.get('question'), view=components, ephemeral=True)
-                msg = await msg_temp.fetch()
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg_temp.fetch()
+                else:
+                    msg = msg_temp
 
             def check(new_interaction):
                 if not new_interaction.message:
@@ -4590,9 +4593,15 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         selector = language.get_selector(ctx)
 
         if not self.bot.config['enable_private_rooms']:
-            return await ctx.send(
-                f'{self.bot.ui_emojis.error} {selector.rawget("private_disabled","commons.rooms")}', ephemeral=True
-            )
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} {selector.rawget("private_disabled","commons.rooms")}',
+                    ephemeral=True
+                )
+            else:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} {selector.rawget("private_disabled", "commons.rooms")}'
+                )
 
         create_used = self.bot.bridge.get_rooms_count(ctx.guild.id)
         conn_used = self.bot.bridge.get_connections_count(ctx.guild.id)
@@ -4942,6 +4951,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     async def nickname(self, ctx: Union[nextcord.Interaction, commands.Context], nickname: Optional[str] = None):
         selector = language.get_selector(ctx)
+
+        if not nickname:
+            nickname = ''
+
         if len(nickname) > 33:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("exceed")}')
         if len(nickname) == 0:
@@ -5487,7 +5500,6 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 if len(msg.reactions.keys()) == 0:
                     return await interaction.response.send_message(embed=embed,ephemeral=True)
                 respmsg = await interaction.response.send_message(embed=embed,view=components,ephemeral=True)
-                respmsg = await respmsg.fetch()
 
             def check(interaction):
                 if not interaction.message:
@@ -5860,7 +5872,10 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
             if not msg:
                 msg_temp = await ctx.send(embed=embed, view=components)
-                msg = await msg_temp.fetch()
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg_temp.fetch()
+                else:
+                    msg = msg_temp
             else:
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed, view=components)

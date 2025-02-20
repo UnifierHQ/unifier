@@ -243,6 +243,21 @@ attribution = {
     }
 }
 
+# Command option types to human-readable format
+option_types = {
+    nextcord.ApplicationCommandOptionType.sub_command: 'subcommand',
+    nextcord.ApplicationCommandOptionType.sub_command_group: 'subcommand group',
+    nextcord.ApplicationCommandOptionType.string: 'string',
+    nextcord.ApplicationCommandOptionType.integer: 'integer',
+    nextcord.ApplicationCommandOptionType.boolean: 'boolean',
+    nextcord.ApplicationCommandOptionType.user: 'user',
+    nextcord.ApplicationCommandOptionType.channel: 'channel',
+    nextcord.ApplicationCommandOptionType.role: 'role',
+    nextcord.ApplicationCommandOptionType.mentionable: 'mentionable',
+    nextcord.ApplicationCommandOptionType.number: 'number',
+    nextcord.ApplicationCommandOptionType.attachment: 'attachment'
+}
+
 class Colors: # format: 0xHEXCODE
     greens_hair = 0xa19e78
     unifier = 0xed4545
@@ -2948,9 +2963,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     cmds.remove(cmd)
 
                 legacy_mapped = {}
-                if not is_legacy:
-                    for cmd in ignore_cmds:
-                        legacy_mapped.update({cmd.qualified_name: cmd})
+                for cmd in ignore_cmds:
+                    legacy_mapped.update({cmd.qualified_name: cmd})
+
+                universal_names = []
+                for cmd in universal_cmds:
+                    universal_names.append(cmd.qualified_name)
 
                 offset = 0
 
@@ -2967,22 +2985,23 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             return True
 
                 def search_filter(query, query_cmd):
-                    alias_command = legacy_mapped.get(query_cmd.qualified_name)
-                    command_aliases = []
-
-                    if alias_command:
-                        if alias_command.aliases:
-                            for alias in alias_command.aliases:
-                                parent_name = ''
-                                if alias_command.parent:
-                                    parent_name = alias_command.parent.qualified_name + ' '
-                                command_aliases.append(f'{parent_name}{alias}')
-
                     has_alias = False
-                    for found_alias in command_aliases:
-                        if query.lower() in found_alias.lower():
-                            has_alias = True
-                            break
+                    if not is_legacy:
+                        alias_command = legacy_mapped.get(query_cmd.qualified_name)
+                        command_aliases = []
+
+                        if alias_command:
+                            if alias_command.aliases:
+                                for alias in alias_command.aliases:
+                                    parent_name = ''
+                                    if alias_command.parent:
+                                        parent_name = alias_command.parent.qualified_name + ' '
+                                    command_aliases.append(f'{parent_name}{alias}')
+
+                        for found_alias in command_aliases:
+                            if query.lower() in found_alias.lower():
+                                has_alias = True
+                                break
 
                     if match==0:
                         return (
@@ -3080,6 +3099,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             cmdtext = f'`{cmd.qualified_name}`'
                         else:
                             cmdtext = cmd.get_mention()
+
+                        if cmd.qualified_name in universal_names:
+                            if type(cmd) is commands.Command:
+                                cmdtext = legacy_mapped[cmd.qualified_name].get_mention()
+
+                            cmdtext = cmdtext + ' :sparkles:'
+                        else:
+                            cmdtext = f'{cmdtext}'
 
                         embed.add_field(
                             name=cmdtext,
@@ -3211,8 +3238,23 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     for alias in legacy_form.aliases:
                         aliases.append(f'`{self.bot.command_prefix}{parent_command}{alias}`')
 
+                slash_signature = ''
+                if slash_form:
+                    options = slash_form.options
+                    options_text = []
+
+                    for option, option_obj in options.items():
+                        option_type = option_types.get(option_obj.payload['type'], 'string')
+
+                        if option_obj.payload.get('required', False):
+                            options_text.append(f'<{option_obj.name}: {option_type}>')
+                        else:
+                            options_text.append(f'[{option_obj.name}: {option_type}]')
+
+                    slash_signature = f'`/{slash_form.qualified_name} {" ".join(options_text)}`'
+
                 if is_universal:
-                    cmddesc = cmddesc + '\n\n' + selector.get("universal")
+                    cmddesc = cmddesc + '\n\n:sparkles: ' + selector.get("universal")
                     cmdtext = slash_form.get_mention()
 
                     if len(aliases) > 0:
@@ -3225,7 +3267,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     embed.add_field(
                         name=selector.get("usage"),
                         value=(
-                            '- ' + selector.fget("usage_slash_universal", values={"command": cmd.get_mention()}) + '\n' +
+                            '- ' + selector.fget("usage_slash_universal", values={"command": slash_signature}) + '\n' +
                             '- ' + selector.fget("usage_legacy_universal", values={"signature": (
                                 f'`{self.bot.command_prefix}{cmdname} {legacy_form.signature}`'
                                 if len(legacy_form.signature) > 0 else
@@ -3238,7 +3280,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     cmdtext = cmd.get_mention()
                     embed.add_field(
                         name=selector.get("usage"),
-                        value=selector.fget("usage_slash", values={"command": cmdname}),
+                        value='- '+selector.fget("usage_slash_universal", values={"command": slash_signature}),
                         inline=False
                     )
                 elif isinstance(cmd, commands.Command):
@@ -3249,9 +3291,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             value=('- ' + '\n- '.join(aliases)) if len(aliases) > 1 else ('- ' + aliases[0]),
                             inline=False
                         )
-                    embed.add_field(name=selector.get("usage"), value=(
-                        f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else
-                        f'`{self.bot.command_prefix}{cmdname}`'
+                    embed.add_field(name=selector.get("usage"), value='- '+selector.fget(
+                        "usage_legacy_universal", values={"signature": (
+                            f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else
+                            f'`{self.bot.command_prefix}{cmdname}`'
+                        )}
                     ), inline=False)
                 else:
                     cmdtext = f'**`{self.bot.command_prefix}{cmdname}`**'
