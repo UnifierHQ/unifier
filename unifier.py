@@ -295,7 +295,7 @@ class AutoSaveDict(dict):
             'external_bridge': [], 'modlogs': {}, 'trusted': [], 'report_threads': {}, 'fullbanned': [],
             'exp': {}, 'appealban': [], 'languages': {}, 'settings': {}, 'invites': {}, 'underattack': [],
             'rooms_count': {}, 'connections_count': {}, 'allocations_override': {}, 'filters': {}, 'paused': [],
-            'prefixes': {}, 'automatic_uam': [], 'filter_threshold': {}
+            'prefixes': {}, 'automatic_uam': [], 'filter_threshold': {}, 'bot_prefixes': {}
         }
 
     @property
@@ -824,8 +824,20 @@ async def on_message(message):
         else:
             return
 
-    if message.content.lower().startswith(bot.command_prefix) and not message.author.bot:
-        message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
+    custom_prefix_user = bot.db['bot_prefixes'].get(message.author.id, None)
+    custom_prefix_guild = bot.db['bot_prefixes'].get(message.guild.id, None)
+
+    if (
+            message.content.lower().startswith(bot.command_prefix) or
+            (message.content.lower().startswith(custom_prefix_user) if custom_prefix_user else False) or
+            (message.content.lower().startswith(custom_prefix_guild) if custom_prefix_guild else False)
+    ) and not message.author.bot:
+        if message.content.lower().startswith(bot.command_prefix):
+            message.content = bot.command_prefix + message.content[len(bot.command_prefix):]
+        elif message.content.lower().startswith(custom_prefix_user) if custom_prefix_user else False:
+            message.content = bot.command_prefix + message.content[len(custom_prefix_user):]
+        elif message.content.lower().startswith(custom_prefix_guild) if custom_prefix_guild else False:
+            message.content = bot.command_prefix + message.content[len(custom_prefix_guild):]
         return await bot.process_commands(message)
 
 os.environ.pop('UNIFIER_ENCPASS')

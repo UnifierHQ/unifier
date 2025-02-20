@@ -335,6 +335,27 @@
         "usage_legacy_universal": "**Text**: {signature}",
         "search_prompt": "Type a command..."
       },
+      "custom-prefix": {
+        "description": "Manages custom prefixes set for you and the current server.",
+        "options": {
+          "prefix": {
+            "name": "prefix",
+            "description": "The new prefix. Leave empty to view current prefixes, or set it to the global prefix to reset."
+          }
+        },
+        "title": "Custom prefixes",
+        "body": "You can use one of these prefixes to run Unifier commands through text.",
+        "global": "Global prefix",
+        "server": "Server prefix",
+        "user": "User prefix",
+        "too_long": "Your prefix must be within 10 characters.",
+        "choice_server": "Set for server",
+        "choice_user": "Set for user",
+        "choose": "You can change the prefix for the server or for yourself. Which one would you like to change?",
+        "reset": "Prefix has been reset.",
+        "success": "Prefix has been updated.",
+        "none": "No prefix set"
+      },
       "register-commands": {
         "description": "Registers commands. Only to be used when automatic registration fails.",
         "atoms": "gone, reduced to atoms (hopefully)",
