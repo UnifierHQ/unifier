@@ -59,7 +59,7 @@ import time
 import shutil
 import datetime
 from enum import Enum
-from typing import Union
+from typing import Union, Optional
 
 # import ujson if installed
 try:
@@ -226,7 +226,36 @@ attribution = {
         'repo': 'https://github.com/python-hyper/brotlicffi',
         'license': 'MIT',
         'license_url': 'https://github.com/python-hyper/brotlicffi/blob/main/LICENSE'
+    },
+    'jellyfish': {
+        'author': 'James Turk',
+        'description': '🪼 a python library for doing approximate and phonetic matching of strings. ',
+        'repo': 'https://github.com/jamesturk/jellyfish',
+        'license': 'MIT',
+        'license_url': 'https://github.com/jamesturk/jellyfish/blob/main/LICENSE'
+    },
+    'tld': {
+        'author': 'Artur Barseghyan',
+        'description': 'Extracts the top level domain (TLD) from the URL given.',
+        'repo': 'https://github.com/barseghyanartur/tld',
+        'license': 'Multiple (GPL-2.0/LGPL-2.1/MPL-1.1)',
+        'license_url': 'https://github.com/barseghyanartur/tld/blob/master/LICENSE.rst'
     }
+}
+
+# Command option types to human-readable format
+option_types = {
+    nextcord.ApplicationCommandOptionType.sub_command: 'subcommand',
+    nextcord.ApplicationCommandOptionType.sub_command_group: 'subcommand group',
+    nextcord.ApplicationCommandOptionType.string: 'string',
+    nextcord.ApplicationCommandOptionType.integer: 'integer',
+    nextcord.ApplicationCommandOptionType.boolean: 'boolean',
+    nextcord.ApplicationCommandOptionType.user: 'user',
+    nextcord.ApplicationCommandOptionType.channel: 'channel',
+    nextcord.ApplicationCommandOptionType.role: 'role',
+    nextcord.ApplicationCommandOptionType.mentionable: 'mentionable',
+    nextcord.ApplicationCommandOptionType.number: 'number',
+    nextcord.ApplicationCommandOptionType.attachment: 'attachment'
 }
 
 class Colors: # format: 0xHEXCODE
@@ -398,6 +427,8 @@ class CommandExceptionHandler:
             elif check_instance(error, commands.CommandOnCooldown):
                 t = int(error.retry_after)
                 await respond(f'{self.bot.ui_emojis.error} {selector.fget("cooldown",values={"min":t//60,"sec":t % 60})}')
+            elif check_instance(error, nextcord.errors.NotFound):
+                return
             else:
                 if isinstance(ctx, commands.Context):
                     error_tb = traceback.format_exc()
@@ -661,14 +692,25 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     def get_all_commands(self, cog=None):
         def extract_subcommands(__command):
             subcommands = []
-            if type(__command) is nextcord.MessageApplicationCommand or type(__command) is nextcord.UserApplicationCommand:
+            if (
+                    type(__command) is nextcord.MessageApplicationCommand or
+                    type(__command) is nextcord.UserApplicationCommand
+            ):
                 return []
-            if __command.children:
-                for child in __command.children.keys():
-                    subcommands += extract_subcommands(__command.children[child])
+
+            if type(__command) is commands.Group:
+                for child in __command.commands:
+                    subcommands += extract_subcommands(child)
                 return subcommands
-            else:
+            elif type(__command) is commands.Command:
                 return [__command]
+            else:
+                if __command.children:
+                    for child in __command.children.keys():
+                        subcommands += extract_subcommands(__command.children[child])
+                    return subcommands
+                else:
+                    return [__command]
 
         if cog:
             legacy_commands = list(cog.get_commands())
@@ -680,16 +722,53 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             legacy_commands = list(self.bot.commands)
             new_commands = list(self.bot.get_application_commands())
 
+        legacy_commands_extracted = []
         application_commands = []
         for command in new_commands:
             application_commands += extract_subcommands(command)
+        for command in legacy_commands:
+            legacy_commands_extracted += extract_subcommands(command)
 
-        return legacy_commands + application_commands
+        return legacy_commands_extracted + application_commands
+
+    def get_universal_commands(self, cmds, legacy=False):
+        new_commands = []
+        legacy_commands = []
+        universal_commands = []
+        should_ignore = []
+
+        for cmd in cmds:
+            if legacy:
+                if type(cmd) is commands.Command:
+                    new_commands.append(cmd)
+                elif isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
+                    legacy_commands.append(cmd)
+            else:
+                if type(cmd) is commands.Command:
+                    legacy_commands.append(cmd)
+                elif isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
+                    new_commands.append(cmd)
+
+        for cmd in new_commands:
+            is_universal = False
+            for legacy_cmd in legacy_commands:
+                if cmd.qualified_name == legacy_cmd.qualified_name:
+                    is_universal = True
+                    should_ignore.append(legacy_cmd)
+                    break
+
+            if is_universal:
+                universal_commands.append(cmd)
+
+        return universal_commands, should_ignore
 
     def encrypt_string(self, hash_string):
         sha_signature = \
             hashlib.sha256(hash_string.encode()).hexdigest()
         return sha_signature
+
+    async def cog_before_invoke(self, ctx):
+        ctx.user = ctx.author
 
     async def copy(self, src, dst):
         await self.bot.loop.run_in_executor(None, lambda: shutil.copy2(src,dst))
@@ -1365,7 +1444,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def system(self, ctx):
         pass
 
-    @commands.command(aliases=['reload-services'], hidden=True, description=language.desc('sysmgr.reload_services'))
+    @commands.group(name='system')
+    async def system_legacy(self, ctx):
+        pass
+
+    @system_legacy.command(aliases=['reload-services'], hidden=True, description=language.desc('sysmgr.reload_services'))
     @restrictions_legacy.owner()
     async def reload_services(self,ctx,*,services=None):
         selector = language.get_selector(ctx)
@@ -1408,7 +1491,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     return await ctx.author.send(selector.get("too_long"))
             await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
 
-    @commands.command(hidden=True, description=language.desc('sysmgr.eval'))
+    @system_legacy.command(hidden=True, description=language.desc('sysmgr.eval'))
     @restrictions_legacy.owner()
     async def eval(self, ctx, *, body):
         selector = language.get_selector(ctx)
@@ -1466,12 +1549,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             else:
                 await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"exec_time": exec_time})}\n```\n{value}\n```')
 
-    @commands.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
+    @system_legacy.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
     @restrictions_legacy.owner()
     async def shutdown(self, ctx):
         await self.bot_shutdown(ctx)
 
-    @commands.command(aliases=['reboot'], hidden=True, description=language.desc('sysmgr.restart'))
+    @system_legacy.command(aliases=['reboot'], hidden=True, description=language.desc('sysmgr.restart'))
     @restrictions_legacy.owner()
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
@@ -1506,7 +1589,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         ))
         return await ctx.send(embed=embed)
 
-    @commands.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
+    @system_legacy.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
     @restrictions_legacy.owner()
     async def extensions(self, ctx, *, extension=None):
         selector = language.get_selector(ctx)
@@ -1561,22 +1644,22 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = embed.description + selector.get('system_module')
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True,description=language.desc('sysmgr.reload'))
+    @system_legacy.command(hidden=True,description=language.desc('sysmgr.reload'))
     @restrictions_legacy.owner()
     async def reload(self, ctx, *, extensions):
         await self.manage_cog_cmd(ctx, CogAction.reload, extensions)
 
-    @commands.command(hidden=True,description=language.desc('sysmgr.load'))
+    @system_legacy.command(hidden=True,description=language.desc('sysmgr.load'))
     @restrictions_legacy.owner()
     async def load(self, ctx, *, extensions):
         await self.manage_cog_cmd(ctx, CogAction.load, extensions)
 
-    @commands.command(hidden=True,description='Unloads an extension.')
+    @system_legacy.command(hidden=True,description='Unloads an extension.')
     @restrictions_legacy.owner()
     async def unload(self, ctx, *, extensions):
         await self.manage_cog_cmd(ctx, CogAction.unload, extensions)
 
-    @commands.command(hidden=True,description='Installs a plugin.')
+    @system_legacy.command(hidden=True,description='Installs a plugin.')
     @restrictions_legacy.owner()
     async def install(self, ctx, url):
         if self.bot.devmode:
@@ -1622,16 +1705,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             minimum = new['minimum']
             modules = new['modules']
             utilities = new['utils']
-            try:
-                nups_platform = new['bridge_platform']
-                if nups_platform == '':
-                    nups_platform = None
-            except:
+            filters = new.get('filters', [])
+            services = new.get('services', [])
+            nups_platform = new.get('bridge_platform')
+            if nups_platform == '':
                 nups_platform = None
-            try:
-                services = new['services']
-            except:
-                services = []
 
             with open('plugins/system.json', 'r') as file:
                 vinfo = json.load(file)
@@ -1649,6 +1727,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for util in utilities:
                 if util in os.listdir('utils'):
                     conflicts.append('utils/'+util)
+            for filt in filters:
+                if filt in os.listdir('filters'):
+                    conflicts.append('filters/'+filt)
             if f'{plugin_id}.json' in os.listdir('emojis') and 'emojis' in services:
                 conflicts.append(f'emojis/{plugin_id}.json')
             if len(conflicts) > 1:
@@ -1768,13 +1849,16 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             except:
                 self.logger.exception('Dependency installation failed')
                 raise RuntimeError()
-            self.logger.info('Installing Plugin')
+            self.logger.info('Installing Modifier')
             for module in modules:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+module)
                 await self.copy('plugin_install/' + module, 'cogs/' + module)
             for util in utilities:
                 self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+util)
                 await self.copy('plugin_install/' + util, 'utils/' + util)
+            for filt in filters:
+                self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/'+filt)
+                await self.copy('plugin_install/' + filt, 'filters/' + filt)
             if 'emojis' in services:
                 self.logger.info('Installing Emoji Pack')
                 home_guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -1831,7 +1915,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @commands.command(hidden=True,description='Uninstalls a plugin.')
+    @system_legacy.command(hidden=True,description='Uninstalls a plugin.')
     @restrictions_legacy.owner()
     async def uninstall(self, ctx, plugin):
         if self.bot.devmode:
@@ -1892,6 +1976,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             plugin_id = plugin_info['id']
             modules = plugin_info['modules']
             utilities = plugin_info['utils']
+            filters = plugin_info.get('filters', [])
             self.logger.info('Uninstalling Plugin')
             for module in modules:
                 self.logger.debug('Uninstalling: ' + os.getcwd() + '/cogs/' + module)
@@ -1899,6 +1984,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             for util in utilities:
                 self.logger.debug('Uninstalling: ' + os.getcwd() + '/utils/' + util)
                 os.remove('utils/'+util)
+            for filt in filters:
+                self.logger.debug('Uninstalling: ' + os.getcwd() + '/filters/' + filt)
+                os.remove('filters/'+filt)
             self.logger.info('Deleting plugin entry')
             os.remove('plugins/' + plugin_id + '.json')
             self.logger.info('Unloading extensions')
@@ -1921,7 +2009,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @commands.command(hidden=True,description='Upgrades Unifier or a plugin.')
+    @system_legacy.command(hidden=True,description='Upgrades Unifier or a plugin.')
     @restrictions_legacy.owner()
     async def upgrade(self, ctx, plugin='system', *, args=''):
         if self.bot.devmode:
@@ -2316,6 +2404,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for file in os.listdir(os.getcwd() + '/update/utils'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/utils/' + file)
                     await self.copy('update/utils/' + file, 'utils/' + file)
+                for file in os.listdir(os.getcwd() + '/update/filters'):
+                    self.logger.debug('Installing: ' + os.getcwd() + '/update/filters/' + file)
+                    await self.copy('update/filters/' + file, 'filters/' + file)
                 for file in os.listdir(os.getcwd() + '/update/boot'):
                     self.logger.debug('Installing: ' + os.getcwd() + '/update/boot/' + file)
                     await self.copy('update/boot/' + file, 'boot/' + file)
@@ -2461,7 +2552,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 version = new['version']
                 modules = new['modules']
                 utilities = new['utils']
-                services = new['services'] if 'services' in new.keys() else []
+                services = new.get('services', [])
+                filters = new.get('filters', [])
             except:
                 try:
                     await self.bot.loop.run_in_executor(None, lambda: status(os.system('git --version')))
@@ -2543,6 +2635,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 for util in utilities:
                     self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + util)
                     await self.copy('plugin_install/' + util, 'utils/' + util)
+                for filt in filters:
+                    self.logger.debug('Installing: ' + os.getcwd() + '/plugin_install/' + filt)
+                    await self.copy('plugin_install/' + filt, 'filters/' + filt)
                 if 'emojis' in services:
                     self.logger.info('Uninstalling previous Emoji Pack')
                     home_guild = self.bot.get_guild(self.bot.config['home_guild'])
@@ -2669,7 +2764,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 await msg.edit(embed=embed)
                 return
 
-    @commands.command(
+    @system_legacy.command(
         description='Activates an emoji pack. Activating the "base" emoji pack resets emojis back to vanilla.',
         aliases=['emojipack']
     )
@@ -2698,17 +2793,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 self.logger.exception('An error occurred!')
                 await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("error")}')
 
-    @nextcord.slash_command(
-        description=language.desc('sysmgr.help'),
-        description_localizations=language.slash_desc('sysmgr.help'),
-        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
-        integration_types=[nextcord.IntegrationType.guild_install]
-    )
-    async def help(
-            self,ctx: nextcord.Interaction,
-            query: str = slash.option('sysmgr.help.query',required=False)
-    ):
+    # Help command
+    async def help(self, ctx: Union[nextcord.Interaction, commands.Context], query: Optional[str] = None):
         selector = language.get_selector(ctx)
+        is_legacy = type(ctx) is commands.Context
         panel = 0
         limit = 20
         page = 0
@@ -2742,9 +2830,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         permissions = 'user'
         if ctx.user.id in self.bot.moderators:
             permissions = 'mod'
-        elif ctx.user.id in self.bot.admins:
+        if ctx.user.id in self.bot.admins:
             permissions = 'admin'
-        elif ctx.user.id == self.bot.config['owner']:
+        if ctx.user.id == self.bot.config['owner']:
             permissions = 'owner'
 
         helptext = selector.fget("title", values={"botname": self.bot.user.global_name or self.bot.user.name})
@@ -2868,6 +2956,20 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if not query_cog is None:
                         cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands(cog=query_cog))
 
+                universal_cmds, ignore_cmds = await self.bot.loop.run_in_executor(
+                    None, lambda: self.get_universal_commands(cmds, legacy=is_legacy)
+                )
+                for cmd in ignore_cmds:
+                    cmds.remove(cmd)
+
+                legacy_mapped = {}
+                for cmd in ignore_cmds:
+                    legacy_mapped.update({cmd.qualified_name: cmd})
+
+                universal_names = []
+                for cmd in universal_cmds:
+                    universal_names.append(cmd.qualified_name)
+
                 offset = 0
 
                 def in_aliases(query, query_cmd):
@@ -2883,16 +2985,39 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             return True
 
                 def search_filter(query, query_cmd):
+                    has_alias = False
+                    if not is_legacy:
+                        alias_command = legacy_mapped.get(query_cmd.qualified_name)
+                        command_aliases = []
+
+                        if alias_command:
+                            if alias_command.aliases:
+                                for alias in alias_command.aliases:
+                                    parent_name = ''
+                                    if alias_command.parent:
+                                        parent_name = alias_command.parent.qualified_name + ' '
+                                    command_aliases.append(f'{parent_name}{alias}')
+
+                        for found_alias in command_aliases:
+                            if query.lower() in found_alias.lower():
+                                has_alias = True
+                                break
+
                     if match==0:
                         return (
-                            (query.lower() in query_cmd.qualified_name.lower() or
-                             in_aliases(query,query_cmd)) and namematch or
-                            query.lower() in query_cmd.description.lower() and descmatch
+                            (
+                                query.lower() in query_cmd.qualified_name.lower() or
+                                in_aliases(query,query_cmd) or
+                                has_alias
+                            ) and namematch or query.lower() in query_cmd.description.lower() and descmatch
                         )
                     elif match==1:
-                        return (
-                            (((query.lower() in query_cmd.qualified_name.lower() or
-                               in_aliases(query,query_cmd)) and namematch) or not namematch) and
+                        return (((
+                            (
+                                query.lower() in query_cmd.qualified_name.lower() or
+                                in_aliases(query,query_cmd) or
+                                has_alias
+                            ) and namematch) or not namematch) and
                             ((query.lower() in query_cmd.description.lower() and descmatch) or not descmatch)
                         )
 
@@ -2902,7 +3027,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         canrun = True
                     else:
                         try:
-                            if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
+                            if (
+                                    isinstance(cmd, nextcord.BaseApplicationCommand) or
+                                    isinstance(cmd, nextcord.SlashApplicationSubcommand)
+                            ) and not is_legacy or type(cmd) is commands.command and is_legacy:
                                 canrun = await cmd.can_run(ctx)
                             else:
                                 canrun = (
@@ -2971,6 +3099,14 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             cmdtext = f'`{cmd.qualified_name}`'
                         else:
                             cmdtext = cmd.get_mention()
+
+                        if cmd.qualified_name in universal_names:
+                            if type(cmd) is commands.Command:
+                                cmdtext = legacy_mapped[cmd.qualified_name].get_mention()
+
+                            cmdtext = cmdtext + ' :sparkles:'
+                        else:
+                            cmdtext = f'{cmdtext}'
 
                         embed.add_field(
                             name=cmdtext,
@@ -3069,36 +3205,101 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 )
             elif panel==2:
                 cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
-                cmd = [cmd for cmd in cmds if cmd.qualified_name==cmdname][0]
+                possible_cmds = [cmd for cmd in cmds if cmd.qualified_name == cmdname]
+                cmd = possible_cmds[0]
                 localized_cogname = selector.get("search_nav") if cogname == 'search' else cogname
                 embed.title = (
                     f'{self.bot.ui_emojis.command} {helptext} / {localized_cogname} / {cmdname}' if not cogname=='' else
                     f'{self.bot.ui_emojis.command} {helptext} / {selector.get("all")} / {cmdname}'
                 )
 
+                slash_form = None
+                legacy_form = None
+                for possibility in possible_cmds:
+                    if isinstance(possibility, nextcord.BaseApplicationCommand) or isinstance(possibility, nextcord.SlashApplicationSubcommand):
+                        slash_form = possibility
+                        cmd = possibility
+                    else:
+                        legacy_form = possibility
+
+                is_universal = slash_form and legacy_form
+
                 try:
-                    cmddesc = selector.desc_from_all(cmd.qualified_name)
+                    cmddesc = selector.desc_from_all(cmd.qualified_name) or cmd.description or selector.get("no_desc")
                 except:
                     cmddesc = cmd.description or selector.get("no_desc")
 
-                if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
+                aliases = []
+                if legacy_form:
+                    parent_command = ''
+                    if legacy_form.parent:
+                        parent_command = legacy_form.parent.qualified_name + ' '
+
+                    for alias in legacy_form.aliases:
+                        aliases.append(f'`{self.bot.command_prefix}{parent_command}{alias}`')
+
+                slash_signature = ''
+                if slash_form:
+                    options = slash_form.options
+                    options_text = []
+
+                    for option, option_obj in options.items():
+                        option_type = option_types.get(option_obj.payload['type'], 'string')
+
+                        if option_obj.payload.get('required', False):
+                            options_text.append(f'<{option_obj.name}: {option_type}>')
+                        else:
+                            options_text.append(f'[{option_obj.name}: {option_type}]')
+
+                    slash_signature = f'`/{slash_form.qualified_name} {" ".join(options_text)}`'
+
+                if is_universal:
+                    cmddesc = cmddesc + '\n\n:sparkles: ' + selector.get("universal")
+                    cmdtext = slash_form.get_mention()
+
+                    if len(aliases) > 0:
+                        embed.add_field(
+                            name=selector.get("aliases_universal"),
+                            value=('- ' + '\n- '.join(aliases)) if len(aliases) > 1 else ('- ' + aliases[0]),
+                            inline=False
+                        )
+
+                    embed.add_field(
+                        name=selector.get("usage"),
+                        value=(
+                            '- ' + selector.fget("usage_slash_universal", values={"command": slash_signature}) + '\n' +
+                            '- ' + selector.fget("usage_legacy_universal", values={"signature": (
+                                f'`{self.bot.command_prefix}{cmdname} {legacy_form.signature}`'
+                                if len(legacy_form.signature) > 0 else
+                                f'`{self.bot.command_prefix}{cmdname}`'
+                            )})
+                        ),
+                        inline=False
+                    )
+                elif isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                     cmdtext = cmd.get_mention()
-                    embed.add_field(name=selector.get("usage"),
-                                    value=selector.fget("usage_slash", values={"command": cmdname}), inline=False)
+                    embed.add_field(
+                        name=selector.get("usage"),
+                        value='- '+selector.fget("usage_slash_universal", values={"command": slash_signature}),
+                        inline=False
+                    )
+                elif isinstance(cmd, commands.Command):
+                    cmdtext = f'**`{self.bot.command_prefix}{cmdname}`**'
+                    if len(aliases) > 0:
+                        embed.add_field(
+                            name=selector.get("aliases"),
+                            value=('- ' + '\n- '.join(aliases)) if len(aliases) > 1 else ('- ' + aliases[0]),
+                            inline=False
+                        )
+                    embed.add_field(name=selector.get("usage"), value='- '+selector.fget(
+                        "usage_legacy_universal", values={"signature": (
+                            f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else
+                            f'`{self.bot.command_prefix}{cmdname}`'
+                        )}
+                    ), inline=False)
                 else:
                     cmdtext = f'**`{self.bot.command_prefix}{cmdname}`**'
-                    if len(cmd.aliases) > 0:
-                        aliases = []
-                        if isinstance(cmd, commands.Command):
-                            for alias in cmd.aliases:
-                                aliases.append(f'`{self.bot.command_prefix}{alias}`')
-                        embed.add_field(
-                            name=selector.get("aliases"),value='\n'.join(aliases) if len(aliases) > 1 else aliases[0],inline=False
-                        )
-                    embed.add_field(name=selector.get("usage"), value=(
-                        f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else
-                        f'`{self.bot.command_prefix}{cmdname}`'
-                    ), inline=False)
+
                 embed.description = f'# {cmdtext}\n{cmddesc}'
                 components.add_rows(
                     ui.ActionRow(
@@ -3115,7 +3316,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 embed.set_footer(text=selector.rawfget("page","commons.search",values={"page":page+1,"maxpage":maxpage+1}))
             if not msg:
                 msg = await ctx.send(embed=embed,view=components)
-                msg = await msg.fetch()
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg.fetch()
             else:
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed,view=components)
@@ -3184,46 +3386,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 descmatch = True
                 match = 0
 
-    @help.on_autocomplete("query")
-    async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
-        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
-        overrides = {
-            'admin': [],
-            'mod': [],
-            'user': ['modping']
-        }
-
-        overrides['mod'] += overrides['user']
-        overrides['admin'] += overrides['mod']
-
-        permissions = 'user'
-        if ctx.user.id in self.bot.moderators:
-            permissions = 'mod'
-        elif ctx.user.id in self.bot.admins:
-            permissions = 'admin'
-        elif ctx.user.id == self.bot.config['owner']:
-            permissions = 'owner'
-
-        possible = []
-        for cmd in cmds:
-            if query.lower() in cmd.qualified_name:
-                try:
-                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
-                        canrun = await cmd.can_run(ctx)
-                    else:
-                        canrun = (
-                                ctx.user.id == self.bot.owner or
-                                ctx.user.id in self.bot.other_owners or
-                                ctx.user.id in self.bot.admins
-                        )  # legacy commands can only be used by owners and admins
-                except:
-                    canrun = False or cmd.qualified_name in overrides[permissions]
-                if canrun:
-                    possible.append(cmd.qualified_name)
-
-        return await ctx.response.send_autocomplete(possible[:25])
-
-    @commands.command(name='register-commands', hidden=True, description='Registers commands.')
+    @system_legacy.command(name='register-commands', hidden=True, description='Registers commands.')
     @restrictions_legacy.owner()
     async def register_commands(self, ctx, *, args=''):
         selector = language.get_selector(ctx)
@@ -3233,7 +3396,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.sync_application_commands()
         return await ctx.send(selector.get("registered"))
 
-    @commands.command(hidden=True, description='Views cloud backup status.')
+    @system_legacy.command(hidden=True, description='Views cloud backup status.')
     @restrictions_legacy.owner()
     async def cloud(self, ctx):
         selector = language.get_selector(ctx)
@@ -3358,13 +3521,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         )
         await ctx.send(embed=embed)
 
-    @nextcord.slash_command(
-        description=language.desc('sysmgr.about'),
-        description_localizations=language.slash_desc('sysmgr.about'),
-        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
-        integration_types=[nextcord.IntegrationType.guild_install]
-    )
-    async def about(self, ctx: nextcord.Interaction):
+    # About command
+    async def about(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
 
         all_attribs = dict(attribution)
@@ -3445,7 +3603,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 if not msg:
                     msg = await ctx.send(embed=embed,view=view)
-                    msg = await msg.fetch()
+                    if type(ctx) is nextcord.Interaction:
+                        msg = await msg.fetch()
                 else:
                     await interaction.response.edit_message(embed=embed, view=view)
             else:
@@ -3517,10 +3676,111 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 if page > maxpage:
                     page = maxpage
 
-    @commands.command(name='raiseerror', description='A command that intentionally fails.')
-    @restrictions_legacy.owner()
-    async def raiseerror_legacy(self, ctx):
-        raise RuntimeError('here\'s your error, anything else?')
+    # Universal commands handlers and autocompletes
+
+    # help
+    @nextcord.slash_command(
+        name='help',
+        description=language.desc('sysmgr.help'),
+        description_localizations=language.slash_desc('sysmgr.help'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def help_slash(
+            self, ctx: nextcord.Interaction,
+            query: str = slash.option('sysmgr.help.query', required=False)
+    ):
+        await self.help(ctx, query=query)
+
+    @commands.command(name='help')
+    async def help_legacy(self, ctx: commands.Context, *, query=None):
+        await self.help(ctx, query)
+
+    @help_slash.on_autocomplete("query")
+    async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
+        cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
+        universal_cmds, ignore_cmds = await self.bot.loop.run_in_executor(
+            None, lambda: self.get_universal_commands(cmds)
+        )
+
+        for cmd in ignore_cmds:
+            cmds.remove(cmd)
+
+        legacy_mapped = {}
+        for cmd in ignore_cmds:
+            legacy_mapped.update({cmd.qualified_name: cmd})
+
+        overrides = {
+            'admin': [],
+            'mod': [],
+            'user': ['modping']
+        }
+
+        overrides['mod'] += overrides['user']
+        overrides['admin'] += overrides['mod']
+
+        permissions = 'user'
+        if ctx.user.id in self.bot.moderators:
+            permissions = 'mod'
+        elif ctx.user.id in self.bot.admins:
+            permissions = 'admin'
+        elif ctx.user.id == self.bot.config['owner']:
+            permissions = 'owner'
+
+        possible = []
+        for cmd in cmds:
+            alias_command = legacy_mapped.get(cmd.qualified_name)
+            command_aliases = []
+
+            if alias_command:
+                if alias_command.aliases:
+                    for alias in alias_command.aliases:
+                        parent_name = ''
+                        if alias_command.parent:
+                            parent_name = alias_command.parent.qualified_name + ' '
+                        command_aliases.append(f'{parent_name}{alias}')
+
+            has_alias = False
+            for found_alias in command_aliases:
+                if query.lower() in found_alias.lower():
+                    has_alias = True
+                    break
+
+            if query.lower() in cmd.qualified_name or has_alias:
+                try:
+                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd,
+                                                                                      nextcord.SlashApplicationSubcommand):
+                        canrun = await cmd.can_run(ctx)
+                    else:
+                        canrun = (
+                                ctx.user.id == self.bot.owner or
+                                ctx.user.id in self.bot.other_owners or
+                                ctx.user.id in self.bot.admins
+                        )  # legacy commands can only be used by owners and admins
+                except:
+                    canrun = False or cmd.qualified_name in overrides[permissions]
+                if canrun:
+                    if not cmd.qualified_name in possible:
+                        possible.append(cmd.qualified_name)
+
+        return await ctx.response.send_autocomplete(possible[:25])
+
+    # about
+    @nextcord.slash_command(
+        name='about',
+        description=language.desc('sysmgr.about'),
+        description_localizations=language.slash_desc('sysmgr.about'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def about_slash(self, ctx: nextcord.Interaction):
+        await self.about(ctx)
+
+    @commands.command(name='about')
+    async def about_legacy(self, ctx: commands.Context):
+        await self.about(ctx)
+
+    # Error handling
 
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
