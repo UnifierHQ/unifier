@@ -3251,7 +3251,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         else:
                             options_text.append(f'[{option_obj.name}: {option_type}]')
 
-                    slash_signature = f'`/{slash_form.qualified_name} {" ".join(options_text)}`'
+                    options_text_final = ''
+                    if len(options_text) > 0:
+                        options_text_final = ' ' + ' '.join(options_text)
+
+                    slash_signature = f'`/{slash_form.qualified_name}{options_text_final}`'
 
                 if is_universal:
                     cmddesc = cmddesc + '\n\n:sparkles: ' + selector.get("universal")
@@ -3385,6 +3389,106 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                 namematch = True
                 descmatch = True
                 match = 0
+
+    # Custom prefix command
+    async def custom_prefix(self, ctx: Union[nextcord.Interaction, commands.Context], prefix: Optional[str] = None):
+        selector = language.get_selector(ctx)
+        if not prefix:
+            user_prefix = self.bot.db['bot_prefixes'].get(ctx.user.id)
+            guild_prefix = self.bot.db['bot_prefixes'].get(ctx.guild.id)
+
+            embed = nextcord.Embed(
+                title=f'{self.bot.ui_emojis.command} {selector.get("title")}',
+                description=selector.get("body"),
+                color=self.bot.colors.unifier
+            )
+            embed.add_field(name=selector.get("global"), value=f'`{self.bot.command_prefix}`', inline=False)
+            if ctx.guild:
+                embed.add_field(
+                    name=selector.get("server"), value=f'`{guild_prefix}`' if guild_prefix else selector.get("none"),
+                    inline=False
+                )
+            embed.add_field(
+                name=selector.get("user"), value=f'`{user_prefix}`' if user_prefix else selector.get("none"),
+                inline=False
+            )
+
+            return await ctx.send(embed=embed)
+        else:
+            if len(prefix) > 10:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("too_long")}')
+
+            change_guild_prefix = False
+
+            # Check if user is admin (has manage channels perms)
+            can_change_guild = False
+            if ctx.guild:
+                can_change_guild = ctx.user.guild_permissions.manage_channels
+
+            interaction: Optional[nextcord.Interaction] = None
+
+            # Ask user which one to modify
+            if can_change_guild:
+                components = ui.MessageComponents()
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=selector.get("choice_server"),
+                            custom_id='server'
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label=selector.get("choice_user"),
+                            custom_id='user'
+                        )
+                    )
+                )
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label=selector.rawget("cancel","commons.navigation"),
+                            custom_id='cancel'
+                        )
+                    )
+                )
+                msg = await ctx.send(f'{self.bot.ui_emojis.warning} {selector.get("choose")}', view=components)
+                if type(ctx) is nextcord.Interaction:
+                    msg = await msg.fetch()
+
+                def check(interaction):
+                    if not interaction.message:
+                        return False
+                    return interaction.user.id == ctx.user.id and interaction.message.id == msg.id
+
+                try:
+                    interaction = await self.bot.wait_for('interaction', check=check, timeout=60)
+                except asyncio.TimeoutError:
+                    return await msg.edit(view=None)
+
+                if interaction.data['custom_id'] == 'cancel':
+                    return await interaction.response.edit_message(view=None)
+
+                change_guild_prefix = interaction.data['custom_id'] == 'server'
+
+            target = ctx.guild.id if change_guild_prefix else ctx.user.id
+
+            if prefix.lower() == self.bot.command_prefix:
+                self.bot.db['bot_prefixes'].pop(target, None)
+                response = selector.get('reset')
+            else:
+                self.bot.db['bot_prefixes'].update({target: prefix})
+                response = selector.get('success')
+
+            response = f'{self.bot.ui_emojis.success} {response}'
+
+            await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
+
+            if interaction:
+                await interaction.response.edit_message(content=response, view=None)
+            else:
+                await ctx.send(response)
 
     @system_legacy.command(name='register-commands', hidden=True, description='Registers commands.')
     @restrictions_legacy.owner()
@@ -3692,10 +3796,6 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     ):
         await self.help(ctx, query=query)
 
-    @commands.command(name='help')
-    async def help_legacy(self, ctx: commands.Context, *, query=None):
-        await self.help(ctx, query)
-
     @help_slash.on_autocomplete("query")
     async def help_autocomplete(self, ctx: nextcord.Interaction, query: str):
         cmds = await self.bot.loop.run_in_executor(None, lambda: self.get_all_commands())
@@ -3764,6 +3864,28 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         possible.append(cmd.qualified_name)
 
         return await ctx.response.send_autocomplete(possible[:25])
+
+    @commands.command(name='help')
+    async def help_legacy(self, ctx: commands.Context, *, query=None):
+        await self.help(ctx, query)
+
+    # custom-prefix
+    @nextcord.slash_command(
+        name='custom-prefix',
+        description=language.desc('sysmgr.custom-prefix'),
+        description_localizations=language.slash_desc('sysmgr.custom-prefix'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def custom_prefix_slash(
+            self, ctx: nextcord.Interaction,
+            prefix: str = slash.option('sysmgr.custom-prefix.prefix', required=False)
+    ):
+        await self.custom_prefix(ctx, prefix=prefix)
+
+    @commands.command(name='custom-prefix')
+    async def custom_prefix_legacy(self, ctx: commands.Context, prefix: Optional[str] = None):
+        await self.custom_prefix(ctx, prefix=prefix)
 
     # about
     @nextcord.slash_command(
