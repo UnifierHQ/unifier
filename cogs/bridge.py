@@ -1781,7 +1781,7 @@ class UnifierBridge:
                                     self.filter_triggers[server_id][room][0] += 1
 
                                 if (
-                                        self.filter_triggers[server_id][room][0] >
+                                        self.filter_triggers[server_id][room][0] >=
                                         self.__bot.db['filter_threshold'].get(server_id, 10)
                                 ) and server_id in self.__bot.db['automatic_uam']:
                                     # Enable automatic UAM
