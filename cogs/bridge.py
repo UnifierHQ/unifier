@@ -1611,7 +1611,7 @@ class UnifierBridge:
                 message.guild.nsfw_level == nextcord.NSFWLevel.explicit or
                 message.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
             )
-            is_spammer = message.author.flags.known_spammer
+            is_spammer = message.author.public_flags.known_spammer
         else:
             is_bot = support.is_bot(
                 support.author(message)
@@ -3812,6 +3812,12 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                         label=selector.get('spam_3'),
                         description=selector.get("spam_3_desc"),
                         emoji='\U00002622\U0000FE0F'
+                    ),
+                    nextcord.SelectOption(
+                        value='4',
+                        label=selector.get('spam_4'),
+                        description=selector.get("spam_4_desc"),
+                        emoji='\U0001F916'
                     )
                 ]
             ),
