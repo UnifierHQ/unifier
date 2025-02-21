@@ -1,14 +1,16 @@
 import re
 import unicodedata
 from tld import get_tld
-from utils.base_filter import FilterResult, BaseFilter
+from utils.base_filter import FilterResult, BaseFilter, FilterConfig
 from utils import rapidphish
 
 # Common spam/phishing content
 # If a message contains ALL of the keywords in any of the entries, the Filter will flag it.
 suspected = [
-    ['nsfw', 'discord.gg'], # Fake NSFW server
-    ['leak', 'discord.gg'], # Fake NSFW/game hacks server
+    ['nsfw', 'discord.'], # Fake NSFW server
+    ['onlyfans', 'discord.'], # Fake NSFW server 2
+    ['18+', 'discord.'], # Fake NSFW server 3
+    ['leak', 'discord.'], # Fake NSFW/game hacks server
     ['dm', 'private', 'mega', 'links'], # Mega links scam
     ['dm', 'private', 'mega', 'links', 'adult'], # Mega links scam 2
     ['get started by asking (how)', 't.me'], # Investment scam (Telegram edition)
@@ -20,6 +22,18 @@ suspected = [
     ['@everyone', '@everyone'], # Mass ping filter
     ['@everyone', '@here'], # Mass ping filter 2
     ['@here', '@here'], # Mass ping filter 3
+    ['executor', 'roblox'], # Roblox exploits scam
+    ['hack', 'roblox'], # Roblox exploits scam 2
+    ['exploit', 'roblox'], # Roblox exploits scam 3
+]
+
+# Commonly abused services
+# These services aren't necessarily malicious, but spammers like to use them.
+abused = [
+    't.me',
+    'telegram.me',
+    'telegram.org',
+    'mega.nz'
 ]
 
 def bypass_killer(string):
@@ -123,6 +137,15 @@ class Filter(BaseFilter):
             'Multi-stage filter that detects and blocks spam and some phishing attacks.'
         )
 
+        self.add_config(
+            'abused', FilterConfig(
+                'Also block frequently abused services',
+                'Services commonly abused by spammers on Discord (such as Telegram) will be blocked.',
+                'boolean',
+                default=False
+            )
+        )
+
     def check(self, message, data) -> FilterResult:
         content = unicodedata.normalize('NFKD', message['content']).lower()
 
@@ -146,7 +169,9 @@ class Filter(BaseFilter):
             urls = get_urls(content)
             if len(urls) > 0:
                 # Best threshold for this is 0.85
-                results = rapidphish.compare_urls(urls, 0.85)
+                results = rapidphish.compare_urls(
+                    urls, 0.85, custom_blacklist=abused if data['config']['abused'] else None
+                )
                 is_spam = results.final_verdict == 'unsafe' or is_spam
 
         return FilterResult(
