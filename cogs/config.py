@@ -274,6 +274,12 @@ class FilterDialog:
         if len(valuetext) > 1024:
             valuetext = valuetext[:1020] + '...`'
 
+        if config.type == 'boolean':
+            valuetext = (
+                f'{self.__bot.ui_emojis.success} {self.selector.get("enabled_config")}' if value else
+                f'{self.__bot.ui_emojis.error} {self.selector.get("disabled_config")}'
+            )
+
         self.embed.description = f'# {config.name} (`{option}`)\n{config.description}'
         self.embed.add_field(name=self.selector.get('current'), value=valuetext, inline=False)
 
@@ -509,7 +515,7 @@ class FilterDialog:
                         roominfo['meta']['filters'][self.filter.id].update({'enabled': not current})
                         self.__bot.bridge.update_room(self.room, roominfo)
                 elif custom_id == 'change':
-                    if not self.filter.configs[self.config].type == 'bool':
+                    if not self.filter.configs[self.config].type == 'boolean':
                         await interaction.response.send_modal(self.modal)
                         continue
 
@@ -799,17 +805,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{username}'
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"mod":mod})}')
 
-    @config.subcommand(
-        name='create-invite',
-        description=language.desc('config.create-invite'),
-        description_localizations=language.slash_desc('config.create-invite')
-    )
-    @restrictions.not_banned()
+    # Create invite command
     async def create_invite(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.create-invite.room'),
-            expiry: Optional[str] = slash.option('config.create-invite.expiry',required=False),
-            max_usage: Optional[int] = slash.option('config.create-invite.max-usage', required=False)
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: str, expiry: Optional[str] = None,
+            max_usage: Optional[int] = None
     ):
         if not expiry:
             expiry = '7d'
@@ -1444,6 +1443,23 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if query.lower() in bridge_filter.lower():
                 possible.append(bridge_filter)
         return await ctx.response.send_autocomplete(possible[:25])
+
+    # Universal commands handlers and autocompletes
+
+    # config create-invite
+    @config.subcommand(
+        name='create-invite',
+        description=language.desc('config.create-invite'),
+        description_localizations=language.slash_desc('config.create-invite')
+    )
+    @restrictions.not_banned()
+    async def create_invite_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.create-invite.room'),
+            expiry: Optional[str] = slash.option('config.create-invite.expiry', required=False),
+            max_usage: Optional[int] = slash.option('config.create-invite.max-usage', required=False)
+    ):
+        await self.create_invite(ctx, room, expiry, max_usage)
 
 def setup(bot):
     bot.add_cog(Config(bot))
