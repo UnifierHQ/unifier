@@ -1559,13 +1559,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
 
-    @system.subcommand(
-        description=language.desc('sysmgr.modifiers'),
-        description_localizations=language.slash_desc('sysmgr.modifiers')
-    )
-    async def modifiers(
-            self, ctx: nextcord.Interaction
-    ):
+    # Modifiers command
+    async def modifiers(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         page = 0
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
@@ -3598,11 +3593,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.colour = self.bot.colors.error
             await rootmsg.edit(embed=embed)
 
-    @system.subcommand(
-        description=language.desc('sysmgr.uptime'),
-        description_localizations=language.slash_desc('sysmgr.uptime')
-    )
-    async def uptime(self, ctx: nextcord.Interaction):
+    async def uptime(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         embed = nextcord.Embed(
             title=selector.fget("title",values={"botname":self.bot.user.global_name or self.bot.user.name}),
@@ -3782,6 +3773,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     # Universal commands handlers and autocompletes
 
+    # system modifiers
+    @system.subcommand(
+        name='modifiers',
+        description=language.desc('sysmgr.modifiers'),
+        description_localizations=language.slash_desc('sysmgr.modifiers')
+    )
+    async def modifiers_slash(self, ctx: nextcord.Interaction):
+        await self.modifiers(ctx)
+
+    @system_legacy.command(name='modifiers')
+    async def modifiers_legacy(self, ctx: commands.Context):
+        await self.modifiers(ctx)
+
     # help
     @nextcord.slash_command(
         name='help',
@@ -3901,6 +3905,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(name='about')
     async def about_legacy(self, ctx: commands.Context):
         await self.about(ctx)
+
+    # system uptime
+    @system.subcommand(
+        name='uptime',
+        description=language.desc('sysmgr.uptime'),
+        description_localizations=language.slash_desc('sysmgr.uptime')
+    )
+    async def uptime_slash(self, ctx: nextcord.Interaction):
+        await self.uptime(ctx)
+
+    @system_legacy.command(name='uptime')
+    async def uptime_legacy(self, ctx: commands.Context):
+        await self.uptime(ctx)
 
     # Error handling
 
