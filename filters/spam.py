@@ -5,9 +5,12 @@ from utils.base_filter import FilterResult, BaseFilter
 from utils import rapidphish
 
 # Common spam/phishing content
+# If a message contains ALL of the keywords in any of the entries, the Filter will flag it.
 suspected = [
     ['nsfw', 'discord.gg'], # Fake NSFW server
     ['leak', 'discord.gg'], # Fake NSFW/game hacks server
+    ['dm', 'private', 'mega', 'links'], # Mega links scam
+    ['dm', 'private', 'mega', 'links', 'adult'], # Mega links scam 2
     ['get started by asking (how)', 't.me'], # Investment scam (Telegram edition)
     ['get started by asking (how)', '+1'], # Investment scam (Whatsapp edition)
     ['only interested people should', 't.me'], # Investment scam (Telegram edition 2)
