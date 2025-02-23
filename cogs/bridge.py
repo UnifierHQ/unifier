@@ -2257,6 +2257,16 @@ class UnifierBridge:
             tb_v2 = dest_support.enable_tb
 
         # Check attachments size
+        should_alert = False
+
+        if platform == 'discord':
+            size_limit = 10000000  # this upload limit sucks
+        else:
+            size_limit = dest_support.attachment_size_limit or 0
+
+        if size_limit > self.__bot.config['global_filesize_limit'] > 0:
+            size_limit = self.__bot.config['global_filesize_limit']
+
         if source=='discord':
             attachments = message.attachments
         else:
@@ -2269,30 +2279,8 @@ class UnifierBridge:
             else:
                 size_total += source_support.attachment_size(attachment)
 
-            if platform == 'discord':
-                size_limit = 25000000
-            else:
-                size_limit = dest_support.attachment_size_limit or 0
-
-            if size_limit > self.__bot.config['global_filesize_limit'] > 0:
-                size_limit = self.__bot.config['global_filesize_limit']
-
-            if not platform == 'discord':
-                size_limit = dest_support.attachment_size_limit
-
             if size_total > size_limit:
-                if not self.__bot.config['suppress_filesize_warning']:
-                    if source=='discord':
-                        await message.channel.send(
-                            '`' + platform + '`: ' + selector.fget('filesize_limit',values={'limit':size_limit // 1000000}),
-                            reference=message
-                        )
-                    else:
-                        await source_support.send(
-                            source_support.channel(message),
-                            '`' + platform + '`: ' + selector.fget('filesize_limit',values={'limit':size_limit // 1000000}),
-                            special={'reply':message}
-                        )
+                should_alert = True
                 break
             max_files += 1
 
@@ -2327,7 +2315,7 @@ class UnifierBridge:
                     break
 
                 if platform == 'discord':
-                    size_limit = 25000000
+                    size_limit = 10000000
                 else:
                     size_limit = dest_support.attachment_size_limit or 0
 
@@ -2399,6 +2387,8 @@ class UnifierBridge:
                 stickertext = '\n'.join(await stickers_to_urls(message.stickers))
         if (len(message.content) > 0 or len(content_override if not content_override is None else '') > 0) and len(stickertext) > 0:
             stickertext = '\n' + stickertext
+
+        has_sent = False
 
         # Broadcast message
         for guild in list(guilds.keys()):
@@ -2894,6 +2884,7 @@ class UnifierBridge:
                         urls.update(result[1])
 
                     message_ids.update(result[0])
+                has_sent = True
             else:
                 ch_id = self.__bot.db['rooms'][room][platform][guild][0]
                 if len(self.__bot.db['rooms'][room][platform][guild]) > 1:
@@ -3022,9 +3013,24 @@ class UnifierBridge:
                         urls.update(result[1])
 
                     message_ids.update(result[0])
+                has_sent = True
 
         # Free up memory (hopefully)
         del files
+
+        # Alert user if they went over the filesize limit
+        if not self.__bot.config['suppress_filesize_warning'] and has_sent and should_alert:
+            if source == 'discord':
+                await message.channel.send(
+                    '`' + platform + '`: ' + selector.fget('filesize_limit', values={'limit': size_limit // 1000000}),
+                    reference=message
+                )
+            else:
+                await source_support.send(
+                    source_support.channel(message),
+                    '`' + platform + '`: ' + selector.fget('filesize_limit', values={'limit': size_limit // 1000000}),
+                    special={'reply': message}
+                )
 
         # Update cache
         tbv2_results = []
