@@ -36,6 +36,13 @@ abused = [
     'mega.nz'
 ]
 
+def uppercase_ratio(text):
+    letters = [char for char in text if char.isalpha()]
+    capitals = [char for char in letters if char.isupper()]
+    if not letters:
+        return 0
+    return len(capitals) / len(letters)
+
 def bypass_killer(string):
     if not [*string][len(string) - 1].isalnum():
         return string[:-1]
@@ -139,7 +146,7 @@ class Filter(BaseFilter):
 
         self.add_config(
             'abused', FilterConfig(
-                'Also block frequently abused services',
+                'Block frequently abused services',
                 'Services commonly abused by spammers on Discord (such as Telegram) will be blocked.',
                 'boolean',
                 default=False
@@ -147,7 +154,8 @@ class Filter(BaseFilter):
         )
 
     def check(self, message, data) -> FilterResult:
-        content = unicodedata.normalize('NFKD', message['content']).lower()
+        content_normalized = unicodedata.normalize('NFKD', message['content'])
+        content = content_normalized.lower()
 
         # Detect spam from common patterns
         is_spam = False
@@ -163,6 +171,11 @@ class Filter(BaseFilter):
             if match:
                 is_spam = True
                 break
+
+        # Detect spam from uppercase ratio
+        ratio = uppercase_ratio(content_normalized)
+        if ratio > 0.75:
+            is_spam = True
 
         # Use RapidPhish to detect possible phishing URLs
         if not is_spam:
