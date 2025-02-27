@@ -2503,6 +2503,30 @@ class UnifierBridge:
                             raise
                         content = msg.content
 
+                    # Remove spoilers
+                    if source == 'discord':
+                        split_content = content.split('||')
+                        to_merge = []
+
+                        # This must be 3 or higher
+                        if len(split_content) >= 3:
+                            to_merge.append(split_content.pop(0))
+
+                            while len(split_content) > 0:
+                                if len(split_content) >= 2:
+                                    split_content.pop(0)
+                                    to_merge.append('■■■■■■')
+                                to_merge.append(split_content.pop(0))
+
+                            content = ''.join(to_merge)
+                    else:
+                        reply_support = self.__bot.platforms[source]
+
+                        try:
+                            content = reply_support.remove_spoilers(content)
+                        except platform_base.MissingImplementation:
+                            pass
+
                     clean_content = nextcord.utils.remove_markdown(content)
                     msg_components = clean_content.split('<@')
                     offset = 0

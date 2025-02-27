@@ -192,6 +192,10 @@ class PlatformBase:
     def convert_embeds_discord(self, embeds: list):
         raise MissingImplementation()
 
+    def remove_spoilers(self, content: str):
+        """Removes spoilers from a message."""
+        raise MissingImplementation()
+
     def webhook_id(self, message):
         """Returns the webhook ID from a message."""
         raise MissingImplementation()
