@@ -269,7 +269,7 @@ class UnifierBridge:
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                      external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
-                     reactions=None, thread=None, custom_name=None):
+                     reactions=None, thread=None, custom_name=None, custom_avatar=None):
             self.author_id = author_id
             self.guild_id = guild_id
             self.channel_id = channel_id
@@ -286,6 +286,7 @@ class UnifierBridge:
             self.external_bridged = external_bridged,
             self.thread = thread
             self.custom_name = custom_name
+            self.custom_avatar = custom_avatar
 
             if not reactions or not type(reactions) is dict:
                 self.reactions = {}
@@ -1183,7 +1184,12 @@ class UnifierBridge:
                 external_urls=data['messages'][f'{x}']['external_urls'],
                 webhook=data['messages'][f'{x}']['webhook'],
                 prehook=data['messages'][f'{x}']['prehook'],
-                reactions=data['messages'][f'{x}']['reactions'] if 'reactions' in list(data['messages'][f'{x}'].keys()) else {}
+                reactions=data['messages'][f'{x}'].get('reactions', {}),
+                reply=data['messages'][f'{x}'].get('reply'),
+                external_bridged=data['messages'][f'{x}'].get('external_bridged', False),
+                thread=data['messages'][f'{x}'].get('thread'),
+                custom_name=data['messages'][f'{x}'].get('custom_name'),
+                custom_avatar=data['messages'][f'{x}'].get('custom_avatar')
             )
             self.bridged.append(msg)
 
@@ -1927,7 +1933,7 @@ class UnifierBridge:
                     except:
                         ch = await dest_support.fetch_channel(msgs[key][0])
                     toedit = await dest_support.fetch_message(ch, msgs[key][1])
-                    await dest_support.edit(toedit, text)
+                    await dest_support.edit(toedit, text, source=source)
                 except:
                     traceback.print_exc()
                     continue
@@ -2242,7 +2248,7 @@ class UnifierBridge:
 
         message_ids = {}
         urls = {}
-        trimmed = None
+        trimmed: Optional[str] = None
         replying = False
 
         # Threading
@@ -2471,6 +2477,8 @@ class UnifierBridge:
                 pass
 
             # Get reply message content if reply_msg exists
+            content_no_spoil = ''
+
             if reply_msg:
                 if not trimmed:
                     try:
@@ -2504,6 +2512,7 @@ class UnifierBridge:
                         content = msg.content
 
                     # Remove spoilers
+                    content_no_spoil = content
                     if source == 'discord':
                         split_content = content.split('||')
                         to_merge = []
@@ -2518,16 +2527,16 @@ class UnifierBridge:
                                     to_merge.append('■■■■■■')
                                 to_merge.append(split_content.pop(0))
 
-                            content = ''.join(to_merge)
+                            content_no_spoil = ''.join(to_merge)
                     else:
                         reply_support = self.__bot.platforms[source]
 
                         try:
-                            content = reply_support.remove_spoilers(content)
+                            content_no_spoil = reply_support.remove_spoilers(content)
                         except platform_base.MissingImplementation:
                             pass
 
-                    clean_content = nextcord.utils.remove_markdown(content)
+                    clean_content = nextcord.utils.remove_markdown(content_no_spoil)
                     msg_components = clean_content.split('<@')
                     offset = 0
                     if clean_content.startswith('<@'):
@@ -2561,6 +2570,18 @@ class UnifierBridge:
                     else:
                         trimmed = clean_content
                     trimmed = trimmed.replace('\n', ' ')
+
+            if source == 'discord':
+                embeds = message.embeds
+            else:
+                embeds = source_support.embeds(message)
+
+            if source == 'discord':
+                if not message.author.bot and not system:
+                    embeds = []
+            else:
+                if not source_support.is_bot(source_support.author(message)) and not system:
+                    embeds = []
 
             if platform=='discord':
                 if source == 'discord':
@@ -2648,6 +2669,7 @@ class UnifierBridge:
                         )
                 elif replying and reply_msg:
                     author_text = '[unknown]'
+                    user = None
 
                     try:
                         if reply_msg.source=='discord':
@@ -2700,19 +2722,57 @@ class UnifierBridge:
                     except:
                         url = None
 
-                    components.add_rows(
-                        ui.ActionRow(
-                            nextcord.ui.Button(
-                                style=nextcord.ButtonStyle.url if url else nextcord.ButtonStyle.gray,
-                                label=selector.fget('replying', values={'user': author_text}),
-                                url=url,
-                                disabled=url is None
-                            )
-                        ),
-                        ui.ActionRow(
-                            content_btn
+                    if (
+                            self.__bot.db["rooms"][room]["settings"].get("dynamic_reply_embed", False) and
+                            len(embeds) == 0 and not ('https://' in content or 'http://' in content)
+                    ):
+                        embed = nextcord.Embed(
+                            description=content_no_spoil[:200] + ('' if len(content) <= 200 else '...')
                         )
-                    )
+
+                        if user:
+                            custom_avatar = reply_msg.custom_avatar
+                            if platform == 'discord':
+                                embed.set_author(
+                                    name=selector.fget('replying', values={'user': author_text}),
+                                    icon_url=custom_avatar or (user.avatar.url if user.avatar else None)
+                                )
+                            else:
+                                avatar = source_support.avatar(user)
+                                embed.set_author(
+                                    name=selector.fget('replying', values={'user': author_text}),
+                                    icon_url=custom_avatar or avatar
+                                )
+                        embeds.append(embed)
+                    elif self.__bot.db["rooms"][room]["settings"].get("compact_reply", False):
+                        if trimmed:
+                            trimmed_length = len(trimmed)
+                        else:
+                            trimmed_length = 0
+
+                        components.add_rows(
+                            ui.ActionRow(
+                                nextcord.ui.Button(
+                                    style=nextcord.ButtonStyle.url,
+                                    label=f'{author_text} / {trimmed}' if trimmed_length == 0 else f'{author_text} / \U0001F3DE',
+                                    url=url
+                                )
+                            )
+                        )
+                    else:
+                        components.add_rows(
+                            ui.ActionRow(
+                                nextcord.ui.Button(
+                                    style=nextcord.ButtonStyle.url if url else nextcord.ButtonStyle.gray,
+                                    label=selector.fget('replying', values={'user': author_text}),
+                                    url=url,
+                                    disabled=url is None
+                                )
+                            ),
+                            ui.ActionRow(
+                                content_btn
+                            )
+                        )
                 elif source == 'discord' and (
                         message.type == nextcord.MessageType.chat_input_command or
                         message.type == nextcord.MessageType.context_menu_command
@@ -2733,10 +2793,6 @@ class UnifierBridge:
                     )
 
             # Send message
-            embeds = message.embeds
-            if not message.author.bot and not system:
-                embeds = []
-
             if unifier_user.unifier_name.lower()==f'{self.__bot.user.name} (system)'.lower() and not system:
                 unifier_user.redact()
 
@@ -3135,12 +3191,14 @@ class UnifierBridge:
                 server_id = source_support.get_id(source_support.server(message))
 
             custom_name = None
+            custom_avatar = None
 
             if extbridge:
                 try:
                     hook = await self.__bot.fetch_webhook(message.webhook_id)
                     msg_author = hook.user.id
                     custom_name = unifier_user.unifier_name
+                    custom_avatar = unifier_user.unifier_avatar
                 except:
                     pass
 
@@ -3157,7 +3215,8 @@ class UnifierBridge:
                 prehook=message.id,
                 room=room,
                 reply=replying,
-                custom_name=custom_name
+                custom_name=custom_name,
+                custom_avatar=custom_avatar
             ))
             if datetime.datetime.now().day != self.msg_stats_reset:
                 self.msg_stats = {}
