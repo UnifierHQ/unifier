@@ -774,12 +774,12 @@ async def on_ready():
             logger.debug(f'Periodic backups disabled')
     logger.info("Registering application commands...")
     try:
-        await bot.discover_application_commands()
+        await bot.discover_application_commands(delete_unknown=False, update_known=False)
     except:
         # If sync fails, all commands are removed from Discord then re-registered.
         logger.warning('Register failed, trying alternate method...')
         await bot.delete_application_commands()
-    await bot.register_new_application_commands()
+    await bot.sync_application_commands(associate_known=False)
     logger.info('Unifier is ready!')
     if not bot.ready:
         bot.ready = True
@@ -825,7 +825,7 @@ async def on_message(message):
             return
 
     custom_prefix_user = bot.db['bot_prefixes'].get(str(message.author.id), None)
-    custom_prefix_guild = bot.db['bot_prefixes'].get(str(message.guild.id), None)
+    custom_prefix_guild = bot.db['bot_prefixes'].get(str(message.guild.id), None) if message.guild else None
 
     if (
             message.content.lower().startswith(bot.command_prefix) or
