@@ -512,8 +512,8 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         page = 0
         is_self = False
         if target:
-            orig_id = int(target.replace('<@', '', 1).replace('>', '', 1).replace('!', '', 1))
             try:
+                orig_id = int(target.replace('<@', '', 1).replace('>', '', 1).replace('!', '', 1))
                 target = self.bot.get_user(int(target.replace('<@','',1).replace('>','',1).replace('!','',1)))
             except:
                 return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("invalid_user","commons.moderation")}')
