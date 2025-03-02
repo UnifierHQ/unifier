@@ -779,13 +779,13 @@ class UnifierBridge:
 
     def get_invite(self, invite) -> dict or None:
         try:
-            invite = self.__bot.db['invites'][invite]
+            invite_obj = self.__bot.db['invites'][invite]
 
-            if invite['expire'] < time.time() and not invite['expire'] == 0:
+            if invite_obj['expire'] < time.time() and not invite_obj['expire'] == 0:
                 self.delete_invite(invite)
                 return None
 
-            return invite
+            return invite_obj
         except:
             return None
 
@@ -820,10 +820,10 @@ class UnifierBridge:
         self.__bot.db.save_data()
 
     async def accept_invite(self, user, invite, platform='discord'):
-        invite = self.get_invite(invite)
+        invite_obj = self.get_invite(invite)
         if not invite:
             raise self.InviteNotFoundError('invalid invite')
-        roominfo = self.get_room(invite['room'])
+        roominfo = self.get_room(invite_obj['room'])
         if not roominfo:
             raise self.RoomNotFoundError('invalid room')
         if not roominfo['meta']['private']:
@@ -840,13 +840,13 @@ class UnifierBridge:
                 str(server_id) in roominfo['meta']['banned']
         ) and (not user_id in self.__bot.moderators and not self.__bot.config['private_rooms_mod_access']):
             raise self.RoomBannedError('banned from room')
-        if invite['remaining'] == 1:
+        if invite_obj['remaining'] == 1:
             self.delete_invite(invite)
         else:
-            if invite['remaining'] > 0:
+            if invite_obj['remaining'] > 0:
                 self.__bot.db['invites'][invite]['remaining'] -= 1
         roominfo['meta']['private_meta']['allowed'].append(server_id)
-        self.update_room(invite['room'], roominfo)
+        self.update_room(invite_obj['room'], roominfo)
         self.__bot.db.save_data()
 
     def get_rooms_count(self, guild_id):
