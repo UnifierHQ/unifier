@@ -193,7 +193,7 @@ class Filter(BaseFilter):
             if len(urls) > 0:
                 # Best threshold for this is 0.85
                 results = rapidphish.compare_urls(
-                    urls, 0.85, custom_blacklist=abused if data['config']['abused'] else None
+                    urls, 0.85, custom_blacklist=abused if data['config'].get('abused', False) else None
                 )
                 is_spam = results.final_verdict == 'unsafe' or is_spam
 
