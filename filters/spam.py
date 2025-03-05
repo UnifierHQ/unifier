@@ -25,6 +25,13 @@ suspected = [
     ['executor', 'roblox'], # Roblox exploits scam
     ['hack', 'roblox'], # Roblox exploits scam 2
     ['exploit', 'roblox'], # Roblox exploits scam 3
+    ['uttp', 'uttp'], # UTTP raiders filter (ew.)
+]
+
+# Common spam/phishing content (case sensitive)
+suspected_cs = [
+    ['RAID', 'RAID'], # Raid filter
+    ['FORCES', 'FORCES'], # "Egocentric raiders who think they're the feds or some shit" filter
 ]
 
 # Commonly abused services
@@ -136,6 +143,21 @@ def get_urls(content):
 
     return urls
 
+def check_patterns(text, patterns):
+    for entry in patterns:
+        match = True
+        working_with = str(text)
+        for keyword in entry:
+            if keyword in working_with:
+                working_with = working_with.replace(keyword, '', 1)
+            else:
+                match = False
+                break
+        if match:
+            return True
+
+    return False
+
 class Filter(BaseFilter):
     def __init__(self):
         super().__init__(
@@ -158,23 +180,11 @@ class Filter(BaseFilter):
         content = content_normalized.lower()
 
         # Detect spam from common patterns
-        is_spam = False
-        for entry in suspected:
-            match = True
-            working_with = str(content)
-            for keyword in entry:
-                if keyword in working_with:
-                    working_with = working_with.replace(keyword, '', 1)
-                else:
-                    match = False
-                    break
-            if match:
-                is_spam = True
-                break
+        is_spam = check_patterns(content, suspected) or check_patterns(content_normalized, suspected_cs)
 
         # Detect spam from uppercase ratio
         ratio = uppercase_ratio(content_normalized)
-        if ratio > 0.75:
+        if ratio > 0.75 and len(content) > 20:
             is_spam = True
 
         # Use RapidPhish to detect possible phishing URLs
