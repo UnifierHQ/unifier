@@ -33,6 +33,15 @@ language = langmgr.partial()
 language.load()
 slash = slash_helper.SlashHelper(language)
 
+# Room settings keys
+settings_keys = [
+    'relay_deletes', 'relay_edits', 'relay_forwards', 'dynamic_reply_embed', 'compact_reply', 'nsfw'
+]
+settings_defaults = {
+    'relay_deletes': True, 'relay_edits': True, 'relay_forwards': True, 'dynamic_reply_embed': False,
+    'compact_reply': False, 'nsfw': False
+}
+
 def timetoint(t):
     try:
         return int(t)
@@ -598,6 +607,410 @@ class FilterDialog:
 
                         roominfo['meta']['filters'][self.filter.id].update({self.config: new_value})
                         self.__bot.bridge.update_room(self.room, roominfo)
+
+# Could've used inheritance here, but I'd need to override every method anyway, so better off not
+class SettingsDialog:
+    def __init__(self, bot, ctx: Union[nextcord.Interaction, commands.Context], room=None, query=None):
+        self.ctx = ctx
+        self.__bot = bot
+        self.room = room
+        self.message = None
+        self.embed = nextcord.Embed(color=self.__bot.colors.unifier)
+        self.selector = language.get_selector(ctx)
+        self.selection = None
+        self.query = query
+        self.modal = None
+        self.setting = None
+        self.maxpage = 0
+        self.match_both = False
+        self.match_name = True
+        self.match_desc = True
+        self.title = self.__bot.ui_emojis.rooms + ' ' + self.selector.fget('title',values={'room':self.room})
+
+    @property
+    def author(self):
+        if type(self.ctx) is nextcord.Interaction:
+            return self.ctx.user
+        else:
+            return self.ctx.author
+
+    async def sanitize(self):
+        self.embed.clear_fields()
+        self.embed.remove_author()
+        self.embed.remove_footer()
+        self.selection = None
+
+    async def menu(self, search: Optional[str] = None, page: int = 0):
+        await self.sanitize()
+
+        if search:
+            keys = list(settings_keys)
+            for bridge_setting in settings_keys:
+                # noinspection PyTypeChecker
+                if self.match_both:
+                    if not (
+                            (
+                                    (search.lower() in bridge_setting.lower() if self.match_name else True) or
+                                    (search.lower() in self.selector.get(f"{bridge_setting}_name").lower() if self.match_name else True)
+                            ) and (
+                                    search.lower() in self.selector.get(f"{bridge_setting}_desc").lower() if self.match_desc else True
+                            )
+                    ):
+                        keys.remove(bridge_setting)
+                else:
+                    if not (
+                            (
+                                    (search.lower() in bridge_setting.lower() if self.match_name else True) or
+                                    (search.lower() in self.selector.get(f"{bridge_setting}_name").lower() if self.match_name else True)
+                            ) or (
+                                    search.lower() in self.selector.get(f"{bridge_setting}_desc").lower() if self.match_desc else True
+                            )
+                    ):
+                        keys.remove(bridge_setting)
+            self.embed.description = self.selector.rawfget(
+                "search_results", "commons.search", values={"query": search, "results": len(keys)}
+            )
+        else:
+            keys = list(settings_keys)
+            self.embed.description = self.selector.get('choose_filter')
+
+        roomdata = self.__bot.bridge.get_room(self.room)
+        limit = 20
+        maxpage = math.ceil(len(keys)/limit)-1
+        self.maxpage = maxpage
+
+        if page > maxpage:
+            page = maxpage
+        elif page < 0:
+            page = 0
+
+        offset = page * limit
+
+        self.embed.title = self.title
+
+        self.selection = nextcord.ui.StringSelect(
+            max_values=1, min_values=1, custom_id='selection', placeholder=self.selector.get("selection")
+        )
+
+        for index in range(limit):
+            if index + offset >= len(keys) or len(keys) == 0:
+                break
+
+            # noinspection PyTypeChecker
+            setting_key = keys[index + offset]
+            setting_name = self.selector.get(f"{keys[index + offset]}_name")
+            setting_desc = self.selector.get(f"{keys[index + offset]}_desc")
+            setting_default = settings_defaults[setting_key]
+
+            if roomdata['meta']['settings'].get(setting_key, setting_default):
+                self.embed.add_field(
+                    name=f'{self.__bot.ui_emojis.success} **{setting_name} (`{setting_key}`)**',
+                    value=setting_desc or self.selector.get("no_desc"),
+                    inline=False
+                )
+            else:
+                self.embed.add_field(
+                    name=f'{setting_name} (`{setting_key}`)',
+                    value=setting_desc or self.selector.get("no_desc"),
+                    inline=False
+                )
+
+            trimmed = setting_desc or self.selector.get("no_desc")
+            if len(trimmed) > 100:
+                trimmed = trimmed[:97] + '...'
+
+            self.selection.add_option(
+                label=setting_name,
+                description=trimmed,
+                value=setting_key
+            )
+
+        if len(self.embed.fields) == 0:
+            self.selection.disabled = True
+            self.selection.add_option(
+                label='placeholder',
+                value='placeholder'
+            )
+            self.embed.add_field(
+                name=self.selector.get('noresults_title'),
+                value=(
+                    self.selector.get("noresults_body_search") if search else
+                    self.selector.get("noresults_body_filters")
+                ),
+                inline=False
+            )
+
+        self.embed.set_footer(text=self.selector.rawfget("page", "commons.search", values={
+            "page": page + 1, "maxpage": maxpage + 1
+        }))
+
+    async def display(self, bridge_setting: str, searched: bool = False):
+        await self.sanitize()
+
+        setting_desc = self.selector.get(f"{bridge_setting}_desc")
+        setting_default = settings_defaults[bridge_setting]
+
+        self.embed.title = self.title + f' / {bridge_setting}'
+        if searched:
+            self.embed.title = self.title + f' / {self.selector.get("search")} / {bridge_setting}'
+
+        roomdata = self.__bot.bridge.get_room(self.room)
+
+        self.embed.description = (
+            f'{setting_desc or self.selector.get("no_desc")}\n\n' +
+            (
+                self.selector.fget("enabled", values={"emoji": self.__bot.ui_emojis.success})
+                if roomdata['meta']['settings'].get(bridge_setting, setting_default)
+                else self.selector.fget("disabled", values={"emoji": self.__bot.ui_emojis.error})
+            )
+        )
+
+    async def display_config(self, bridge_filter: base_filter.BaseFilter, option: str, searched: bool = False):
+        await self.sanitize()
+        roomdata = self.__bot.bridge.get_room(self.room)
+
+        config = bridge_filter.configs[option]
+        value = roomdata['meta']['filters'].get(bridge_filter.id, {}).get(option, config.default)
+
+        self.embed.title = self.title + f' / {bridge_filter.id} / {option}'
+        if searched:
+            self.embed.title = self.title + f' / {self.selector.get("search")} / {bridge_filter.id} / {option}'
+
+        textinput = nextcord.ui.TextInput(
+            label=self.selector.get('value'),
+            style=nextcord.TextInputStyle.short,
+            placeholder=self.selector.get("value_prompt"),
+            default_value=str(value)
+        )
+
+        limittext = None
+        if config.limits:
+            if config.type == 'string':
+                limittext = f'{self.selector.fget("limit_str",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+                textinput.min_length = config.limits[0]
+                textinput.max_length = config.limits[1]
+            elif config.type == 'number' or config.type == 'integer' or config.type == 'float':
+                limittext = f'{self.selector.fget("limit_num",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+
+        valuetext = '`'+str(value)+'`'
+        if len(valuetext) > 1024:
+            valuetext = valuetext[:1020] + '...`'
+
+        if config.type == 'boolean':
+            valuetext = (
+                f'{self.__bot.ui_emojis.success} {self.selector.get("enabled_config")}' if value else
+                f'{self.__bot.ui_emojis.error} {self.selector.get("disabled_config")}'
+            )
+
+        self.embed.description = f'# {config.name} (`{option}`)\n{config.description}'
+        self.embed.add_field(name=self.selector.get('current'), value=valuetext, inline=False)
+
+        if limittext:
+            self.embed.add_field(name=self.selector.get('limits'), value=limittext, inline=False)
+
+        self.modal = nextcord.ui.Modal(
+            title=self.selector.get('form_title'),
+            auto_defer=False
+        )
+
+        self.modal.add_item(
+            textinput
+        )
+
+    async def run(self):
+        page = 0
+        panel = 0
+        if self.query:
+            panel = 1
+
+        interaction = None
+        while True:
+            buttons = []
+            if panel == 0:
+                buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('prev', 'commons.navigation'),
+                            custom_id='prev',
+                            disabled=page <= 0,
+                            emoji=self.__bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('next', 'commons.navigation'),
+                            custom_id='next',
+                            disabled=page >= self.maxpage,
+                            emoji=self.__bot.ui_emojis.next
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label=self.selector.rawget('search', 'commons.search'),
+                            custom_id='search',
+                            emoji=self.__bot.ui_emojis.search
+                        )
+                    ]
+                ]
+                await self.menu(page=page)
+            elif panel == 1:
+                buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('prev', 'commons.navigation'),
+                            custom_id='prev',
+                            disabled=page <= 0,
+                            emoji=self.__bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('next', 'commons.navigation'),
+                            custom_id='next',
+                            disabled=page >= self.maxpage,
+                            emoji=self.__bot.ui_emojis.next
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label=self.selector.rawget('search', 'commons.search'),
+                            custom_id='search',
+                            emoji=self.__bot.ui_emojis.search
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            custom_id='match',
+                            label=(
+                                self.selector.rawget('match_any', 'commons.search') if not self.match_both else
+                                self.selector.rawget('match_both', 'commons.search')
+                            ),
+                            style=(
+                                nextcord.ButtonStyle.green if not self.match_both else
+                                nextcord.ButtonStyle.blurple
+                            ),
+                            emoji=(
+                                '\U00002194' if not self.match_both else
+                                '\U000023FA'
+                            )
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='name',
+                            label=self.selector.get("filter_name"),
+                            style=nextcord.ButtonStyle.green if self.match_name else nextcord.ButtonStyle.gray
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='desc',
+                            label=self.selector.get("filter_desc"),
+                            style=nextcord.ButtonStyle.green if self.match_desc else nextcord.ButtonStyle.gray
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label=self.selector.rawget('back', 'commons.navigation'),
+                            custom_id='back',
+                            emoji=self.__bot.ui_emojis.back
+                        )
+                    ]
+                ]
+                await self.menu(search=self.query, page=page)
+            elif panel == 2:
+                await self.display(self.setting, searched=bool(self.query))
+                roominfo = self.__bot.bridge.get_room(self.room)
+                setting_default = settings_defaults[self.setting]
+                enabled = roominfo['meta']['settings'].get(self.setting, setting_default)
+
+                buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.red if enabled else nextcord.ButtonStyle.green,
+                            label=self.selector.get('disable') if enabled else self.selector.get('enable'),
+                            custom_id='toggle'
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label=self.selector.rawget('back', 'commons.navigation'),
+                            custom_id='back',
+                            emoji=self.__bot.ui_emojis.back
+                        )
+                    ]
+                ]
+
+            components = ui.MessageComponents()
+
+            if self.selection and len(self.selection.options) > 0:
+                components.add_row(ui.ActionRow(self.selection))
+
+            components.add_rows(
+                *[ui.ActionRow(*buttons[index]) for index in range(len(buttons))]
+            )
+
+            if not self.message:
+                self.message = await self.ctx.send(embed=self.embed, view=components)
+                if type(self.ctx) is nextcord.Interaction:
+                    self.message = await self.message.fetch()
+            elif not interaction.response.is_done():
+                # noinspection PyUnresolvedReferences
+                await interaction.response.edit_message(embed=self.embed, view=components)
+
+            def check(interaction):
+                if not interaction.message:
+                    return False
+
+                return interaction.user.id == self.author.id and interaction.message.id == self.message.id
+
+            try:
+                interaction = await self.__bot.wait_for('interaction', check=check, timeout=60)
+            except asyncio.TimeoutError:
+                return await self.message.edit(view=None)
+
+            custom_id = interaction.data['custom_id']
+            if interaction.type == nextcord.InteractionType.component:
+                if custom_id == 'prev':
+                    page -= 1
+                elif custom_id == 'next':
+                    page -= 1
+                elif custom_id == 'back':
+                    panel -= 1
+                    if panel == 1 and not self.query or panel < 0:
+                        panel = 0
+                elif custom_id == 'selection':
+                    self.setting = interaction.data['values'][0]
+                    page = 0
+                    panel = 2
+                elif custom_id == 'search':
+                    self.modal = nextcord.ui.Modal(title=self.selector.rawget('search_title','commons.search'),auto_defer=False)
+                    self.modal.add_item(
+                        nextcord.ui.TextInput(
+                            label=self.selector.rawget('query', 'commons.search'),
+                            style=nextcord.TextInputStyle.short,
+                            placeholder=self.selector.get("search_prompt")
+                        )
+                    )
+                    await interaction.response.send_modal(self.modal)
+                elif custom_id == 'toggle':
+                    roominfo = self.__bot.bridge.get_room(self.room)
+                    setting_default = settings_defaults[self.setting]
+
+                    current = roominfo['meta']['settings'].get(self.setting, setting_default)
+
+                    roominfo['meta']['settings'].update({self.setting: not current})
+                    self.__bot.bridge.update_room(self.room, roominfo)
+                elif custom_id == 'match':
+                    self.match_both = not self.match_both
+                elif custom_id == 'name':
+                    self.match_name = not self.match_name
+                elif custom_id == 'desc':
+                    self.match_desc = not self.match_desc
+            elif interaction.type == nextcord.InteractionType.modal_submit:
+                if panel == 0:
+                    self.match_both = False
+                    self.match_name = True
+                    self.match_desc = True
+                panel = 1
+                page = 0
+                self.query = interaction.data['components'][0]['components'][0]['value']
 
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server."""
@@ -1432,6 +1845,26 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         dialog = FilterDialog(self.bot, ctx, room=room, query=query)
         await dialog.run()
 
+    # Settings command
+    async def settings(
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None,
+            query: Optional[str] = None
+    ):
+        if not room:
+            room = self.bot.bridge.check_duplicate(ctx.channel)
+            if not room:
+                raise restrictions.UnknownRoom()
+
+        roomdata = self.bot.bridge.get_room(room)
+        if not roomdata:
+            raise restrictions.UnknownRoom()
+
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
+            raise restrictions.NoRoomManagement()
+
+        dialog = SettingsDialog(self.bot, ctx, room=room, query=query)
+        await dialog.run()
+
     # Universal commands handlers and autocompletes
 
     # config create-invite
@@ -1647,6 +2080,33 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         for bridge_filter in self.bot.bridge.filters.keys():
             if query.lower() in bridge_filter.lower():
                 possible.append(bridge_filter)
+        return await ctx.response.send_autocomplete(possible[:25])
+
+    # config settings
+    @config.subcommand(
+        name='settings',
+        description=language.desc('config.settings'),
+        description_localizations=language.slash_desc('config.settings')
+    )
+    @restrictions.not_banned()
+    async def settings_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('config.settings.room', required=False),
+            query: Optional[str] = slash.option('config.settings.query', required=False)
+    ):
+        await self.settings(ctx, room=room, query=query)
+
+    @config_legacy.command(name='settings')
+    @restrictions_legacy.not_banned()
+    async def settings_legacy(self, ctx: commands.Context, room: Optional[str] = None, query: Optional[str] = None):
+        await self.settings(ctx, room=room, query=query)
+
+    @settings_slash.on_autocomplete("query")
+    async def settings_autocomplete(self, ctx: nextcord.Interaction, query: str):
+        possible = []
+        for bridge_setting in settings_keys:
+            if query.lower() in bridge_setting.lower():
+                possible.append(bridge_setting)
         return await ctx.response.send_autocomplete(possible[:25])
 
 def setup(bot):
