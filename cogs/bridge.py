@@ -2735,6 +2735,7 @@ class UnifierBridge:
 
                     if reply_msg.forwarded:
                         trimmed = '[message forward]'
+                        content_no_spoil = '[message forward]'
 
                     if len(str(trimmed))==0 or not trimmed:
                         content_btn = nextcord.ui.Button(
