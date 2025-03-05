@@ -56,7 +56,6 @@ moderator_role = -1
 
 [bridge]
 use_multicore = true
-allow_posts = false
 enable_exp = false
 exp_cooldown = 30
 existence_wait = 0
@@ -76,8 +75,6 @@ private_rooms_limit = 0 # Limits total Private Rooms that can be created by a se
 private_rooms_connections_limit = 0 # Limits total Private Rooms that can be connected to by a server
 main_room = "main"
 alerts_room = "alerts"
-posts_room = "posts"
-posts_ref_room = "post-comments"
 
 [legal]
 terms_url = "" # Add a link to your Terms of Service document here
