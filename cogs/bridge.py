@@ -2860,6 +2860,15 @@ class UnifierBridge:
                 if not webhook:
                     continue
 
+                if (
+                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                        and not webhook.channel.nsfw
+                ) or (
+                        not self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                        and webhook.channel.nsfw
+                ):
+                    continue
+
                 touse_mentions = mentions
                 alert_pings = ''
                 if alert:
@@ -3014,6 +3023,21 @@ class UnifierBridge:
                         raise Exception() # runs fetch_channel if ch is none
                 except:
                     ch = await dest_support.fetch_channel(ch_id)
+
+                if (
+                        not dest_support.supports_agegate and
+                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                ):
+                    return
+
+                if (
+                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                        and not dest_support.is_nsfw(ch)
+                ) or (
+                        not self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                        and dest_support.is_nsfw(ch)
+                ):
+                    continue
 
                 reply = reply_msg
 
