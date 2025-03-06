@@ -2246,6 +2246,7 @@ class UnifierBridge:
         replying = False
         forwarded = False
         can_forward = False
+        forward_embed: Optional[nextcord.Embed] = None
 
         if source == 'discord':
             forwarded = len(message.snapshots) > 0
@@ -2461,7 +2462,7 @@ class UnifierBridge:
 
             # Reply processing
             reply_msg = None
-            components = None
+            components: Optional[ui.MessageComponents] = None
 
             try:
                 if source=='discord':
@@ -2582,16 +2583,7 @@ class UnifierBridge:
                 if not source_support.is_bot(source_support.author(message)) and not system:
                     embeds = []
 
-            if platform=='discord':
-                if source == 'discord':
-                    button_style = nextcord.ButtonStyle.blurple
-                elif source == 'revolt':
-                    button_style = nextcord.ButtonStyle.red
-                else:
-                    button_style = nextcord.ButtonStyle.gray
-
-                components = ui.MessageComponents()
-
+            if source == 'discord':
                 # Message forwards processing
                 if forwarded and can_forward:
                     # use reply_msg
@@ -2606,15 +2598,16 @@ class UnifierBridge:
                         except:
                             forward_server = None
 
-                    embed = nextcord.Embed(
-                        description=snapshot.content if len(snapshot.content) <= 200 else snapshot.content[:200] + '...',
+                    forward_embed = nextcord.Embed(
+                        description=snapshot.content if len(snapshot.content) <= 200 else snapshot.content[
+                                                                                          :200] + '...',
                         color=self.__bot.colors.blurple
                     )
 
                     try:
                         await self.can_send_forward(room, snapshot.content)
                     except:
-                        embed.description = '[filtered]'
+                        forward_embed.description = '[filtered]'
 
                     try:
                         forward_jump_url = await reply_msg.fetch_url(guild)
@@ -2623,39 +2616,55 @@ class UnifierBridge:
                         if type(forward_server) is nextcord.Guild and not 'DISCOVERABLE' in forward_server.features:
                             forward_jump_url = None
 
+                    if platform == 'discord':
+                        forward_emoji = '\U000027A1\U0000FE0F '
+                    else:
+                        forward_emoji = ''
+
                     if forward_server:
-                        embed.set_author(
-                            name='\U000027A1\U0000FE0F '+selector.fget("forwarded", values={'server': forward_server.name}),
+                        forward_embed.set_author(
+                            name=forward_emoji + selector.fget("forwarded", values={'server': forward_server.name}),
                             icon_url=forward_server.icon.url if forward_server.icon else None,
                             url=forward_jump_url
                         )
 
-                        components.add_row(
-                            ui.ActionRow(
-                                nextcord.ui.Button(
-                                    style=nextcord.ButtonStyle.url,
-                                    label=selector.get('forwarded_original'),
-                                    url=forward_jump_url
+                        if platform == 'discord':
+                            components.add_row(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url,
+                                        label=selector.get('forwarded_original'),
+                                        url=forward_jump_url
+                                    )
                                 )
                             )
-                        )
                     else:
-                        embed.set_author(
-                            name='\U000027A1\U0000FE0F '+selector.get("forwarded_unknown")
+                        forward_embed.set_author(
+                            name=forward_emoji + selector.get("forwarded_unknown")
                         )
 
-                        components.add_row(
-                            ui.ActionRow(
-                                nextcord.ui.Button(
-                                    style=nextcord.ButtonStyle.url,
-                                    label=selector.get('forwarded_original'),
-                                    url='https://example.com',
-                                    disabled=True
+                        if platform == 'discord':
+                            components.add_row(
+                                ui.ActionRow(
+                                    nextcord.ui.Button(
+                                        style=nextcord.ButtonStyle.url,
+                                        label=selector.get('forwarded_original'),
+                                        url='https://example.com',
+                                        disabled=True
+                                    )
                                 )
                             )
-                        )
+                    embeds.append(forward_embed)
 
-                    embeds.append(embed)
+            if platform=='discord':
+                if source == 'discord':
+                    button_style = nextcord.ButtonStyle.blurple
+                elif source == 'revolt':
+                    button_style = nextcord.ButtonStyle.red
+                else:
+                    button_style = nextcord.ButtonStyle.gray
+
+                components = ui.MessageComponents()
 
                 # Reply buttons processing
                 if replying and not reply_msg and not forwarded:
@@ -3102,10 +3111,10 @@ class UnifierBridge:
                         'reply': None
                     }
 
-                    if source == 'discord':
+                    if source == 'discord' and not forwarded and not can_forward:
                         if not message.author.bot:
                             special['embeds'] = []
-                    else:
+                    elif not forwarded and not can_forward:
                         try:
                             if not dest_support.is_bot(dest_support.author(message)):
                                 special['embeds'] = []
@@ -3113,7 +3122,10 @@ class UnifierBridge:
                             # assume user is not a bot
                             special['embeds'] = []
 
-                    if reply and not alert:
+                    if forwarded and can_forward and forward_embed:
+                        special['embeds'] = dest_support.convert_embeds([forward_embed])
+
+                    if reply and not alert and not forwarded and not can_forward:
                         special.update({'reply': reply})
                     if trimmed:
                         special.update({'reply_content': trimmed})
