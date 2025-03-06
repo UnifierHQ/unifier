@@ -3038,12 +3038,15 @@ class UnifierBridge:
                 ):
                     return
 
+                try:
+                    channel_is_nsfw = dest_support.is_nsfw(ch)
+                except platform_base.MissingImplementation:
+                    channel_is_nsfw = False
+
                 if (
-                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
-                        and not dest_support.is_nsfw(ch)
+                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False) and not channel_is_nsfw
                 ) or (
-                        not self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
-                        and dest_support.is_nsfw(ch)
+                        not self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False) and channel_is_nsfw
                 ):
                     continue
 
