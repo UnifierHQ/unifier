@@ -2594,6 +2594,7 @@ class UnifierBridge:
 
                 # Message forwards processing
                 if forwarded and can_forward:
+                    # use reply_msg
                     snapshot = message.snapshots[0]
                     forward_server = self.__bot.get_guild(
                         message.reference.guild_id
@@ -2615,11 +2616,18 @@ class UnifierBridge:
                     except:
                         embed.description = '[filtered]'
 
+                    try:
+                        forward_jump_url = await reply_msg.fetch_url(guild)
+                    except KeyError:
+                        forward_jump_url = message.reference.jump_url
+                        if type(forward_server) is nextcord.Guild and not 'DISCOVERABLE' in forward_server.features:
+                            forward_jump_url = None
+
                     if forward_server:
                         embed.set_author(
                             name='\U000027A1\U0000FE0F '+selector.fget("forwarded", values={'server': forward_server.name}),
                             icon_url=forward_server.icon.url if forward_server.icon else None,
-                            url=message.reference.jump_url
+                            url=forward_jump_url
                         )
 
                         components.add_row(
@@ -2627,7 +2635,7 @@ class UnifierBridge:
                                 nextcord.ui.Button(
                                     style=nextcord.ButtonStyle.url,
                                     label=selector.get('forwarded_original'),
-                                    url=message.reference.jump_url
+                                    url=forward_jump_url
                                 )
                             )
                         )
