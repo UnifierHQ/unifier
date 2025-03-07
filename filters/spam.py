@@ -48,7 +48,7 @@ def uppercase_ratio(text):
     capitals = [char for char in letters if char.isupper()]
     if not letters:
         return 0
-    return len(capitals) / len(letters), len(letters)
+    return (len(capitals) / len(letters)), len(letters)
 
 def bypass_killer(string):
     if not [*string][len(string) - 1].isalnum():
