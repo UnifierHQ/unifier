@@ -6858,7 +6858,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             except:
                 return
 
-            await self.bot.bridge.edit(msg.id, message.content)
+            await self.bot.bridge.edit(msg.id, message.content, message)
 
     @commands.Cog.listener()
     async def on_message_delete(self, message):
