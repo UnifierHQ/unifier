@@ -911,7 +911,7 @@ class UnifierBridge:
                     raise platform_base.MissingImplementation()
                 nsfw = support.is_nsfw(channel) or support.is_nsfw(support.server(user))
             except platform_base.MissingImplementation:
-                if roominfo['meta']['settings'].get('nsfw', False):
+                if roominfo['meta'].get('settings', {}).get('nsfw', False):
                     raise self.AgeGateUnsupported('platform does not support age gate')
         else:
             channel_id = channel.id
@@ -922,9 +922,9 @@ class UnifierBridge:
                 user.guild.nsfw_level == nextcord.NSFWLevel.age_restricted
             )
 
-        if not nsfw and roominfo['meta']['settings'].get('nsfw', False):
+        if not nsfw and roominfo['meta'].get('settings', {}).get('nsfw', False):
             raise self.NotAgeGated('room is NSFW but channel is not NSFW')
-        elif nsfw and not roominfo['meta']['settings'].get('nsfw', False):
+        elif nsfw and not roominfo['meta'].get('settings', {}).get('nsfw', False):
             raise self.IsAgeGated('room is not NSFW but channel is NSFW')
 
         limit = self.get_connections_limit(guild_id)
@@ -1395,7 +1395,7 @@ class UnifierBridge:
 
         roomdata = self.get_room(msg.room)
 
-        if not roomdata['meta']['settings'].get('relay_deletes', True):
+        if not roomdata['meta'].get('settings', {}).get('relay_deletes', True):
             return 0
 
         threads = []
@@ -1691,9 +1691,9 @@ class UnifierBridge:
                 pass
 
         # Check if SFW/NSFW statuses of room and channel match
-        if not nsfw and roomdata['meta']['settings'].get('nsfw', False):
+        if not nsfw and roomdata['meta'].get('settings', {}).get('nsfw', False):
             raise self.NotAgeGated('room is NSFW but channel is not NSFW')
-        elif nsfw and not roomdata['meta']['settings'].get('nsfw', False):
+        elif nsfw and not roomdata['meta'].get('settings', {}).get('nsfw', False):
             raise self.IsAgeGated('room is not NSFW but channel is NSFW')
 
         # Check if server is banned from the room
@@ -1915,7 +1915,7 @@ class UnifierBridge:
 
         roomdata = self.get_room(msg.room)
 
-        if not roomdata['meta']['settings'].get('relay_edits', True):
+        if not roomdata['meta'].get('settings', {}).get('relay_edits', True):
             return
 
         # Check is message can be sent
@@ -2250,7 +2250,7 @@ class UnifierBridge:
 
         if source == 'discord':
             forwarded = len(message.snapshots) > 0
-            can_forward = forwarded and self.__bot.db['rooms'][room]['meta']['settings'].get('relay_forwards', True)
+            can_forward = forwarded and self.__bot.db['rooms'][room]['meta'].get('settings', {}).get('relay_forwards', True)
 
         # Threading
         thread_urls = {}
@@ -2769,7 +2769,7 @@ class UnifierBridge:
                         url = None
 
                     if (
-                            self.__bot.db["rooms"][room]["meta"]["settings"].get("dynamic_reply_embed", False) and
+                            self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("dynamic_reply_embed", False) and
                             len(embeds) == 0 and not ('https://' in og_msg_content or 'http://' in og_msg_content)
                     ):
                         embed = nextcord.Embed(
@@ -2796,7 +2796,7 @@ class UnifierBridge:
                                     url=url
                                 )
                         embeds.append(embed)
-                    elif self.__bot.db["rooms"][room]["meta"]["settings"].get("compact_reply", False):
+                    elif self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("compact_reply", False):
                         if trimmed:
                             trimmed_length = len(trimmed)
                         else:
@@ -2878,10 +2878,10 @@ class UnifierBridge:
                     continue
 
                 if (
-                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                        self.__bot.db['rooms'][room]['meta'].get('settings', {}).get('nsfw', False)
                         and not webhook.channel.nsfw
                 ) or (
-                        not self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                        not self.__bot.db['rooms'][room]['meta'].get('settings', {}).get('nsfw', False)
                         and webhook.channel.nsfw
                 ):
                     continue
@@ -3043,7 +3043,7 @@ class UnifierBridge:
 
                 if (
                         not dest_support.supports_agegate and
-                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False)
+                        self.__bot.db['rooms'][room]['meta'].get('settings', {}).get('nsfw', False)
                 ):
                     return
 
@@ -3053,9 +3053,9 @@ class UnifierBridge:
                     channel_is_nsfw = False
 
                 if (
-                        self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False) and not channel_is_nsfw
+                        self.__bot.db['rooms'][room]['meta'].get('settings', {}).get('nsfw', False) and not channel_is_nsfw
                 ) or (
-                        not self.__bot.db['rooms'][room]['meta']['settings'].get('nsfw', False) and channel_is_nsfw
+                        not self.__bot.db['rooms'][room]['meta'].get('settings', {}).get('nsfw', False) and channel_is_nsfw
                 ):
                     continue
 
@@ -6741,7 +6741,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
-            if not roomdata['meta']['settings'].get('relay_edits', True):
+            if not roomdata['meta'].get('settings', {}).get('relay_edits', True):
                 return
 
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_edit'] or roomdata['meta']['private']:
@@ -6848,7 +6848,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 return
 
             roomdata = self.bot.bridge.get_room(roomname)
-            if not roomdata['meta']['settings'].get('relay_edits', True):
+            if not roomdata['meta'].get('settings', {}).get('relay_edits', True):
                 return
 
             try:
@@ -6912,7 +6912,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
         try:
             roomdata = self.bot.bridge.get_room(roomname)
-            if not roomdata['meta']['settings'].get('relay_deletes', True):
+            if not roomdata['meta'].get('settings', {}).get('relay_deletes', True):
                 return
 
             if not self.bot.config['enable_logging'] or not self.bot.config['logging_delete'] or roomdata['meta']['private']:
