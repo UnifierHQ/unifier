@@ -47,7 +47,7 @@ def uppercase_ratio(text):
     letters = [char for char in text if char.isalpha()]
     capitals = [char for char in letters if char.isupper()]
     if not letters:
-        return 0
+        return 0, 0
     return (len(capitals) / len(letters)), len(letters)
 
 def bypass_killer(string):
