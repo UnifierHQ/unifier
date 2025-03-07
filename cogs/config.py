@@ -1257,8 +1257,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 return await ctx.send(
                     f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}', ephemeral=True
                 )
-        else:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}')
+            else:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}')
 
         infinite_enabled = ''
         if self.bot.config['permanent_invites']:
