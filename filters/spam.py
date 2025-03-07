@@ -48,7 +48,7 @@ def uppercase_ratio(text):
     capitals = [char for char in letters if char.isupper()]
     if not letters:
         return 0
-    return len(capitals) / len(letters)
+    return len(capitals) / len(letters), len(letters)
 
 def bypass_killer(string):
     if not [*string][len(string) - 1].isalnum():
@@ -183,8 +183,8 @@ class Filter(BaseFilter):
         is_spam = check_patterns(content, suspected) or check_patterns(content_normalized, suspected_cs)
 
         # Detect spam from uppercase ratio
-        ratio = uppercase_ratio(content_normalized)
-        if ratio > 0.75 and len(content) > 20:
+        ratio, count = uppercase_ratio(content_normalized)
+        if ratio > 0.75 and count > 60:
             is_spam = True
 
         # Use RapidPhish to detect possible phishing URLs
