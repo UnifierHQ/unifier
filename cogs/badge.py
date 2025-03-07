@@ -17,12 +17,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import nextcord
-from nextcord.ext import commands, tasks
-from typing import Optional
+from nextcord.ext import commands
+from typing import Optional, Union
 from utils import log, langmgr, restrictions_legacy as r_legacy, slash as slash_handler
 from enum import Enum
-import aiohttp
-import asyncio
 
 restrictions_legacy = r_legacy.Restrictions()
 language = langmgr.partial()
@@ -56,29 +54,12 @@ class Badge(commands.Cog, name=':medal: Badge'):
             UserRole.USER: nextcord.Color.blurple()
         }
         restrictions_legacy.attach_bot(self.bot)
-        self.unifier_team_data = {}
-        self.check_unifier_team.start()
 
-    @tasks.loop(minutes=30)
-    async def check_unifier_team(self):
-        url = "https://collab.unifierhq.org/data.json"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    self.unifier_team_data = await response.json()
-                else:
-                    self.logger.warning(f"Failed to fetch Unifier team data: {response.status}")
+    async def cog_before_invoke(self, ctx):
+        ctx.user = ctx.author
 
-    @nextcord.slash_command(
-        description=language.desc('badge.badge'),
-        description_localizations=language.slash_desc('badge.badge'),
-        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
-        integration_types=[nextcord.IntegrationType.guild_install]
-    )
-    async def badge(
-            self, ctx: nextcord.Interaction,
-            user: Optional[nextcord.User] = slash.option('badge.badge.user', required=False)
-    ):
+    # Badge command
+    async def badge(self, ctx: Union[nextcord.Interaction, commands.Context], user: Optional[nextcord.User] = None):
         selector = language.get_selector(ctx)
         if not user:
             user = ctx.user
@@ -95,19 +76,6 @@ class Badge(commands.Cog, name=':medal: Badge'):
         )
         if user_role == UserRole.BANNED:
             embed.set_footer(text=selector.get("easter_egg"))
-
-        catchedid = user.id
-
-        if str(catchedid) in self.unifier_team_data["aliases"]: 
-            catchedid = self.unifier_team_data["aliases"][str(catchedid)]
-
-        if str(catchedid) in self.unifier_team_data:
-            team_member = self.unifier_team_data[str(catchedid)]
-            embed.add_field(
-                name="Unifier Team",
-                value=f"{team_member['icon']} - **{team_member['displayname']}** is a **{team_member['role']}** in the Unifier team.",
-                inline=False
-            )
 
         await ctx.send(embed=embed)
 
@@ -140,6 +108,26 @@ class Badge(commands.Cog, name=':medal: Badge'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
         await ctx.send(f'{self.bot.ui_emojis.success} ' + selector.fget("success", values={'user': user.name}))
+
+    # Universal commands handlers and autocompletes
+
+    # badge
+    @nextcord.slash_command(
+        name='badge',
+        description=language.desc('badge.badge'),
+        description_localizations=language.slash_desc('badge.badge'),
+        contexts=[nextcord.InteractionContextType.guild, nextcord.InteractionContextType.bot_dm],
+        integration_types=[nextcord.IntegrationType.guild_install]
+    )
+    async def badge_slash(
+            self, ctx: nextcord.Interaction,
+            user: Optional[nextcord.User] = slash.option('badge.badge.user', required=False)
+    ):
+        await self.badge(ctx, user)
+
+    @commands.command(name='badge')
+    async def badge_legacy(self, ctx, user: Optional[nextcord.User] = None):
+        await self.badge(ctx, user)
 
     def get_user_role(self, user_id):
         if user_id == self.bot.owner or user_id in self.bot.other_owners:

@@ -33,6 +33,15 @@ language = langmgr.partial()
 language.load()
 slash = slash_helper.SlashHelper(language)
 
+# Room settings keys
+settings_keys = [
+    'relay_deletes', 'relay_edits', 'relay_forwards', 'dynamic_reply_embed', 'compact_reply', 'nsfw'
+]
+settings_defaults = {
+    'relay_deletes': True, 'relay_edits': True, 'relay_forwards': True, 'dynamic_reply_embed': False,
+    'compact_reply': False, 'nsfw': False
+}
+
 def timetoint(t):
     try:
         return int(t)
@@ -274,6 +283,12 @@ class FilterDialog:
         if len(valuetext) > 1024:
             valuetext = valuetext[:1020] + '...`'
 
+        if config.type == 'boolean':
+            valuetext = (
+                f'{self.__bot.ui_emojis.success} {self.selector.get("enabled_config")}' if value else
+                f'{self.__bot.ui_emojis.error} {self.selector.get("disabled_config")}'
+            )
+
         self.embed.description = f'# {config.name} (`{option}`)\n{config.description}'
         self.embed.add_field(name=self.selector.get('current'), value=valuetext, inline=False)
 
@@ -509,7 +524,7 @@ class FilterDialog:
                         roominfo['meta']['filters'][self.filter.id].update({'enabled': not current})
                         self.__bot.bridge.update_room(self.room, roominfo)
                 elif custom_id == 'change':
-                    if not self.filter.configs[self.config].type == 'bool':
+                    if not self.filter.configs[self.config].type == 'boolean':
                         await interaction.response.send_modal(self.modal)
                         continue
 
@@ -592,6 +607,410 @@ class FilterDialog:
 
                         roominfo['meta']['filters'][self.filter.id].update({self.config: new_value})
                         self.__bot.bridge.update_room(self.room, roominfo)
+
+# Could've used inheritance here, but I'd need to override every method anyway, so better off not
+class SettingsDialog:
+    def __init__(self, bot, ctx: Union[nextcord.Interaction, commands.Context], room=None, query=None):
+        self.ctx = ctx
+        self.__bot = bot
+        self.room = room
+        self.message = None
+        self.embed = nextcord.Embed(color=self.__bot.colors.unifier)
+        self.selector = language.get_selector(ctx)
+        self.selection = None
+        self.query = query
+        self.modal = None
+        self.setting = None
+        self.maxpage = 0
+        self.match_both = False
+        self.match_name = True
+        self.match_desc = True
+        self.title = self.__bot.ui_emojis.rooms + ' ' + self.selector.fget('title',values={'room':self.room})
+
+    @property
+    def author(self):
+        if type(self.ctx) is nextcord.Interaction:
+            return self.ctx.user
+        else:
+            return self.ctx.author
+
+    async def sanitize(self):
+        self.embed.clear_fields()
+        self.embed.remove_author()
+        self.embed.remove_footer()
+        self.selection = None
+
+    async def menu(self, search: Optional[str] = None, page: int = 0):
+        await self.sanitize()
+
+        if search:
+            keys = list(settings_keys)
+            for bridge_setting in settings_keys:
+                # noinspection PyTypeChecker
+                if self.match_both:
+                    if not (
+                            (
+                                    (search.lower() in bridge_setting.lower() if self.match_name else True) or
+                                    (search.lower() in self.selector.get(f"{bridge_setting}_name").lower() if self.match_name else True)
+                            ) and (
+                                    search.lower() in self.selector.get(f"{bridge_setting}_desc").lower() if self.match_desc else True
+                            )
+                    ):
+                        keys.remove(bridge_setting)
+                else:
+                    if not (
+                            (
+                                    (search.lower() in bridge_setting.lower() if self.match_name else True) or
+                                    (search.lower() in self.selector.get(f"{bridge_setting}_name").lower() if self.match_name else True)
+                            ) or (
+                                    search.lower() in self.selector.get(f"{bridge_setting}_desc").lower() if self.match_desc else True
+                            )
+                    ):
+                        keys.remove(bridge_setting)
+            self.embed.description = self.selector.rawfget(
+                "search_results", "commons.search", values={"query": search, "results": len(keys)}
+            )
+        else:
+            keys = list(settings_keys)
+            self.embed.description = self.selector.get('choose_filter')
+
+        roomdata = self.__bot.bridge.get_room(self.room)
+        limit = 20
+        maxpage = math.ceil(len(keys)/limit)-1
+        self.maxpage = maxpage
+
+        if page > maxpage:
+            page = maxpage
+        elif page < 0:
+            page = 0
+
+        offset = page * limit
+
+        self.embed.title = self.title
+
+        self.selection = nextcord.ui.StringSelect(
+            max_values=1, min_values=1, custom_id='selection', placeholder=self.selector.get("selection")
+        )
+
+        for index in range(limit):
+            if index + offset >= len(keys) or len(keys) == 0:
+                break
+
+            # noinspection PyTypeChecker
+            setting_key = keys[index + offset]
+            setting_name = self.selector.get(f"{keys[index + offset]}_name")
+            setting_desc = self.selector.get(f"{keys[index + offset]}_desc")
+            setting_default = settings_defaults[setting_key]
+
+            if roomdata['meta']['settings'].get(setting_key, setting_default):
+                self.embed.add_field(
+                    name=f'{self.__bot.ui_emojis.success} **{setting_name} (`{setting_key}`)**',
+                    value=setting_desc or self.selector.get("no_desc"),
+                    inline=False
+                )
+            else:
+                self.embed.add_field(
+                    name=f'{setting_name} (`{setting_key}`)',
+                    value=setting_desc or self.selector.get("no_desc"),
+                    inline=False
+                )
+
+            trimmed = setting_desc or self.selector.get("no_desc")
+            if len(trimmed) > 100:
+                trimmed = trimmed[:97] + '...'
+
+            self.selection.add_option(
+                label=setting_name,
+                description=trimmed,
+                value=setting_key
+            )
+
+        if len(self.embed.fields) == 0:
+            self.selection.disabled = True
+            self.selection.add_option(
+                label='placeholder',
+                value='placeholder'
+            )
+            self.embed.add_field(
+                name=self.selector.get('noresults_title'),
+                value=(
+                    self.selector.get("noresults_body_search") if search else
+                    self.selector.get("noresults_body_filters")
+                ),
+                inline=False
+            )
+
+        self.embed.set_footer(text=self.selector.rawfget("page", "commons.search", values={
+            "page": page + 1, "maxpage": maxpage + 1
+        }))
+
+    async def display(self, bridge_setting: str, searched: bool = False):
+        await self.sanitize()
+
+        setting_desc = self.selector.get(f"{bridge_setting}_desc")
+        setting_default = settings_defaults[bridge_setting]
+
+        self.embed.title = self.title + f' / {bridge_setting}'
+        if searched:
+            self.embed.title = self.title + f' / {self.selector.get("search")} / {bridge_setting}'
+
+        roomdata = self.__bot.bridge.get_room(self.room)
+
+        self.embed.description = (
+            f'{setting_desc or self.selector.get("no_desc")}\n\n' +
+            (
+                self.selector.fget("enabled", values={"emoji": self.__bot.ui_emojis.success})
+                if roomdata['meta']['settings'].get(bridge_setting, setting_default)
+                else self.selector.fget("disabled", values={"emoji": self.__bot.ui_emojis.error})
+            )
+        )
+
+    async def display_config(self, bridge_filter: base_filter.BaseFilter, option: str, searched: bool = False):
+        await self.sanitize()
+        roomdata = self.__bot.bridge.get_room(self.room)
+
+        config = bridge_filter.configs[option]
+        value = roomdata['meta']['filters'].get(bridge_filter.id, {}).get(option, config.default)
+
+        self.embed.title = self.title + f' / {bridge_filter.id} / {option}'
+        if searched:
+            self.embed.title = self.title + f' / {self.selector.get("search")} / {bridge_filter.id} / {option}'
+
+        textinput = nextcord.ui.TextInput(
+            label=self.selector.get('value'),
+            style=nextcord.TextInputStyle.short,
+            placeholder=self.selector.get("value_prompt"),
+            default_value=str(value)
+        )
+
+        limittext = None
+        if config.limits:
+            if config.type == 'string':
+                limittext = f'{self.selector.fget("limit_str",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+                textinput.min_length = config.limits[0]
+                textinput.max_length = config.limits[1]
+            elif config.type == 'number' or config.type == 'integer' or config.type == 'float':
+                limittext = f'{self.selector.fget("limit_num",values={"lower":config.limits[0],"upper":config.limits[1]})}'
+
+        valuetext = '`'+str(value)+'`'
+        if len(valuetext) > 1024:
+            valuetext = valuetext[:1020] + '...`'
+
+        if config.type == 'boolean':
+            valuetext = (
+                f'{self.__bot.ui_emojis.success} {self.selector.get("enabled_config")}' if value else
+                f'{self.__bot.ui_emojis.error} {self.selector.get("disabled_config")}'
+            )
+
+        self.embed.description = f'# {config.name} (`{option}`)\n{config.description}'
+        self.embed.add_field(name=self.selector.get('current'), value=valuetext, inline=False)
+
+        if limittext:
+            self.embed.add_field(name=self.selector.get('limits'), value=limittext, inline=False)
+
+        self.modal = nextcord.ui.Modal(
+            title=self.selector.get('form_title'),
+            auto_defer=False
+        )
+
+        self.modal.add_item(
+            textinput
+        )
+
+    async def run(self):
+        page = 0
+        panel = 0
+        if self.query:
+            panel = 1
+
+        interaction = None
+        while True:
+            buttons = []
+            if panel == 0:
+                buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('prev', 'commons.navigation'),
+                            custom_id='prev',
+                            disabled=page <= 0,
+                            emoji=self.__bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('next', 'commons.navigation'),
+                            custom_id='next',
+                            disabled=page >= self.maxpage,
+                            emoji=self.__bot.ui_emojis.next
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label=self.selector.rawget('search', 'commons.search'),
+                            custom_id='search',
+                            emoji=self.__bot.ui_emojis.search
+                        )
+                    ]
+                ]
+                await self.menu(page=page)
+            elif panel == 1:
+                buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('prev', 'commons.navigation'),
+                            custom_id='prev',
+                            disabled=page <= 0,
+                            emoji=self.__bot.ui_emojis.prev
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.blurple,
+                            label=self.selector.rawget('next', 'commons.navigation'),
+                            custom_id='next',
+                            disabled=page >= self.maxpage,
+                            emoji=self.__bot.ui_emojis.next
+                        ),
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.green,
+                            label=self.selector.rawget('search', 'commons.search'),
+                            custom_id='search',
+                            emoji=self.__bot.ui_emojis.search
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            custom_id='match',
+                            label=(
+                                self.selector.rawget('match_any', 'commons.search') if not self.match_both else
+                                self.selector.rawget('match_both', 'commons.search')
+                            ),
+                            style=(
+                                nextcord.ButtonStyle.green if not self.match_both else
+                                nextcord.ButtonStyle.blurple
+                            ),
+                            emoji=(
+                                '\U00002194' if not self.match_both else
+                                '\U000023FA'
+                            )
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='name',
+                            label=self.selector.get("filter_name"),
+                            style=nextcord.ButtonStyle.green if self.match_name else nextcord.ButtonStyle.gray
+                        ),
+                        nextcord.ui.Button(
+                            custom_id='desc',
+                            label=self.selector.get("filter_desc"),
+                            style=nextcord.ButtonStyle.green if self.match_desc else nextcord.ButtonStyle.gray
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label=self.selector.rawget('back', 'commons.navigation'),
+                            custom_id='back',
+                            emoji=self.__bot.ui_emojis.back
+                        )
+                    ]
+                ]
+                await self.menu(search=self.query, page=page)
+            elif panel == 2:
+                await self.display(self.setting, searched=bool(self.query))
+                roominfo = self.__bot.bridge.get_room(self.room)
+                setting_default = settings_defaults[self.setting]
+                enabled = roominfo['meta']['settings'].get(self.setting, setting_default)
+
+                buttons = [
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.red if enabled else nextcord.ButtonStyle.green,
+                            label=self.selector.get('disable') if enabled else self.selector.get('enable'),
+                            custom_id='toggle'
+                        )
+                    ],
+                    [
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.gray,
+                            label=self.selector.rawget('back', 'commons.navigation'),
+                            custom_id='back',
+                            emoji=self.__bot.ui_emojis.back
+                        )
+                    ]
+                ]
+
+            components = ui.MessageComponents()
+
+            if self.selection and len(self.selection.options) > 0:
+                components.add_row(ui.ActionRow(self.selection))
+
+            components.add_rows(
+                *[ui.ActionRow(*buttons[index]) for index in range(len(buttons))]
+            )
+
+            if not self.message:
+                self.message = await self.ctx.send(embed=self.embed, view=components)
+                if type(self.ctx) is nextcord.Interaction:
+                    self.message = await self.message.fetch()
+            elif not interaction.response.is_done():
+                # noinspection PyUnresolvedReferences
+                await interaction.response.edit_message(embed=self.embed, view=components)
+
+            def check(interaction):
+                if not interaction.message:
+                    return False
+
+                return interaction.user.id == self.author.id and interaction.message.id == self.message.id
+
+            try:
+                interaction = await self.__bot.wait_for('interaction', check=check, timeout=60)
+            except asyncio.TimeoutError:
+                return await self.message.edit(view=None)
+
+            custom_id = interaction.data['custom_id']
+            if interaction.type == nextcord.InteractionType.component:
+                if custom_id == 'prev':
+                    page -= 1
+                elif custom_id == 'next':
+                    page -= 1
+                elif custom_id == 'back':
+                    panel -= 1
+                    if panel == 1 and not self.query or panel < 0:
+                        panel = 0
+                elif custom_id == 'selection':
+                    self.setting = interaction.data['values'][0]
+                    page = 0
+                    panel = 2
+                elif custom_id == 'search':
+                    self.modal = nextcord.ui.Modal(title=self.selector.rawget('search_title','commons.search'),auto_defer=False)
+                    self.modal.add_item(
+                        nextcord.ui.TextInput(
+                            label=self.selector.rawget('query', 'commons.search'),
+                            style=nextcord.TextInputStyle.short,
+                            placeholder=self.selector.get("search_prompt")
+                        )
+                    )
+                    await interaction.response.send_modal(self.modal)
+                elif custom_id == 'toggle':
+                    roominfo = self.__bot.bridge.get_room(self.room)
+                    setting_default = settings_defaults[self.setting]
+
+                    current = roominfo['meta']['settings'].get(self.setting, setting_default)
+
+                    roominfo['meta']['settings'].update({self.setting: not current})
+                    self.__bot.bridge.update_room(self.room, roominfo)
+                elif custom_id == 'match':
+                    self.match_both = not self.match_both
+                elif custom_id == 'name':
+                    self.match_name = not self.match_name
+                elif custom_id == 'desc':
+                    self.match_desc = not self.match_desc
+            elif interaction.type == nextcord.InteractionType.modal_submit:
+                if panel == 0:
+                    self.match_both = False
+                    self.match_name = True
+                    self.match_desc = True
+                panel = 1
+                page = 0
+                self.query = interaction.data['components'][0]['components'][0]['value']
 
 class Config(commands.Cog, name=':construction_worker: Config'):
     """Config is an extension that lets Unifier admins configure the bot and server moderators set up Unified Chat in their server."""
@@ -694,6 +1113,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             traceback.print_exc()
             return False
 
+    async def cog_before_invoke(self, ctx):
+        ctx.user = ctx.author
+
     async def room_manage_private_autocomplete(self, room, user):
         # Usually I'd add this to a util or something to share it with other cogs,
         # but I'm not feeling like that right now...maybe next patch?
@@ -714,7 +1136,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def config(self, ctx):
         pass
 
-    @commands.command(hidden=True,description='Adds a moderator to the instance.')
+    @commands.group(name='config')
+    async def config_legacy(self,ctx):
+        pass
+
+    @config_legacy.command(
+        description=language.desc('config.addmod'),
+        description_localizations=language.slash_desc('config.addmod')
+    )
     @restrictions_legacy.admin()
     async def addmod(self,ctx,*,userid):
         selector = language.get_selector(ctx)
@@ -758,7 +1187,11 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{username}'
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"mod":mod})}')
 
-    @commands.command(hidden=True,aliases=['remmod','delmod'],description='Removes a moderator from the instance.')
+    @config_legacy.command(
+        aliases=['remmod','delmod'],
+        description=language.desc('config.removemod'),
+        description_localizations=language.slash_desc('config.removemod')
+    )
     @restrictions_legacy.admin()
     async def removemod(self,ctx,*,userid):
         selector = language.get_selector(ctx)
@@ -799,17 +1232,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             mod = f'@{username}'
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success",values={"mod":mod})}')
 
-    @config.subcommand(
-        name='create-invite',
-        description=language.desc('config.create-invite'),
-        description_localizations=language.slash_desc('config.create-invite')
-    )
-    @restrictions.not_banned()
+    # Create invite command
     async def create_invite(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.create-invite.room'),
-            expiry: Optional[str] = slash.option('config.create-invite.expiry',required=False),
-            max_usage: Optional[int] = slash.option('config.create-invite.max-usage', required=False)
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: str, expiry: Optional[str] = None,
+            max_usage: Optional[int] = None
     ):
         if not expiry:
             expiry = '7d'
@@ -827,10 +1253,12 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         if not self.bot.db['rooms'][room]['meta']['private']:
             return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("is_public")}')
         if len(self.bot.db['rooms'][room]['meta']['private_meta']['invites']) >= 20:
-            return await ctx.send(
-                f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}',
-                ephemeral=True
-            )
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}', ephemeral=True
+                )
+        else:
+            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invites_limit")}')
 
         infinite_enabled = ''
         if self.bot.config['permanent_invites']:
@@ -838,21 +1266,36 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         if expiry == 'inf':
             if not self.bot.config['permanent_invites']:
-                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("permanent_disabled")}',ephemeral=True)
+                if type(ctx) is nextcord.Interaction:
+                    return await ctx.send(
+                        f'{self.bot.ui_emojis.error} {selector.get("permanent_disabled")}', ephemeral=True
+                    )
+                else:
+                    return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("permanent_disabled")}')
             expiry = 0
         else:
             try:
                 expiry = timetoint(expiry)
             except:
-                return await ctx.send(
-                    f'{self.bot.ui_emojis.error} {selector.rawget("invalid_duration","commons.moderation")}',
-                    ephemeral=True
-                )
+                if type(ctx) is nextcord.Interaction:
+                    return await ctx.send(
+                        f'{self.bot.ui_emojis.error} {selector.rawget("invalid_duration","commons.moderation")}',
+                        ephemeral=True
+                    )
+                else:
+                    return await ctx.send(
+                        f'{self.bot.ui_emojis.error} {selector.rawget("invalid_duration","commons.moderation")}'
+                    )
             if expiry > 604800:
-                return await ctx.send(
-                    f'{self.bot.ui_emojis.error} {selector.get("duration_toolong")}{infinite_enabled}',
-                    ephemeral=True
-                )
+                if type(ctx) is nextcord.Interaction:
+                    return await ctx.send(
+                        f'{self.bot.ui_emojis.error} {selector.get("duration_toolong")}{infinite_enabled}',
+                        ephemeral=True
+                    )
+                else:
+                    return await ctx.send(
+                        f'{self.bot.ui_emojis.error} {selector.get("duration_toolong")}{infinite_enabled}'
+                    )
             expiry += time.time()
         invite = self.bot.bridge.create_invite(room, max_usage, expiry)
         try:
@@ -860,7 +1303,15 @@ class Config(commands.Cog, name=':construction_worker: Config'):
                 f'{selector.get("code")} `{invite}`\n{selector.fget("join",values={"prefix":self.bot.command_prefix,"invite":invite})}'
             )
         except:
-            return await ctx.send(f'{self.bot.ui_emojis.warning} {selector.fget("dm_fail",values={"prefix":self.bot.command_prefix})}',ephemeral=True)
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.warning} {selector.fget("dm_fail",values={"prefix":self.bot.command_prefix})}',
+                    ephemeral=True
+                )
+            else:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.warning} {selector.fget("dm_fail",values={"prefix":self.bot.command_prefix})}'
+                )
 
         steps = '\n'.join([f'- {step}' for step in [
             selector.fget(
@@ -876,21 +1327,18 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             color=self.bot.colors.unifier
         )
 
-        await ctx.send(
-            f'{self.bot.ui_emojis.success} {selector.get("success")}\n{selector.get("disclaimer")}', embed=embed,
-            ephemeral=True
-        )
+        if type(ctx) is nextcord.Interaction:
+            await ctx.send(
+                f'{self.bot.ui_emojis.success} {selector.get("success")}\n{selector.get("disclaimer")}', embed=embed,
+                ephemeral=True
+            )
+        else:
+            await ctx.send(
+                f'{self.bot.ui_emojis.success} {selector.get("success")}\n{selector.get("disclaimer")}', embed=embed
+            )
 
-    @config.subcommand(
-        name='delete-invite',
-        description=language.desc('config.delete-invite'),
-        description_localizations=language.slash_desc('config.delete-invite')
-    )
-    @restrictions.not_banned()
-    async def delete_invite(
-            self, ctx: nextcord.Interaction,
-            invite: str = slash.option('config.delete-invite.invite')
-    ):
+    # Delete invite command
+    async def delete_invite(self, ctx: Union[nextcord.Interaction, commands.Context], invite: str):
         invite = invite.lower()
         if not self.bot.bridge.can_manage_room(invite, ctx.user):
             raise restrictions.NoRoomManagement()
@@ -898,18 +1346,22 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         try:
             self.bot.bridge.delete_invite(invite)
         except self.bot.bridge.InviteNotFoundError:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}',ephemeral=True)
-        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} {selector.get("invalid")}', ephemeral=True
+                )
+            else:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("invalid")}')
 
-    @config.subcommand(
-        description=language.desc('config.invites'),
-        description_localizations=language.slash_desc('config.invites')
-    )
-    @restrictions.not_banned()
-    async def invites(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.invites.room')
-    ):
+        if type(ctx) is nextcord.Interaction:
+            await ctx.send(
+                f'{self.bot.ui_emojis.success} {selector.get("success")}', ephemeral=True
+            )
+        else:
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
+
+    # Invites command
+    async def invites(self, ctx: Union[nextcord.Interaction, commands.Context], room: str):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -920,7 +1372,14 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         selector = language.get_selector(ctx)
 
         if not self.bot.db['rooms'][room]['meta']['private']:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.rawget("is_public","config.create-invite")}',ephemeral=True)
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} {selector.rawget("is_public","config.create-invite")}', ephemeral=True
+                )
+            else:
+                return await ctx.send(
+                    f'{self.bot.ui_emojis.error} {selector.rawget("is_public","config.create-invite")}'
+                )
 
         invites = self.bot.db['rooms'][room]['meta']['private_meta']['invites']
 
@@ -948,17 +1407,23 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         try:
             await ctx.user.send(embed=embed)
         except:
-            return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dm_fail")}',ephemeral=True)
-        await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}',ephemeral=True)
+            if type(ctx) is nextcord.Interaction:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dm_fail")}', ephemeral=True)
+            else:
+                return await ctx.send(f'{self.bot.ui_emojis.error} {selector.get("dm_fail")}')
 
-    @invites.on_autocomplete("room")
-    async def unbind_autocomplete(self, ctx: nextcord.Interaction, room: str):
-        return await ctx.response.send_autocomplete(await self.room_manage_private_autocomplete(room, ctx.user))
+        if type(ctx) is nextcord.Interaction:
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}', ephemeral=True)
+        else:
+            await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @commands.command(description=language.desc('config.rename'))
+    @config_legacy.command(
+        description=language.desc('config.rename'),
+        description_localizations=language.slash_desc('config.rename')
+    )
     @restrictions_legacy.admin()
     @restrictions_legacy.not_banned()
-    async def rename(self, ctx, room, newroom):
+    async def rename(self, ctx, room: str, newroom: str):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -980,16 +1445,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}\n`{room}` => `{newroom}`')
 
-    @config.subcommand(
-        name='display-name',
-        description=language.desc('config.display-name'),
-        description_localizations=language.slash_desc('config.display-name')
-    )
-    @restrictions.not_banned()
+    # Display name command
     async def display_name(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.display-name.room'),
-            name: Optional[str] = slash.option('config.display-name.display-name',required=False)
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: str, name: Optional[str] = None
     ):
         if not name:
             name = ''
@@ -1016,16 +1474,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}\n`{current_name}` => `{name}`')
 
-    @config.subcommand(
-        description=language.desc('config.roomdesc'),
-        description_localizations=language.slash_desc('config.roomdesc')
-    )
-    @restrictions.not_banned()
-    async def roomdesc(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.roomdesc.room'),
-            desc: Optional[str] = slash.option('config.roomdesc.description', required=False)
-    ):
+    # Room description command
+    async def roomdesc(self, ctx: Union[nextcord.Interaction, commands.Context], room: str, desc: Optional[str] = None):
         if not desc:
             desc = ''
         room = room.lower()
@@ -1047,15 +1497,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @config.subcommand(
-        description=language.desc('config.roomemoji'),
-        description_localizations=language.slash_desc('config.roomemoji')
-    )
-    @restrictions.not_banned()
+    # Room emoji command
     async def roomemoji(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.roomemoji.room'),
-            emoji: Optional[str] = slash.option('config.roomemoji.emoji', required=False)
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: str, emoji: Optional[str] = None
     ):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
@@ -1078,9 +1522,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(selector.get("success"))
 
-    @commands.command(
-        hidden=True,
-        description='Restricts/unrestricts a room. Only admins will be able to collect to this room when restricted.'
+    @config_legacy.command(
+        description=language.desc('config.restrict'),
+        description_localizations=language.slash_desc('config.restrict')
     )
     @restrictions_legacy.admin()
     async def restrict(self,ctx,room=None):
@@ -1106,15 +1550,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
             await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_set",values={"room":room})}')
 
-    @config.subcommand(
-        description=language.desc('config.lock'),
-        description_localizations=language.slash_desc('config.lock')
-    )
-    @restrictions.moderator()
-    async def lock(
-            self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('config.lock.room', required=False)
-    ):
+    # Lock command
+    async def lock(self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None):
         if not room:
             room = self.bot.bridge.check_duplicate(ctx.channel)
             if not room:
@@ -1136,7 +1573,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success_set",values={"room":room})}')
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
 
-    @commands.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
+    @config_legacy.command(description='Maps channels to rooms in bulk.', aliases=['autobind'])
     @restrictions_legacy.admin()
     @restrictions_legacy.no_admin_perms()
     async def map(self, ctx):
@@ -1335,17 +1772,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await interaction.edit_original_message(
             content=f'{self.bot.ui_emojis.success} {selector.get("say_hi")}')
 
-    @config.subcommand(
-        name='add-rule',
-        description=language.desc('config.add-rule'),
-        description_localizations=language.slash_desc('config.add-rule')
-    )
-    @restrictions.not_banned()
-    async def addrule(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.add-rule.room'),
-            rule: str = slash.option('config.add-rule.rule')
-    ):
+    # Add rule command
+    async def addrule(self, ctx: Union[nextcord.Interaction, commands.Context], room: str, rule: str):
         __room = room.lower()
         if not __room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -1361,17 +1789,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @config.subcommand(
-        name='delete-rule',
-        description=language.desc('config.delete-rule'),
-        description_localizations=language.slash_desc('config.delete-rule')
-    )
-    @restrictions.not_banned()
-    async def delrule(
-            self, ctx: nextcord.Interaction,
-            room: str = slash.option('config.delete-rule.room'),
-            rule: int = slash.option('config.delete-rule.rule')
-    ):
+    # Delete rule command
+    async def delrule(self, ctx: Union[nextcord.Interaction, commands.Context], room: str, rule: int):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -1391,13 +1810,8 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         await self.bot.loop.run_in_executor(None, lambda: self.bot.db.save_data())
         await ctx.send(f'{self.bot.ui_emojis.success} {selector.get("success")}')
 
-    @config.subcommand(
-        name='toggle-emoji',
-        description=language.desc('config.toggle-emoji'),
-        description_localizations=language.slash_desc('config.toggle-emoji')
-    )
-    @application_checks.has_permissions(manage_guild=True)
-    async def toggle_emoji(self,ctx: nextcord.Interaction):
+    # Toggle emoji command
+    async def toggle_emoji(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         if ctx.guild.id in self.bot.bridged_emojis:
             self.bot.bridged_emojis.remove(ctx.guild.id)
@@ -1411,16 +1825,10 @@ class Config(commands.Cog, name=':construction_worker: Config'):
     async def cog_command_error(self, ctx, error):
         await self.bot.exhandler.handle(ctx, error)
 
-    @config.subcommand(
-        name='filters',
-        description=language.desc('config.filters'),
-        description_localizations=language.slash_desc('config.filters')
-    )
-    @restrictions.not_banned()
+    # Filters command
     async def filters(
-            self, ctx: nextcord.Interaction,
-            room: Optional[str] = slash.option('config.filters.room', required=False),
-            query: Optional[str] = slash.option('config.filters.query', required=False)
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None,
+            query: Optional[str] = None
     ):
         if not room:
             room = self.bot.bridge.check_duplicate(ctx.channel)
@@ -1437,12 +1845,268 @@ class Config(commands.Cog, name=':construction_worker: Config'):
         dialog = FilterDialog(self.bot, ctx, room=room, query=query)
         await dialog.run()
 
-    @filters.on_autocomplete("query")
+    # Settings command
+    async def settings(
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None,
+            query: Optional[str] = None
+    ):
+        if not room:
+            room = self.bot.bridge.check_duplicate(ctx.channel)
+            if not room:
+                raise restrictions.UnknownRoom()
+
+        roomdata = self.bot.bridge.get_room(room)
+        if not roomdata:
+            raise restrictions.UnknownRoom()
+
+        if not self.bot.bridge.can_manage_room(room, ctx.user):
+            raise restrictions.NoRoomManagement()
+
+        dialog = SettingsDialog(self.bot, ctx, room=room, query=query)
+        await dialog.run()
+
+    # Universal commands handlers and autocompletes
+
+    # config create-invite
+    @config.subcommand(
+        name='create-invite',
+        description=language.desc('config.create-invite'),
+        description_localizations=language.slash_desc('config.create-invite')
+    )
+    @restrictions.not_banned()
+    async def create_invite_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.create-invite.room'),
+            expiry: Optional[str] = slash.option('config.create-invite.expiry', required=False),
+            max_usage: Optional[int] = slash.option('config.create-invite.max-usage', required=False)
+    ):
+        await self.create_invite(ctx, room, expiry, max_usage)
+
+    @config_legacy.command(name='create-invite')
+    @restrictions_legacy.not_banned()
+    async def create_invite_legacy(
+            self, ctx: commands.Context, room: str, expiry: Optional[str] = None, max_usage: Optional[int] = None
+    ):
+        await self.create_invite(ctx, room, expiry=expiry, max_usage=max_usage)
+
+    # config delete-invite
+    @config.subcommand(
+        name='delete-invite',
+        description=language.desc('config.delete-invite'),
+        description_localizations=language.slash_desc('config.delete-invite')
+    )
+    @restrictions.not_banned()
+    async def delete_invite_slash(
+            self, ctx: nextcord.Interaction,
+            invite: str = slash.option('config.delete-invite.invite')
+    ):
+        await self.delete_invite(ctx, invite)
+
+    @config_legacy.command(name='delete-invite')
+    @restrictions_legacy.not_banned()
+    async def delete_invite_legacy(self, ctx: commands.Context, invite: str):
+        await self.delete_invite(ctx, invite)
+
+    # config invites
+    @config.subcommand(
+        name='invites',
+        description=language.desc('config.invites'),
+        description_localizations=language.slash_desc('config.invites')
+    )
+    @restrictions.not_banned()
+    async def invites_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.invites.room')
+    ):
+        await self.invites(ctx, room)
+
+    @config_legacy.command(name='invites')
+    async def invites_legacy(self, ctx: commands.Context, room: str):
+        await self.invites(ctx, room)
+
+    @invites_slash.on_autocomplete("room")
+    async def invites_autocomplete(self, ctx: nextcord.Interaction, room: str):
+        return await ctx.response.send_autocomplete(await self.room_manage_private_autocomplete(room, ctx.user))
+
+    # config display-name
+    @config.subcommand(
+        name='display-name',
+        description=language.desc('config.display-name'),
+        description_localizations=language.slash_desc('config.display-name')
+    )
+    @restrictions.not_banned()
+    async def display_name_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.display-name.room'),
+            name: Optional[str] = slash.option('config.display-name.display-name', required=False)
+    ):
+        await self.display_name(ctx, room, name=name)
+
+    @config_legacy.command(name='display-name')
+    async def display_name_legacy(self, ctx: commands.Context, room: str, name: Optional[str] = None):
+        await self.display_name(ctx, room, name=name)
+
+    # config roomdesc
+    @config.subcommand(
+        name='roomdesc',
+        description=language.desc('config.roomdesc'),
+        description_localizations=language.slash_desc('config.roomdesc')
+    )
+    @restrictions.not_banned()
+    async def roomdesc_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.roomdesc.room'),
+            desc: Optional[str] = slash.option('config.roomdesc.description', required=False)
+    ):
+        await self.roomdesc(ctx, room, desc=desc)
+
+    @config_legacy.command(name='roomdesc')
+    @restrictions_legacy.not_banned()
+    async def roomdesc_legacy(self, ctx: commands.Context, room: str, desc: Optional[str] = None):
+        await self.roomdesc(ctx, room, desc=desc)
+
+    # config roomemoji
+    @config.subcommand(
+        name='roomemoji',
+        description=language.desc('config.roomemoji'),
+        description_localizations=language.slash_desc('config.roomemoji')
+    )
+    @restrictions.not_banned()
+    async def roomemoji_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.roomemoji.room'),
+            emoji: Optional[str] = slash.option('config.roomemoji.emoji', required=False)
+    ):
+        await self.roomemoji(ctx, room, emoji=emoji)
+
+    @config_legacy.command(name='roomemoji')
+    @restrictions_legacy.not_banned()
+    async def roomemoji_legacy(self, ctx: commands.Context, room: str, emoji: Optional[str] = None):
+        await self.roomemoji(ctx, room, emoji=emoji)
+
+    # config lock
+    @config.subcommand(
+        name='lock',
+        description=language.desc('config.lock'),
+        description_localizations=language.slash_desc('config.lock')
+    )
+    @restrictions.moderator()
+    async def lock_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('config.lock.room', required=False)
+    ):
+        await self.lock(ctx, room=room)
+
+    @config_legacy.command(name='lock')
+    @restrictions_legacy.moderator()
+    async def lock_legacy(self, ctx: commands.Context, room: Optional[str] = None):
+        await self.lock(ctx, room=room)
+
+    # config add-rule
+    @config.subcommand(
+        name='add-rule',
+        description=language.desc('config.add-rule'),
+        description_localizations=language.slash_desc('config.add-rule')
+    )
+    @restrictions.not_banned()
+    async def addrule_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.add-rule.room'),
+            rule: str = slash.option('config.add-rule.rule')
+    ):
+        await self.addrule(ctx, room, rule)
+
+    @config_legacy.command(name='add-rule')
+    @restrictions_legacy.not_banned()
+    async def addrule_legacy(self, ctx: commands.Context, room: str, rule: str):
+        await self.addrule(ctx, room, rule)
+
+    # config delete-rule
+    @config.subcommand(
+        name='delete-rule',
+        description=language.desc('config.delete-rule'),
+        description_localizations=language.slash_desc('config.delete-rule')
+    )
+    @restrictions.not_banned()
+    async def delrule_slash(
+            self, ctx: nextcord.Interaction,
+            room: str = slash.option('config.delete-rule.room'),
+            rule: int = slash.option('config.delete-rule.rule')
+    ):
+        await self.delrule(ctx, room, rule)
+
+    @config_legacy.command(name='delete-rule')
+    @restrictions_legacy.not_banned()
+    async def delrule_legacy(self, ctx: commands.Context, room: str, rule: int):
+        await self.delrule(ctx, room, rule)
+
+    # config toggle-emoji
+    @config.subcommand(
+        name='toggle-emoji',
+        description=language.desc('config.toggle-emoji'),
+        description_localizations=language.slash_desc('config.toggle-emoji')
+    )
+    @application_checks.has_permissions(manage_guild=True)
+    async def toggle_emoji_slash(self, ctx: nextcord.Interaction):
+        await self.toggle_emoji(ctx)
+
+    @config_legacy.command(name='toggle-emoji')
+    @commands.has_permissions(manage_guild=True)
+    async def toggle_emoji_legacy(self, ctx: commands.Context):
+        await self.toggle_emoji(ctx)
+
+    # config filters
+    @config.subcommand(
+        name='filters',
+        description=language.desc('config.filters'),
+        description_localizations=language.slash_desc('config.filters')
+    )
+    @restrictions.not_banned()
+    async def filters_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('config.filters.room', required=False),
+            query: Optional[str] = slash.option('config.filters.query', required=False)
+    ):
+        await self.filters(ctx, room=room, query=query)
+
+    @config_legacy.command(name='filters')
+    @restrictions_legacy.not_banned()
+    async def filters_legacy(self, ctx: commands.Context, room: Optional[str] = None, query: Optional[str] = None):
+        await self.filters(ctx, room=room, query=query)
+
+    @filters_slash.on_autocomplete("query")
     async def filters_autocomplete(self, ctx: nextcord.Interaction, query: str):
         possible = []
         for bridge_filter in self.bot.bridge.filters.keys():
             if query.lower() in bridge_filter.lower():
                 possible.append(bridge_filter)
+        return await ctx.response.send_autocomplete(possible[:25])
+
+    # config settings
+    @config.subcommand(
+        name='settings',
+        description=language.desc('config.settings'),
+        description_localizations=language.slash_desc('config.settings')
+    )
+    @restrictions.not_banned()
+    async def settings_slash(
+            self, ctx: nextcord.Interaction,
+            room: Optional[str] = slash.option('config.settings.room', required=False),
+            query: Optional[str] = slash.option('config.settings.query', required=False)
+    ):
+        await self.settings(ctx, room=room, query=query)
+
+    @config_legacy.command(name='settings')
+    @restrictions_legacy.not_banned()
+    async def settings_legacy(self, ctx: commands.Context, room: Optional[str] = None, query: Optional[str] = None):
+        await self.settings(ctx, room=room, query=query)
+
+    @settings_slash.on_autocomplete("query")
+    async def settings_autocomplete(self, ctx: nextcord.Interaction, query: str):
+        possible = []
+        for bridge_setting in settings_keys:
+            if query.lower() in bridge_setting.lower():
+                possible.append(bridge_setting)
         return await ctx.response.send_autocomplete(possible[:25])
 
 def setup(bot):

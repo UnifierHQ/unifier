@@ -42,8 +42,7 @@ Server moderators can also block members and servers from bridging messages to t
   actors.
 - **Plugins support**: Anyone can always code and install plugins for Unifier to extend its functionality. If you need help
   making your own plugin, you can always use our [template](https://github.com/UnifierHQ/unifier-plugin).
-- **Database-free**: No need to get a database up and running. Everything is stored locally on the same system you use to run 
-  Unifier, so things are easier to set up and your data is more portable.
+- **Portable data**: Everything is stored locally on-disk, so it's easy to transfer data if needed.
 - **External bridge support**: Unifier supports external bridge services like
   [matrix-t2bot](https://github.com/t2bot/matrix-appservice-discord), so you can connect platforms beyond what we can cover and
   avoid reconfiguring too much.

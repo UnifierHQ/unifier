@@ -192,6 +192,10 @@ class PlatformBase:
     def convert_embeds_discord(self, embeds: list):
         raise MissingImplementation()
 
+    def remove_spoilers(self, content: str):
+        """Removes spoilers from a message."""
+        raise MissingImplementation()
+
     def webhook_id(self, message):
         """Returns the webhook ID from a message."""
         raise MissingImplementation()
@@ -237,7 +241,7 @@ class PlatformBase:
 
         raise MissingImplementation()
 
-    async def edit(self, message, content, special: dict = None):
+    async def edit(self, message, content, source: str = 'discord', special: dict = None):
         """Edits a message.
         Special features, such as embeds and files, can be specified in special."""
         raise MissingImplementation()

@@ -345,9 +345,11 @@ def status(code):
         raise RuntimeError("install failed")
 
 class CommandExceptionHandler:
-    def __init__(self, bot):
+    def __init__(self, bot, get_commands_func, get_universal_func):
         self.bot = bot
         self.logger = log.buildlogger(self.bot.package, 'exc_handler', self.bot.loglevel)
+        self.get_all_commands = get_commands_func
+        self.get_universal_commands = get_universal_func
 
     async def handle(self, ctx, error):
         if isinstance(ctx, commands.Context):
@@ -374,29 +376,91 @@ class CommandExceptionHandler:
 
         try:
             if check_instance(error, commands.MissingRequiredArgument) or check_instance(error, restrictions.CustomMissingArgument):
-                cmdname = ctx.command.name
-                cmd = self.bot.get_command(cmdname)
+                cmd = ctx.command
+                cmdname = ctx.command.qualified_name
                 embed = nextcord.Embed(color=self.bot.colors.unifier)
+
+                cmds = self.get_all_commands()
+                _universal, ignore = self.get_universal_commands(cmds, legacy=True)
+
+                legacy_form = cmd
+                slash_form = None
+
+                for slash_cmd in ignore:
+                    if slash_cmd.qualified_name == cmd.qualified_name:
+                        slash_form = slash_cmd
+                        break
+
+                is_universal = legacy_form and slash_form
 
                 helptext = selector.rawfget("title", "sysmgr.help", values={"botname": self.bot.user.global_name or self.bot.user.name})
 
+                cmdtext = slash_form.get_mention() if is_universal else f'**`{self.bot.command_prefix}{cmdname}`**'
+                cmddesc = selector.desc_from_all(cmd.qualified_name) or selector.rawget("no_desc", "sysmgr.help")
+
                 embed.title = f'{self.bot.ui_emojis.command} {helptext} / {cmdname}'
-                embed.description = (
-                    f'# **`{self.bot.command_prefix}{cmdname}`**\n{cmd.description if cmd.description else selector.rawget("no_desc","sysmgr.help")}'
-                )
+                embed.description = f'# {cmdtext}\n{cmddesc}'
+
+                if is_universal:
+                    embed.description = embed.description + f'\n\n:sparkles: {selector.rawget("universal","sysmgr.help")}'
+
+                slash_signature = ''
+                if slash_form:
+                    options = slash_form.options
+                    options_text = []
+
+                    for option, option_obj in options.items():
+                        option_type = option_types.get(option_obj.payload['type'], 'string')
+
+                        if option_obj.payload.get('required', False):
+                            options_text.append(f'<{option_obj.name}: {option_type}>')
+                        else:
+                            options_text.append(f'[{option_obj.name}: {option_type}]')
+
+                    options_text_final = ''
+                    if len(options_text) > 0:
+                        options_text_final = ' ' + ' '.join(options_text)
+
+                    slash_signature = f'`/{slash_form.qualified_name}{options_text_final}`'
+
                 if len(cmd.aliases) > 0:
                     aliases = []
                     for alias in cmd.aliases:
                         aliases.append(f'`{self.bot.command_prefix}{alias}`')
                     embed.add_field(
-                        name=selector.rawget("aliases","sysmgr.help"), value='\n'.join(aliases) if len(aliases) > 1 else aliases[0], inline=False
+                        name=selector.rawget("aliases","sysmgr.help"),
+                        value='- ' + ('\n- '.join(aliases) if len(aliases) > 1 else aliases[0]),
+                        inline=False
                     )
-                embed.add_field(name='Usage', value=(
-                    f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(
-                        cmd.signature) > 0 else f'`{self.bot.command_prefix}{cmdname}`'), inline=False
-                                )
+
+                legacy_signature = (
+                    f'`{self.bot.command_prefix}{cmdname} {cmd.signature}`' if len(cmd.signature) > 0 else
+                    f'`{self.bot.command_prefix}{cmdname}`'
+                )
+
+                if is_universal:
+                    embed.add_field(
+                        name='Usage', value=(
+                            '- ' + selector.rawfget(
+                                "usage_slash_universal", "sysmgr.help", values={"command": slash_signature}
+                            ) + '\n' +
+                            '- ' + selector.rawfget(
+                                "usage_legacy_universal", "sysmgr.help", values={"signature": legacy_signature}
+                            )
+                        ), inline=False
+                    )
+                else:
+                    embed.add_field(
+                        name='Usage', value=(
+                            '- ' + selector.rawfget(
+                                "usage_legacy_universal", "sysmgr.help", values={"signature": legacy_signature}
+                            )
+                        ), inline=False
+                    )
+
                 if check_instance(error, commands.MissingRequiredArgument):
-                    await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("argument",values={"arg": error.param})}',embed=embed)
+                    missing = error.param.name
+                    await ctx.send(f'{self.bot.ui_emojis.error} {selector.fget("argument",values={"arg": missing})}',embed=embed)
                 else:
                     await ctx.send(f'{self.bot.ui_emojis.error} {error}', embed=embed)
             elif (
@@ -535,7 +599,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         if not hasattr(self.bot, 'pid'):
             self.bot.pid = None
 
-        self.bot.exhandler = CommandExceptionHandler(self.bot)
+        self.bot.exhandler = CommandExceptionHandler(self.bot, self.get_all_commands, self.get_universal_commands)
         self.logger = log.buildlogger(self.bot.package, 'sysmgr', self.bot.loglevel)
 
         language = self.bot.langmgr
@@ -1559,13 +1623,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
 
-    @system.subcommand(
-        description=language.desc('sysmgr.modifiers'),
-        description_localizations=language.slash_desc('sysmgr.modifiers')
-    )
-    async def modifiers(
-            self, ctx: nextcord.Interaction
-    ):
+    # Modifiers command
+    async def modifiers(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         page = 0
         pluglist = [plugin for plugin in os.listdir('plugins') if plugin.endswith('.json')]
@@ -3598,11 +3657,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.colour = self.bot.colors.error
             await rootmsg.edit(embed=embed)
 
-    @system.subcommand(
-        description=language.desc('sysmgr.uptime'),
-        description_localizations=language.slash_desc('sysmgr.uptime')
-    )
-    async def uptime(self, ctx: nextcord.Interaction):
+    async def uptime(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         embed = nextcord.Embed(
             title=selector.fget("title",values={"botname":self.bot.user.global_name or self.bot.user.name}),
@@ -3782,6 +3837,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
     # Universal commands handlers and autocompletes
 
+    # system modifiers
+    @system.subcommand(
+        name='modifiers',
+        description=language.desc('sysmgr.modifiers'),
+        description_localizations=language.slash_desc('sysmgr.modifiers')
+    )
+    async def modifiers_slash(self, ctx: nextcord.Interaction):
+        await self.modifiers(ctx)
+
+    @system_legacy.command(name='modifiers')
+    async def modifiers_legacy(self, ctx: commands.Context):
+        await self.modifiers(ctx)
+
     # help
     @nextcord.slash_command(
         name='help',
@@ -3901,6 +3969,19 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @commands.command(name='about')
     async def about_legacy(self, ctx: commands.Context):
         await self.about(ctx)
+
+    # system uptime
+    @system.subcommand(
+        name='uptime',
+        description=language.desc('sysmgr.uptime'),
+        description_localizations=language.slash_desc('sysmgr.uptime')
+    )
+    async def uptime_slash(self, ctx: nextcord.Interaction):
+        await self.uptime(ctx)
+
+    @system_legacy.command(name='uptime')
+    async def uptime_legacy(self, ctx: commands.Context):
+        await self.uptime(ctx)
 
     # Error handling
 

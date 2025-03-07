@@ -1,13 +1,18 @@
 import re
 import unicodedata
 from tld import get_tld
-from utils.base_filter import FilterResult, BaseFilter
+from utils.base_filter import FilterResult, BaseFilter, FilterConfig
 from utils import rapidphish
 
 # Common spam/phishing content
+# If a message contains ALL of the keywords in any of the entries, the Filter will flag it.
 suspected = [
-    ['nsfw', 'discord.gg'], # Fake NSFW server
-    ['leak', 'discord.gg'], # Fake NSFW/game hacks server
+    ['nsfw', 'discord.'], # Fake NSFW server
+    ['onlyfans', 'discord.'], # Fake NSFW server 2
+    ['18+', 'discord.'], # Fake NSFW server 3
+    ['leak', 'discord.'], # Fake NSFW/game hacks server
+    ['dm', 'private', 'mega', 'links'], # Mega links scam
+    ['dm', 'private', 'mega', 'links', 'adult'], # Mega links scam 2
     ['get started by asking (how)', 't.me'], # Investment scam (Telegram edition)
     ['get started by asking (how)', '+1'], # Investment scam (Whatsapp edition)
     ['only interested people should', 't.me'], # Investment scam (Telegram edition 2)
@@ -17,7 +22,33 @@ suspected = [
     ['@everyone', '@everyone'], # Mass ping filter
     ['@everyone', '@here'], # Mass ping filter 2
     ['@here', '@here'], # Mass ping filter 3
+    ['executor', 'roblox'], # Roblox exploits scam
+    ['hack', 'roblox'], # Roblox exploits scam 2
+    ['exploit', 'roblox'], # Roblox exploits scam 3
+    ['uttp', 'uttp'], # UTTP raiders filter (ew.)
 ]
+
+# Common spam/phishing content (case sensitive)
+suspected_cs = [
+    ['RAID', 'RAID'], # Raid filter
+    ['FORCES', 'FORCES'], # "Egocentric raiders who think they're the feds or some shit" filter
+]
+
+# Commonly abused services
+# These services aren't necessarily malicious, but spammers like to use them.
+abused = [
+    't.me',
+    'telegram.me',
+    'telegram.org',
+    'mega.nz'
+]
+
+def uppercase_ratio(text):
+    letters = [char for char in text if char.isalpha()]
+    capitals = [char for char in letters if char.isupper()]
+    if not letters:
+        return 0
+    return len(capitals) / len(letters)
 
 def bypass_killer(string):
     if not [*string][len(string) - 1].isalnum():
@@ -112,6 +143,21 @@ def get_urls(content):
 
     return urls
 
+def check_patterns(text, patterns):
+    for entry in patterns:
+        match = True
+        working_with = str(text)
+        for keyword in entry:
+            if keyword in working_with:
+                working_with = working_with.replace(keyword, '', 1)
+            else:
+                match = False
+                break
+        if match:
+            return True
+
+    return False
+
 class Filter(BaseFilter):
     def __init__(self):
         super().__init__(
@@ -120,30 +166,35 @@ class Filter(BaseFilter):
             'Multi-stage filter that detects and blocks spam and some phishing attacks.'
         )
 
+        self.add_config(
+            'abused', FilterConfig(
+                'Block frequently abused services',
+                'Services commonly abused by spammers on Discord (such as Telegram) will be blocked.',
+                'boolean',
+                default=False
+            )
+        )
+
     def check(self, message, data) -> FilterResult:
-        content = unicodedata.normalize('NFKD', message['content']).lower()
+        content_normalized = unicodedata.normalize('NFKD', message['content'])
+        content = content_normalized.lower()
 
         # Detect spam from common patterns
-        is_spam = False
-        for entry in suspected:
-            match = True
-            working_with = str(content)
-            for keyword in entry:
-                if keyword in working_with:
-                    working_with = working_with.replace(keyword, '', 1)
-                else:
-                    match = False
-                    break
-            if match:
-                is_spam = True
-                break
+        is_spam = check_patterns(content, suspected) or check_patterns(content_normalized, suspected_cs)
+
+        # Detect spam from uppercase ratio
+        ratio = uppercase_ratio(content_normalized)
+        if ratio > 0.75 and len(content) > 20:
+            is_spam = True
 
         # Use RapidPhish to detect possible phishing URLs
         if not is_spam:
             urls = get_urls(content)
             if len(urls) > 0:
                 # Best threshold for this is 0.85
-                results = rapidphish.compare_urls(urls, 0.85)
+                results = rapidphish.compare_urls(
+                    urls, 0.85, custom_blacklist=abused if data['config'].get('abused', False) else None
+                )
                 is_spam = results.final_verdict == 'unsafe' or is_spam
 
         return FilterResult(

@@ -81,6 +81,18 @@ class Restrictions:
 
         return commands.check(predicate)
 
+    def server_admin(self):
+        async def predicate(ctx: commands.Context):
+            return ctx.author.guild_permissions.manage_channels
+
+        return commands.check(predicate)
+
+    def server_moderator(self):
+        async def predicate(ctx: commands.Context):
+            return ctx.author.guild_permissions.ban_members or ctx.author.guild_permissions.manage_channels
+
+        return commands.check(predicate)
+
     def can_create(self):
         async def predicate(ctx: commands.Context):
             return (

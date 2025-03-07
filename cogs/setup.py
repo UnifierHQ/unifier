@@ -662,57 +662,6 @@ class Setup(commands.Cog, name=":beginner: Setup"):
                 setup_dialog.get('safefile_body') + '\n' + setup_dialog.get('safefile_block')
             )
 
-            posts = await setup_dialog.boolean(
-                setup_dialog.get('posts_title'),
-                setup_dialog.get('posts_body') + '\n' + setup_dialog.get('posts_info')
-            )
-
-            proom = 'posts'
-            pcomment = 'posts-comments'
-
-            if posts:
-                modal = nextcord.ui.Modal(title=setup_dialog.get('proom_title'), auto_defer=False)
-                modal.add_item(
-                    nextcord.ui.TextInput(
-                        label=setup_dialog.get('proom_title'),
-                        style=nextcord.TextInputStyle.short,
-                        placeholder=setup_dialog.get('string'),
-                        required=True,
-                        default_value='posts'
-                    )
-                )
-
-                proom = await setup_dialog.custom(
-                    setup_dialog.get('proom_title'),
-                    setup_dialog.get('proom_body') + '\n' + setup_dialog.get('proom_name') + '\n' + setup_dialog.get('proom_default'),
-                    modal=modal,
-                    defaults='posts',
-                    can_skip=True
-                )
-
-                proom = proom[0]
-
-                modal = nextcord.ui.Modal(title=setup_dialog.get('pcomment_name'), auto_defer=False)
-                modal.add_item(
-                    nextcord.ui.TextInput(
-                        label=setup_dialog.get('pcomment_name'),
-                        style=nextcord.TextInputStyle.short,
-                        placeholder=setup_dialog.get('string'),
-                        required=True,
-                        default_value='posts-comments'
-                    )
-                )
-
-                pcomment = await setup_dialog.custom(
-                    setup_dialog.get('pcomment_title'),
-                    setup_dialog.get('pcomment_body') + '\n' + setup_dialog.get('pcomment_name') + '\n' + setup_dialog.get('pcomment_default'),
-                    modal=modal,
-                    defaults='posts-comments',
-                    can_skip=True
-                )
-
-                pcomment = pcomment[0]
-
             alerts = await setup_dialog.boolean(
                 setup_dialog.get('alerts_title'),
                 setup_dialog.get('alerts_body') + '\n' + setup_dialog.get('alerts_info')
@@ -728,7 +677,7 @@ class Setup(commands.Cog, name=":beginner: Setup"):
                         style=nextcord.TextInputStyle.short,
                         placeholder=setup_dialog.get('string'),
                         required=True,
-                        default_value='posts'
+                        default_value='alerts'
                     )
                 )
 
@@ -760,9 +709,6 @@ class Setup(commands.Cog, name=":beginner: Setup"):
             config['bridge']['main_room'] = main_room
             config['bridge']['enable_ctx_commands'] = enable_ctx
             config['bridge']['safe_filetypes'] = safefile
-            config['bridge']['allow_posts'] = posts
-            config['bridge']['posts_room'] = proom
-            config['bridge']['posts_ref_room'] = pcomment
             config['bridge']['enable_safety_alerts'] = alerts
             config['bridge']['alerts_room'] = aroom
 

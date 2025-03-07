@@ -82,12 +82,14 @@ class RapidPhishResults:
             self.final_verdict = 'unsafe'
 
 
-def compare_urls(urls, threshold, custom_whitelist=None):
+def compare_urls(urls, threshold, custom_whitelist=None, custom_blacklist=None):
     """Compares a list of URLs against official Discord domains."""
 
     # Add missing lists
     if not custom_whitelist:
         custom_whitelist = []
+    if not custom_blacklist:
+        custom_blacklist = []
 
     results = []
     real_urls = discord_urls
@@ -132,7 +134,7 @@ def compare_urls(urls, threshold, custom_whitelist=None):
             else:
                 pass
 
-            for blocked_url in blacklist:
+            for blocked_url in blacklist + custom_blacklist:
                 if blocked_url in t:
                     results.append(RapidPhishResult({'url': url, 'verdict': 'unsafe', 'whitelist_or_real': False,
                                                      'scans': {'full': [], 'nosubd': [], 'nontld': []},
