@@ -3236,10 +3236,14 @@ class UnifierBridge:
                             continue
                         raise
 
-                    if len(result) > 2 and result[1]:
-                        urls.update(result[1])
+                    try:
+                        if len(result) > 2 and result[1]:
+                            urls.update(result[1])
 
-                    message_ids.update(result[0])
+                        message_ids.update(result[0])
+                    except:
+                        # assume it failed, silently continue
+                        pass
                 has_sent = True
 
         # Free up memory (hopefully)
@@ -6692,6 +6696,59 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
             embed.set_footer(text=selector.get('blocked_disclaimer'))
             return await message.channel.send(embed=embed,reference=message)
+        except aiohttp.client_exceptions.ConnectionTimeoutError:
+            self.logger.exception('Something went wrong!')
+
+            # We'll test this later
+            # try:
+            #     if not bot.latency:
+            #         raise RuntimeError()
+            #     self.logger.warn('A timeout error was detected, but the bot appears to be responsive.')
+            # except:
+            #     self.logger.critical('A timeout error was detected, and the bot appears to be unresponsive.')
+            #     self.logger.critical('The bot will automatically restart.')
+            #
+            #     self.logger.info("Attempting graceful shutdown...")
+            #     if not self.bot.coreboot:
+            #         self.bot.bridge.backup_lock = True
+            #     try:
+            #         if not self.bot.coreboot:
+            #             if self.bot.bridge.backup_running:
+            #                 self.logger.info('Waiting for backups to complete...(Press Ctrl+C to force stop)')
+            #                 try:
+            #                     while self.bot.bridge.backup_running:
+            #                         await asyncio.sleep(1)
+            #                 except KeyboardInterrupt:
+            #                     pass
+            #             for extension in self.bot.extensions:
+            #                 await self.preunload(extension)
+            #             self.logger.info("Backing up message cache...")
+            #             self.bot.db.save_data()
+            #             self.bot.bridge.backup_lock = False
+            #             await self.bot.bridge.backup()
+            #             self.logger.info("Backup complete")
+            #     except:
+            #         self.logger.critical('Backup failed, attempting to restart without backup...')
+            #
+            #     if restart:
+            #         x = open('.restart', 'w+')
+            #         if mode == 'normal':
+            #             x.write(f'{time.time()}')
+            #         else:
+            #             x.write(f'{time.time()} {mode}')
+            #         x.close()
+            #
+            #     self.logger.info("Closing bot session")
+            #     try:
+            #         await self.bot.session.close()
+            #     except:
+            #         self.logger.exception('An error occurred!')
+            #     self.logger.info("Shutdown complete")
+            #     try:
+            #         await self.bot.close()
+            #     except:
+            #         self.logger.exception('An error occurred!')
+            #     sys.exit(0)
         except:
             self.logger.exception('Something went wrong!')
             experiments = []
