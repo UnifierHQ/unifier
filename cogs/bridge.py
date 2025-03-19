@@ -250,6 +250,7 @@ class UnifierBridge:
         return {
             'rules': [], 'restricted': False, 'locked': False, 'private': False, 'private_meta': {
                 'server': None,
+                'admins': [],
                 'allowed': [],
                 'invites': [],
                 'platform': 'discord'
@@ -1597,6 +1598,7 @@ class UnifierBridge:
             raise self.RoomNotFoundError('invalid room')
 
         roomdata = self.get_room(room)
+        modified = False
 
         # Run Filters check
         for bridge_filter in self.filters:
@@ -1644,9 +1646,14 @@ class UnifierBridge:
                         continue
 
                     if not result.allowed:
-                        raise self.ContentBlocked(result.message)
+                        if result.safe_content:
+                            # safe_content is provided, so continue
+                            content = result.safe_content
+                            modified = True
+                        else:
+                            raise self.ContentBlocked(result.message)
 
-        return True
+        return content, modified
 
     async def can_send(self, room, message, content, files, source='discord', is_first=False):
         support = self.__bot.platforms[source] if source != 'discord' else None
@@ -1655,6 +1662,7 @@ class UnifierBridge:
             raise self.RoomNotFoundError('invalid room')
 
         roomdata = self.get_room(room)
+        modified = False
 
         if source == 'discord':
             is_bot = message.author.bot and not message.author.id == self.__bot.user.id
@@ -1782,17 +1790,21 @@ class UnifierBridge:
                         if not bridge_filter in self.global_filter_data.keys():
                             self.global_filter_data.update({bridge_filter: {}})
 
-                        if 'data' in result.data.keys():
+                        if 'data' in result.data.keys() and is_first:
                             self.global_filter_data[bridge_filter].update({str(server): result.data['data']})
                     else:
                         if not bridge_filter in self.filter_data.keys():
                             self.filter_data.update({bridge_filter:{}})
 
-                        if 'data' in result.data.keys():
+                        if 'data' in result.data.keys() and is_first:
                             self.filter_data[bridge_filter].update({str(server): result.data['data']})
 
                     if not result.allowed:
-                        if is_first:
+                        if result.safe_content:
+                            # safe_content is provided, so continue
+                            content = result.safe_content
+                            modified = True
+                        elif is_first:
                             # Alert Unifier moderators if room is public
                             if result.should_log and not roomdata['meta']['private']:
                                 embed = nextcord.Embed(
@@ -1894,9 +1906,11 @@ class UnifierBridge:
                                         special={'embeds': embeds, 'reply': support.get_id(message)}
                                     )
 
-                        raise self.ContentBlocked(result.message)
+                        # Only cancel bridging when there's no substitute content
+                        if not result.safe_content:
+                            raise self.ContentBlocked(result.message)
 
-        return True
+        return content, modified
 
     async def edit(self, message, content, message_object, source='discord'):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
@@ -1921,7 +1935,7 @@ class UnifierBridge:
         # Check is message can be sent
         try:
             # File count is 0 as this can't be edited for most platforms
-            await self.can_send(msg.room, message_object, content, 0, source=source, is_first=True)
+            content = await self.can_send(msg.room, message_object, content, 0, source=source, is_first=True)
         except self.BridgeError:
             return
 
@@ -2116,7 +2130,9 @@ class UnifierBridge:
             scan_files = len(source_support.attachments(message))
 
         try:
-            await self.can_send(room, message, scan_content, scan_files, source=source, is_first=is_first)
+            safe_content, modified = await self.can_send(room, message, scan_content, scan_files, source=source, is_first=is_first)
+            if modified and not content_override:
+                content_override = safe_content
         except self.BridgeError:
             return
 
@@ -2599,13 +2615,18 @@ class UnifierBridge:
                             forward_server = None
 
                     forward_embed = nextcord.Embed(
-                        description=snapshot.content if len(snapshot.content) <= 200 else snapshot.content[
-                                                                                          :200] + '...',
+                        description=(
+                            snapshot.content if len(snapshot.content) <= 200 else snapshot.content[:200] + '...'
+                        ),
                         color=self.__bot.colors.blurple
                     )
 
                     try:
-                        await self.can_send_forward(room, snapshot.content)
+                        safe_content, modified = await self.can_send_forward(room, snapshot.content)
+                        if modified:
+                            forward_embed.description = (
+                                safe_content if len(safe_content) <= 200 else safe_content[:200] + '...'
+                            )
                     except:
                         forward_embed.description = '[filtered]'
 
