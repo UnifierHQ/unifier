@@ -20,6 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # We recommend all such Plugins inherit this class, so missing implementations
 # can be handled gracefully by the bot.
 
+import asyncio
+import time
 import nextcord
 from typing import Union
 
@@ -34,6 +36,65 @@ class Permissions:
         self.ban_members = False
         self.manage_channels = False
 
+class RateLimit:
+    def __init__(self, bucket: str, limit: int, reset: int):
+        self.__bucket = bucket
+        self.__limit = limit
+        self.__reset = reset
+        self.__count = 0
+        self.__last_reset = time.time()
+
+        if self.__limit <= 0:
+            raise ValueError('limit must be greater than 0')
+        if self.__reset <= 0:
+            raise ValueError('reset must be greater than 0')
+
+    class BucketOnCooldown(Exception):
+        pass
+
+    @property
+    def bucket(self):
+        return self.__bucket
+
+    @property
+    def limit(self):
+        return self.__limit
+
+    @property
+    def reset(self):
+        return self.__reset
+
+    @property
+    def count(self):
+        if time.time() > self.__last_reset + self.__reset:
+            self.__last_reset = time.time()
+            self.__count = 0
+
+        return self.__count
+
+    def increment(self):
+        if time.time() > self.__last_reset + self.__reset:
+            self.__last_reset = time.time()
+            self.__count = 0
+
+        if self.__count >= self.__limit:
+            raise self.BucketOnCooldown(
+                f'bucket {self.__bucket} is on cooldown for {round(self.__last_reset + self.__reset - time.time())} seconds'
+            )
+
+        self.__count += 1
+        return self.__count
+
+    def force_ratelimit(self):
+        self.__count = self.__limit
+        self.__last_reset = time.time()
+
+    async def wait(self, ignore_count=False):
+        if not ignore_count and self.__count < self.__limit:
+            raise ValueError(f'bucket {self.__bucket} is not on cooldown')
+
+        await asyncio.sleep(self.__last_reset + self.__reset - time.time())
+
 class PlatformBase:
     def __init__(self, bot, parent):
         self.bot = bot
@@ -47,6 +108,7 @@ class PlatformBase:
         self.uses_image_markdown = False # change this to True if the platform uses media markdown (i.e. ![](image url))
         self.filesize_limit = 25000000 # change this to the maximum total file size allowed by the platform
         self.supports_agegate = False # change this to True if the platform supports age-gated content
+        self.buckets = {} # use this to store rate limit buckets
 
     @property
     def attachment_size_limit(self):
@@ -71,6 +133,14 @@ class PlatformBase:
         """In case a bot object could not be provided, it can be attached here."""
         self.bot = bot
         self.__available = True
+
+    async def handle_ratelimit(self, bucket):
+        while True:
+            try:
+                bucket.increment()
+                return
+            except bucket.BucketOnCooldown:
+                await bucket.wait()
 
     def bot_id(self):
         raise MissingImplementation()
