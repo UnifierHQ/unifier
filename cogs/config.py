@@ -1238,9 +1238,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             max_usage: Optional[int] = None
     ):
         if not expiry:
-            expiry = '7d'
+            expiry = '1d'
         if not max_usage:
-            max_usage = 0
+            max_usage = 2
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
