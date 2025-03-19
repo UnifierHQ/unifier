@@ -2333,6 +2333,8 @@ class UnifierBridge:
                         )
 
             index = 0
+            not_converted = list(attachments)
+
             for attachment in attachments:
                 if system:
                     break
@@ -2368,11 +2370,12 @@ class UnifierBridge:
                     files.append(await to_file(attachment))
                 except platform_base.MissingImplementation:
                     continue
+                not_converted.remove(attachment)
                 index += 1
                 if index >= max_files:
                     break
 
-            return files
+            return files, not_converted
 
         async def stickers_to_urls(stickers):
             urls = []
@@ -2397,11 +2400,12 @@ class UnifierBridge:
             return urls
 
         files = []
+        missing_files = []
         if platform == 'discord':
-            files = await get_files(message.attachments)
+            files, missing_files = await get_files(message.attachments)
         else:
             if not dest_support.files_per_guild:
-                files = await get_files(message.attachments)
+                files, missing_files = await get_files(message.attachments)
 
         # Process stickers
         stickertext = ''
@@ -2598,6 +2602,27 @@ class UnifierBridge:
             else:
                 if not source_support.is_bot(source_support.author(message)) and not system:
                     embeds = []
+
+            if (
+                    len(missing_files) > 0 and
+                    self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("bridge_large_attachments", False)
+            ):
+                files_embed = nextcord.Embed(
+                    title=selector.get('missing_files'),
+                    color=self.__bot.colors.unifier
+                )
+
+                filetext = []
+                for file in missing_files:
+                    if platform == 'discord':
+                        filetext.append(f'- [`{file.filename}`]({file.url})')
+                    else:
+                        filename = dest_support.file_name(file)
+                        fileurl = dest_support.file_url(file)
+                        filetext.append(f'- [{filename}]({fileurl})')
+
+                files_embed.description = '\n'.join(filetext)
+                embeds.append(files_embed)
 
             if source == 'discord':
                 # Message forwards processing
@@ -2942,12 +2967,12 @@ class UnifierBridge:
                                 )
                             )
                         if sys.platform == 'win32':
-                            __files = await get_files(message.attachments)
+                            __files, _ = await get_files(message.attachments)
                         else:
                             try:
                                 __files = files
                             except NameError:
-                                __files = await get_files(message.attachments)
+                                __files, _ = await get_files(message.attachments)
 
                         __content = content_override if can_override else tosend_content
                         if alert_additional:
@@ -3104,14 +3129,14 @@ class UnifierBridge:
                     guild_id = dest_support.get_id(destguild)
 
                     if sys.platform == 'win32':
-                        __files = await get_files(message.attachments)
+                        __files, _ = await get_files(message.attachments)
                     else:
                         try:
                             __files = files
                             if dest_support.files_per_guild and not __files:
                                 raise NameError()
                         except NameError:
-                            __files = await get_files(message.attachments)
+                            __files, _ = await get_files(message.attachments)
 
                     special = {
                         'bridge': {
@@ -3204,7 +3229,9 @@ class UnifierBridge:
         del files
 
         # Alert user if they went over the filesize limit
-        if not self.__bot.config['suppress_filesize_warning'] and has_sent and should_alert:
+        if (
+                not self.__bot.config['suppress_filesize_warning'] and has_sent and should_alert
+        ) and not self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("bridge_large_attachments", False):
             if source == 'discord':
                 await message.channel.send(
                     '`' + platform + '`: ' + selector.fget('filesize_limit', values={'limit': size_limit // 1000000}),

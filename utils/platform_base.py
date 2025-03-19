@@ -300,6 +300,14 @@ class PlatformBase:
         """Converts a nextcord.Attachment or nextcord.File object to the platform's file object."""
         raise MissingImplementation()
 
+    def file_name(self, attachment):
+        """Returns the filename of an attachment."""
+        raise MissingImplementation()
+
+    def file_url(self, attachment):
+        """Returns the URL of an attachment."""
+        raise MissingImplementation()
+
     async def send(self, channel, content, special: dict = None):
         """Sends a message to a channel, then returns the message object.
         Special features, such as embeds and files, can be specified in special."""

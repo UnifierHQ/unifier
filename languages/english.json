@@ -693,7 +693,9 @@
         "compact_reply_name": "Compact reply button",
         "compact_reply_desc": "Makes the reply button more compact by merging both the author and message content buttons together.",
         "nsfw_name": "NSFW Room",
-        "nsfw_desc": "Only age-gated channels will be able to bind to this Room."
+        "nsfw_desc": "Only age-gated channels will be able to bind to this Room.",
+        "bridge_large_attachments_name": "Bridge large attachments",
+        "bridge_large_attachments_desc": "Attachments that are larger than the platform's file limit will be sent as hyperlinks."
       }
     },
     "bridge": {
@@ -1123,7 +1125,8 @@
         "original": "Original",
         "new": "New",
         "embeds": "{count} embeds",
-        "files": "{count} files"
+        "files": "{count} files",
+        "missing_files": "More attachments"
       },
       "avatar": {
         "description": "Displays or sets custom avatar.",
