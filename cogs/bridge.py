@@ -1935,7 +1935,7 @@ class UnifierBridge:
         # Check is message can be sent
         try:
             # File count is 0 as this can't be edited for most platforms
-            content = await self.can_send(msg.room, message_object, content, 0, source=source, is_first=True)
+            content, _ = await self.can_send(msg.room, message_object, content, 0, source=source, is_first=True)
         except self.BridgeError:
             return
 
@@ -1973,7 +1973,7 @@ class UnifierBridge:
 
             await asyncio.gather(*threads)
 
-        async def edit_others(msgs,target,friendly=False):
+        async def edit_others(msgs, target, friendly=False):
             dest_support = self.__bot.platforms[target]
             if friendly:
                 if msg.source == 'discord':
