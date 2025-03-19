@@ -78,7 +78,7 @@ for plugin in os.listdir('plugins'):
 if not code == 0:
     print('\x1b[31;1mCould not install dependencies.\x1b[0m')
     print('\x1b[31;1mIf you\'re using a virtualenv, you might want to set global_dep_install to true in bootloader configuration to fix this.\x1b[0m')
-    sys.exit(code)
+    sys.exit(1)
 
 print('\x1b[36;1mDependencies successfully installed.\x1b[0m')
 sys.exit(0)

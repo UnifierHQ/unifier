@@ -27,8 +27,8 @@ import subprocess
 import traceback
 from pathlib import Path
 
-if sys.version_info.major < 3 or sys.version_info.minor < 9:
-    print('\x1b[31;1mThis version of Python is unsupported. You need Python 3.9 or newer.\x1b[0m')
+if sys.version_info.major < 3 or sys.version_info.minor < 12:
+    print('\x1b[31;1mThis version of Python is unsupported. You need Python 3.12 or newer.\x1b[0m')
     sys.exit(1)
 
 reinstall = '--reinstall' in sys.argv
