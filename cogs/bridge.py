@@ -250,6 +250,7 @@ class UnifierBridge:
         return {
             'rules': [], 'restricted': False, 'locked': False, 'private': False, 'private_meta': {
                 'server': None,
+                'admins': [],
                 'allowed': [],
                 'invites': [],
                 'platform': 'discord'
@@ -1597,6 +1598,7 @@ class UnifierBridge:
             raise self.RoomNotFoundError('invalid room')
 
         roomdata = self.get_room(room)
+        modified = False
 
         # Run Filters check
         for bridge_filter in self.filters:
@@ -1644,9 +1646,14 @@ class UnifierBridge:
                         continue
 
                     if not result.allowed:
-                        raise self.ContentBlocked(result.message)
+                        if result.safe_content:
+                            # safe_content is provided, so continue
+                            content = result.safe_content
+                            modified = True
+                        else:
+                            raise self.ContentBlocked(result.message)
 
-        return True
+        return content, modified
 
     async def can_send(self, room, message, content, files, source='discord', is_first=False):
         support = self.__bot.platforms[source] if source != 'discord' else None
@@ -1655,6 +1662,7 @@ class UnifierBridge:
             raise self.RoomNotFoundError('invalid room')
 
         roomdata = self.get_room(room)
+        modified = False
 
         if source == 'discord':
             is_bot = message.author.bot and not message.author.id == self.__bot.user.id
@@ -1782,17 +1790,21 @@ class UnifierBridge:
                         if not bridge_filter in self.global_filter_data.keys():
                             self.global_filter_data.update({bridge_filter: {}})
 
-                        if 'data' in result.data.keys():
+                        if 'data' in result.data.keys() and is_first:
                             self.global_filter_data[bridge_filter].update({str(server): result.data['data']})
                     else:
                         if not bridge_filter in self.filter_data.keys():
                             self.filter_data.update({bridge_filter:{}})
 
-                        if 'data' in result.data.keys():
+                        if 'data' in result.data.keys() and is_first:
                             self.filter_data[bridge_filter].update({str(server): result.data['data']})
 
                     if not result.allowed:
-                        if is_first:
+                        if result.safe_content:
+                            # safe_content is provided, so continue
+                            content = result.safe_content
+                            modified = True
+                        elif is_first:
                             # Alert Unifier moderators if room is public
                             if result.should_log and not roomdata['meta']['private']:
                                 embed = nextcord.Embed(
@@ -1894,9 +1906,11 @@ class UnifierBridge:
                                         special={'embeds': embeds, 'reply': support.get_id(message)}
                                     )
 
-                        raise self.ContentBlocked(result.message)
+                        # Only cancel bridging when there's no substitute content
+                        if not result.safe_content:
+                            raise self.ContentBlocked(result.message)
 
-        return True
+        return content, modified
 
     async def edit(self, message, content, message_object, source='discord'):
         msg: UnifierBridge.UnifierMessage = await self.fetch_message(message, can_wait=True)
@@ -1921,7 +1935,7 @@ class UnifierBridge:
         # Check is message can be sent
         try:
             # File count is 0 as this can't be edited for most platforms
-            await self.can_send(msg.room, message_object, content, 0, source=source, is_first=True)
+            content, _ = await self.can_send(msg.room, message_object, content, 0, source=source, is_first=True)
         except self.BridgeError:
             return
 
@@ -1959,7 +1973,7 @@ class UnifierBridge:
 
             await asyncio.gather(*threads)
 
-        async def edit_others(msgs,target,friendly=False):
+        async def edit_others(msgs, target, friendly=False):
             dest_support = self.__bot.platforms[target]
             if friendly:
                 if msg.source == 'discord':
@@ -2116,7 +2130,9 @@ class UnifierBridge:
             scan_files = len(source_support.attachments(message))
 
         try:
-            await self.can_send(room, message, scan_content, scan_files, source=source, is_first=is_first)
+            safe_content, modified = await self.can_send(room, message, scan_content, scan_files, source=source, is_first=is_first)
+            if modified and not content_override:
+                content_override = safe_content
         except self.BridgeError:
             return
 
@@ -2292,7 +2308,7 @@ class UnifierBridge:
             max_files += 1
 
         # Attachment processing
-        async def get_files(attachments):
+        async def get_files(attachments, only_ignored=False):
             files = []
 
             async def to_file(source_file):
@@ -2317,6 +2333,8 @@ class UnifierBridge:
                         )
 
             index = 0
+            not_converted = list(attachments)
+
             for attachment in attachments:
                 if system:
                     break
@@ -2349,14 +2367,16 @@ class UnifierBridge:
                         continue
 
                 try:
-                    files.append(await to_file(attachment))
+                    if not only_ignored:
+                        files.append(await to_file(attachment))
                 except platform_base.MissingImplementation:
                     continue
+                not_converted.remove(attachment)
                 index += 1
                 if index >= max_files:
                     break
 
-            return files
+            return files, not_converted
 
         async def stickers_to_urls(stickers):
             urls = []
@@ -2382,10 +2402,21 @@ class UnifierBridge:
 
         files = []
         if platform == 'discord':
-            files = await get_files(message.attachments)
+            if source == 'discord':
+                files, missing_files = await get_files(message.attachments)
+            else:
+                files, missing_files = await get_files(source_support.attachments(message))
         else:
             if not dest_support.files_per_guild:
-                files = await get_files(message.attachments)
+                if source == 'discord':
+                    files, missing_files = await get_files(message.attachments)
+                else:
+                    files, missing_files = await get_files(source_support.attachments(message))
+            else:
+                if source == 'discord':
+                    _, missing_files = await get_files(message.attachments, only_ignored=True)
+                else:
+                    _, missing_files = await get_files(source_support.attachments(message), only_ignored=True)
 
         # Process stickers
         stickertext = ''
@@ -2583,6 +2614,27 @@ class UnifierBridge:
                 if not source_support.is_bot(source_support.author(message)) and not system:
                     embeds = []
 
+            if (
+                    len(missing_files) > 0 and
+                    self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("bridge_large_attachments", False)
+            ):
+                files_embed = nextcord.Embed(
+                    title=selector.get('missing_files'),
+                    color=self.__bot.colors.unifier
+                )
+
+                filetext = []
+                for file in missing_files:
+                    if platform == 'discord':
+                        filetext.append(f'- [`{file.filename}`]({file.url})')
+                    else:
+                        filename = dest_support.file_name(file)
+                        fileurl = dest_support.file_url(file)
+                        filetext.append(f'- [{filename}]({fileurl})')
+
+                files_embed.description = '\n'.join(filetext)
+                embeds.append(files_embed)
+
             if source == 'discord':
                 # Message forwards processing
                 if forwarded and can_forward:
@@ -2599,13 +2651,18 @@ class UnifierBridge:
                             forward_server = None
 
                     forward_embed = nextcord.Embed(
-                        description=snapshot.content if len(snapshot.content) <= 200 else snapshot.content[
-                                                                                          :200] + '...',
+                        description=(
+                            snapshot.content if len(snapshot.content) <= 200 else snapshot.content[:200] + '...'
+                        ),
                         color=self.__bot.colors.blurple
                     )
 
                     try:
-                        await self.can_send_forward(room, snapshot.content)
+                        safe_content, modified = await self.can_send_forward(room, snapshot.content)
+                        if modified:
+                            forward_embed.description = (
+                                safe_content if len(safe_content) <= 200 else safe_content[:200] + '...'
+                            )
                     except:
                         forward_embed.description = '[filtered]'
 
@@ -2921,12 +2978,12 @@ class UnifierBridge:
                                 )
                             )
                         if sys.platform == 'win32':
-                            __files = await get_files(message.attachments)
+                            __files, _ = await get_files(message.attachments)
                         else:
                             try:
                                 __files = files
                             except NameError:
-                                __files = await get_files(message.attachments)
+                                __files, _ = await get_files(message.attachments)
 
                         __content = content_override if can_override else tosend_content
                         if alert_additional:
@@ -3083,14 +3140,14 @@ class UnifierBridge:
                     guild_id = dest_support.get_id(destguild)
 
                     if sys.platform == 'win32':
-                        __files = await get_files(message.attachments)
+                        __files, _ = await get_files(message.attachments)
                     else:
                         try:
                             __files = files
                             if dest_support.files_per_guild and not __files:
                                 raise NameError()
                         except NameError:
-                            __files = await get_files(message.attachments)
+                            __files, _ = await get_files(message.attachments)
 
                     special = {
                         'bridge': {
@@ -3124,6 +3181,12 @@ class UnifierBridge:
 
                     if forwarded and can_forward and forward_embed:
                         special['embeds'] = dest_support.convert_embeds([forward_embed])
+                    if (
+                            len(missing_files) > 0 and
+                            self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("bridge_large_attachments", False) and
+                            files_embed
+                    ):
+                        special['embeds'] = dest_support.convert_embeds([files_embed])
 
                     if reply and not alert and not forwarded and not can_forward:
                         special.update({'reply': reply})
@@ -3183,7 +3246,9 @@ class UnifierBridge:
         del files
 
         # Alert user if they went over the filesize limit
-        if not self.__bot.config['suppress_filesize_warning'] and has_sent and should_alert:
+        if (
+                not self.__bot.config['suppress_filesize_warning'] and has_sent and should_alert
+        ) and not self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("bridge_large_attachments", False):
             if source == 'discord':
                 await message.channel.send(
                     '`' + platform + '`: ' + selector.fget('filesize_limit', values={'limit': size_limit // 1000000}),

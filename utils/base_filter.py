@@ -8,12 +8,13 @@ class MissingCheck(Exception):
 
 class FilterResult:
     def __init__(self, allowed: bool, data: Optional[dict] = None, message: Optional[str] = None,
-                 should_log: bool = False, should_contribute: bool = False):
-        self.__allowed = allowed
-        self.__data = data or {}
-        self.__message = message
-        self.__should_log = should_log
-        self.__should_contribute = should_contribute
+                 should_log: bool = False, should_contribute: bool = False, safe_content: Optional[str] = None):
+        self.__allowed = allowed # Whether the message can be bridged or not
+        self.__data = data or {} # Data to store in the temporary storage
+        self.__message = message # Message to show if allowed is False and should_log is True
+        self.__should_log = should_log # Whether filter detection should be logged or not
+        self.__should_contribute = should_contribute # Whether filter detection should contribute to auto UAM or not
+        self.__safe_content = safe_content # Substitute content to send if allowed is False
 
     @property
     def allowed(self):

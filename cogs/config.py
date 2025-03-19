@@ -35,11 +35,12 @@ slash = slash_helper.SlashHelper(language)
 
 # Room settings keys
 settings_keys = [
-    'relay_deletes', 'relay_edits', 'relay_forwards', 'dynamic_reply_embed', 'compact_reply', 'nsfw'
+    'relay_deletes', 'relay_edits', 'relay_forwards', 'dynamic_reply_embed', 'compact_reply', 'nsfw',
+    'bridge_large_attachments'
 ]
 settings_defaults = {
     'relay_deletes': True, 'relay_edits': True, 'relay_forwards': True, 'dynamic_reply_embed': False,
-    'compact_reply': False, 'nsfw': False
+    'compact_reply': False, 'nsfw': False, 'bridge_large_attachments': False
 }
 
 def timetoint(t):
@@ -1238,9 +1239,9 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             max_usage: Optional[int] = None
     ):
         if not expiry:
-            expiry = '7d'
+            expiry = '1d'
         if not max_usage:
-            max_usage = 0
+            max_usage = 2
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()

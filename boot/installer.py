@@ -168,8 +168,9 @@ token = getpass.getpass('Token: ')
 
 encryption_password = ''
 
-print('\x1b[33;1mWe will now ask for the token encryption password. This is NOT your bot token.\x1b[0m')
-print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS TOKEN, NOT EVEN WITH {internal["maintainer"].upper()}.\x1b[0m')
+print('\x1b[33;1mWe will now ask for the token encryption password.\x1b[0m')
+print('\x1b[33;1mYour encryption password is separate from your Discord account password or bot token. It is used to encrypt data stored by Unifier.\x1b[0m')
+print(f'\x1b[37;41;1mWARNING: DO NOT SHARE THIS PASSWORD, NOT EVEN WITH {internal["maintainer"].upper()}.\x1b[0m')
 print(f'\x1b[31;49m{internal["maintainer"]} will NEVER ask for your encryption password. Please keep this password to yourself and only share it with trusted instance maintainers.\x1b[0m')
 print('\x1b[31;49mFor security reasons, the installer will hide the input.\x1b[0m')
 
