@@ -2308,7 +2308,7 @@ class UnifierBridge:
             max_files += 1
 
         # Attachment processing
-        async def get_files(attachments):
+        async def get_files(attachments, only_ignored=False):
             files = []
 
             async def to_file(source_file):
@@ -2367,7 +2367,8 @@ class UnifierBridge:
                         continue
 
                 try:
-                    files.append(await to_file(attachment))
+                    if not only_ignored:
+                        files.append(await to_file(attachment))
                 except platform_base.MissingImplementation:
                     continue
                 not_converted.remove(attachment)
@@ -2400,12 +2401,22 @@ class UnifierBridge:
             return urls
 
         files = []
-        missing_files = []
         if platform == 'discord':
-            files, missing_files = await get_files(message.attachments)
+            if source == 'discord':
+                files, missing_files = await get_files(message.attachments)
+            else:
+                files, missing_files = await get_files(source_support.attachments(message))
         else:
             if not dest_support.files_per_guild:
-                files, missing_files = await get_files(message.attachments)
+                if source == 'discord':
+                    files, missing_files = await get_files(message.attachments)
+                else:
+                    files, missing_files = await get_files(source_support.attachments(message))
+            else:
+                if source == 'discord':
+                    _, missing_files = await get_files(message.attachments, only_ignored=True)
+                else:
+                    _, missing_files = await get_files(source_support.attachments(message), only_ignored=True)
 
         # Process stickers
         stickertext = ''
@@ -3170,6 +3181,12 @@ class UnifierBridge:
 
                     if forwarded and can_forward and forward_embed:
                         special['embeds'] = dest_support.convert_embeds([forward_embed])
+                    if (
+                            len(missing_files) > 0 and
+                            self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("bridge_large_attachments", False) and
+                            files_embed
+                    ):
+                        special['embeds'] = dest_support.convert_embeds([files_embed])
 
                     if reply and not alert and not forwarded and not can_forward:
                         special.update({'reply': reply})
