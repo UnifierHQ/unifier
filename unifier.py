@@ -44,6 +44,9 @@ try:
 except:
     pass
 
+if not __name__ == '__main__':
+    raise RuntimeError('Do not import Unifier, use the bootloader to start it instead')
+
 try:
     with open('.install.json') as file:
         install_info = json.load(file)
@@ -350,6 +353,15 @@ class AutoSaveDict(dict):
         thread = threading.Thread(target=self.save)
         thread.start()
         self.threads.append(thread)
+
+class EncryptorWrapper:
+    """Wrapper for secrets.TokenStore methods with no access to tokens."""
+
+    def encrypt(self, text: str):
+        return tokenstore.encrypt(text)
+
+    def decrypt(self, nonce: str, tag: str, salt: str, ciphertext: str):
+        return tokenstore.decrypt(nonce, tag, salt, ciphertext)
 
 class TokenStoreWrapper:
     """Wrapper for secrets.TokenStore methods with some security restrictions."""

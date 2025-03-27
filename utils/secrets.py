@@ -268,6 +268,25 @@ class TokenStore:
         This is useless on its own, as the salt, nonce, tag, and password are needed to decrypt the ciphertext."""
         return self.__data[identifier]['ciphertext']
 
+    def encrypt(self, text: str):
+        encrypted, tag, nonce, salt = self.__encryptor.encrypt(str.encode(text), self.__password)
+        return {
+            'ciphertext': base64.b64encode(encrypted).decode('ascii'),
+            "tag": tag,
+            "nonce": nonce,
+            "salt": salt
+        }
+
+    def decrypt(self, nonce: str, tag: str, salt: str, ciphertext: str):
+        decrypted = self.__encryptor.decrypt(
+            base64.b64decode(ciphertext),
+            self.__password,
+            tag,
+            salt,
+            nonce
+        )
+        return decrypted.decode('utf-8')
+
     def add_token(self, identifier, token):
         if identifier in self.__data.keys():
             raise KeyError('token already exists')
@@ -487,4 +506,7 @@ class SecureStorage:
             if ciphertext in data.values():
                 raise ValueError('file contains an encrypted token in tokenstore')
 
-        return self.__rawencryptor.decrypt(base64.b64decode(data['data']), data['tag'], data['nonce'], data['salt'])
+        decrypted = self.__rawencryptor.decrypt(
+            base64.b64decode(data['data']), data['tag'], data['nonce'], data['salt']
+        )
+        return decrypted
