@@ -2637,7 +2637,7 @@ class UnifierBridge:
 
             if source == 'discord':
                 # Message forwards processing
-                if forwarded and can_forward:
+                if forwarded and can_forward and reply_msg:
                     # use reply_msg
                     snapshot = message.snapshots[0]
                     forward_server = self.__bot.get_guild(
@@ -6373,7 +6373,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await interaction.message.edit(embed=embed,view=components)
                 await interaction.edit_original_message(content=selector.get('reviewed'))
 
-    @commands.command(hidden=True,description=language.desc("bridge.initbridge"))
+    @commands.command(description=language.desc("bridge.initbridge"))
     @restrictions_legacy.owner()
     async def initbridge(self, ctx, *, args=''):
         selector = language.get_selector(ctx)
@@ -6386,7 +6386,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridge.bridged = msgs
         await ctx.send(selector.get("success"))
 
-    @commands.command(hidden=True,description=language.desc("bridge.sysmsg"))
+    @commands.command(description=language.desc("bridge.sysmsg"))
     @restrictions_legacy.owner()
     @restrictions_legacy.no_admin_perms()
     async def sysmsg(self, ctx, room, *, content):
@@ -6398,7 +6398,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 content_override=content)
         await ctx.send(selector.get("success"))
 
-    @commands.command(hidden=True, description=language.desc("bridge.purge"))
+    @commands.command(description=language.desc("bridge.purge"))
     @restrictions_legacy.owner()
     async def purge(self, ctx, user_id):
         selector = language.get_selector(ctx)
