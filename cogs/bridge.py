@@ -2637,7 +2637,7 @@ class UnifierBridge:
 
             if source == 'discord':
                 # Message forwards processing
-                if forwarded and can_forward:
+                if forwarded and can_forward and reply_msg:
                     # use reply_msg
                     snapshot = message.snapshots[0]
                     forward_server = self.__bot.get_guild(
@@ -3236,10 +3236,14 @@ class UnifierBridge:
                             continue
                         raise
 
-                    if len(result) > 2 and result[1]:
-                        urls.update(result[1])
+                    try:
+                        if len(result) > 2 and result[1]:
+                            urls.update(result[1])
 
-                    message_ids.update(result[0])
+                        message_ids.update(result[0])
+                    except:
+                        # assume it failed, silently continue
+                        pass
                 has_sent = True
 
         # Free up memory (hopefully)
@@ -6369,7 +6373,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 await interaction.message.edit(embed=embed,view=components)
                 await interaction.edit_original_message(content=selector.get('reviewed'))
 
-    @commands.command(hidden=True,description=language.desc("bridge.initbridge"))
+    @commands.command(description=language.desc("bridge.initbridge"))
     @restrictions_legacy.owner()
     async def initbridge(self, ctx, *, args=''):
         selector = language.get_selector(ctx)
@@ -6382,7 +6386,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             self.bot.bridge.bridged = msgs
         await ctx.send(selector.get("success"))
 
-    @commands.command(hidden=True,description=language.desc("bridge.sysmsg"))
+    @commands.command(description=language.desc("bridge.sysmsg"))
     @restrictions_legacy.owner()
     @restrictions_legacy.no_admin_perms()
     async def sysmsg(self, ctx, room, *, content):
@@ -6394,7 +6398,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                 content_override=content)
         await ctx.send(selector.get("success"))
 
-    @commands.command(hidden=True, description=language.desc("bridge.purge"))
+    @commands.command(description=language.desc("bridge.purge"))
     @restrictions_legacy.owner()
     async def purge(self, ctx, user_id):
         selector = language.get_selector(ctx)
@@ -6692,6 +6696,59 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             )
             embed.set_footer(text=selector.get('blocked_disclaimer'))
             return await message.channel.send(embed=embed,reference=message)
+        except aiohttp.client_exceptions.ConnectionTimeoutError:
+            self.logger.exception('Something went wrong!')
+
+            # We'll test this later
+            # try:
+            #     if not bot.latency:
+            #         raise RuntimeError()
+            #     self.logger.warn('A timeout error was detected, but the bot appears to be responsive.')
+            # except:
+            #     self.logger.critical('A timeout error was detected, and the bot appears to be unresponsive.')
+            #     self.logger.critical('The bot will automatically restart.')
+            #
+            #     self.logger.info("Attempting graceful shutdown...")
+            #     if not self.bot.coreboot:
+            #         self.bot.bridge.backup_lock = True
+            #     try:
+            #         if not self.bot.coreboot:
+            #             if self.bot.bridge.backup_running:
+            #                 self.logger.info('Waiting for backups to complete...(Press Ctrl+C to force stop)')
+            #                 try:
+            #                     while self.bot.bridge.backup_running:
+            #                         await asyncio.sleep(1)
+            #                 except KeyboardInterrupt:
+            #                     pass
+            #             for extension in self.bot.extensions:
+            #                 await self.preunload(extension)
+            #             self.logger.info("Backing up message cache...")
+            #             self.bot.db.save_data()
+            #             self.bot.bridge.backup_lock = False
+            #             await self.bot.bridge.backup()
+            #             self.logger.info("Backup complete")
+            #     except:
+            #         self.logger.critical('Backup failed, attempting to restart without backup...')
+            #
+            #     if restart:
+            #         x = open('.restart', 'w+')
+            #         if mode == 'normal':
+            #             x.write(f'{time.time()}')
+            #         else:
+            #             x.write(f'{time.time()} {mode}')
+            #         x.close()
+            #
+            #     self.logger.info("Closing bot session")
+            #     try:
+            #         await self.bot.session.close()
+            #     except:
+            #         self.logger.exception('An error occurred!')
+            #     self.logger.info("Shutdown complete")
+            #     try:
+            #         await self.bot.close()
+            #     except:
+            #         self.logger.exception('An error occurred!')
+            #     sys.exit(0)
         except:
             self.logger.exception('Something went wrong!')
             experiments = []
