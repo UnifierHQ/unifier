@@ -1091,6 +1091,9 @@ class UnifierBridge:
 
         if not limit:
             limit = self.__bot.config['cache_backup_limit']
+            if limit > 100000:
+                limit = 100000
+                self.logger.warning('Limiting cache to 100000 messages to prevent crashes.')
 
         if limit <= 0:
             return
@@ -1586,9 +1589,12 @@ class UnifierBridge:
         while offset < len(components):
             if len(components) == 1 and offset == 0:
                 break
-            emojiname = components[offset].split(':', 1)[0]
-            emojiafter = components[offset].split(':', 1)[1].split('>')[0] + '>'
-            text = text.replace(f'<a:{emojiname}:{emojiafter}', f':{emojiname}\\:')
+            try:
+                emojiname = components[offset].split(':', 1)[0]
+                emojiafter = components[offset].split(':', 1)[1].split('>')[0] + '>'
+                text = text.replace(f'<a:{emojiname}:{emojiafter}', f':{emojiname}\\:')
+            except:
+                pass
             offset += 1
 
         return text
