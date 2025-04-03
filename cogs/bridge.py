@@ -1093,7 +1093,6 @@ class UnifierBridge:
             limit = self.__bot.config['cache_backup_limit']
             if limit > 100000:
                 limit = 100000
-                self.logger.warning('Limiting cache to 100000 messages to prevent crashes.')
 
         if limit <= 0:
             return
