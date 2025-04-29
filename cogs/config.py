@@ -1758,7 +1758,7 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if len(roomname) < 3:
                 roomname = str(channel.id)
             if not roomname in self.bot.db['rooms'].keys():
-                self.bot.bridge.create_room(roomname)
+                self.bot.bridge.create_room(roomname, private=False)
                 if restricted:
                     self.bot.db['rooms'][roomname]['meta']['restricted'] = True
                 elif locked:
