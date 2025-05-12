@@ -5,6 +5,8 @@ jobs:
   release:
     name: "Create beta release"
     uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
     with:
       environment: Beta release
       type: beta

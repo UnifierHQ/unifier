@@ -16,6 +16,8 @@ jobs:
   build-linux:
     name: "Balanced"
     runs-on: ${{ inputs.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         python-version: ["3.12"]
