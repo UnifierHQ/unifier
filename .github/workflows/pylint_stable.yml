@@ -13,9 +13,11 @@ on:
         default: ${{ github.ref }}
 
 jobs:
-  build-linux:
+  build:
     name: "Stable"
     runs-on: ${{ inputs.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]

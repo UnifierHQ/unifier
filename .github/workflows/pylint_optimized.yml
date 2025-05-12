@@ -16,6 +16,8 @@ jobs:
   build:
     name: "Optimized"
     runs-on: ${{ inputs.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         python-version: ["3.12"]
