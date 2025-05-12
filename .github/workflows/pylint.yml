@@ -6,6 +6,8 @@ jobs:
   linux-optimized:
     name: "Linux (Optimized)"
     uses: ./.github/workflows/pylint_optimized.yml
+    permissions:
+      contents: read
     with:
       os: ubuntu-latest
 
