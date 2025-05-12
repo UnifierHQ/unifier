@@ -36,6 +36,10 @@ class FilterResult:
     def should_contribute(self):
         return self.__should_contribute
 
+    @property
+    def safe_content(self):
+        return self.__safe_content
+
 class FilterConfig:
     types = {
         'string': str,

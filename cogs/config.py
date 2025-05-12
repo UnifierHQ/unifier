@@ -1758,13 +1758,13 @@ class Config(commands.Cog, name=':construction_worker: Config'):
             if len(roomname) < 3:
                 roomname = str(channel.id)
             if not roomname in self.bot.db['rooms'].keys():
-                self.bot.bridge.create_room(roomname)
+                self.bot.bridge.create_room(roomname, private=False)
                 if restricted:
                     self.bot.db['rooms'][roomname]['meta']['restricted'] = True
                 elif locked:
                     self.bot.db['rooms'][roomname]['meta']['locked'] = True
             webhook = await channel.create_webhook(name='Unifier Bridge')
-            await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel.id,webhook_id=webhook.id)
+            await self.bot.bridge.join_room(ctx.author,roomname,ctx.channel,webhook_id=webhook.id)
 
         embed.title = f'{self.bot.ui_emojis.success} {selector.get("success")}'
         embed.colour = self.bot.colors.success

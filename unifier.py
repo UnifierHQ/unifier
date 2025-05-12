@@ -23,8 +23,8 @@ from nextcord.ext import commands
 import aiohttp
 import asyncio
 import json
-import tomli
 import tomli_w
+import tomllib
 import os
 import sys
 import logging
@@ -132,7 +132,7 @@ if 'devmode' in sys.argv:
 valid_toml = False
 try:
     with open(config_file, 'rb') as file:
-        data = tomli.load(file)
+        data = tomllib.load(file)
     valid_toml = True
 except:
     try:
@@ -145,7 +145,7 @@ except:
 
     # toml is likely in update files, pull from there
     with open('update/config.toml', 'rb') as file:
-        newdata = tomli.load(file)
+        newdata = tomllib.load(file)
 
     def update_toml(old, new):
         for key in new:
