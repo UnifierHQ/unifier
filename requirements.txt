@@ -1,4 +1,4 @@
-git+https://github.com/nextcord/nextcord.git
+https://github.com/alentoghostflame/nextcord/archive/refs/heads/components_v2.zip
 aiofiles
 aiodns; sys_platform != 'win32'
 Brotli
