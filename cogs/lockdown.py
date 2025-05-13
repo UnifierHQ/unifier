@@ -79,7 +79,7 @@ class Lockdown(commands.Cog, name=':lock: Lockdown'):
         script = importlib.import_module('utils.' + plugin_name + '_check')
         await script.check(self.bot)
 
-    @commands.command(hidden=True,aliases=['globalkill'],description=language.desc('lockdown.lockdown'))
+    @commands.command(aliases=['globalkill'],description=language.desc('lockdown.lockdown'))
     @restrictions.owner()
     async def lockdown(self,ctx):
         selector = language.get_selector(ctx)
