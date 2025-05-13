@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import traceback
-import tomli
+import tomllib
 import tomli_w
 import sys
 import os
@@ -41,7 +41,7 @@ if not tokenmgr.test_decrypt() and '.ivs' in os.listdir():
 
     with open('config.toml', 'rb') as file:
         # noinspection PyTypeChecker
-        config = tomli.load(file)
+        config = tomllib.load(file)
 
     converter = secrets.ToGCMTokenStore(
         password=os.environ.get('UNIFIER_ENCPASS'),
