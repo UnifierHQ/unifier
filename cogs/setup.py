@@ -24,7 +24,7 @@ from utils import ui, log
 import json
 import sys
 import time
-import tomli
+import tomllib
 import tomli_w
 
 try:
@@ -692,7 +692,7 @@ class Setup(commands.Cog, name=":beginner: Setup"):
                 aroom = aroom[0]
 
             with open('config.toml', 'rb') as file:
-                config = tomli.load(file)
+                config = tomllib.load(file)
             
             # Apply configs
             config['system']['language'] = setup_dialog.use_language

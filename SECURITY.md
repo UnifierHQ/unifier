@@ -7,8 +7,7 @@ the safety of hosters and users every now and then.
 
 ## Supported Versions
 All Unifier release series will receive at least 4 months of bug fixes and
-security updates after being superseded by a newer series. LTS release
-series are supported for at least 8 months.
+security updates after being superseded by a newer series.
 
 All EoL dates are in dd/mm/yyyy format.
 | Version                        | Type     | Supported                    | EoL        |

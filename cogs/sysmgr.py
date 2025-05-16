@@ -46,7 +46,7 @@ import asyncio
 import discord_emoji
 import hashlib
 import orjson
-import tomli
+import tomllib
 import tomli_w
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
@@ -178,19 +178,19 @@ attribution = {
         'license': 'MIT',
         'license_url': 'https://github.com/ijl/orjson/blob/master/LICENSE-MIT'
     },
-    'tomli': {
+    'tomllib': {
         'author': 'Taneli Hukkinen',
         'description': 'A lil\' TOML parser',
-        'repo': 'https://github.com/hukkin/tomli',
+        'repo': 'https://github.com/hukkin/tomllib',
         'license': 'MIT',
-        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+        'license_url': 'https://github.com/hukkin/tomllib-w/blob/master/LICENSE'
     },
-    'tomli-w': {
+    'tomllib-w': {
         'author': 'Taneli Hukkinen',
-        'description': 'A lil\' TOML writer (counterpart to https://github.com/hukkin/tomli)',
-        'repo': 'https://github.com/hukkin/tomli-w',
+        'description': 'A lil\' TOML writer (counterpart to https://github.com/hukkin/tomllib)',
+        'repo': 'https://github.com/hukkin/tomllib-w',
         'license': 'MIT',
-        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+        'license_url': 'https://github.com/hukkin/tomllib-w/blob/master/LICENSE'
     },
     'setuptools': {
         'author': 'Python Packaging Authority',
@@ -2485,9 +2485,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await self.copy('update/languages/' + file, 'languages/' + file)
                 self.logger.debug('Updating config.toml')
                 with open('config.toml','rb') as file:
-                    oldcfg = tomli.load(file)
+                    oldcfg = tomllib.load(file)
                 with open('update/config.toml', 'rb') as file:
-                    newcfg = tomli.load(file)
+                    newcfg = tomllib.load(file)
 
                 newdata = {}
 
@@ -2757,9 +2757,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if f'{plugin_id}.toml' in os.listdir('plugin_config'):
                         self.logger.debug('Updating config.toml')
                         with open(f'plugin_config/{plugin_id}.toml', 'rb') as file:
-                            oldcfg = tomli.load(file)
+                            oldcfg = tomllib.load(file)
                         with open('plugin_install/config.toml', 'rb') as file:
-                            newcfg = tomli.load(file)
+                            newcfg = tomllib.load(file)
 
                         newdata = {}
 

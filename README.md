@@ -69,6 +69,17 @@ Unifier is licensed under the AGPLv3. If you wish to use its source code, please
 ## ⛑️ Support
 Need support? We're always available at our [Discord server](https://discord.gg/a4KpNcARzK).
 
+### Version matrix
+All EoL dates are in dd/mm/yyyy format.
+| Version                        | Type     | Supported                    | Status   | EoL        |
+| ------------------------------ | -------- | ---------------------------- | -------- | ---------- |
+| 4.x (`fearless-feijoa`)        | dev      | :wrench: In development      | feature  | TBD        |
+| 3.x (`elegant-elderberry`)     | release  | :white_check_mark: Supported | feature  | TBD        |
+| 2.x LTS (`daring-dragonfruit`) | legacy   | :white_check_mark: Supported | security | 17/07/2025 |
+| 1.2.x (`cheerful-cranberry`)   | eol      | :x: Unsupported              | eol      | 05/12/2024 |
+| 1.1.x (`brave-blueberry`)      | eol      | :x: Unsupported              | eol      | 05/07/2024 |
+| 1.0.x (`adept-apricon`)        | eol      | :x: Unsupported              | eol      | unknown    |
+
 ## 🙏 Acknowledgments
 We want to thank:
 - [**Nextcord**](https://github.com/nextcord), for continuing the discord.py project as Nextcord when it was discontinued, and also
@@ -85,8 +96,9 @@ the `EXTERNAL_LICENSES.txt` file.
 
 ## 🫂 Special thanks
 As the project founder and leader, I want to give my special thanks to:
-- [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for joining the team and helping me fix my shitty Python and
-  adding a lot of amazing features to Unifier
+- [**The entire UnifierHQ team**](https://github.com/UnifierHQ), for helping me make Unifier what it is today
+- [**ItsAsheer/NullyIsHere**](https://github.com/NullyIsHere), for helping me fix my shitty Python during the early says of the
+  project
 - [**Ente Community**](https://github.com/ente-io), for offering me invaluable advice for open sourcing this project
 - **My best friend**, for turning my life around for the better and always supporting me even at my worst
 
