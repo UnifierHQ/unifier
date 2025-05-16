@@ -5,6 +5,8 @@ jobs:
   release:
     name: "Create release"
     uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
     with:
       environment: Stable release
       type: stable

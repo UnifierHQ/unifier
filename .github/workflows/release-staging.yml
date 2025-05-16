@@ -5,6 +5,8 @@ jobs:
   release:
     name: "Create simulated alpha release"
     uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
     with:
       environment: Alpha release
       type: alpha

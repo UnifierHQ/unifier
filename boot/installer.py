@@ -21,7 +21,7 @@ import sys
 import getpass
 import json
 import nextcord
-import tomli
+import tomllib
 import tomli_w
 import traceback
 from nextcord.ext import commands
@@ -201,7 +201,7 @@ tokenstore.save('.encryptedenv')
 print('\x1b[36;1mYour tokens have been stored securely.\x1b[0m')
 
 with open('config.toml', 'rb') as file:
-    config = tomli.load(file)
+    config = tomllib.load(file)
 
 config['roles']['owner'] = user_id
 

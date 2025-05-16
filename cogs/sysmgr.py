@@ -46,7 +46,7 @@ import asyncio
 import discord_emoji
 import hashlib
 import orjson
-import tomli
+import tomllib
 import tomli_w
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
@@ -178,19 +178,19 @@ attribution = {
         'license': 'MIT',
         'license_url': 'https://github.com/ijl/orjson/blob/master/LICENSE-MIT'
     },
-    'tomli': {
+    'tomllib': {
         'author': 'Taneli Hukkinen',
         'description': 'A lil\' TOML parser',
-        'repo': 'https://github.com/hukkin/tomli',
+        'repo': 'https://github.com/hukkin/tomllib',
         'license': 'MIT',
-        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+        'license_url': 'https://github.com/hukkin/tomllib-w/blob/master/LICENSE'
     },
-    'tomli-w': {
+    'tomllib-w': {
         'author': 'Taneli Hukkinen',
-        'description': 'A lil\' TOML writer (counterpart to https://github.com/hukkin/tomli)',
-        'repo': 'https://github.com/hukkin/tomli-w',
+        'description': 'A lil\' TOML writer (counterpart to https://github.com/hukkin/tomllib)',
+        'repo': 'https://github.com/hukkin/tomllib-w',
         'license': 'MIT',
-        'license_url': 'https://github.com/hukkin/tomli-w/blob/master/LICENSE'
+        'license_url': 'https://github.com/hukkin/tomllib-w/blob/master/LICENSE'
     },
     'setuptools': {
         'author': 'Python Packaging Authority',
@@ -1130,6 +1130,12 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             requires_storage[plugin].append(cog)
 
         for cog in cogs:
+            if cog == 'system':
+                toload.append('system')
+                skip.append('system')
+                failed.update({cog: 'Cannot manage the entire system plugin, manage the individual modules instead'})
+                continue
+
             cog_exists = f'{cog}.py' in os.listdir('cogs')
             plugin_exists = f'{cog}.json' in os.listdir('plugins')
 
@@ -1512,7 +1518,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     async def system_legacy(self, ctx):
         pass
 
-    @system_legacy.command(aliases=['reload-services'], hidden=True, description=language.desc('sysmgr.reload_services'))
+    @system_legacy.command(aliases=['reload-services'], description=language.desc('sysmgr.reload_services'))
     @restrictions_legacy.owner()
     async def reload_services(self,ctx,*,services=None):
         selector = language.get_selector(ctx)
@@ -1555,9 +1561,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     return await ctx.author.send(selector.get("too_long"))
             await ctx.author.send(f'**{selector.get("fail_logs")}**\n{text}')
 
-    @system_legacy.command(hidden=True, description=language.desc('sysmgr.eval'))
-    @restrictions_legacy.owner()
-    async def eval(self, ctx, *, body):
+    # Eval command
+    async def eval(self, ctx, body):
         selector = language.get_selector(ctx)
         env = {
             'ctx': ctx,
@@ -1613,13 +1618,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             else:
                 await ctx.send(f'{self.bot.ui_emojis.success} {selector.fget("success", values={"exec_time": exec_time})}\n```\n{value}\n```')
 
-    @system_legacy.command(aliases=['poweroff'], hidden=True, description=language.desc('sysmgr.shutdown'))
-    @restrictions_legacy.owner()
+    # Shutdown command
     async def shutdown(self, ctx):
         await self.bot_shutdown(ctx)
 
-    @system_legacy.command(aliases=['reboot'], hidden=True, description=language.desc('sysmgr.restart'))
-    @restrictions_legacy.owner()
+    # Restart command
     async def restart(self, ctx):
         await self.bot_shutdown(ctx, restart=True)
 
@@ -1648,7 +1651,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         ))
         return await ctx.send(embed=embed)
 
-    @system_legacy.command(hidden=True, aliases=['cogs'], description=language.desc('sysmgr.extensions'))
+    @system_legacy.command(aliases=['cogs'], description=language.desc('sysmgr.extensions'))
     @restrictions_legacy.owner()
     async def extensions(self, ctx, *, extension=None):
         selector = language.get_selector(ctx)
@@ -1703,22 +1706,21 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             embed.description = embed.description + selector.get('system_module')
         await ctx.send(embed=embed)
 
-    @system_legacy.command(hidden=True,description=language.desc('sysmgr.reload'))
-    @restrictions_legacy.owner()
-    async def reload(self, ctx, *, extensions):
+    # Reload command
+    async def reload(self, ctx, extensions):
         await self.manage_cog_cmd(ctx, CogAction.reload, extensions)
 
-    @system_legacy.command(hidden=True,description=language.desc('sysmgr.load'))
+    @system_legacy.command(description=language.desc('sysmgr.load'))
     @restrictions_legacy.owner()
     async def load(self, ctx, *, extensions):
         await self.manage_cog_cmd(ctx, CogAction.load, extensions)
 
-    @system_legacy.command(hidden=True,description='Unloads an extension.')
+    @system_legacy.command(description='Unloads an extension.')
     @restrictions_legacy.owner()
     async def unload(self, ctx, *, extensions):
         await self.manage_cog_cmd(ctx, CogAction.unload, extensions)
 
-    @system_legacy.command(hidden=True,description='Installs a plugin.')
+    @system_legacy.command(description='Installs a plugin.')
     @restrictions_legacy.owner()
     async def install(self, ctx, url):
         if self.bot.devmode:
@@ -1974,7 +1976,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @system_legacy.command(hidden=True,description='Uninstalls a plugin.')
+    @system_legacy.command(description='Uninstalls a plugin.')
     @restrictions_legacy.owner()
     async def uninstall(self, ctx, plugin):
         if self.bot.devmode:
@@ -2068,9 +2070,8 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             await msg.edit(embed=embed)
             return
 
-    @system_legacy.command(hidden=True,description='Upgrades Unifier or a plugin.')
-    @restrictions_legacy.owner()
-    async def upgrade(self, ctx, plugin='system', *, args=''):
+    # Upgrade command
+    async def upgrade(self, ctx, plugin='system', args=''):
         if self.bot.devmode:
             return await ctx.send('Command unavailable in devmode')
         if not ctx.author.id == self.bot.config['owner']:
@@ -2484,9 +2485,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     await self.copy('update/languages/' + file, 'languages/' + file)
                 self.logger.debug('Updating config.toml')
                 with open('config.toml','rb') as file:
-                    oldcfg = tomli.load(file)
+                    oldcfg = tomllib.load(file)
                 with open('update/config.toml', 'rb') as file:
-                    newcfg = tomli.load(file)
+                    newcfg = tomllib.load(file)
 
                 newdata = {}
 
@@ -2756,9 +2757,9 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                     if f'{plugin_id}.toml' in os.listdir('plugin_config'):
                         self.logger.debug('Updating config.toml')
                         with open(f'plugin_config/{plugin_id}.toml', 'rb') as file:
-                            oldcfg = tomli.load(file)
+                            oldcfg = tomllib.load(file)
                         with open('plugin_install/config.toml', 'rb') as file:
-                            newcfg = tomli.load(file)
+                            newcfg = tomllib.load(file)
 
                         newdata = {}
 
@@ -3082,6 +3083,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
                 for index in range(len(cmds)):
                     cmd = cmds[index-offset]
+                    hidden = False
                     if permissions=='owner':
                         canrun = True
                     else:
@@ -3089,7 +3091,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                             if (
                                     isinstance(cmd, nextcord.BaseApplicationCommand) or
                                     isinstance(cmd, nextcord.SlashApplicationSubcommand)
-                            ) and not is_legacy or type(cmd) is commands.command and is_legacy:
+                            ) and not is_legacy or type(cmd) is commands.Command and is_legacy:
                                 canrun = await cmd.can_run(ctx)
                             else:
                                 canrun = (
@@ -3099,7 +3101,11 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                                 ) # legacy commands can only be used by owners and admins
                         except:
                             canrun = False or cmd.qualified_name in overrides[permissions]
-                    if not canrun or (cogname=='search' and not search_filter(query,cmd)):
+
+                    if type(cmd) is commands.Command:
+                        hidden = cmd.hidden
+
+                    if not canrun or (cogname=='search' and not search_filter(query,cmd)) or hidden:
                         cmds.pop(index-offset)
                         offset += 1
 
@@ -3549,7 +3555,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
             else:
                 await ctx.send(response)
 
-    @system_legacy.command(name='register-commands', hidden=True, description='Registers commands.')
+    @system_legacy.command(name='register-commands', description='Registers commands.')
     @restrictions_legacy.owner()
     async def register_commands(self, ctx, *, args=''):
         selector = language.get_selector(ctx)
@@ -3559,7 +3565,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
         await self.bot.sync_application_commands()
         return await ctx.send(selector.get("registered"))
 
-    @system_legacy.command(hidden=True, description='Views cloud backup status.')
+    @system_legacy.command(description='Views cloud backup status.')
     @restrictions_legacy.owner()
     async def cloud(self, ctx):
         selector = language.get_selector(ctx)
@@ -3916,8 +3922,7 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
 
             if query.lower() in cmd.qualified_name or has_alias:
                 try:
-                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd,
-                                                                                      nextcord.SlashApplicationSubcommand):
+                    if isinstance(cmd, nextcord.BaseApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand):
                         canrun = await cmd.can_run(ctx)
                     else:
                         canrun = (
@@ -3927,6 +3932,10 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
                         )  # legacy commands can only be used by owners and admins
                 except:
                     canrun = False or cmd.qualified_name in overrides[permissions]
+
+                if type(cmd) is commands.Command and cmd.hidden:
+                    continue
+
                 if canrun:
                     if not cmd.qualified_name in possible:
                         possible.append(cmd.qualified_name)
@@ -3982,6 +3991,60 @@ class SysManager(commands.Cog, name=':wrench: System Manager'):
     @system_legacy.command(name='uptime')
     async def uptime_legacy(self, ctx: commands.Context):
         await self.uptime(ctx)
+
+    # system upgrade
+    @system_legacy.command(name='upgrade', description='Upgrades Unifier or a plugin.')
+    @restrictions_legacy.owner()
+    async def upgrade_legacy(self, ctx, plugin='system', *, args=''):
+        await self.upgrade(ctx, plugin=plugin, args=args)
+
+    @commands.command(name='upgrade', description='Upgrades Unifier or a plugin.', hidden=True)
+    @restrictions_legacy.owner()
+    async def upgrade_legacy_alt(self, ctx, plugin='system', *, args=''):
+        await self.upgrade(ctx, plugin=plugin, args=args)
+
+    # system shutdown
+    @system_legacy.command(name='shutdown', aliases=['poweroff'], description=language.desc('sysmgr.shutdown'))
+    @restrictions_legacy.owner()
+    async def shutdown_legacy(self, ctx):
+        await self.shutdown(ctx)
+
+    @commands.command(name='shutdown', aliases=['poweroff'], description=language.desc('sysmgr.shutdown'), hidden=True)
+    async def shutdown_legacy_alt(self, ctx):
+        await self.shutdown(ctx)
+
+    # system restart
+    @system_legacy.command(name='restart', aliases=['reboot'], description=language.desc('sysmgr.restart'))
+    @restrictions_legacy.owner()
+    async def restart_legacy(self, ctx):
+        await self.restart(ctx)
+
+    @commands.command(name='restart', aliases=['reboot'], description=language.desc('sysmgr.restart'), hidden=True)
+    @restrictions_legacy.owner()
+    async def restart_legacy_alt(self, ctx):
+        await self.restart(ctx)
+
+    # system reload
+    @system_legacy.command(name='reload', description=language.desc('sysmgr.reload'))
+    @restrictions_legacy.owner()
+    async def reload_legacy(self, ctx, *, extensions):
+        await self.reload(ctx, extensions)
+
+    @commands.command(name='reload', description=language.desc('sysmgr.reload'), hidden=True)
+    @restrictions_legacy.owner()
+    async def reload_legacy_alt(self, ctx, *, extensions):
+        await self.reload(ctx, extensions)
+
+    # system eval
+    @system_legacy.command(name='eval', description=language.desc('sysmgr.eval'))
+    @restrictions_legacy.owner()
+    async def eval_legacy(self, ctx, *, body):
+        await self.eval(ctx, body)
+
+    @commands.command(name='eval', description=language.desc('sysmgr.eval'), hidden=True)
+    @restrictions_legacy.owner()
+    async def eval_legacy_alt(self, ctx, *, body):
+        await self.eval(ctx, body)
 
     # Error handling
 

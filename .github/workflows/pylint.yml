@@ -6,35 +6,47 @@ jobs:
   linux-optimized:
     name: "Linux (Optimized)"
     uses: ./.github/workflows/pylint_optimized.yml
+    permissions:
+      contents: read
     with:
       os: ubuntu-latest
 
   linux-balanced:
     name: "Linux (Balanced)"
     uses: ./.github/workflows/pylint_balanced.yml
+    permissions:
+      contents: read
     with:
       os: ubuntu-latest
 
   linux-stable:
     name: "Linux (Stable)"
     uses: ./.github/workflows/pylint_stable.yml
+    permissions:
+      contents: read
     with:
       os: ubuntu-latest
 
   windows-optimized:
     name: "Windows (Optimized)"
     uses: ./.github/workflows/pylint_optimized.yml
+    permissions:
+      contents: read
     with:
       os: windows-latest
 
   windows-balanced:
     name: "Windows (Balanced)"
     uses: ./.github/workflows/pylint_balanced.yml
+    permissions:
+      contents: read
     with:
       os: windows-latest
 
   windows-stable:
     name: "Windows (Stable)"
     uses: ./.github/workflows/pylint_stable.yml
+    permissions:
+      contents: read
     with:
       os: windows-latest
