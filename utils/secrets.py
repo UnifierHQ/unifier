@@ -22,6 +22,7 @@ import base64
 import traceback
 import string
 from dotenv import load_dotenv
+from typing import Union
 from Crypto.Random import random
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Cipher import AES
@@ -268,8 +269,11 @@ class TokenStore:
         This is useless on its own, as the salt, nonce, tag, and password are needed to decrypt the ciphertext."""
         return self.__data[identifier]['ciphertext']
 
-    def encrypt(self, text: str):
-        encrypted, tag, nonce, salt = self.__encryptor.encrypt(str.encode(text), self.__password)
+    def encrypt(self, text: Union[str, bytes]):
+        encrypted, tag, nonce, salt = self.__encryptor.encrypt(
+            str.encode(text) if isinstance(text, str) else text, self.__password
+        )
+
         return {
             'ciphertext': base64.b64encode(encrypted).decode('ascii'),
             "tag": tag,
@@ -277,7 +281,7 @@ class TokenStore:
             "salt": salt
         }
 
-    def decrypt(self, nonce: str, tag: str, salt: str, ciphertext: str):
+    def decrypt(self, nonce: str, tag: str, salt: str, ciphertext: str, to_bytes: bool = False):
         decrypted = self.__encryptor.decrypt(
             base64.b64decode(ciphertext),
             self.__password,
@@ -285,7 +289,7 @@ class TokenStore:
             salt,
             nonce
         )
-        return decrypted.decode('utf-8')
+        return decrypted if to_bytes else decrypted.decode('utf-8')
 
     def add_token(self, identifier, token):
         if identifier in self.__data.keys():

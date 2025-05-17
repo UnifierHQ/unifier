@@ -37,6 +37,8 @@ import datetime
 from typing_extensions import Self
 from utils import log, secrets, restrictions as r, restrictions_legacy as r_legacy, langmgr, jsontools
 from pathlib import Path
+from Crypto import Random
+from Crypto.Hash import SHA512
 
 # import ujson if installed
 try:
@@ -249,6 +251,23 @@ tokenstore = secrets.TokenStore(
     debug=data['debug'],
     onetime=['TOKEN']
 )
+secret_entitlements = {}
+files_protected = [
+    '.encryptedenv', 'data.json', 'config.toml', 'unifier.py', 'run.sh', 'run.bat', 'requirements.txt',
+    'requirements_balanced.txt', 'requirements_stable.txt', 'boot_config.json'
+]
+folders_protected = [
+    'boot', 'cogs', 'emojis', 'filters', 'languages', 'plugins', 'utils'
+]
+plugins_data = {}
+
+for file in os.listdir('plugins'):
+    if file.endswith('.json'):
+        try:
+            with open(f'plugins/{file}') as f:
+                data = json.load(f)
+        except:
+            pass
 
 if should_encrypt:
     tokenstore.to_encrypted(os.environ['UNIFIER_ENCPASS'])
@@ -366,46 +385,49 @@ class EncryptorWrapper:
 class TokenStoreWrapper:
     """Wrapper for secrets.TokenStore methods with some security restrictions."""
 
-    def __init__(self, entitled):
+    def __init__(self, wrapper_id):
         # TokenStoreWrapper allows multiple plugins to share the same token unless protection is requested by the plugin
-        self.__entitled = entitled
+        self.__wrapper_id = wrapper_id
 
     def retrieve(self, identifier):
-        if not identifier in self.__entitled:
+        if not identifier in secret_entitlements[self.__wrapper_id]:
             return None
 
         return tokenstore.retrieve(identifier)
 
+class TokenStoreWrapperWrite(TokenStoreWrapper):
+    def __init__(self, wrapper_id):
+        super().__init__(wrapper_id)
+
+    def add_token(self, identifier, token):
+        if not identifier in secret_entitlements[self.__wrapper_id]:
+            raise ValueError(f'plugin cannot modify {identifier}')
+
+        return tokenstore.add_token(identifier, token)
+
 class SecureStorageWrapper:
     """Wrapper for secrets.SecureStorage methods wuth some security restrictions."""
 
-    def __init__(self, entitled):
-        self.__entitled = entitled
-        self.__protected = [
-            '.encryptedenv', 'data.json', 'config.toml', 'unifier.py', 'run.sh', 'run.bat', 'requirements.txt',
-            'requirements_balanced.txt', 'requirements_stable.txt', 'boot_config.json'
-        ]
-        self.__protected_folders = [
-            'boot', 'cogs', 'emojis', 'filters', 'languages', 'plugins', 'utils'
-        ]
+    def __init__(self, wrapper_id):
+        self.__wrapper_id = wrapper_id
 
-        for entitlement in self.__entitled:
-            if entitlement in self.__protected:
+        for entitlement in secret_entitlements[self.__wrapper_id]:
+            if entitlement in files_protected:
                 raise ValueError(f'file {entitlement} is protected')
-            for folder in self.__protected_folders:
+            for folder in folders_protected:
                 if entitlement.startswith(folder):
                     raise ValueError(f'folder {entitlement} is protected')
 
     def save(self, data, filename):
         """Wrapper method for secrets.SecureStorage.save"""
-        if not filename in self.__entitled:
+        if not filename in secret_entitlements[self.__wrapper_id]:
             raise ValueError(f'plugin cannot access {filename}')
 
         return secure_storage.save(data, filename)
 
     def load(self, filename):
         """Wrapper method for secrets.SecureStorage.load"""
-        if not filename in self.__entitled:
+        if not filename in secret_entitlements[self.__wrapper_id]:
             return None
 
         return secure_storage.load(filename)
@@ -415,12 +437,7 @@ class SecretsIssuer:
         pass
 
     def get_secret(self, plugin):
-        try:
-            with open(f'plugins/{plugin}.json') as file:
-                plugin_data = json.load(file)
-        except FileNotFoundError:
-            return None
-
+        plugin_data = plugins_data.get(plugin)
         available = plugin_data.get('required_tokens', [])
         available_protect = plugin_data.get('required_tokens_protected', [])
 
@@ -437,7 +454,12 @@ class SecretsIssuer:
 
         issued_tokens.update({plugin: available_protect})
 
-        return TokenStoreWrapper(available)
+        # Generate SHA512 hash to identify wrapper
+        __hash = SHA512.new()
+        __hash.update(Random.get_random_bytes(64))
+        secret_entitlements[__hash.hexdigest()] = available
+
+        return TokenStoreWrapper(__hash.hexdigest())
 
     def get_storage(self, plugin):
         try:

@@ -1,7 +1,10 @@
+from feather import host
 import time
 import sqlite3
 import orjson
-from typing import Optional, Any
+from typing import Optional
+from Crypto.Hash import HMAC, SHA512
+from Crypto import Random
 
 class Data:
     def __init__(self):
@@ -25,10 +28,10 @@ class BridgeData(Data):
 class HotColdData(Data):
     """A hot and cold data cache for storing data in memory and on disk."""
 
-    def __init__(self, encryptor: Any, db_filename: str, soft_limit: int = 1000, hard_limit: int = 1500,
+    def __init__(self, host_obj: host.FeatherHost, db_filename: str, soft_limit: int = 1000, hard_limit: int = 1500,
                  data: Optional[dict] = None):
         super().__init__()
-        self.__encryptor = encryptor
+        self.__host: host.FeatherHost = host_obj
         self.__soft_limit = soft_limit
         self.__hard_limit = hard_limit
 
@@ -38,12 +41,37 @@ class HotColdData(Data):
         self.__db = sqlite3.connect(db_filename)
         self.__cursor = self.__db.cursor()
 
-        # DB structure
+        # Create cold cache table
         # key: str, nonce: str, tag: str, salt: str, ciphertext: str
         self.__cursor.execute(
             'CREATE TABLE IF NOT EXISTS coldcache (key INT PRIMARY KEY, nonce TEXT, tag TEXT, salt TEXT, ciphertext TEXT)'
         )
+
+        # Create cold cache keys table
+        # key: str, index: int
+        # Index doesn't need to be encrypted here, as it won't reveal sensitive data (shoutout to AES-256!)
+        self.__cursor.execute(
+            'CREATE TABLE IF NOT EXISTS coldcache_keys (key TEXT PRIMARY KEY, cc_index INT)'
+        )
+
+        # Create cold cache keys HMAC table
+        self.__cursor.execute(
+            'CREATE TABLE IF NOT EXISTS coldcache_keys_hmac (key INT PRIMARY KEY, nonce TEXT, tag TEXT, salt TEXT, ciphertext TEXT)'
+        )
+
+        # Create indexes for caching
         self.__cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS key_index ON coldcache(key)')
+        self.__cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS id_index ON coldcache_keys(key)')
+
+        # If there's no HMAC key, generate one
+        self.__cursor.execute('SELECT COUNT(*) FROM coldcache_keys_hmac')
+        if not self.__cursor.fetchone()[0]:
+            # Generate random HMAC key
+            __hmac_key = Random.get_random_bytes(64)
+
+            # Encrypt then store
+
+        # Commit changes
         self.__db.commit()
 
         self.__cursor.execute('SELECT COUNT(*) FROM coldcache')
@@ -81,14 +109,14 @@ class HotColdData(Data):
             tag = data[2]
             salt = data[3]
             ciphertext = data[4]
-            decrypted = self.__encryptor.decrypt(nonce, tag, salt, ciphertext)
+            decrypted = self.__host.decrypt(nonce, tag, salt, ciphertext)
             decrypted_dict = orjson.loads(decrypted)
             self._add_hot(decrypted_dict)
 
         return None
 
     def _add_cold(self, value: dict):
-        data = self.__encryptor.encrypt(orjson.dumps(value))
+        data = self.__host.encrypt(orjson.dumps(value))
         nonce = data['nonce']
         tag = data['tag']
         salt = data['salt']

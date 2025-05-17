@@ -20,10 +20,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # We recommend all such Plugins inherit this class, so missing implementations
 # can be handled gracefully by the bot.
 
+from feather import host
+from feather.models import channel as feather_channel, user as feather_user, message as feather_message
 import asyncio
 import time
-import nextcord
-from typing import Union, Any
+from typing import Any
 
 class MissingImplementation(Exception):
     """An exception used when something isn't implemented.
@@ -95,10 +96,11 @@ class RateLimit:
 
         await asyncio.sleep(self.__last_reset + self.__reset - time.time())
 
-class Driver:
-    def __init__(self, bot: Any, parent: Any):
-        self.bot: Any = bot
-        self.parent: Any = parent
+class FeatherDriver:
+    def __init__(self, bot: Any, parent: host.FeatherHost, name: str, required_api_level: int):
+        self.bot: Any = bot # bot object specific to the platform
+        self.parent: host.FeatherHost = parent # host connector
+        self.name: str = name # name of the platform
         self.enable_tb: bool = False # change this to True to enable threaded bridge
         self.uses_webhooks: bool = False # change this to True if webhooks are needed
         self.__available: bool = False
@@ -107,8 +109,20 @@ class Driver:
         self.files_per_guild: bool = False # change this to True if the platform library wipes file objects' data after send
         self.uses_image_markdown: bool = False # change this to True if the platform uses media markdown (i.e. ![](image url))
         self.filesize_limit: int = 25000000 # change this to the maximum total file size allowed by the platform
-        self.supports_agegate : bool = False # change this to True if the platform supports age-gated content
-        self.buckets: dict = {} # use this to store rate limit buckets
+        self.supports_agegate: bool = False # change this to True if the platform supports age-gated content (needed for NSFW rooms)
+        self.buckets: dict = {} # use this to store rate limit buckets, if needed
+
+        try:
+            if not self.bot.supports_feather:
+                raise RuntimeError()
+        except:
+            raise RuntimeError("host does not support Feather")
+
+        if self.bot.feather_api_level < required_api_level:
+            raise RuntimeError(
+                f'Feather requires API level {required_api_level} or higher, but the driver is at level ' +
+                f'{self.bot.feather_api_level}'
+            )
 
     @property
     def attachment_size_limit(self):
@@ -292,12 +306,8 @@ class Driver:
         For example, <@userid> should be converted to @username."""
         raise MissingImplementation()
 
-    async def to_discord_file(self, file):
-        """Converts an attachment object to a nextcord.File object."""
-        raise MissingImplementation()
-
-    async def to_platform_file(self, file: Union[nextcord.Attachment, nextcord.File]):
-        """Converts a nextcord.Attachment or nextcord.File object to the platform's file object."""
+    async def to_bytes(self, attachment) -> bytes:
+        """Converts an attachment to bytes."""
         raise MissingImplementation()
 
     def file_name(self, attachment):
@@ -308,9 +318,8 @@ class Driver:
         """Returns the URL of an attachment."""
         raise MissingImplementation()
 
-    async def send(self, channel, content, special: dict = None):
-        """Sends a message to a channel, then returns the message object.
-        Special features, such as embeds and files, can be specified in special."""
+    async def send(self, data: feather_message.FeatherMessage, channel: feather_channel.Channel | feather_user.User):
+        """Sends a message to a channel (or user), then returns the message object."""
 
         # Note for replies:
         # If the bridge key is present in special, reply will be a UnifierMessage.

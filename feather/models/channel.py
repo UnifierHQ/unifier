@@ -2,7 +2,7 @@ from feather import driver
 from typing import Optional, Union, Any
 
 class Channel:
-    def __init__(self, driver: driver.Driver, channel_id: Union[int, str], name: Optional[str] = None):
+    def __init__(self, driver: driver.FeatherDriver, channel_id: Union[int, str], name: Optional[str] = None):
         self.__driver = driver # Feather Driver for interacting with platform API
         self.__id = channel_id # Channel ID
         self.name = name # Channel name, if applicable
