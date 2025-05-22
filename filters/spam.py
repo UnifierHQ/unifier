@@ -194,12 +194,12 @@ class Filter(BaseFilter):
             )
         )
         self.add_config(
-            'repeated_threshold', FilterConfig(
+            'repeated_length', FilterConfig(
                 'Repeated messages length threshold',
                 'Only messages with length above this threshold will be checked for repetition.',
                 'integer',
                 default=10,
-                limits=(10, 2000)
+                limits=(5, 2000)
             )
         )
         self.add_config(
@@ -241,7 +241,7 @@ class Filter(BaseFilter):
                 )
                 is_spam = results.final_verdict == 'unsafe' or is_spam
 
-        if data['config'].get('repeated', False):
+        if data['config'].get('repeated', False) and len(content) > data['config'].get('repeated_length', 10):
             phrases = data['data'].get(message['server'], [])
             has_phrase = False
 
