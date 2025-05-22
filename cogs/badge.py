@@ -79,7 +79,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
         await ctx.send(embed=embed)
 
-    @commands.command(hidden=True, aliases=['trust'], description=language.desc('badge.verify'))
+    @commands.command(aliases=['trust'], description=language.desc('badge.verify'))
     @restrictions_legacy.admin()
     async def verify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)
@@ -94,7 +94,7 @@ class Badge(commands.Cog, name=':medal: Badge'):
 
         await ctx.send(f'{self.bot.ui_emojis.success} ' + selector.fget("success", values={'user': user.name}))
 
-    @commands.command(hidden=True, aliases=['untrust'], description=language.desc('badge.unverify'))
+    @commands.command(aliases=['untrust'], description=language.desc('badge.unverify'))
     @restrictions_legacy.admin()
     async def unverify(self, ctx, user: nextcord.User):
         selector = language.get_selector(ctx)

@@ -1636,6 +1636,7 @@ class UnifierBridge:
 
                     message_data = {
                         'author': '',
+                        'server': '',
                         'bot': False,
                         'webhook_id': None,
                         'content': content,
@@ -1777,11 +1778,13 @@ class UnifierBridge:
 
                     message_data = {
                         'author': str(author),
+                        'server': str(server),
                         'bot': is_bot,
                         'webhook_id': str(webhook_id) if webhook_id else None,
                         'content': content,
                         'files': files,
-                        'suspected_spammer': is_spammer
+                        'suspected_spammer': is_spammer,
+                        'is_first': is_first
                     }
 
                     try:
@@ -2864,11 +2867,15 @@ class UnifierBridge:
                         else:
                             trimmed_length = 0
 
+                        compact_text = f'{author_text} / {trimmed}' if trimmed_length >= 0 else f'{author_text} / \U0001F3DE'
+                        if len(compact_text) > 80:
+                            compact_text = compact_text[:-(len(compact_text)-77)] + '...'
+
                         components.add_rows(
                             ui.ActionRow(
                                 nextcord.ui.Button(
                                     style=nextcord.ButtonStyle.url,
-                                    label=f'{author_text} / {trimmed}' if trimmed_length >= 0 else f'{author_text} / \U0001F3DE',
+                                    label=compact_text,
                                     emoji='\U000021AA\U0000FE0F',
                                     url=url,
                                     disabled=url is None

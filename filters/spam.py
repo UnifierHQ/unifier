@@ -1,5 +1,7 @@
 import re
 import unicodedata
+import jellyfish
+import time
 from tld import get_tld
 from utils.base_filter import FilterResult, BaseFilter, FilterConfig
 from utils import rapidphish
@@ -174,6 +176,48 @@ class Filter(BaseFilter):
                 default=False
             )
         )
+        self.add_config(
+            'repeated', FilterConfig(
+                'Block repeated messages',
+                'Messages that are identical or similar to previous messages will be blocked.',
+                'boolean',
+                default=False
+            )
+        )
+        self.add_config(
+            'repeated_threshold', FilterConfig(
+                'Repeated messages similarity threshold',
+                'Messages that have similarity above this threshold will be considered repeated.',
+                'float',
+                default=0.85,
+                limits=(0.5,1)
+            )
+        )
+        self.add_config(
+            'repeated_length', FilterConfig(
+                'Repeated messages length threshold',
+                'Only messages with length above this threshold will be checked for repetition.',
+                'integer',
+                default=10,
+                limits=(0, 2000)
+            )
+        )
+        self.add_config(
+            'repeated_count', FilterConfig(
+                'Repeated messages count threshold',
+                'Messages repeated more than this amount of times will be considered spam.',
+                'integer',
+                default=5
+            )
+        )
+        self.add_config(
+            'repeated_timeout', FilterConfig(
+                'Repeated messages timeout',
+                'Repetition count will be reset after this number of seconds.',
+                'integer',
+                default=30
+            )
+        )
 
     def check(self, message, data) -> FilterResult:
         content_normalized = unicodedata.normalize('NFKD', message['content'])
@@ -197,6 +241,41 @@ class Filter(BaseFilter):
                 )
                 is_spam = results.final_verdict == 'unsafe' or is_spam
 
+        if (
+                data['config'].get('repeated', False) and
+                len(content) > data['config'].get('repeated_length', 10) and
+                message['is_first']
+        ):
+            phrases = data['data'].get(message['server'], [])
+            has_phrase = False
+
+            for index in range(len(phrases)):
+                phrase = phrases[index]
+                similarity = jellyfish.jaro_similarity(phrase["content"], content)  # pylint: disable=E1101
+                if similarity > data['config'].get('repeated_threshold', 0.85):
+                    has_phrase = True
+
+                    if time.time() > phrase["time"] + data['config'].get('repeated_timeout', 30):
+                        phrases[index]["content"] = content
+                        phrases[index]["count"] = 0
+
+                    phrases[index]["count"] += 1
+                    phrases[index]["time"] = round(time.time())
+
+                    if phrases[index]["count"] > data['config'].get('repeated_count', 5):
+                        is_spam = True
+                        break
+
+            # Add phrase if needed
+            if not has_phrase:
+                phrases.append({
+                    "content": content,
+                    "count": 1,
+                    "time": round(time.time())
+                })
+
+            data['data'].update({message['server']: phrases})
+
         return FilterResult(
-            not is_spam, None, message='Message is likely spam.', should_log=True, should_contribute=True
+            not is_spam, data, message='Message is likely spam.', should_log=True, should_contribute=True
         )
