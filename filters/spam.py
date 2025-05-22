@@ -199,7 +199,7 @@ class Filter(BaseFilter):
                 'Only messages with length above this threshold will be checked for repetition.',
                 'integer',
                 default=10,
-                limits=(5, 2000)
+                limits=(0, 2000)
             )
         )
         self.add_config(
