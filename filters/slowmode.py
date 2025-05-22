@@ -17,6 +17,9 @@ class Filter(BaseFilter):
         )
 
     def check(self, message, data) -> FilterResult:
+        if not message['is_first']:
+            return FilterResult(True, data)
+
         if message['author'] in data['data']:
             if time.time() < data['data'][message['author']]:
                 return FilterResult(

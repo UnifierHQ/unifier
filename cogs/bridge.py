@@ -1783,7 +1783,8 @@ class UnifierBridge:
                         'webhook_id': str(webhook_id) if webhook_id else None,
                         'content': content,
                         'files': files,
-                        'suspected_spammer': is_spammer
+                        'suspected_spammer': is_spammer,
+                        'is_first': is_first
                     }
 
                     try:

@@ -241,7 +241,11 @@ class Filter(BaseFilter):
                 )
                 is_spam = results.final_verdict == 'unsafe' or is_spam
 
-        if data['config'].get('repeated', False) and len(content) > data['config'].get('repeated_length', 10):
+        if (
+                data['config'].get('repeated', False) and
+                len(content) > data['config'].get('repeated_length', 10) and
+                message['is_first']
+        ):
             phrases = data['data'].get(message['server'], [])
             has_phrase = False
 
@@ -250,12 +254,18 @@ class Filter(BaseFilter):
                 similarity = jellyfish.jaro_similarity(phrase["content"], content)  # pylint: disable=E1101
                 if similarity > data['config'].get('repeated_threshold', 0.85):
                     has_phrase = True
+
+                    if time.time() > phrase["reset"]:
+                        phrases[index]["content"] = content
+                        phrases[index]["count"] = 0
+
                     phrases[index]["count"] += 1
                     phrases[index]["reset"] = round(time.time()) + data['config'].get('repeated_timeout', 30)
 
                     if phrases[index]["count"] > data['config'].get('repeated_count', 5):
                         is_spam = True
-                        break
+
+                    break
 
             # Add phrase if needed
             if not has_phrase:
