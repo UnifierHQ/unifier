@@ -1,17 +1,12 @@
 <h1 align=center>
   <img width=64 src=https://github.com/UnifierHQ/unifier/assets/41323182/3065245a-28b6-4410-9b07-8b940f4796ae><br>
 Unifier</h1>
-<p align=center>A cross-server and cross-platform bridge bot that works just as fast as you can type 🚀<br>
-Inspired by matrix-t2bot</p>
+<p align=center>A cross-server and cross-platform bridge bot that works just as fast as you can type 🚀</p>
 <p align=center><a href='#-setup'>🔧 Setup</a> •
   <a href='https://wiki.unifierhq.org'>📘 Wiki</a> • <a href='#%EF%B8%8F-support'>⛑️ Support</a></sub>
 
 ## ✨ Meet Unifier!
-Unifier is a bot written in Python that allows communities to connect together to form global chat rooms, even across
-multiple platforms. It is made to be fast, versatile, and flexible.
-
-We built Unifier to create a free, safe, and open conversing space, where the things we could talk about are limitless, as 
-long as they are safe topics.
+Unifier is a versatile and performant bridge bot built for communities across platforms.
 
 ## 🎨 Features
 ### Basic features
@@ -21,6 +16,7 @@ all on your messaging app of choice.
 ### Fast and responsive bridge
 Using threading and optimizations, Unifier has been tested to be able to send up to 33 messages a second through webhooks, so 
 nobody needs to wait to see your messages. Do note that this speed will vary depending on lots of factors.
+###### * Performance may vary depending on factors such as system resources and network speed.
 
 ### External platforms support
 With support for external platforms, you can bring your communities outside of Discord together, or get a break from Discord 
@@ -43,9 +39,6 @@ Server moderators can also block members and servers from bridging messages to t
 - **Plugins support**: Anyone can always code and install plugins for Unifier to extend its functionality. If you need help
   making your own plugin, you can always use our [template](https://github.com/UnifierHQ/unifier-plugin).
 - **Portable data**: Everything is stored locally on-disk, so it's easy to transfer data if needed.
-- **External bridge support**: Unifier supports external bridge services like
-  [matrix-t2bot](https://github.com/t2bot/matrix-appservice-discord), so you can connect platforms beyond what we can cover and
-  avoid reconfiguring too much.
 
 ## 📚 Setup
 Please follow our guides on GitBook to set up Unifier.
@@ -55,19 +48,19 @@ Please follow our guides on GitBook to set up Unifier.
 - [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
 
 ### Managing updates
-From v1.2.0, System Manager now manages updates. Please refer to [this 
-guide](https://unichat-wiki.pixels.onl/setup-selfhosted/upgrading-unifier) for managing updates.
+Unifier comes with a built-in upgrader. Please refer to [this 
+guide](https://wiki.unifierhq.org/setup-selfhosted/upgrading-unifier) to learn how to manage Unifier updates.
 
 ### Revolt and Guilded support
 To install support plugins for Revolt and Guilded, please refer to [this 
-guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-revolt-support) for Revolt, and
-[this guide](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started/unifier#installing-guilded-support) for Guilded.
+guide](https://wiki.unifierhq.org/setup-selfhosted/getting-started/unifier#installing-revolt-support) for Revolt, and
+[this guide](https://wiki.unifierhq.org/setup-selfhosted/getting-started/unifier#installing-guilded-support) for Guilded.
 
 ## 📜 License
 Unifier is licensed under the AGPLv3. If you wish to use its source code, please read the license carefully before doing so.
 
 ## ⛑️ Support
-Need support? We're always available at our [Discord server](https://discord.gg/a4KpNcARzK).
+Need support? We're always available at our [Discord server](https://discord.unifierhq.org).
 
 ### Version matrix
 All EoL dates are in dd/mm/yyyy format.
@@ -78,7 +71,7 @@ All EoL dates are in dd/mm/yyyy format.
 | 2.x LTS (`daring-dragonfruit`) | legacy   | :white_check_mark: Supported | security | 17/07/2025 |
 | 1.2.x (`cheerful-cranberry`)   | eol      | :x: Unsupported              | eol      | 05/12/2024 |
 | 1.1.x (`brave-blueberry`)      | eol      | :x: Unsupported              | eol      | 05/07/2024 |
-| 1.0.x (`adept-apricon`)        | eol      | :x: Unsupported              | eol      | unknown    |
+| 1.0.x (`adept-apricot`)        | eol      | :x: Unsupported              | eol      | unknown    |
 
 ## 🙏 Acknowledgments
 We want to thank:
