@@ -255,12 +255,12 @@ class Filter(BaseFilter):
                 if similarity > data['config'].get('repeated_threshold', 0.85):
                     has_phrase = True
 
-                    if time.time() > phrase["reset"]:
+                    if time.time() > phrase["time"] + data['config'].get('repeated_timeout', 30):
                         phrases[index]["content"] = content
                         phrases[index]["count"] = 0
 
                     phrases[index]["count"] += 1
-                    phrases[index]["reset"] = round(time.time()) + data['config'].get('repeated_timeout', 30)
+                    phrases[index]["time"] = round(time.time())
 
                     if phrases[index]["count"] > data['config'].get('repeated_count', 5):
                         is_spam = True
@@ -271,7 +271,7 @@ class Filter(BaseFilter):
                 phrases.append({
                     "content": content,
                     "count": 1,
-                    "reset": round(time.time()) + data['config'].get('repeated_timeout', 30)
+                    "time": round(time.time())
                 })
 
             data['data'].update({message['server']: phrases})
