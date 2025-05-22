@@ -71,7 +71,7 @@ All EoL dates are in dd/mm/yyyy format.
 | 2.x LTS (`daring-dragonfruit`) | legacy   | :white_check_mark: Supported | security | 17/07/2025 |
 | 1.2.x (`cheerful-cranberry`)   | eol      | :x: Unsupported              | eol      | 05/12/2024 |
 | 1.1.x (`brave-blueberry`)      | eol      | :x: Unsupported              | eol      | 05/07/2024 |
-| 1.0.x (`adept-apricon`)        | eol      | :x: Unsupported              | eol      | unknown    |
+| 1.0.x (`adept-apricot`)        | eol      | :x: Unsupported              | eol      | unknown    |
 
 ## 🙏 Acknowledgments
 We want to thank:
