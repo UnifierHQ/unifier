@@ -4,7 +4,7 @@ class Filter(BaseFilter):
     def __init__(self):
         super().__init__(
             'known-spammers',
-            'Suspected Spammers Filter',
+            'Block Suspected Spammers',
             'Prevents users that are suspected to have engaged in spam activities from talking.'
         )
 
