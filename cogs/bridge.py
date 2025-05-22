@@ -1636,6 +1636,7 @@ class UnifierBridge:
 
                     message_data = {
                         'author': '',
+                        'server': '',
                         'bot': False,
                         'webhook_id': None,
                         'content': content,
@@ -1777,6 +1778,7 @@ class UnifierBridge:
 
                     message_data = {
                         'author': str(author),
+                        'server': str(server),
                         'bot': is_bot,
                         'webhook_id': str(webhook_id) if webhook_id else None,
                         'content': content,
