@@ -264,8 +264,7 @@ class Filter(BaseFilter):
 
                     if phrases[index]["count"] > data['config'].get('repeated_count', 5):
                         is_spam = True
-
-                    break
+                        break
 
             # Add phrase if needed
             if not has_phrase:
