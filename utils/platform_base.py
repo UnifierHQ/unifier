@@ -30,6 +30,11 @@ class MissingImplementation(Exception):
     The bot will gracefully handle this exception"""
     pass
 
+class ForceRestart(Exception):
+    """An exception raised when the platform client needs to restart.
+    Use this only when absolutely necessary."""
+    pass
+
 class Permissions:
     """NUPS Permissions class."""
     def __init__(self):
@@ -97,6 +102,8 @@ class RateLimit:
 
 class PlatformBase:
     def __init__(self, bot, parent):
+        self.name = None
+        self.plugin_name = None
         self.bot = bot
         self.parent = parent
         self.enable_tb = False # change this to True to enable threaded bridge
@@ -120,6 +127,10 @@ class PlatformBase:
             self.filesize_limit if self.filesize_limit < self.parent.config['global_filesize_limit']
             else self.parent.config['global_filesize_limit']
         )
+
+    async def close_client(self):
+        """Closes the platform client. This shouldn't be used unless something went very wrong."""
+        raise MissingImplementation()
 
     def is_available(self):
         return self.__available

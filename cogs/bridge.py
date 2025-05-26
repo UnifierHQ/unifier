@@ -3088,8 +3088,11 @@ class UnifierBridge:
                             webhook, msg_author_dc, embeds, message, touse_mentions, components, sameguild, destguild
                         )
                     except Exception as e:
-                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
-                            continue
+                        try:
+                            if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
+                                continue
+                        except platform_base.ForceRestart:
+                            await dest_support.close()
                         raise
 
                     if result[1]:
@@ -3209,8 +3212,11 @@ class UnifierBridge:
                             ch, content_override if can_override else (content + stickertext), special=special
                         )
                     except Exception as e:
-                        if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
-                            return None
+                        try:
+                            if dest_support.error_is_unavoidable(e) and not self.__bot.config['debug']:
+                                return None
+                        except platform_base.ForceRestart:
+                            await dest_support.close()
                         raise
                     tbresult = [
                         {f'{guild_id}': [
@@ -6761,6 +6767,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             #     except:
             #         self.logger.exception('An error occurred!')
             #     sys.exit(0)
+        except platform_base.ForceRestart:
+            self.logger.error('Something went wrong with a platform client, so we\'ve stopped it. It may or may not come back online on its own.')
         except:
             self.logger.exception('Something went wrong!')
             experiments = []
