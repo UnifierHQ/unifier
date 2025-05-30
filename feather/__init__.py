@@ -1,4 +1,4 @@
-from feather import driver, host, webhook_cache
+from feather import driver, driver_manager, host, webhook_cache
 from feather.models import channel
 from typing import Any
 import nextcord
@@ -18,7 +18,9 @@ class Feather:
         self.api_level_required_host: int = feather_api_level_required_host
         self.api_level_required_driver: int = feather_api_level_required_driver
         self.host: host.FeatherHost = host.FeatherHost(host, self.api_level_required_host)
-        self.drivers: dict[driver.FeatherDriver, None] = {}
+        self.drivers: driver_manager.FeatherDriverManager = driver_manager.FeatherDriverManager(
+            self.host, self.api_level_required_driver
+        )
 
     @property
     def webhook_cache(self) -> webhook_cache.WebhookCache:

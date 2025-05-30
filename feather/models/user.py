@@ -1,12 +1,18 @@
-from typing import Union, Optional
-from feather import driver
-from feather.models import message
+from typing import Union, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from feather.driver import FeatherDriver
+    from feather.models.message import FeatherMessageContent, FeatherMessage
+else:
+    FeatherDriver = Any
+    FeatherMessage = Any
+    FeatherMessageContent = Any
 
 class User:
-    def __init__(self, user_id: Union[int, str], name: str, platform: driver.FeatherDriver, **kwargs):
+    def __init__(self, user_id: Union[int, str], name: str, platform: FeatherDriver, **kwargs):
         self.id: Union[int, str] = user_id # If a webhook was used, this should be the webhook ID
         self.name: str = name
-        self.platform: driver.FeatherDriver = platform
+        self.platform: FeatherDriver = platform
         self._display_name: Optional[str] = kwargs.get('display_name') # this is internal to allow for aliases
         self.avatar_url: Optional[str] = kwargs.get('avatar_url')
         self.bot: bool = kwargs.get('bot', False)
@@ -22,9 +28,9 @@ class User:
         """Alias for display_name"""
         return self.display_name
 
-    async def send(self, data: message.FeatherMessage) -> message.FeatherMessage:
+    async def send(self, content: FeatherMessageContent) -> FeatherMessage:
         """Sends a message to the user."""
-        return await self.platform.send(self, data)
+        return await self.platform.send(content)
 
     def __repr__(self):
         return f"User(user_id={self.id}, name='{self.name}', platform='{self.platform}')"

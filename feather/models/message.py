@@ -1,8 +1,12 @@
-from feather import driver
 from feather.models import user as feather_user, channel as feather_channel, server as feather_server, attachment as feather_attachment
-from typing import Union, Optional
+from typing import Union, Optional, Any, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
+
+if TYPE_CHECKING:
+    from feather.driver import FeatherDriver
+else:
+    FeatherDriver = Any
 
 class FeatherMessageError(Exception):
     """Base class for all Feather message errors."""
@@ -26,11 +30,11 @@ class FeatherMessageUpdate:
 class FeatherMessageEntry:
     """A message entry for Feather message cache. Contains minimal data needed for some features."""
 
-    def __init__(self, platform: driver.FeatherDriver, message_id: Union[int, str], channel: feather_channel.Channel,
+    def __init__(self, platform: FeatherDriver, message_id: Union[int, str], channel: feather_channel.Channel,
                  server: feather_server.Server,
                  replies: Optional[list[Union['FeatherMessageEntry', 'FeatherMessage']]] = None,
-                 forwarded: Optional['FeatherMessageEntry', 'FeatherMessage'] = None):
-        self.platform: driver.FeatherDriver = platform
+                 forwarded: Union['FeatherMessageEntry', 'FeatherMessage', None] = None):
+        self.platform: FeatherDriver = platform
         self.id: Union[int, str] = message_id
         self.channel: feather_channel.Channel = channel
         self.server: feather_server.Server = server
@@ -52,7 +56,7 @@ class FeatherMessageEntry:
 class FeatherMessageReference(FeatherMessageEntry):
     """A reference to a message. Used to represent replies and forwards."""
 
-    def __init__(self, platform: driver.FeatherDriver, message_id: Union[int, str], channel: feather_channel.Channel,
+    def __init__(self, platform: FeatherDriver, message_id: Union[int, str], channel: feather_channel.Channel,
                  server: feather_server.Server, **kwargs):
         super().__init__(platform, message_id, channel, server)
         self.type: FeatherMessageReferenceType = kwargs.get('type', FeatherMessageReferenceType.reply)
@@ -86,23 +90,23 @@ class FeatherMessageReferenceType(Enum):
     forward = 1
 
 class FeatherMessageContent:
-    def __init__(self, content: str, author: feather_user.User, channel: feather_channel.Channel, **kwargs):
+    """A class containing data for a message to be sent."""
+
+    def __init__(self, content: str, author: feather_user.User, channel: feather_channel.Channel,
+                 server: Optional[feather_server.Server], **kwargs):
         self.content: str = content
         self.author: feather_user.User = author
         self.channel: feather_channel.Channel = channel
+        self.server: Optional[feather_server.Server] = server
         self.replies: list[FeatherMessageReference] = kwargs.get('replies', [])
         self.files: list[feather_attachment.File] = kwargs.get('files', [])
         self.forwarded: Optional[FeatherMessageReference] = kwargs.get('forwarded')
 
 class FeatherMessage(FeatherMessageContent):
-    def __init__(self, platform: driver.FeatherDriver, message_id: Union[int, str], author: feather_user.User,
-                 channel: feather_channel.Channel, server: Optional[feather_server.Server], *args, **kwargs):
+    def __init__(self, platform: FeatherDriver, message_id: Union[int, str], *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.platform: driver.FeatherDriver = platform
+        self.platform: FeatherDriver = platform
         self.id: int | str = message_id
-        self.author: feather_user.User = author
-        self.channel: feather_channel.Channel = channel
-        self.server: Optional[feather_server.Server] = server
         self.attachments: list[feather_attachment.Attachment] = kwargs.get('attachments', [])
         self.replies: list[FeatherMessageReference] = kwargs.get('replies', [])
         self.forwarded: Optional[FeatherMessageReference] = kwargs.get('forwarded', None)
@@ -162,7 +166,7 @@ class FeatherMessageGroup:
     """A group of FeatherMessage objects. This object is stored to Feather's message cache.
     Replaces Bridge v2.5's UnifierMessage object."""
 
-    def __init__(self, group_id: Optional[int, str] = None, messages: Optional[list[FeatherMessage]] = None):
+    def __init__(self, group_id: Union[int, str, None] = None, messages: Optional[list[FeatherMessage]] = None):
         self.id: Optional[int, str] = group_id # Group ID
         self.messages: dict = {} # Actual list for messages
         self.id_cache: dict = {} # Cache for speeding up server/channel ID lookups, not necessarily required

@@ -22,14 +22,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from feather import host
 from feather.models import channel as feather_channel, user as feather_user, message as feather_message
+from feather.models.errors import MissingImplementation
 import asyncio
 import time
 from typing import Any
-
-class MissingImplementation(Exception):
-    """An exception used when something isn't implemented.
-    The bot will gracefully handle this exception"""
-    pass
 
 class Permissions:
     """NUPS Permissions class."""
@@ -318,7 +314,7 @@ class FeatherDriver:
         """Returns the URL of an attachment."""
         raise MissingImplementation()
 
-    async def send(self, data: feather_message.FeatherMessage, channel: feather_channel.Channel | feather_user.User):
+    async def send(self, data: feather_message.FeatherMessageContent):
         """Sends a message to a channel (or user), then returns the message object."""
 
         # Note for replies:

@@ -1,8 +1,14 @@
-from feather import driver
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from feather.driver import FeatherDriver
+    from feather.models.message import FeatherMessageContent
+else:
+    FeatherDriver = Any
+    FeatherMessageContent = Any
 
 class Channel:
-    def __init__(self, driver: driver.FeatherDriver, channel_id: Union[int, str], name: Optional[str] = None):
+    def __init__(self, driver: FeatherDriver, channel_id: Union[int, str], name: Optional[str] = None):
         self.__driver = driver # Feather Driver for interacting with platform API
         self.__id = channel_id # Channel ID
         self.name = name # Channel name, if applicable
@@ -21,9 +27,9 @@ class Channel:
     def __repr__(self) -> str:
         return f'<Channel id={self.__id} name={self.name}>'
 
-    async def send(self, content: str, data: dict) -> Any:
+    async def send(self, content: FeatherMessageContent) -> Any:
         """Sends a message to the channel."""
-        return await self.__driver.send(self._channel, content, special=data)
+        return await self.__driver.send(self._channel, content)
 
     async def create_webhook(self, name: str, avatar: Optional[str] = None) -> Any:
         """Creates a webhook in the channel."""

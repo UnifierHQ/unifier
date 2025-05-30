@@ -1,9 +1,13 @@
-from feather import driver
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from feather.driver import FeatherDriver
+else:
+    FeatherDriver = Any
 
 class File:
-    def __init__(self, platform: driver.FeatherDriver, filename: str, data: bytes):
-        self.platform: driver.FeatherDriver = platform
+    def __init__(self, platform: FeatherDriver, filename: str, data: bytes):
+        self.platform: FeatherDriver = platform
         self.filename: str = filename
         self.bytes: bytes = data
 
@@ -13,10 +17,10 @@ class File:
         return self.bytes
 
 class Attachment:
-    def __init__(self, platform: driver.FeatherDriver, filename: str, url: str, data_obj: Any,
+    def __init__(self, platform: FeatherDriver, filename: str, url: str, data_obj: Any,
                  description: Optional[str] = None, spoiler: bool = False, content_type: Optional[str] = None,
                  size: int = 0):
-        self.platform: driver.FeatherDriver = platform
+        self.platform: FeatherDriver = platform
         self.filename: str = filename
         self.url: str = url
         self.__data: Any = data_obj
