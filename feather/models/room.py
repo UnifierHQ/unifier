@@ -35,14 +35,15 @@ class Room:
             self.channel: str = channel
             self.webhook: Optional[str] = webhook
 
+    class _Room
+
     async def _platform_send_indiv(self, platform: str, content: feather_message.FeatherMessageContent,
                                    destination: _RoomDestination):
         pass
 
-    async def platform_send(self, platform: str, content: feather_message.FeatherMessageContent):
+    async def platform_send(self, platform: str, content: feather_message.FeatherMessageContent, channel: feather_channel.Channel):
         destinations: list = []
         author: feather_user.User = content.author
-        channel: feather_channel.Channel = content.channel
         server: feather_server.Server = content.server
 
         for platform in self.platforms.keys():

@@ -92,19 +92,19 @@ class FeatherMessageReferenceType(Enum):
 class FeatherMessageContent:
     """A class containing data for a message to be sent."""
 
-    def __init__(self, content: str, author: feather_user.User, channel: feather_channel.Channel,
-                 server: Optional[feather_server.Server], **kwargs):
+    def __init__(self, content: str, author: feather_user.User, server: Optional[feather_server.Server], **kwargs):
         self.content: str = content
         self.author: feather_user.User = author
-        self.channel: feather_channel.Channel = channel
         self.server: Optional[feather_server.Server] = server
         self.replies: list[FeatherMessageReference] = kwargs.get('replies', [])
         self.files: list[feather_attachment.File] = kwargs.get('files', [])
         self.forwarded: Optional[FeatherMessageReference] = kwargs.get('forwarded')
 
 class FeatherMessage(FeatherMessageContent):
-    def __init__(self, platform: FeatherDriver, message_id: Union[int, str], *args, **kwargs):
+    def __init__(self, platform: FeatherDriver, message_id: Union[int, str], channel: feather_channel.Channel, *args,
+                 **kwargs):
         super().__init__(*args, **kwargs)
+        self.channel: feather_channel.Channel = channel
         self.platform: FeatherDriver = platform
         self.id: int | str = message_id
         self.attachments: list[feather_attachment.Attachment] = kwargs.get('attachments', [])

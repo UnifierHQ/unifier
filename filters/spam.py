@@ -51,6 +51,7 @@ def uppercase_ratio(text):
     return (len(capitals) / len(letters)), len(letters)
 
 def bypass_killer(string):
+    """A basic function to remove URL detection bypasses."""
     if not [*string][len(string) - 1].isalnum():
         return string[:-1]
     else:
