@@ -102,7 +102,7 @@ class RateLimit:
 
 class PlatformBase:
     def __init__(self, bot, parent):
-        self.name = None
+        self.platform_name = None
         self.plugin_name = None
         self.bot = bot
         self.parent = parent
@@ -113,7 +113,7 @@ class PlatformBase:
         self.reply_using_text = False # change this to True if the platform needs to show message reply using text
         self.files_per_guild = False # change this to True if the platform library wipes file objects' data after send
         self.uses_image_markdown = False # change this to True if the platform uses media markdown (i.e. ![](image url))
-        self.filesize_limit = 25000000 # change this to the maximum total file size allowed by the platform
+        self.filesize_limit = 26214400 # change this to the maximum total file size allowed by the platform
         self.supports_agegate = False # change this to True if the platform supports age-gated content
         self.buckets = {} # use this to store rate limit buckets
 
@@ -309,6 +309,10 @@ class PlatformBase:
 
     async def to_platform_file(self, file: Union[nextcord.Attachment, nextcord.File]):
         """Converts a nextcord.Attachment or nextcord.File object to the platform's file object."""
+        raise MissingImplementation()
+
+    async def to_bytes(self, file):
+        """Converts an attachment object to a bytes object."""
         raise MissingImplementation()
 
     def file_name(self, attachment):
