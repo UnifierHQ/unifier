@@ -440,7 +440,6 @@ if not boot_file in os.listdir():
             print(f'Please install a fresh copy of {internal["product_name"]} from {internal["repo"]}.')
             sys.exit(1)
 
-first_boot = False
 last_boot = time.time()
 
 print(f'\x1b[36;1mStarting {internal["product_name"]}...\x1b[0m')
@@ -510,7 +509,7 @@ while True:
     crash_reboot = False
     if not exit_code == 0:
         diff = time.time() - last_boot
-        if autoreboot and first_boot and diff > threshold:
+        if autoreboot and diff > threshold:
             print(f'\x1b[31;1m{internal["product_name"]} has crashed, restarting...\x1b[0m')
             crash_reboot = True
         else:
@@ -534,7 +533,6 @@ while True:
         del encryption_password
         sys.exit(0)
 
-    first_boot = True
     last_boot = time.time()
 
     # sleep to prevent 429s
