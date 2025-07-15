@@ -15,9 +15,7 @@ class WebhookCacheStore:
             webhook = webhooks[index]
             identifier = identifiers[index]
             server = servers[index]
-            if not server in self.__webhooks.keys():
-                self.__webhooks.update({server: {identifier: webhook}})
-            self.__webhooks[server].update({identifier: webhook})
+            self.__webhooks.setdefault(server, {})[identifier] = webhook
         return len(self.__webhooks)
 
     def get_webhooks(self, server: int or str):
@@ -25,6 +23,7 @@ class WebhookCacheStore:
             server = int(server)
         except:
             pass
+
         if len(self.__webhooks[server].values())==0:
             raise ValueError('no webhooks')
         return list(self.__webhooks[server].values())
@@ -34,6 +33,7 @@ class WebhookCacheStore:
             identifier = int(identifier)
         except:
             pass
+
         for guild in self.__webhooks.keys():
             if identifier in self.__webhooks[guild].keys():
                 return self.__webhooks[guild][identifier]
