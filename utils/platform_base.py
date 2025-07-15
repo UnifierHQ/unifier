@@ -30,6 +30,11 @@ class MissingImplementation(Exception):
     The bot will gracefully handle this exception"""
     pass
 
+class ForceRestart(Exception):
+    """An exception raised when the platform client needs to restart.
+    Use this only when absolutely necessary."""
+    pass
+
 class Permissions:
     """NUPS Permissions class."""
     def __init__(self):
@@ -97,6 +102,8 @@ class RateLimit:
 
 class PlatformBase:
     def __init__(self, bot, parent):
+        self.platform_name = None
+        self.plugin_name = None
         self.bot = bot
         self.parent = parent
         self.enable_tb = False # change this to True to enable threaded bridge
@@ -106,7 +113,7 @@ class PlatformBase:
         self.reply_using_text = False # change this to True if the platform needs to show message reply using text
         self.files_per_guild = False # change this to True if the platform library wipes file objects' data after send
         self.uses_image_markdown = False # change this to True if the platform uses media markdown (i.e. ![](image url))
-        self.filesize_limit = 25000000 # change this to the maximum total file size allowed by the platform
+        self.filesize_limit = 26214400 # change this to the maximum total file size allowed by the platform
         self.supports_agegate = False # change this to True if the platform supports age-gated content
         self.buckets = {} # use this to store rate limit buckets
 
@@ -120,6 +127,10 @@ class PlatformBase:
             self.filesize_limit if self.filesize_limit < self.parent.config['global_filesize_limit']
             else self.parent.config['global_filesize_limit']
         )
+
+    async def close_client(self):
+        """Closes the platform client. This shouldn't be used unless something went very wrong."""
+        raise MissingImplementation()
 
     def is_available(self):
         return self.__available
@@ -298,6 +309,10 @@ class PlatformBase:
 
     async def to_platform_file(self, file: Union[nextcord.Attachment, nextcord.File]):
         """Converts a nextcord.Attachment or nextcord.File object to the platform's file object."""
+        raise MissingImplementation()
+
+    async def to_bytes(self, file):
+        """Converts an attachment object to a bytes object."""
         raise MissingImplementation()
 
     def file_name(self, attachment):
