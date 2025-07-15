@@ -6,7 +6,7 @@ class SlashHelper:
 
     def option(self, name, *args, **kwargs):
         cogname, cmdname, optionname = name.split('.')
-        localizations = self.language.slash_options(cogname+'.'+cmdname)
+        localizations = self.language.slash_options(f'{cogname}.{cmdname}')
         if not localizations:
             return nextcord.SlashOption(
                 *args,
@@ -16,15 +16,17 @@ class SlashHelper:
 
         base = localizations.pop(self.language.get_locale())
 
-        names = {}
-        descriptions = {}
-
-        for locale in localizations.keys():
-            try:
-                names.update({locale: localizations[locale][optionname]['name']})
-                descriptions.update({locale: localizations[locale][optionname]['description']})
-            except KeyError:
-                pass
+        names = {
+            locale: data[optionname]['name']
+            for locale, data in localizations.items()
+            if optionname in data
+        }
+        
+        descriptions = {
+            locale: data[optionname]['description']
+            for locale, data in localizations.items()
+            if optionname in data
+        }
 
         return nextcord.SlashOption(
             *args,
