@@ -4,9 +4,7 @@ class WebhookCacheStore:
         self.__webhooks = {}
 
     def store_webhook(self, webhook, identifier, server):
-        if not server in self.__webhooks.keys():
-            self.__webhooks.update({server: {identifier: webhook}})
-        self.__webhooks[server].update({identifier: webhook})
+        self.__webhooks.setdefault(server, {})[identifier] = webhook
         return len(self.__webhooks[server])
 
     def store_webhooks(self, webhooks: list, identifiers: list, servers: list):
