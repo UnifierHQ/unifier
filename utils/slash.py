@@ -16,17 +16,15 @@ class SlashHelper:
 
         base = localizations.pop(self.language.get_locale())
 
-        names = {
-            locale: data[optionname]['name']
-            for locale, data in localizations.items()
-            if optionname in data
-        }
-        
-        descriptions = {
-            locale: data[optionname]['description']
-            for locale, data in localizations.items()
-            if optionname in data
-        }
+        names = {}
+        descriptions = {}
+
+        for locale in localizations.keys():
+            try:
+                names.update({locale: localizations[locale][optionname]['name']})
+                descriptions.update({locale: localizations[locale][optionname]['description']})
+            except KeyError:
+                pass
 
         return nextcord.SlashOption(
             *args,
