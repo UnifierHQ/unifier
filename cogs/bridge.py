@@ -54,8 +54,6 @@ except:
     pass
 
 if not sys.platform == 'win32':
-    aiomultiprocess.set_start_method("spawn")
-else:
     aiomultiprocess.set_start_method("fork")
 
 cog_storage = None
