@@ -33,7 +33,6 @@ import ast
 import math
 import os
 import sys
-import platform
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r,\
                   restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools, compressor
 import importlib
@@ -54,7 +53,7 @@ try:
 except:
     pass
 
-if platform.system() == "Windows":
+if not sys.platform == 'win32':
     aiomultiprocess.set_start_method("spawn")
 else:
     aiomultiprocess.set_start_method("fork")
