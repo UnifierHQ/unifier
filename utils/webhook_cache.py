@@ -30,7 +30,7 @@ class WebhookCacheStore:
             raise ValueError('no webhooks')
         return list(self.__webhooks[server].values())
 
-    def get_webhook(self, identifier: Union[int, str]):
+    def get_webhook(self, identifier: int | str):
         try:
             identifier = int(identifier)
         except:
