@@ -20,7 +20,7 @@ class WebhookCacheStore:
             self.__webhooks.setdefault(server, {})[identifier] = webhook
         return len(self.__webhooks)
 
-    def get_webhooks(self, server: Union[int, str]):
+    def get_webhooks(self, server: int | str):
         try:
             server = int(server)
         except:
