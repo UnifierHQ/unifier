@@ -43,17 +43,18 @@ from aiomultiprocess import Worker
 
 # Import ujson if installed for json speedup
 try:
-    import ujson as json  # pylint: disable=import-error
+    import ujson as json  # pylint: disable=import-error # type: ignore
 except:
     pass
 
 # Import uvloop if installed for asyncio speedup
 try:
-    import uvloop  # pylint: disable=import-error
+    import uvloop  # pylint: disable=import-error # type: ignore
 except:
     pass
 
-aiomultiprocess.set_start_method("fork")
+if not sys.platform == 'win32':
+    aiomultiprocess.set_start_method("fork")
 
 cog_storage = None
 mentions = nextcord.AllowedMentions(everyone=False, roles=False, users=False)
@@ -597,7 +598,7 @@ class UnifierBridge:
                     return room
         return False
 
-    def get_room(self, room) -> dict or None:
+    def get_room(self, room) -> Optional[dict]:
         """Gets a Unifier room.
         This will be moved to UnifierBridge for a future update."""
         try:
@@ -783,7 +784,7 @@ class UnifierBridge:
         self.__bot.db['rooms'].pop(roomname)
         self.__bot.db.save_data()
 
-    def get_invite(self, invite) -> dict or None:
+    def get_invite(self, invite) -> Optional[dict]:
         try:
             invite_obj = self.__bot.db['invites'][invite]
 
@@ -4904,7 +4905,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         await ctx.send(embed=embed)
 
     # Disband command
-    async def disband(self, ctx: Union[nextcord.Interaction, commands.context], room: str):
+    async def disband(self, ctx: Union[nextcord.Interaction, commands.Context], room: str):
         room = room.lower()
         if not room in self.bot.bridge.rooms:
             raise restrictions.UnknownRoom()
@@ -5264,7 +5265,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
                                    color=self.bot.colors.critical)
         await msg.edit(content=text, embed=embed)
 
-    async def emojis(self, ctx: Union[nextcord.Interaction, commands.context]):
+    async def emojis(self, ctx: Union[nextcord.Interaction, commands.Context]):
         selector = language.get_selector(ctx)
         panel = 0
         limit = 8
@@ -5780,7 +5781,7 @@ class Bridge(commands.Cog, name=':link: Bridge'):
             elif interaction_resp.data['custom_id'] == 'prev':
                 page -= 1
 
-    async def level(self, ctx: Union[nextcord.Interaction, commands.context], user: Optional[nextcord.User] = None):
+    async def level(self, ctx: Union[nextcord.Interaction, commands.Context], user: Optional[nextcord.User] = None):
         selector = language.get_selector(ctx)
         if not self.bot.config['enable_exp']:
             if type(ctx) is nextcord.Interaction:

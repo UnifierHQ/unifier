@@ -6,7 +6,7 @@ class SlashHelper:
 
     def option(self, name, *args, **kwargs):
         cogname, cmdname, optionname = name.split('.')
-        localizations = self.language.slash_options(cogname+'.'+cmdname)
+        localizations = self.language.slash_options(f'{cogname}.{cmdname}')
         if not localizations:
             return nextcord.SlashOption(
                 *args,
