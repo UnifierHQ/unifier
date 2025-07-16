@@ -41,7 +41,7 @@ class WebhookCacheStore:
                 return self.__webhooks[guild][identifier]
         raise ValueError('invalid webhook')
 
-    def clear(self, server: Union[int, str] = None):
+    def clear(self, server: int | str | None = None):
         if not server:
             self.__webhooks = {}
         else:
