@@ -43,13 +43,13 @@ from aiomultiprocess import Worker
 
 # Import ujson if installed for json speedup
 try:
-    import ujson as json  # type: ignore
+    import ujson as json  # pylint: disable=import-error # type: ignore
 except:
     pass
 
 # Import uvloop if installed for asyncio speedup
 try:
-    import uvloop  # type: ignore
+    import uvloop  # pylint: disable=import-error # type: ignore
 except:
     pass
 
