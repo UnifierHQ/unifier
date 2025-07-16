@@ -1,3 +1,5 @@
+from typing import Union
+
 class WebhookCacheStore:
     def __init__(self, bot):
         self.__bot = bot
@@ -18,17 +20,17 @@ class WebhookCacheStore:
             self.__webhooks.setdefault(server, {})[identifier] = webhook
         return len(self.__webhooks)
 
-    def get_webhooks(self, server: int or str):
+    def get_webhooks(self, server: Union[int, str]):
         try:
             server = int(server)
         except:
             pass
 
-        if len(self.__webhooks[server].values())==0:
+        if len(self.__webhooks[server].values()) == 0:
             raise ValueError('no webhooks')
         return list(self.__webhooks[server].values())
 
-    def get_webhook(self, identifier: int or str):
+    def get_webhook(self, identifier: Union[int, str]):
         try:
             identifier = int(identifier)
         except:
@@ -39,7 +41,7 @@ class WebhookCacheStore:
                 return self.__webhooks[guild][identifier]
         raise ValueError('invalid webhook')
 
-    def clear(self, server: int or str = None):
+    def clear(self, server: Union[int, str] = None):
         if not server:
             self.__webhooks = {}
         else:
