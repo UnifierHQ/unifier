@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from nextcord.ext import commands
+import time
 
 class Restrictions:
     def __init__(self, bot=None):
@@ -83,12 +84,18 @@ class Restrictions:
 
     def server_admin(self):
         async def predicate(ctx: commands.Context):
+            if self.__bot.db['permission_overrides'].get(f'{ctx.guild.id}', 0) > time.time():
+                return ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
+
             return ctx.author.guild_permissions.manage_channels
 
         return commands.check(predicate)
 
     def server_moderator(self):
         async def predicate(ctx: commands.Context):
+            if self.__bot.db['permission_overrides'].get(f'{ctx.guild.id}', 0) > time.time():
+                return ctx.author.id in self.__bot.admins or ctx.author.id == self.__bot.config['owner']
+
             return ctx.author.guild_permissions.ban_members or ctx.author.guild_permissions.manage_channels
 
         return commands.check(predicate)

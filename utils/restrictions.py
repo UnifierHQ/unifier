@@ -85,12 +85,18 @@ class Restrictions:
 
     def server_admin(self):
         async def predicate(interaction: nextcord.Interaction):
+            if self.__bot.db['permission_overrides'].get(f'{interaction.guild.id}', 0) > time.time():
+                return interaction.user.id in self.__bot.admins or interaction.user.id == self.__bot.config['owner']
+
             return interaction.user.guild_permissions.manage_channels
 
         return application_checks.check(predicate)
 
     def server_moderator(self):
         async def predicate(interaction: nextcord.Interaction):
+            if self.__bot.db['permission_overrides'].get(f'{interaction.guild.id}', 0) > time.time():
+                return interaction.user.id in self.__bot.admins or interaction.user.id == self.__bot.config['owner']
+
             return interaction.user.guild_permissions.ban_members or interaction.user.guild_permissions.manage_channels
 
         return application_checks.check(predicate)

@@ -696,6 +696,22 @@
         "nsfw_desc": "Only age-gated channels will be able to bind to this Room.",
         "bridge_large_attachments_name": "Bridge large attachments",
         "bridge_large_attachments_desc": "Attachments that are larger than the platform's file limit will be sent as hyperlinks."
+      },
+      "permissions-override": {
+        "description": "Allows the instance admins to use bridge commands as a server admin (does not grant any extra permissions).",
+        "title": "Allow instance admins to override server permissions?",
+        "body": "This will allow this Unifier instance's admins to use certain bridge commands as if they were a server admin. This does not grant them any permissions in this server.",
+        "body_2": "This can be useful if you need help with using this Unifier instance.",
+        "disable_title": "Disable permissions override?",
+        "disable_body": "You (or another server admin) already granted a permissions override for instance admins. You can disable it early if you no longer need it.",
+        "success_title": "Override granted",
+        "success_body": "The permissions override was set for instance admins for the chosen duration.",
+        "disable_success_title": "Override disabled",
+        "disable_success_body": "Instance admins no longer have the permissions override in your server.",
+        "time": "Select override duration...",
+        "hour": "1 hour",
+        "day": "1 day",
+        "week": "1 week"
       }
     },
     "bridge": {
@@ -1115,6 +1131,10 @@
         "post_reference": "Referencing Post #{post_id}",
         "moderated": "Moderated username",
         "filesize_limit": "Your files passed the {limit}MB limit. Some files will not be sent.",
+        "filesize_limit_title": "Filesize limit exceeded",
+        "filesize_limit_body": "Your files passed the {limit}MiB limit for `{platform}`. Some files will not be sent to that platform.",
+        "filesize_limit_server_body": "Your files passed the {limit}MiB limit for a server in `discord`. Some files will not be sent to that server.",
+        "filesize_limit_global_body": "Your files passed the global {limit}MiB limit. Some files will not be sent to all platforms.",
         "replying": "Replying to {user}",
         "forwarded": "Forwarded from {server}",
         "forwarded_unknown": "Forwarded message",
