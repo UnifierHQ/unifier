@@ -43,9 +43,9 @@ Server moderators can also block members and servers from bridging messages to t
 ## 📚 Setup
 Please follow our guides on GitBook to set up Unifier.
 
-- [If you're using an existing Unifier client](https://unichat-wiki.pixels.onl/setup/getting-started)
+- [If you're using an existing Unifier client](https://wiki.unifierhq.org/setup/getting-started)
 
-- [If you're hosting your own Unifier client](https://unichat-wiki.pixels.onl/setup-selfhosted/getting-started)
+- [If you're hosting your own Unifier client](https://wiki.unifierhq.org/setup-selfhosted/getting-started)
 
 ### Managing updates
 Unifier comes with a built-in upgrader. Please refer to [this 
