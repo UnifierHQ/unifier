@@ -40,7 +40,7 @@ settings_keys = [
 ]
 settings_defaults = {
     'relay_deletes': True, 'relay_edits': True, 'relay_forwards': True, 'dynamic_reply_embed': False,
-    'compact_reply': False, 'nsfw': False, 'bridge_large_attachments': False
+    'compact_reply': True, 'nsfw': False, 'bridge_large_attachments': False
 }
 
 def timetoint(t):
@@ -1865,6 +1865,44 @@ class Config(commands.Cog, name=':construction_worker: Config'):
 
         dialog = SettingsDialog(self.bot, ctx, room=room, query=query)
         await dialog.run()
+
+    # Permissions override command
+    # TODO: work on this
+    async def permissions_override(
+            self, ctx: Union[nextcord.Interaction, commands.Context], room: Optional[str] = None,
+            query: Optional[str] = None
+    ):
+        selector = language.get_selector(ctx)
+        status = self.bot.db['permission_overrides'].get(f'{ctx.guild.id}')
+        embed = nextcord.Embed(
+            title=f'{self.bot.ui_emojis.warning} {selector.get("title")}',
+            description=f'{selector.get("body")}\n{selector.get("body_2")}',
+            color=self.bot.colors.warning
+        )
+
+        selection = nextcord.ui.StringSelect(
+            max_values=1, min_values=1, custom_id='selection', placeholder=selector.get("time")
+        )
+        selection.add_option(
+            label=selector.get("hour"),
+            value='1h'
+        )
+        selection.add_option(
+            label=selector.get("day"),
+            value='1d'
+        )
+        selection.add_option(
+            label=selector.get("week"),
+            value='1w'
+        )
+
+        components = ui.MessageComponents()
+
+        if status:
+            embed.title = f'{self.bot.ui_emojis.warning} {selector.get("disable_title")}'
+            embed.description = selector.get("disable_body")
+
+            button = nextcord.ui.Button()
 
     # Universal commands handlers and autocompletes
 

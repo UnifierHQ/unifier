@@ -60,6 +60,7 @@ enable_exp = false
 exp_cooldown = 30
 existence_wait = 0
 enable_emoji_tags = false
+enable_global_emojis = true
 enable_ctx_commands = true
 enable_rotating_status = true
 enable_seasonal_status = true # Rotating status must be enabled for this to have any effect.

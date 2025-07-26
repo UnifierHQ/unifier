@@ -275,6 +275,7 @@ class AutoSaveDict(dict):
         self.file_path = 'data.json'
         self.__save_lock = False
         self.__encrypted = kwargs.get('encrypt', False)
+        self.corrupted = False
 
         # Ensure necessary keys exist
         self.update(self.base)
@@ -317,7 +318,7 @@ class AutoSaveDict(dict):
         except FileNotFoundError:
             pass  # If the file is not found, initialize an empty dictionary
         except json.JSONDecodeError:
-            pass  # If the file is corrupted, initialize an empty dictionary
+            self.corrupted = True
 
     def save(self):
         tosave = {}
@@ -647,6 +648,14 @@ bot.safemode = 'safemode' in sys.argv and not bot.coreboot
 bot.devmode = 'devmode' in sys.argv
 mentions = nextcord.AllowedMentions(everyone=False,roles=False,users=False)
 
+if bot.config['crash_on_corrupted_data'] and bot.db.corrupted:
+    logger.critical('Your data.json file is corrupt. Unifier cannot start.')
+    logger.critical('You may be able to restore your data by using the data-preboot.json file.')
+    sys.exit(1)
+
+# Create pre-boot copy of good data file
+shutil.copy2(bot.db.file_path, 'data-preboot.json')
+
 if not bot.test_decrypt():
     del os.environ['UNIFIER_ENCPASS']
     print('\x1b[31;1mInvalid password. Your encryption password is needed to decrypt tokens.\x1b[0m')
@@ -838,6 +847,12 @@ os.environ.pop('UNIFIER_ENCPASS')
 try:
     bot.run(bot.retrieve_token())
 except SystemExit as e:
+    # Create post-boot copy of data file (if possible)
+    try:
+        shutil.copy2(bot.db.file_path, 'data-postboot.json')
+    except:
+        pass
+
     try:
         code = int(f'{e}')
     except:

@@ -32,6 +32,7 @@ import re
 import ast
 import math
 import os
+import io
 import sys
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r,\
                   restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools, compressor
@@ -266,6 +267,92 @@ class UnifierBridge:
     def public_rooms(self):
         return [room for room in self.rooms if not self.get_room(room)['meta']['private']]
 
+    class UnifierUser:
+        def __init__(self, bot, user_id, name, global_name: Optional[str] = None, platform: str = 'discord',
+                     system: bool = False, message: Optional[str] = None, webhook: bool = False, is_bot: bool = False,
+                     custom_avatar: Optional[str] = None, suspected_spammer: bool = False):
+            self.__bot = bot
+            self.__id = user_id
+            self.__name = name
+            self.__global_name = global_name
+            self.__platform = platform
+            self.__system = system
+            self.__redacted = False
+            self.__message = message
+            self.__webhook = webhook
+            self.__custom_avatar = custom_avatar
+            self.__suspected_spammer = suspected_spammer
+            self.__is_bot = is_bot
+
+        @property
+        def id(self) -> str:
+            return self.__id
+
+        @property
+        def name(self) -> str:
+            return self.__name
+
+        @property
+        def global_name(self) -> str:
+            return self.__global_name or self.__name
+
+        @property
+        def platform(self) -> str:
+            return self.__platform
+
+        @property
+        def unifier_name(self) -> str:
+            if self.__redacted:
+                return '[hidden username]'
+            return (
+                    self.__bot.db['nicknames'].get(f'{self.id}') or self.global_name
+            ) + (
+                ' (system)' if self.__system else ''
+            )
+
+        @property
+        def unifier_avatar(self) -> Optional[str]:
+            return (
+                    self.__bot.db['avatars'].get(f'{self.id}') or self.avatar_url
+            ) if not self.__system else (
+                    self.__bot.user.avatar.url if self.__bot.user.avatar else None
+            )
+
+        @property
+        def avatar_url(self) -> Optional[str]:
+            if self.__custom_avatar:
+                return self.__custom_avatar
+
+            if self.platform == 'discord':
+                try:
+                    return self.__bot.get_user(self.id).avatar.url
+                except:
+                    # assume user is a webhook
+                    return self.__custom_avatar
+
+            source_support = self.__bot.platforms[self.platform]
+
+            try:
+                return source_support.avatar(source_support.get_user(self.id), message=self.__message)
+            except:
+                # assume user is a webhook or similar
+                return self.__custom_avatar
+
+        @property
+        def webhook(self) -> bool:
+            return self.__webhook
+
+        @property
+        def bot(self) -> bool:
+            return self.__is_bot
+
+        @property
+        def suspected_spammer(self) -> bool:
+            return self.__suspected_spammer
+
+        def redact(self):
+            self.__redacted = True
+
     class UnifierMessage:
         def __init__(self, author_id, guild_id, channel_id, original, copies, external_copies, urls, source, room,
                      external_urls=None, webhook=False, prehook=None, reply=False, external_bridged=False,
@@ -275,7 +362,7 @@ class UnifierBridge:
             self.channel_id = channel_id
             self.id = original
             self.copies = copies
-            self.external_copies = external_copies
+            self.external_copies = external_copies # We will merge this w/ UnifierMessage.copies for v4
             self.urls = urls
             self.external_urls = external_urls or {}
             self.source = source
@@ -352,82 +439,105 @@ class UnifierBridge:
             return ExternalReference(guild_id, self.external_copies[platform][str(guild_id)][0],
                                      self.external_copies[platform][str(guild_id)][1])
 
-    class UnifierUser:
-        def __init__(
-                self, bot, user_id, name, global_name=None, platform='discord', system=False, message=None,
-                webhook=False, custom_avatar=None
-        ):
-            self.__bot = bot
-            self.__id = user_id
-            self.__name = name
-            self.__global_name = global_name
-            self.__platform = platform
-            self.__system = system
-            self.__redacted = False
-            self.__message = message
-            self.__webhook = webhook
-            self.__custom_avatar = custom_avatar
+    class UnifierServer:
+        def __init__(self, server_id: str, nsfw: Optional[bool] = False, filesize_limit: Optional[int] = None):
+            self.id: str = server_id
+            self.nsfw: bool = nsfw
+            self.filesize_limit: int = filesize_limit or 0
 
-        @property
-        def id(self):
-            return self.__id
+    class UnifierChannel:
+        def __init__(self, channel_id: str, nsfw: Optional[bool] = False):
+            self.id: str = channel_id
+            self.nsfw: bool = nsfw
 
-        @property
-        def name(self):
-            return self.__name
+    class UnifierFile:
+        """A class used to represent files to be bridged by Unifier."""
 
-        @property
-        def global_name(self):
-            return self.__global_name or self.__name
+        def __init__(self, filename: str, data: bytes, spoiler: bool = False, size: Optional[int] = None):
+            self.filename: str = filename
+            self.data: bytes = data
+            self.spoiler: bool = spoiler
+            self.size: int = 0
 
-        @property
-        def platform(self):
-            return self.__platform
+    class UnifierMessageContent:
+        """A class used to represent messages to be bridged by Unifier.
+        This can also be used for edits."""
 
-        @property
-        def unifier_name(self):
-            if self.__redacted:
-                return '[hidden username]'
-            return (
-                    self.__bot.db['nicknames'].get(f'{self.id}') or self.global_name
-            ) + (
-                ' (system)' if self.__system else ''
+        def __init__(self, platform: str, author: 'UnifierBridge.UnifierUser', server: 'UnifierBridge.UnifierServer',
+                     channel: 'UnifierBridge.UnifierChannel', content: str, message_id: Optional[str] = None,
+                     embeds: Optional[list] = None, attachments: Optional[list] = None, replies: Optional[list] = None,
+                     cached_replies_content: Optional[dict] = None, webhook_id: Optional[str] = None):
+            self.id: Optional[str] = message_id # This is not needed for "orphan messages"
+            self.platform: str = platform
+            self.author: UnifierBridge.UnifierUser = author if isinstance(author, UnifierBridge.UnifierUser) else None
+            self.content: str = content
+            self.server: UnifierBridge.UnifierServer = server
+            self.channel: UnifierBridge.UnifierChannel = channel
+            self.embeds: list = embeds or []
+            self.attachments: list = attachments or []
+            self.replies: list[str] = replies or []
+            self.cached_replies_content: dict = cached_replies_content or {}
+            self.webhook_id: Optional[str] = webhook_id
+            self.files: list[UnifierBridge.UnifierFile] = [] # This will be added later
+
+            # Temporary patch: ignore multiple replies
+            # Right now we don't want to support multiple replies yet, we'll remove this later
+            if len(self.replies) > 1:
+                self.replies = [self.replies[0]]
+
+    class UnifierRoomPrivateData:
+        """A class used to represent the private_meta data."""
+
+        def __init__(self, data: dict):
+            self.server: Optional[str] = data.get('server', None)
+            self.admins: list = data.get('admins', [])
+            self.allowed: list = data.get('allowed', [])
+            self.invites: list = data.get('invites', [])
+            self.platform: str = data.get('platform', 'discord')
+
+    class UnifierRoom(dict):
+        """A class used to represent Unifier rooms."""
+
+        def __init__(self, name: str, data: dict):
+            # For compatibility purposes, direct dict access is allowed. This will be removed for v4.
+            super().__init__(data)
+
+            # We'll define meta and private_meta here so it's easy to get data
+            meta = data['meta']
+            private_meta = meta['private_meta']
+
+            # Cosmetics
+            self.name: str = name
+            self.emoji: Optional[str] = meta.get('emoji', None)
+            self.description: Optional[str] = meta.get('description', None)
+            self.display_name: Optional[str] = meta.get('display_name', None)
+
+            # Moderation
+            self.rules: list[str] = meta.get('rules', [])
+            self.banned: list[str] = meta.get('banned', [])
+            self.filters: dict = meta.get('filters', {})
+
+            # Private Rooms info
+            self.is_private: bool = meta.get('private', False)
+            self.private_data: Optional[UnifierBridge.UnifierRoomPrivateData] = (
+                UnifierBridge.UnifierRoomPrivateData(private_meta) if self.is_private else None
             )
 
-        @property
-        def unifier_avatar(self):
-            return (
-                    self.__bot.db['avatars'].get(f'{self.id}') or self.avatar_url
-            ) if not self.__system else (
-                    self.__bot.user.avatar.url if self.__bot.user.avatar else None
-            )
+            # Room restrictions
+            self.restricted: bool = meta.get('restricted', False)
+            self.locked: bool = meta.get('locked', False)
+            self.nsfw: bool = meta.get('nsfw', False)
 
-        @property
-        def avatar_url(self):
-            if self.__custom_avatar:
-                return self.__custom_avatar
+            # Configs
+            self.settings: dict = meta.get('settings', {})
 
-            if self.platform == 'discord':
-                try:
-                    return self.__bot.get_user(self.id).avatar.url
-                except:
-                    # assume user is a webhook
-                    return self.__custom_avatar
+            # Data for each platform
+            self.platforms: dict = {}
+            for key in data.keys():
+                if key == 'meta':
+                    continue
 
-            source_support = self.__bot.platforms[self.platform]
-
-            try:
-                return source_support.avatar(source_support.get_user(self.id), message=self.__message)
-            except:
-                # assume user is a webhook or similar
-                return self.__custom_avatar
-
-        @property
-        def webhook(self):
-            return self.__webhook
-
-        def redact(self):
-            self.__redacted = True
+                self.platforms[key] = data[key]
 
     class BridgeError(Exception):
         """Generic Unifier Bridge exception."""
@@ -500,6 +610,17 @@ class UnifierBridge:
     class AgeGateUnsupported(BridgeError):
         """Platform does not support age gate."""
         pass
+
+    def verify_message_content(self, message: UnifierMessageContent):
+        """Verifies a UnifierMessageContent object to ensure it is valid."""
+
+        # Check 1: ensure platform is registered
+        if message.platform not in self.__bot.platforms.keys():
+            raise self.BridgeError(f'invalid platform {message.platform}')
+
+        # Check 2: ensure content, embeds or attachments exists
+        if not message.content and not message.embeds and not message.attachments:
+            raise self.BridgeError('message content is empty')
 
     def load_filters(self, path='filters'):
         for bridge_filter in os.listdir(path):
@@ -597,9 +718,9 @@ class UnifierBridge:
                     return room
         return False
 
-    def get_room(self, room) -> dict or None:
-        """Gets a Unifier room.
-        This will be moved to UnifierBridge for a future update."""
+    def get_room(self, room) -> Optional[UnifierRoom]:
+        """Gets a Unifier room."""
+
         try:
             __roominfo = self.__bot.db['rooms'][room]
             base = {'meta': dict(self.room_template)}
@@ -618,7 +739,7 @@ class UnifierBridge:
                 else:
                     base.update({key: __roominfo[key]})
 
-            return dict(base)
+            return UnifierBridge.UnifierRoom(room, base)
         except:
             return None
 
@@ -1258,7 +1379,8 @@ class UnifierBridge:
                         return message
                     elif not prehook:
                         return message
-            await asyncio.sleep(1)
+            if waited < waiting - 1:
+                await asyncio.sleep(1)
         raise ValueError("No message found")
 
     async def delete_message(self,message):
@@ -1661,6 +1783,280 @@ class UnifierBridge:
 
         return content, modified
 
+    async def _can_send(self, room: str, message: UnifierMessageContent):
+        support = self.__bot.platforms[message.platform] if message.platform != 'discord' else None
+        room_data = self.get_room(room)
+        modified = None
+
+        # Get needed variables
+        is_bot = message.author.bot and not message.author.id == self.__bot.user.id
+        webhook_id = message.webhook_id
+        author = message.author.id
+        server = message.server.id
+        name = message.author.name
+        avatar = message.author.avatar_url
+        nsfw = message.channel.nsfw or message.server.nsfw
+        is_spammer = message.author.suspected_spammer
+
+        # Check if SFW/NSFW statuses of room and channel match
+        if not nsfw and room_data['meta'].get('settings', {}).get('nsfw', False):
+            raise self.NotAgeGated('room is NSFW but channel is not NSFW')
+        elif nsfw and not room_data['meta'].get('settings', {}).get('nsfw', False):
+            raise self.IsAgeGated('room is not NSFW but channel is NSFW')
+
+        # Check if server is banned from the room
+        if str(server) in room_data['meta']['banned']:
+            raise self.RoomBannedError('server is banned from room')
+
+        # Check if server is under attack
+        if str(server) in self.__bot.db['underattack']:
+            raise self.UnderAttackMode('server enabled UAM')
+
+        # Check if server is global banned
+        if str(server) in self.__bot.db['banned']:
+            if self.__bot.db['banned'][str(server)] < time.time() and not self.__bot.db['banned'][str(server)] == 0:
+                self.__bot.db['banned'].pop(str(server))
+            else:
+                raise self.BridgeBannedError()
+
+        # Check if user is global banned
+        if str(author) in self.__bot.db['banned']:
+            if self.__bot.db['banned'][str(author)] < time.time() and not self.__bot.db['banned'][str(author)] == 0:
+                self.__bot.db['banned'].pop(str(author))
+            else:
+                raise self.BridgeBannedError()
+
+        # Check if user has paused bridging
+        if str(author) in self.__bot.db['paused'] and self.__bot.config['allow_bridge_pausing']:
+            raise self.BridgePausedError()
+
+        # Check if prefix/suffix is in the ignore list, used for better PK/Tupperbox support
+        # These should still be checked regardless of allow_bridge_pausing config
+        if str(author) in self.__bot.db['prefixes'].keys():
+            prefix_data = self.__bot.db['prefixes'][str(author)]
+
+            for entry in prefix_data:
+                if message.content.startswith(entry['prefix'] or '') and message.content.endswith(entry['suffix'] or ''):
+                    raise self.BridgePausedError()
+
+        # Run Filters check
+        for bridge_filter in self.filters:
+            # Skip if filter isn't in the config keys (this indicates filter is disabled)
+            if not (
+                    bridge_filter in room_data['meta']['filters'].keys() or
+                    bridge_filter in self.__bot.db['filters'].keys()
+            ):
+                continue
+
+            # Skip if filter is disabled in both room and global config
+            if not (
+                    room_data['meta']['filters'].get(bridge_filter, {}).get('enabled', False) or
+                    self.__bot.db['filters'].get(bridge_filter, {}).get('enabled', False)
+            ):
+                continue
+
+            # Prepare filter runs
+            scans_data = []
+            if self.__bot.db['filters'].get(bridge_filter, {}).get('enabled', False):
+                scans_data.append({
+                    'config': self.__bot.db['filters'][bridge_filter],
+                    'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
+                    'global': True
+                })
+            if room_data['meta']['filters'].get(bridge_filter, {}).get('enabled', False):
+                scans_data.append({
+                    'config': room_data['meta']['filters'][bridge_filter],
+                    'data': self.filter_data.get(bridge_filter, {}).get(str(server), {}),
+                    'global': False
+                })
+
+            for data in scans_data:
+                if str(author) in data['config'].get('whitelist', []):
+                    continue
+
+                filter_obj = self.filters[bridge_filter]
+
+                message_data = {
+                    'author': str(author),
+                    'server': str(server),
+                    'bot': is_bot,
+                    'webhook_id': str(webhook_id) if webhook_id else None,
+                    'content': message.content,
+                    'files': message.attachments,
+                    'suspected_spammer': is_spammer,
+                    'is_first': True
+                }
+
+                # Try to run scan
+                try:
+                    result = await self.__bot.loop.run_in_executor(
+                        None, lambda: filter_obj.check(message_data, data)
+                    )
+                except base_filter.MissingFilter:
+                    continue
+
+                if data['global']:
+                    if not bridge_filter in self.global_filter_data.keys():
+                        self.global_filter_data.update({bridge_filter: {}})
+
+                    if 'data' in result.data.keys():
+                        self.global_filter_data[bridge_filter].update({str(server): result.data['data']})
+                else:
+                    if not bridge_filter in self.filter_data.keys():
+                        self.filter_data.update({bridge_filter: {}})
+
+                    if 'data' in result.data.keys():
+                        self.filter_data[bridge_filter].update({str(server): result.data['data']})
+
+                if not result.allowed:
+                    # Check is there's a safe version of the content available
+                    if result.safe_content:
+                        # safe_content is provided, so continue
+                        modified = result.safe_content
+                    else:
+                        # Alert Unifier moderators if room is public
+                        if result.should_log and not room_data['meta']['private']:
+                            # Generate embed
+                            embed = nextcord.Embed(
+                                title=f'{self.__bot.ui_emojis.warning} {language.get("blocked_report_title", "bridge.bridge", language=language.language_set)}',
+                                description=f'||{message.content}||',
+                                color=self.__bot.colors.warning
+                            )
+
+                            # Add filter catch reason
+                            embed.add_field(
+                                name=language.get("reason", "commons.moderation",
+                                                  language=language.language_set),
+                                value=result.message or '[unknown]',
+                                inline=False
+                            )
+
+                            # Add sender ID
+                            embed.add_field(
+                                name=language.get("sender_id", "commons.moderation",
+                                                  language=language.language_set),
+                                value=str(author),
+                                inline=False
+                            )
+
+                            # Set sender name
+                            embed.set_author(name=f'@{name}', icon_url=avatar)
+
+                            # Trim description if too long (usually this should never happen but the chances are never zero)
+                            if len(embed.description) > 4096:
+                                embed.description = embed.description[:-5] + '...||'
+
+                            # Try to send alert, skip if not possible
+                            try:
+                                ch = self.__bot.get_channel(self.__bot.config['reports_channel'])
+                                await ch.send(embed=embed)
+                            except:
+                                pass
+
+                        # Alert sender server
+                        if result.should_log:
+                            # Get server ID
+                            server_id = str(server)
+
+                            # Log filter trigger for automatic UAM
+                            if not server_id in self.filter_triggers.keys():
+                                self.filter_triggers.update({server_id: {}})
+
+                            if not room in self.filter_triggers[server_id].keys():
+                                self.filter_triggers[server_id].update({room: [0, time.time() + 60]})
+
+                            if time.time() > self.filter_triggers[server_id][room][1]:
+                                self.filter_triggers[server_id][room] = [0, time.time() + 60]
+
+                            if result.should_contribute:
+                                self.filter_triggers[server_id][room][0] += 1
+
+                            # Check if UAM needs to be enabled
+                            if (
+                                    self.filter_triggers[server_id][room][0] >=
+                                    self.__bot.db['filter_threshold'].get(server_id, 10)
+                            ) and server_id in self.__bot.db['automatic_uam']:
+                                # Enable UAM
+                                self.__bot.db['underattack'].append(server_id)
+                                self.filter_triggers.pop(server_id)
+
+                                # Generate alert embed
+                                embed = nextcord.Embed(
+                                    title=f'{self.__bot.ui_emojis.warning} ' + language.get(
+                                        "too_many_filtered_title", "bridge.bridge",
+                                        language=language.language_set
+                                    ),
+                                    description=language.get(
+                                        "too_many_filtered_body", "bridge.bridge",
+                                        language=language.language_set
+                                    ) + '\n' + language.get(
+                                        "too_many_filtered_body_2", "bridge.bridge",
+                                        language=language.language_set
+                                    ),
+                                    color=self.__bot.colors.error
+                                )
+                                embed.set_footer(text=language.get(
+                                    "too_many_filtered_disclaimer", "bridge.bridge",
+                                    language=language.language_set
+                                ))
+                            else:
+                                # Generate alert embed
+                                embed = nextcord.Embed(
+                                    title=f'{self.__bot.ui_emojis.error} ' + language.get(
+                                        "blocked_title", "bridge.bridge", language=language.language_set
+                                    ),
+                                    description=result.message,
+                                    color=self.__bot.colors.error
+                                )
+                                embed.set_footer(text=language.get(
+                                    "blocked_disclaimer", "bridge.bridge", language=language.language_set
+                                ))
+
+                            # Send alert
+                            if message.platform == 'discord':
+                                # Get channel
+                                message_channel = self.__bot.get_channel(int(message.channel.id))
+
+                                # Try to send alert
+                                try:
+                                    await message_channel.send(embed=embed, reference=message)
+                                except:
+                                    pass
+                            else:
+                                # Remove emojis that are incompatible
+                                embed.title = embed.title.replace(
+                                    f'{self.__bot.ui_emojis.warning} ', '', 1
+                                ).replace(
+                                    f'{self.__bot.ui_emojis.error} ', '', 1
+                                )
+
+                                # Attempt to convert embeds if possible
+                                substitute_text = ''
+
+                                try:
+                                    embeds = support.convert_embeds([embed])
+                                except platform_base.MissingImplementation:
+                                    embeds = []
+
+                                    # Send content as text if embeds cannot be converted
+                                    substitute_text = language.get(
+                                        "blocked_body", "bridge.bridge", language=language.language_set
+                                    )
+
+                                # Try to send alert
+                                try:
+                                    await support.send(
+                                        support.channel(message), substitute_text,
+                                        special={'embeds': embeds, 'reply': support.get_id(message)}
+                                    )
+                                except:
+                                    pass
+
+                        # Cancel bridging as there's no substitute content
+                        raise self.ContentBlocked(result.message)
+
+        return {'clean': not modified, 'content': modified}
+
     async def can_send(self, room, message, content, files, source='discord', is_first=False):
         support = self.__bot.platforms[source] if source != 'discord' else None
 
@@ -2031,10 +2427,477 @@ class UnifierBridge:
 
         await asyncio.gather(*threads)
 
+    async def _process_global_emojis(self, content: str):
+        """Processes global emojis."""
+
+        modified = False
+        components = content.split('[emoji')
+        parse_index = -1
+        for element in components:
+            parse_index += 1
+
+            # Skip if the "element" doesn't use the correct global emoji format
+            if not content.startswith('[emoji') and parse_index == 0 or ']' not in element:
+                continue
+
+            # Do not even bother if there's no global emoji use
+            if not '[emoji' in content:
+                break
+
+            # Retrieve emoji name
+            parts = element.split(']')[0].split(': ')
+
+            # Ensure emoji name has been provided
+            if len(parts) < 2:
+                continue
+
+            # Get emoji name
+            emoji_name = element.split(']')[0].split(': ')[1]
+
+            # Check if there's a backslash escape
+            if emoji_name.endswith('\\'):
+                continue
+
+            # Get index (used for duplicates)
+            noindex = False
+            try:
+                index = int(parts[0])
+            except:
+                # No index has been provided
+                noindex = True
+                index = 1
+
+            failed = False
+            emoji_text = ''
+            skip = []
+
+            for _ in range(index):
+                # Get all matching emojis
+                emoji = nextcord.utils.find(
+                    lambda e: e.name == emoji_name and not e.id in skip and e.guild_id in self.__bot.db['emojis'],
+                    self.__bot.emojis
+                )
+
+                # If emoji is not found, skip this
+                if emoji == None:
+                    failed = True
+                    break
+
+                # Add emoji to text
+                skip.append(emoji.id)
+                emoji_text = f'<:{emoji.name}:{emoji.id}>'
+                if emoji.animated:
+                    emoji_text = f'<a:{emoji.name}:{emoji.id}>'
+
+            if failed:
+                continue
+
+            # Replace global emoji with Discord emoji text
+            if noindex:
+                content = content.replace(f'[emoji: {emoji_name}]', emoji_text, 1)
+            else:
+                content = content.replace(f'[emoji{index}: {emoji_name}]', emoji_text, 1)
+
+            modified = True
+
+        return {'modified': modified, 'content': content}
+
+    async def _convert_attachments(self, message: UnifierMessageContent, limit: int = 0) -> dict:
+        if len(message.attachments) == 0:
+            return {'omitted': False, 'files': []}
+
+        files: list = []
+
+        # Convert attachments
+        total = 0
+        omitted = False
+        for attachment in message.attachments:
+            size = 0
+
+            # Convert based on platform
+            if message.platform == 'discord':
+                size = attachment.size
+
+                # Check if we'll pass the filesize limit
+                if total + size > limit:
+                    omitted = True
+                    continue
+
+                # Otherwise, add to total size
+                total += size
+
+                # Attempt to download attachment
+                try:
+                    data: bytes = await attachment.read()
+                except nextcord.HTTPException:
+                    continue
+            else:
+                # Get support object
+                support = self.__bot.platforms[message.platform]
+
+                # Try to get size
+                try:
+                    size = support.attachment_size(attachment)
+                except platform_base.MissingImplementation:
+                    pass
+
+                # Also check if we'll pass the filesize limit
+                if total + size > limit:
+                    omitted = True
+                    continue
+
+                # Otherwise, add to total size
+                total += size
+
+                # Attempt to download attachment
+                try:
+                    data: bytes = await support.to_bytes(attachment)
+                except platform_base.MissingImplementation:
+                    # Not implemented, continue
+                    continue
+                except Exception as e:
+                    # This can raise a handful of exceptions Unifier doesn't know, so we'll have to check them
+                    if support.error_is_unavoidable(e):
+                        # Expected error, we can silently continue
+                        continue
+                    else:
+                        # Unexpected error, raise it
+                        raise
+
+            # Create file object
+            files.append(
+                UnifierBridge.UnifierFile(
+                    attachment.filename, data, attachment.is_spoiler(), size
+                )
+            )
+
+        return {'omitted': omitted, 'size': total, 'files': files}
+
+    async def _send_discord(self, target: str, message: UnifierMessageContent):
+        channel = self.__bot.get_channel(int(target))
+        server = channel.guild
+        room = self.get_channel_room(channel.id)
+
+        # Get selector
+        selector = language.get_selector('bridge.bridge', userid=int(message.author.id))
+
+        if not room:
+            return
+
+        # Get room data
+        room_data: UnifierBridge.UnifierRoom = self.get_room(room)
+
+        # Get webhook
+        webhook: Optional[nextcord.Webhook] = None
+        try:
+            # Try to use cache
+            webhook = self.__bot.bridge.webhook_cache.get_webhook(f'{room_data.platforms["discord"][server.id][0]}')
+        except ValueError:
+            # Cache all webhooks
+            hooks = await server.webhooks()
+            identifiers = [hook.id for hook in hooks]
+            self.__bot.bridge.webhook_cache.store_webhooks(hooks, identifiers, [server.id] * len(hooks))
+
+            # Try to find webhook
+            for hook in hooks:
+                if hook.id in self.__bot.db['rooms'][room]['discord'][str(server.id)]:
+                    # Webhook found
+                    webhook = hook
+                    break
+
+        # Do not proceed if webhook could not be found
+        if not webhook:
+            return
+
+        # Create required variables
+        components = ui.MessageComponents()
+        replies_limit = 5 if room_data.settings.get('compact_reply', True) else 1
+
+        # Prepare replies
+        for reply in message.replies:
+            # Get UnifierMessage object
+            try:
+                message_data: UnifierBridge.UnifierMessage = await self.fetch_message(reply, can_wait=True)
+            except ValueError:
+                continue
+
+            # Try to get content
+            try:
+                author: UnifierBridge.UnifierUser = message.cached_replies_content[reply]['author']
+                content: Optional[str] = message.cached_replies_content[reply]['content']
+                attachments: int = message.cached_replies_content[reply]['attachments']
+                source: str = message.cached_replies_content[reply].get('source') or 'discord'
+
+                author_text = f'@{author.unifier_name}'
+            except KeyError:
+                author_text = '@[unknown]'
+                content: Optional[str] = None
+                attachments = 0
+                source = 'discord'
+
+            # Get the message URL
+            message_url: Optional[str] = message_data.urls[str(server.id)]
+
+            # Add to replies display
+            if room_data.settings.get('compact_reply', True):
+                # Compact replies (these are the new norm)
+                # Get button text
+                if content and attachments:
+                    # Case 1: content and attachments exist
+                    compact_text = f'@{author_text} / \U0001F3DE {content}'
+                elif content and not attachments:
+                    # Case 2: only content exists
+                    compact_text = f'@{author_text} / {content}'
+                elif not content and attachments:
+                    # Case 3: only attachments exist
+                    compact_text = f'@{author_text} / \U0001F3DE x{attachments}'
+                else:
+                    # Case 4 (should be rare): nothing exists
+                    compact_text = f'@{author_text}'
+
+                # Limit compact_text to 80 characters
+                if len(compact_text) > 77:
+                    compact_text = compact_text[:77] + '...'
+
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.url,
+                            label=compact_text,
+                            emoji='\U000021AA\U0000FE0F',
+                            url=message_url,
+                            disabled=message_url is None
+                        )
+                    )
+                )
+            else:
+                # Comfortable replies (the conventional display)
+                # Get button texts
+                heading_text = selector.fget('replying', values={'user': author_text})
+                content_text = content or f'x{attachments}'
+
+                # Add first button
+                components.add_row(
+                    ui.ActionRow(
+                        nextcord.ui.Button(
+                            style=nextcord.ButtonStyle.url,
+                            label=heading_text,
+                            url=message_url,
+                            disabled=message_url is None
+                        )
+                    )
+                )
+
+                # We'll only add the second button if either content or attachments is not none/0
+                if content or attachments:
+                    # Button styling
+                    if source == 'discord':
+                        button_style = nextcord.ButtonStyle.blurple
+                    elif source == 'revolt':
+                        button_style = nextcord.ButtonStyle.red
+                    else:
+                        button_style = nextcord.ButtonStyle.gray
+
+                    # Add second button
+                    components.add_row(
+                        ui.ActionRow(
+                            nextcord.ui.Button(
+                                style=button_style,
+                                label=heading_text,
+                                emoji='\U0001F3DE' if attachments else None,
+                                url=message_url,
+                                disabled=message_url is None
+                            )
+                        )
+                    )
+
+            replies_limit -= 1
+            if replies_limit <= 0:
+                break
+
+        # Prepare files
+        files = []
+        total = 0
+        limit = server.filesize_limit
+        if self.__bot.config.get('global_filesize_limit', 0):
+            limit = min(limit, self.__bot.config['global_filesize_limit'])
+
+        for file in message.files:
+            total += file.size
+            if total > limit:
+                break
+
+            # Create file object
+            files.append(nextcord.File(fp=io.BytesIO(file.data), filename=file.filename, spoiler=file.spoiler))
+
+        # Send message
+        
+
+    async def _send_platform(self, platform: str, targets: dict, message: UnifierMessageContent):
+        pass
+
+    async def sendv4(self, room: Union[UnifierRoom, str], message: UnifierMessageContent):
+        """A cleaner, one-call method to send messages over a bridge.
+        Will be renamed to UnifierBridge.send for v4."""
+
+        # Check message content object for errors
+        self.verify_message_content(message)
+
+        # Get room data if needed
+        if isinstance(room, UnifierBridge.UnifierRoom):
+            room_data: UnifierBridge.UnifierRoom = room
+        else:
+            # Ensure room exists
+            if room not in self.rooms:
+                raise self.RoomNotFoundError('invalid room')
+
+            room_data: UnifierBridge.UnifierRoom = self.get_room(room)
+
+        # Check if room is locked
+        if room_data.locked and not message.author.id in self.__bot.admins:
+            raise self.RoomForbiddenError('room is locked')
+
+        # Get language strings selector
+        selector = language.get_selector('bridge.bridge', userid=int(message.author.id))
+
+        # Define needed variables
+        bridge_tasks: list = [] # Stores each asyncio tasks for bridging
+        should_resend: bool = False # Denotes if the message should be "resent" (i.e. the original should be deleted)
+
+        # Run global emojis conversion (if available)
+        if not message.author.bot and self.__bot.config.get('enable_global_emojis', True):
+            global_emoji_results = await self._process_global_emojis(message.content)
+
+            if global_emoji_results['modified']:
+                message.content = global_emoji_results['content']
+
+        # Run Filters check (this will error if we can't send)
+        filters_results = await self._can_send(room, message)
+
+        if not filters_results['clean']:
+            message.content = filters_results['content']
+
+        # Get maximum filesize limit before attempting an attachment convert
+        # Do note that global filesize limit must still be enforced
+        discord_file_limit = 26214400  # Discord's default file size limit
+        limits = [] # Used for max limit calculation
+        limits_entries = {'global': self.__bot.config.get('global_filesize_limit', 0), 'discord': {}} # Used for keeping track of all limits
+
+        for platform in room_data.platforms:
+            if platform not in self.__bot.platforms:
+                continue
+
+            if platform == 'discord':
+                for server_id in room_data.platforms[platform].servers:
+                    server = self.__bot.get_guild(int(server_id))
+                    limits.append(server.filesize_limit)
+
+                    if server.filesize_limit > discord_file_limit:
+                        limits_entries['discord'][server_id] = server.filesize_limit
+            else:
+                platform_support: platform_base.PlatformBase = self.__bot.platforms[platform]
+                limits.append(platform_support.filesize_limit)
+                limits_entries[platform] = platform_support.filesize_limit
+
+        max_limit = min(max(limits), self.__bot.config.get('global_filesize_limit', 0))
+
+        # Convert attachments with limit in mind
+        files_result = await self._convert_attachments(message, max_limit)
+
+        # Send an alert that some files were omitted if enabled
+        if not self.__bot.config.get('suppress_filesize_warning', False):
+            omission_warnings = []
+
+            # Process all limits
+            for platform in limits_entries:
+                if platform == 'discord':
+                    # Add a notice for Discord's global limit
+                    if files_result['total'] > discord_file_limit:
+                        omission_warnings.append(selector.fget('filesize_limit_body', values={
+                            'limit': round(discord_file_limit // 1048576), 'platform': 'discord'
+                        }))
+
+                    # Server-specific limit
+                    for server_id in limits_entries['discord']:
+                        if files_result['total'] > limits_entries['discord'][server_id] > 0:
+                            omission_warnings.append(selector.fget('filesize_limit_server_body', values={
+                                'limit': round(limits_entries['discord'][server_id] // 1048576)
+                            }))
+                else:
+                    if platform == 'global':
+                        # Global filesize limit
+                        omission_warnings.append(selector.fget('filesize_limit_global_body', values={
+                            'limit': round(limits_entries['global'] // 1048576)
+                        }))
+                    else:
+                        # Platform-specific limit
+                        omission_warnings.append(selector.fget('filesize_limit_body', values={
+                            'limit': round(limits_entries['global'] // 1048576), 'platform': platform
+                        }))
+
+            # If there are any warnings, send them
+            if omission_warnings and message.id and message.author:
+                embed = nextcord.Embed(
+                    title=(
+                        (self.__bot.ui_emojis.warning + ' ' if message.platform == 'discord' else '') +
+                        selector.get('filesize_limit_title')
+                    ),
+                    description='- ' + '\n- '.join(omission_warnings)
+                )
+
+                if message.platform == 'discord':
+                    channel = self.__bot.get_channel(int(message.channel.id))
+
+                    # Send the alert
+                    try:
+                        message_object = nextcord.PartialMessage(channel=channel, id=int(message.id))
+                        await channel.send(embed=embed, reference=message_object)
+                    except:
+                        pass
+                else:
+                    # Get support object
+                    support: platform_base.PlatformBase = self.__bot.platforms[message.platform]
+                    channel = support.get_channel(message.channel.id)
+                    embeds = support.convert_embeds([embed])
+
+                    try:
+                        await support.send(channel, '', special={'embeds': embeds, 'reply': message.id})
+                    except:
+                        pass
+
+        # Assign files to message
+        message.files = files_result['files']
+
+        # If the message should be resent, then set the message ID to None.
+        # This will make it an "orphan", and the first copy bridged will be the "parent".
+        if should_resend:
+            message.id = None
+
+        # Bridge to each platform
+        for platform in room_data.platforms:
+            bridge_tasks.append(
+                self.__bot.loop.create_task(self._send_platform(platform, room_data.platforms[platform], message))
+            )
+
+        # Wait for all tasks to finish and get their results
+        results: list[dict] = await asyncio.gather(*bridge_tasks, return_exceptions=True)
+
+        # Loop through results
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+
+        return
+
+    # DEV NOTE: THIS METHOD IS DEPRECATED.
+    # Please do not develop this method any further. Instead, work on the sendv4 method instead and its
+    # subprograms.
+    # This method will be completely removed in v4.
     async def send(
             self, room: str, message, platform: str = 'discord', system: bool = False, extbridge=False,
             id_override=None, ignore=None, source='discord', content_override=None, alert=None, is_first=False
     ):
+        """An old method for sending messages, will be removed in v4."""
         if is_room_locked(room,self.__bot.db) and not message.author.id in self.__bot.admins:
             return
         if ignore is None:
@@ -2076,22 +2939,6 @@ class UnifierBridge:
                 '# '+self.alert.titles[alert['type']][alert['severity']]+'\n\n'+alert['description']+'\n\n**What '+
                 'should I do?**\n'+'\n'.join(self.alert.precautions[alert['type']][alert['severity']])
             )
-
-        # WIP orphan message system.
-        # if type(message) is dict:
-        #     orphan = True
-        # else:
-        #     orphan = False
-        #     message = {
-        #         'id': message.id,
-        #         'author': message.author,
-        #         'guild': message.guild,
-        #         'content': message.content,
-        #         'channel': message.channel,
-        #         'attachments': message.attachments,
-        #         'embeds': message.embeds,
-        #         'reference': message.reference
-        #     }
 
         selector = language.get_selector('bridge.bridge',userid=message.author.id)
 
@@ -2861,7 +3708,7 @@ class UnifierBridge:
                                     url=url
                                 )
                         embeds.append(embed)
-                    elif self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("compact_reply", False):
+                    elif self.__bot.db["rooms"][room]["meta"].get('settings', {}).get("compact_reply", True):
                         if trimmed:
                             trimmed_length = len(trimmed)
                         else:
@@ -7165,8 +8012,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
         description=language.desc('bridge.bind'),
         description_localizations=language.slash_desc('bridge.bind')
     )
-    @application_checks.has_permissions(manage_channels=True)
     @application_checks.bot_has_permissions(manage_webhooks=True)
+    @restrictions.can_create()
     @restrictions.not_banned()
     @restrictions.no_admin_perms()
     async def bind_slash(
@@ -7181,8 +8028,8 @@ class Bridge(commands.Cog, name=':link: Bridge'):
 
     @bridge_legacy.command(name='bind', aliases=['connect', 'join'])
     @commands.guild_only()
-    @commands.has_permissions(manage_channels=True)
     @commands.bot_has_permissions(manage_webhooks=True)
+    @restrictions_legacy.can_create()
     @restrictions_legacy.not_banned()
     @restrictions_legacy.no_admin_perms()
     async def bind_legacy(self, ctx: commands.Context, room: str):
