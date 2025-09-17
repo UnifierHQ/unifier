@@ -35,7 +35,7 @@ import os
 import io
 import sys
 from utils import log, langmgr, ui, webhook_cache as wcache, platform_base, restrictions as r,\
-                  restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools, compressor
+                  restrictions_legacy as r_legacy, slash as slash_helper, base_filter, jsontools, compressor, tenor_formatter
 import importlib
 import emoji as pymoji
 import aiomultiprocess
@@ -3108,6 +3108,13 @@ class UnifierBridge:
             else:
                 msg_content = source_support.content(message)
 
+        # Format Tenor links for the target platform
+        if platform == 'discord':
+            # If target is Discord, format from Revolt format
+            msg_content = tenor_formatter.format_tenor_links_in_content(msg_content, 'discord')
+        elif platform == 'revolt':
+            # If target is Revolt, format from Discord format
+            msg_content = tenor_formatter.format_tenor_links_in_content(msg_content, 'revolt')
         friendlified = False
         friendly_content = None
         if not source == platform:
@@ -3119,6 +3126,12 @@ class UnifierBridge:
                     friendly_content = await source_support.make_friendly(msg_content)
                 except platform_base.MissingImplementation:
                     friendly_content = msg_content
+            
+            # Format Tenor links in friendly content for the target platform
+            if platform == 'discord':
+                friendly_content = tenor_formatter.format_tenor_links_in_content(friendly_content, 'discord')
+            elif platform == 'revolt':
+                friendly_content = tenor_formatter.format_tenor_links_in_content(friendly_content, 'revolt')
 
         message_ids = {}
         urls = {}
