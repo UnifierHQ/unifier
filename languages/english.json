@@ -753,6 +753,7 @@
         "too_many": "Server has reached maximum number of Private Rooms connections.",
         "not_agegate": "This Room is marked as NSFW. Only age-gated channels can connect to this Room.",
         "is_agegate": "This Room is not marked as NSFW. Age-gated channels may not connect to this Room.",
+        "agegate_disabled": "NSFW Rooms are disabled on this instance.",
         "already_linked_server": "Your server is already binded to this room. Unbind the room and try again.",
         "success": "Connected to room!",
         "say_hi": "You're now connected! Say hi!"

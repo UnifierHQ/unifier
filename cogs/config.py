@@ -612,6 +612,8 @@ class FilterDialog:
 # Could've used inheritance here, but I'd need to override every method anyway, so better off not
 class SettingsDialog:
     def __init__(self, bot, ctx: Union[nextcord.Interaction, commands.Context], room=None, query=None):
+        global settings_keys
+
         self.ctx = ctx
         self.__bot = bot
         self.room = room
@@ -627,6 +629,9 @@ class SettingsDialog:
         self.match_name = True
         self.match_desc = True
         self.title = self.__bot.ui_emojis.rooms + ' ' + self.selector.fget('title',values={'room':self.room})
+
+        if not self.__bot.config['allow_nsfw_rooms']:
+            settings_keys.remove('nsfw')
 
     @property
     def author(self):

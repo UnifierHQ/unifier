@@ -612,6 +612,10 @@ class UnifierBridge:
         """Platform does not support age gate."""
         pass
 
+    class AgeGateDisabled(BridgeError):
+        """NSFW rooms are disabled."""
+        pass
+
     def verify_message_content(self, message: UnifierMessageContent):
         """Verifies a UnifierMessageContent object to ensure it is valid."""
 
@@ -1049,6 +1053,8 @@ class UnifierBridge:
             raise self.NotAgeGated('room is NSFW but channel is not NSFW')
         elif nsfw and not roominfo['meta'].get('settings', {}).get('nsfw', False):
             raise self.IsAgeGated('room is not NSFW but channel is NSFW')
+        elif nsfw and not self.__bot.config['allow_nsfw_rooms']:
+            raise self.AgeGateDisabled('NSFW rooms are disabled')
 
         limit = self.get_connections_limit(guild_id)
 
@@ -2106,6 +2112,8 @@ class UnifierBridge:
             raise self.NotAgeGated('room is NSFW but channel is not NSFW')
         elif nsfw and not roomdata['meta'].get('settings', {}).get('nsfw', False):
             raise self.IsAgeGated('room is not NSFW but channel is NSFW')
+        elif nsfw and not self.__bot.config['allow_nsfw_rooms']:
+            raise self.AgeGateDisabled('NSFW rooms are disabled')
 
         # Check if server is banned from the room
         if str(server) in roomdata['meta']['banned']:

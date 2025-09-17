@@ -929,7 +929,7 @@ class Moderation(commands.Cog, name=":shield: Moderation"):
         log_embed.set_author(name=f'@{user.name}', icon_url=user.avatar.url if user.avatar else None)
         log_embed.add_field(
             name=language.get("modlogs_title", "moderation.ban"),
-            value=language.fget("modlogs_body", "moderation.ban", values={"recent_warns": actions_count_recent["warns"],"total_bans": actions_count["bans"]}),
+            value=language.fget("modlogs_body", "moderation.ban",values={"recent_warns": actions_count_recent["warns"],"total_warns": actions_count["warns"],"recent_bans": actions_count_recent["bans"],"total_bans": actions_count["bans"]}),
             inline=False
         )
         try:

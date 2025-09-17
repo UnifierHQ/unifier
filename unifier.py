@@ -654,7 +654,8 @@ if bot.config['crash_on_corrupted_data'] and bot.db.corrupted:
     sys.exit(1)
 
 # Create pre-boot copy of good data file
-shutil.copy2(bot.db.file_path, 'data-preboot.json')
+if os.path.exists(bot.db.file_path):
+    shutil.copy2(bot.db.file_path, 'data-preboot.json')
 
 if not bot.test_decrypt():
     del os.environ['UNIFIER_ENCPASS']

@@ -56,6 +56,7 @@ reports_channel = -1
 moderator_role = -1
 
 [bridge]
+allow_nsfw_rooms = false # Strongly recommended to be kept false for public instances.
 use_multicore = true
 enable_exp = false
 exp_cooldown = 30
