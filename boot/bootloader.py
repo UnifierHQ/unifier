@@ -147,7 +147,12 @@ def check_for_python(path, found=None, venv=False):
             except:
                 continue
 
-            major, minor, patch = versiontext.split('.')
+            versionparts = versiontext.split('.')
+            # file may not be a python executable
+            if len(versionparts) < 3:
+                continue
+
+            major, minor, patch = versionparts
 
             if not patch.isdigit():
                 fixed = ''
@@ -256,6 +261,10 @@ if not '.install.json' in os.listdir() or reinstall or depinstall:
                 try:
                     installed.extend(check_for_python('/usr/bin') or [])
                     installed.extend(check_for_python('/usr/local/bin', found=installed) or [])
+
+                    pyenv_shims = os.path.expanduser('~/.pyenv/shims')
+                    if os.path.exists(pyenv_shims):
+                        installed.extend(check_for_python(pyenv_shims, found=installed) or [])
 
                     if os.path.exists('/Library/Frameworks/Python.framework/Versions'):
                         for item in os.listdir('/Library/Frameworks/Python.framework/Versions'):
