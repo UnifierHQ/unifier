@@ -28,6 +28,7 @@ suspected = [
     ['hack', 'roblox'], # Roblox exploits scam 2
     ['exploit', 'roblox'], # Roblox exploits scam 3
     ['uttp', 'uttp'], # UTTP raiders filter (ew.)
+    ['cdn.discordapp.com', 'cdn.discordapp.com', '@everyone'] # Attachments spam
 ]
 
 # Common spam/phishing content (case sensitive)
