@@ -5,6 +5,12 @@ Unifier</h1>
 <p align=center><a href='#-setup'>🔧 Setup</a> •
   <a href='https://wiki.unifierhq.org'>📘 Wiki</a> • <a href='#%EF%B8%8F-support'>⛑️ Support</a></sub>
 
+> [!WARNING]
+> Unifier will be sunset on April 20. Thank you for the two years of support!
+>
+> I'm building a successor to Unifier called [Shinobu](https://github.com/greeeen-dev/shinobu), which aims to be a flexible
+> and modern cross-platform bridge bot. So come check it out!
+
 ## ✨ Meet Unifier!
 Unifier is a versatile and performant bridge bot built for communities across platforms.
 
