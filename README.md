@@ -6,7 +6,7 @@ Unifier</h1>
   <a href='https://wiki.unifierhq.org'>📘 Wiki</a> • <a href='#%EF%B8%8F-support'>⛑️ Support</a></sub>
 
 > [!WARNING]
-> Unifier will be sunset on April 20. Thank you for the two years of support!
+> Unifier has been sunset on April 10. Thank you for the two years of support!
 >
 > I'm building a successor to Unifier called [Shinobu](https://github.com/greeeen-dev/shinobu), which aims to be a flexible
 > and modern cross-platform bridge bot. So come check it out!
